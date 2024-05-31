@@ -50,6 +50,6 @@ dependencies {
     implementation("com.google.zxing:core:3.4.1")
     implementation("commons-codec:commons-codec:1.15")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
 }

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -174,16 +175,39 @@ fun AddAccountScreen(
                     ),
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(Dimensions.Spacing.lg),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(Dimensions.Spacing.lg),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            text = stringResource(R.string.add_account_preview_title),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            com.example.appopt.ui.components.ServiceBrandAvatar(
+                                issuer = uiState.issuer,
+                                size = 42.dp
+                            )
+
+                            Spacer(modifier = Modifier.width(Dimensions.Spacing.md))
+
+                            Column {
+                                Text(
+                                    text = stringResource(R.string.add_account_preview_title),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = uiState.issuer.ifEmpty { stringResource(R.string.home_default_issuer) },
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+
                         Text(
                             text = uiState.previewCode ?: "",
                             style = MaterialTheme.typography.displayMedium,

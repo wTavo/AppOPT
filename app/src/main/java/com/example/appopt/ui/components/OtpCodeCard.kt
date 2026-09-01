@@ -171,26 +171,38 @@ fun OtpCodeCard(
                 .fillMaxWidth()
                 .padding(Dimensions.Spacing.lg)
         ) {
-            // Encabezado: Emisor y Favorito
+            // Encabezado: Avatar de Marca, Emisor y Favorito
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = account.issuer.ifEmpty { stringResource(R.string.home_default_issuer) },
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ServiceBrandAvatar(
+                        issuer = account.issuer,
+                        size = 40.dp
                     )
-                    if (account.accountName.isNotBlank()) {
+
+                    Spacer(modifier = Modifier.width(Dimensions.Spacing.md))
+
+                    Column {
                         Text(
-                            text = account.accountName,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            text = account.issuer.ifEmpty { stringResource(R.string.home_default_issuer) },
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1
                         )
+                        if (account.accountName.isNotBlank()) {
+                            Text(
+                                text = account.accountName,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1
+                            )
+                        }
                     }
                 }
 

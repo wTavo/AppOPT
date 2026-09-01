@@ -160,25 +160,35 @@ fun AccountDetailsDialog(
                 verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.lg)
             ) {
                 if (!isEditMode) {
-                    // --- MODO VISUALIZACIÓN: Tipografía limpia sin campos de texto ---
-                    Column(
+                    // --- MODO VISUALIZACIÓN: Tipografía limpia con Avatar de Marca ---
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = Dimensions.Spacing.xs)
+                            .padding(vertical = Dimensions.Spacing.xs),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = account.issuer.ifEmpty { stringResource(R.string.home_default_issuer) },
-                            style = MaterialTheme.typography.headlineMedium,
-                            color = MaterialTheme.colorScheme.onSurface
+                        ServiceBrandAvatar(
+                            issuer = account.issuer,
+                            size = 50.dp
                         )
 
-                        if (account.accountName.isNotBlank()) {
-                            Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
+                        Spacer(modifier = Modifier.width(Dimensions.Spacing.md))
+
+                        Column {
                             Text(
-                                text = account.accountName,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                text = account.issuer.ifEmpty { stringResource(R.string.home_default_issuer) },
+                                style = MaterialTheme.typography.headlineSmall,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
+
+                            if (account.accountName.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
+                                Text(
+                                    text = account.accountName,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
 

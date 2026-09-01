@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,11 +14,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -30,17 +34,18 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -76,18 +81,13 @@ import com.example.appopt.ui.theme.Motion
 import java.util.Collections
 
 /**
- * Pantalla principal que visualiza las cuentas 2FA registradas con soporte de reordenamiento fluido por pulsación prolongada (Long Press).
+ * Pantalla principal que visualiza las cuentas 2FA registradas con dock de control flotante ergonómico (Floating Pill Bar).
  *
- * Características de seguridad e interacción:
- * - Pulsación corta (*Tap*): Desencadena el efecto de resaltado nativo (Ripple) y abre el modal de detalle y edición.
- * - Pulsación prolongada (*Long Press*): Activa vibración háptica y modo de arrastre con banda de histéresis matemática.
- * - Intercambio in-place mediante [Collections.swap] preservando el 100% de la sincronización en vivo de los contadores TOTP.
- * - Consumo de [Dimensions] y [Motion] para un diseño unificado y estandarizado.
- * - Restricción estricta de ordenamiento: Las cuentas favoritas solo se reordenan entre favoritas, y las normales entre normales.
- * - Barra de búsqueda en tiempo real.
- * - Alternador de modo privacidad para ocultar/mostrar códigos persistido.
- * - Acceso a escaneo de códigos QR y entrada manual de secretos.
- * - Acceso a ajustes de respaldo, generación de recovery keys y bloqueo manual de la bóveda.
+ * Características de seguridad, diseño e interacción:
+ * - Barra superior: Búsqueda interactiva y alternador de modo de privacidad con animaciones fluidas.
+ * - Dock inferior flotante (*Floating Pill*): Cápsula estilizada con esquinas redondeadas, sombra sutil y el hero FAB (+) central para agregar cuentas, acompañado del candado de bloqueo y botón de configuración.
+ * - Reordenamiento por pulsación prolongada (*Long Press*) e intercambio in-place mediante [Collections.swap].
+ * - Sincronización continua de contadores y dígitos en vivo.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -119,14 +119,12 @@ fun HomeScreen(
         val currentIds = localAccounts.map { it.account.id }
         val newIds = accounts.map { it.account.id }
 
-        // Si se agregó, eliminó o cambió la cantidad de cuentas
         if (currentIds.toSet() != newIds.toSet() || currentIds.size != newIds.size || localAccounts.isEmpty()) {
             if (draggingAccountId == null) {
                 localAccounts.clear()
                 localAccounts.addAll(accounts)
             }
         } else {
-            // Actualizar en vivo los dígitos y el contador circular segundo a segundo sin pausar durante el arrastre
             localAccounts.indices.forEach { i ->
                 val localItem = localAccounts[i]
                 val freshItem = accounts.find { it.account.id == localItem.account.id }
@@ -182,6 +180,26 @@ fun HomeScreen(
                         }) {
                             Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_close_search))
                         }
+                    } else {
+                        IconButton(onClick = { isSearchActive = true }) {
+                            Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.action_search))
+                        }
+
+                        IconButton(onClick = { viewModel.toggleHideCodes() }) {
+                            AnimatedContent(
+                                targetState = isHideCodesEnabled,
+                                transitionSpec = {
+                                    fadeIn(animationSpec = Motion.Spec.quickFadeSpec()) togetherWith
+                                            fadeOut(animationSpec = Motion.Spec.quickFadeSpec())
+                                },
+                                label = "hideCodesIconAnimation"
+                            ) { hideEnabled ->
+                                Icon(
+                                    imageVector = if (hideEnabled) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                    contentDescription = if (hideEnabled) stringResource(R.string.action_show_codes) else stringResource(R.string.action_hide_codes)
+                                )
+                            }
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -190,83 +208,67 @@ fun HomeScreen(
             )
         },
         bottomBar = {
-            BottomAppBar(
-                modifier = Modifier.fillMaxWidth(),
-                containerColor = MaterialTheme.colorScheme.surface,
-                tonalElevation = Dimensions.Elevation.cardDefault
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(bottom = Dimensions.Spacing.lg),
+                contentAlignment = Alignment.Center
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = Dimensions.Spacing.sm),
-                    horizontalArrangement = Arrangement.SpaceAround,
-                    verticalAlignment = Alignment.CenterVertically
+                Surface(
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = Dimensions.Elevation.modal,
+                    shadowElevation = 8.dp,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+                    modifier = Modifier.wrapContentWidth()
                 ) {
-                    // 1. Privacidad: Ocultar / Mostrar códigos
-                    IconButton(onClick = { viewModel.toggleHideCodes() }) {
-                        AnimatedContent(
-                            targetState = isHideCodesEnabled,
-                            transitionSpec = {
-                                fadeIn(animationSpec = Motion.Spec.quickFadeSpec()) togetherWith
-                                        fadeOut(animationSpec = Motion.Spec.quickFadeSpec())
-                            },
-                            label = "hideCodesIconAnimation"
-                        ) { hideEnabled ->
+                    Row(
+                        modifier = Modifier.padding(horizontal = Dimensions.Spacing.lg, vertical = Dimensions.Spacing.sm),
+                        horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xl),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // 1. Bloquear bóveda manualmente
+                        IconButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                viewModel.lockVault()
+                            }
+                        ) {
                             Icon(
-                                imageVector = if (hideEnabled) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                                contentDescription = if (hideEnabled) stringResource(R.string.action_show_codes) else stringResource(R.string.action_hide_codes),
+                                imageVector = Icons.Filled.Lock,
+                                contentDescription = stringResource(R.string.home_lock_vault),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                    }
 
-                    // 2. Bloquear bóveda manualmente
-                    IconButton(onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        viewModel.lockVault()
-                    }) {
-                        Icon(
-                            imageVector = Icons.Filled.Lock,
-                            contentDescription = stringResource(R.string.home_lock_vault),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    // 3. Botón Central (+) FAB para agregar cuentas
-                    FloatingActionButton(
-                        onClick = { showAddOptionsDialog = true },
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.large)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Add,
-                            contentDescription = stringResource(R.string.home_add_account),
-                            modifier = Modifier.size(Dimensions.IconSize.large)
-                        )
-                    }
-
-                    // 4. Buscar / Filtrar cuentas
-                    IconButton(onClick = {
-                        isSearchActive = !isSearchActive
-                        if (!isSearchActive) {
-                            viewModel.onSearchQueryChanged("")
+                        // 2. Hero (+) FAB para agregar cuentas
+                        FloatingActionButton(
+                            onClick = { showAddOptionsDialog = true },
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                            shape = CircleShape,
+                            elevation = FloatingActionButtonDefaults.elevation(
+                                defaultElevation = Dimensions.Elevation.cardDefault,
+                                pressedElevation = Dimensions.Elevation.cardDragging
+                            ),
+                            modifier = Modifier.size(54.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Add,
+                                contentDescription = stringResource(R.string.home_add_account),
+                                modifier = Modifier.size(Dimensions.IconSize.large)
+                            )
                         }
-                    }) {
-                        Icon(
-                            imageVector = if (isSearchActive) Icons.Filled.Close else Icons.Filled.Search,
-                            contentDescription = if (isSearchActive) stringResource(R.string.action_close_search) else stringResource(R.string.action_search),
-                            tint = if (isSearchActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
 
-                    // 5. Ajustes y Configuración
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(
-                            imageVector = Icons.Filled.Settings,
-                            contentDescription = stringResource(R.string.settings_title),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        // 3. Ajustes y Configuración
+                        IconButton(onClick = onNavigateToSettings) {
+                            Icon(
+                                imageVector = Icons.Filled.Settings,
+                                contentDescription = stringResource(R.string.settings_title),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }

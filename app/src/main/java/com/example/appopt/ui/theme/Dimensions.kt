@@ -1,0 +1,102 @@
+package com.example.appopt.ui.theme
+
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+
+/**
+ * Sistema centralizado de dimensiones, espaciados, elevaciones y tamaños de componentes visuales.
+ *
+ * Directiva del proyecto:
+ * - PROHIBIDO quemar valores de padding, elevación o radios de bordes arbitrarios en los Composables.
+ * - OBLIGATORIO consumir las dimensiones estándar definidas en este archivo para garantizar una interfaz coherente.
+ */
+object Dimensions {
+
+    /**
+     * Escala estandarizada de espaciados y márgenes interiores (*Padding / Margins*).
+     */
+    object Spacing {
+        /** Micro espaciado entre iconos y textos adyacentes (4.dp). */
+        val xs: Dp = 4.dp
+
+        /** Espaciado pequeño entre elementos relacionados (8.dp). */
+        val sm: Dp = 8.dp
+
+        /** Espaciado medio estándar para separaciones de lista y bloques (12.dp). */
+        val md: Dp = 12.dp
+
+        /** Espaciado amplio para márgenes de pantalla y contenido de tarjetas (16.dp). */
+        val lg: Dp = 16.dp
+
+        /** Espaciado extra amplio para separaciones entre secciones (24.dp). */
+        val xl: Dp = 24.dp
+
+        /** Espaciado máximo para estados vacíos y encabezados de pantalla (32.dp). */
+        val xxl: Dp = 32.dp
+    }
+
+    /**
+     * Escala de elevaciones y sombras (*Z-Axis Elevation*).
+     */
+    object Elevation {
+        /** Sin elevación (plano sobre la superficie) (0.dp). */
+        val none: Dp = 0.dp
+
+        /** Elevación sutil para tarjetas en reposo (3.dp). */
+        val cardDefault: Dp = 3.dp
+
+        /** Elevación destacada para tarjetas en modo de arrastre activo (12.dp). */
+        val cardDragging: Dp = 12.dp
+
+        /** Elevación para diálogos y ventanas modales (24.dp). */
+        val modal: Dp = 24.dp
+    }
+
+    /**
+     * Radios de esquinas para contornos y formas (*Shapes / Corner Radii*).
+     */
+    object CornerRadius {
+        /** Radio pequeño para badges e indicadores (8.dp). */
+        val small: Dp = 8.dp
+
+        /** Radio medio para botones, campos de texto y diálogos (12.dp). */
+        val medium: Dp = 12.dp
+
+        /** Radio grande para tarjetas principales y modales (16.dp). */
+        val large: Dp = 16.dp
+
+        /** Radio extra grande para contenedores destacados y avatares (24.dp). */
+        val pill: Dp = 24.dp
+    }
+
+    /**
+     * Tamaños estándar de iconos y gráficos.
+     */
+    object IconSize {
+        /** Iconos pequeños dentro de badges o campos compactos (16.dp). */
+        val small: Dp = 16.dp
+
+        /** Iconos estándar en botones y filas (20.dp). */
+        val medium: Dp = 20.dp
+
+        /** Iconos en barras superiores y botones de acción flotante (24.dp). */
+        val large: Dp = 24.dp
+
+        /** Iconos grandes en encabezados de autenticación o bloqueo (48.dp). */
+        val hero: Dp = 48.dp
+
+        /** Ilustraciones y contenedores destacados en estados vacíos (96.dp). */
+        val illustration: Dp = 96.dp
+    }
+
+    /**
+     * Alturas estándar de componentes interactivos.
+     */
+    object ComponentHeight {
+        /** Altura estándar para botones primarios y campos de texto (50.dp). */
+        val buttonDefault: Dp = 50.dp
+
+        /** Tamaño del indicador circular de progreso TOTP (44.dp). */
+        val progressIndicator: Dp = 44.dp
+    }
+}

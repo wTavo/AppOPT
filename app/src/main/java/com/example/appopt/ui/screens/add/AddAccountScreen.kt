@@ -1,14 +1,10 @@
 package com.example.appopt.ui.screens.add
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -18,22 +14,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Business
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.PersonOutline
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -47,7 +39,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,25 +46,29 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.appopt.R
 import com.example.appopt.domain.model.OtpAlgorithm
+import com.example.appopt.ui.components.AppAnimatedButton
+import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.SafeGreen
 import com.example.appopt.ui.theme.UrgentRed
-import kotlinx.coroutines.delay
 
 /**
- * Pantalla de registro manual de una cuenta TOTP con escala tipográfica estandarizada.
+ * Pantalla de registro manual de una cuenta TOTP con escala tipográfica estandarizada y animaciones centralizadas.
  *
  * Características de diseño:
- * - Campos obligatorios prioritarios: Servicio/Emisor y Clave Secreta Base32 (sin texto de ejemplo intrusivo).
- * - Campo opcional: Nombre de cuenta / correo.
+ * - Campos obligatorios prioritarios: Servicio/Emisor y Clave Secreta Base32.
+ * - Campo opcional: Nombre de cuenta / usuario.
  * - Opciones avanzadas (Algoritmo HMAC y Dígitos) agrupadas en un panel desplegable colapsado por defecto.
  * - Validación en tiempo real y vista previa del código OTP generado.
- * - Botón de guardado animado: al confirmarse el guardado, transiciona a verde y reemplaza el texto con una palomita de éxito.
+ * - Botón de guardado animado reutilizable ([AppAnimatedButton]): transiciona a verde con palomita al confirmar.
+ *
+ * @param viewModel ViewModel encargado de la lógica y validación criptográfica del formulario.
+ * @param onNavigateBack Callback para regresar a la pantalla anterior.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,21 +79,6 @@ fun AddAccountScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showAdvancedOptions by remember { mutableStateOf(false) }
-    var isSavingSuccessful by remember { mutableStateOf(false) }
-
-    LaunchedEffect(uiState.isSavedSuccessfully) {
-        if (uiState.isSavedSuccessfully) {
-            isSavingSuccessful = true
-            delay(750)
-            onNavigateBack()
-        }
-    }
-
-    val saveButtonColor by animateColorAsState(
-        targetValue = if (isSavingSuccessful) SafeGreen else MaterialTheme.colorScheme.primary,
-        animationSpec = tween(durationMillis = 300),
-        label = "saveAccountButtonColor"
-    )
 
     Scaffold(
         topBar = {
@@ -125,19 +105,20 @@ fun AddAccountScreen(
                 .padding(paddingValues)
                 .padding(horizontal = 20.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.lg)
         ) {
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
 
             // 1. Emisor / Servicio (Obligatorio)
             OutlinedTextField(
                 value = uiState.issuer,
                 onValueChange = viewModel::onIssuerChanged,
-                label = { Text(stringResource(R.string.add_account_issuer_label)) },
+                label = { Text(stringResource(R.string.add_account_issuer_label), style = MaterialTheme.typography.bodyMedium) },
                 singleLine = true,
                 leadingIcon = {
                     Icon(Icons.Filled.Business, contentDescription = null)
                 },
+                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -145,7 +126,7 @@ fun AddAccountScreen(
             OutlinedTextField(
                 value = uiState.secret,
                 onValueChange = viewModel::onSecretChanged,
-                label = { Text(stringResource(R.string.add_account_secret_label)) },
+                label = { Text(stringResource(R.string.add_account_secret_label), style = MaterialTheme.typography.bodyMedium) },
                 singleLine = true,
                 leadingIcon = {
                     Icon(Icons.Filled.Key, contentDescription = null)
@@ -167,6 +148,7 @@ fun AddAccountScreen(
                         }
                     }
                 },
+                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -174,11 +156,12 @@ fun AddAccountScreen(
             OutlinedTextField(
                 value = uiState.accountName,
                 onValueChange = viewModel::onAccountNameChanged,
-                label = { Text(stringResource(R.string.add_account_name_label)) },
+                label = { Text(stringResource(R.string.add_account_name_label), style = MaterialTheme.typography.bodyMedium) },
                 singleLine = true,
                 leadingIcon = {
                     Icon(Icons.Filled.PersonOutline, contentDescription = null)
                 },
+                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -189,10 +172,10 @@ fun AddAccountScreen(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant
                     ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                 ) {
                     Column(
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier.padding(Dimensions.Spacing.lg),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
@@ -214,7 +197,7 @@ fun AddAccountScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(Dimensions.CornerRadius.medium))
                     .clickable { showAdvancedOptions = !showAdvancedOptions },
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface
@@ -246,12 +229,12 @@ fun AddAccountScreen(
 
                     AnimatedVisibility(
                         visible = showAdvancedOptions,
-                        enter = fadeIn() + expandVertically(),
-                        exit = fadeOut() + shrinkVertically()
+                        enter = fadeIn(animationSpec = Motion.Spec.quickFadeSpec()) + expandVertically(),
+                        exit = fadeOut(animationSpec = Motion.Spec.quickFadeSpec()) + shrinkVertically()
                     ) {
                         Column(
-                            modifier = Modifier.padding(top = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            modifier = Modifier.padding(top = Dimensions.Spacing.lg),
+                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                         ) {
                             // Algoritmo HMAC
                             Text(
@@ -262,7 +245,7 @@ fun AddAccountScreen(
 
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
                             ) {
                                 OtpAlgorithm.values().forEach { algo ->
                                     FilterChip(
@@ -282,7 +265,7 @@ fun AddAccountScreen(
 
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
                             ) {
                                 listOf(6, 8).forEach { digit ->
                                     FilterChip(
@@ -306,40 +289,20 @@ fun AddAccountScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Dimensions.Spacing.sm))
 
-            // Botón de Guardado animado
-            Button(
-                onClick = { viewModel.saveAccount() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = saveButtonColor),
-                enabled = (uiState.issuer.isNotBlank() && uiState.isSecretValid) || isSavingSuccessful
-            ) {
-                AnimatedContent(
-                    targetState = isSavingSuccessful,
-                    transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(200)) },
-                    label = "saveAccountButtonContent"
-                ) { saved ->
-                    if (saved) {
-                        Icon(
-                            imageVector = Icons.Filled.Check,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    } else {
-                        Text(
-                            text = stringResource(R.string.action_save),
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                    }
-                }
-            }
+            // Botón de Guardado animado reutilizable
+            AppAnimatedButton(
+                text = stringResource(R.string.action_save),
+                enabled = uiState.issuer.isNotBlank() && uiState.isSecretValid,
+                onClick = {
+                    viewModel.saveAccount()
+                    true
+                },
+                onActionConfirmed = onNavigateBack
+            )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(Dimensions.Spacing.xl))
         }
     }
 }

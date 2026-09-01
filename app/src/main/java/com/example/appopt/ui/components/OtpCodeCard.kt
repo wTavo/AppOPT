@@ -52,6 +52,8 @@ import androidx.compose.ui.unit.dp
 import com.example.appopt.R
 import com.example.appopt.domain.model.OtpType
 import com.example.appopt.domain.repository.AccountWithCode
+import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.SafeGreen
 import com.example.appopt.ui.theme.WarningOrange
 import kotlinx.coroutines.delay
@@ -97,11 +99,11 @@ fun OtpCodeCard(
 
     var copied by remember { mutableStateOf(false) }
     var cardHeightPx by remember { mutableFloatStateOf(300f) }
-    val spacingPx = with(density) { 12.dp.toPx() }
+    val spacingPx = with(density) { Dimensions.Spacing.md.toPx() }
 
     LaunchedEffect(copied) {
         if (copied) {
-            delay(1500)
+            delay(Motion.Duration.FeedbackToast.toLong())
             copied = false
         }
     }
@@ -119,7 +121,7 @@ fun OtpCodeCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(Dimensions.CornerRadius.large))
             .onGloballyPositioned { coordinates ->
                 cardHeightPx = coordinates.size.height.toFloat() + spacingPx
             }
@@ -154,7 +156,9 @@ fun OtpCodeCard(
         colors = CardDefaults.cardColors(
             containerColor = if (isDragging) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isDragging) 12.dp else 3.dp),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isDragging) Dimensions.Elevation.cardDragging else Dimensions.Elevation.cardDefault
+        ),
         border = BorderStroke(
             width = if (isDragging) 2.dp else 1.dp,
             color = if (isDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
@@ -163,7 +167,7 @@ fun OtpCodeCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(Dimensions.Spacing.lg)
         ) {
             // Encabezado: Emisor y Favorito
             Row(
@@ -202,7 +206,7 @@ fun OtpCodeCard(
 
             // Si hideCodes está activo, ocultamos por completo los dígitos y el contador
             if (!hideCodes) {
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(Dimensions.Spacing.md))
 
                 // Cuerpo: Dígitos OTP y Temporizador / Acción HOTP
                 Row(
@@ -213,12 +217,12 @@ fun OtpCodeCard(
                     // Zona táctil de los dígitos: toque directo para copiar
                     Row(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(RoundedCornerShape(Dimensions.CornerRadius.small))
                             .clickable {
                                 onCopyCode(accountWithCode.code)
                                 copied = true
                             }
-                            .padding(vertical = 4.dp, horizontal = 2.dp),
+                            .padding(vertical = Dimensions.Spacing.xs, horizontal = 2.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
@@ -229,16 +233,16 @@ fun OtpCodeCard(
 
                         AnimatedVisibility(
                             visible = copied,
-                            enter = fadeIn(),
-                            exit = fadeOut()
+                            enter = fadeIn(animationSpec = Motion.Spec.quickFadeSpec()),
+                            exit = fadeOut(animationSpec = Motion.Spec.quickFadeSpec())
                         ) {
                             Row {
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
                                 Icon(
                                     imageVector = Icons.Filled.Check,
                                     contentDescription = stringResource(R.string.action_copied),
                                     tint = SafeGreen,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(Dimensions.IconSize.medium)
                                 )
                             }
                         }

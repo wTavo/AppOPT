@@ -65,6 +65,8 @@ import com.example.appopt.R
 import com.example.appopt.domain.repository.AccountWithCode
 import com.example.appopt.ui.components.AccountDetailsDialog
 import com.example.appopt.ui.components.OtpCodeCard
+import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.Motion
 import java.util.Collections
 
 /**
@@ -74,6 +76,7 @@ import java.util.Collections
  * - Pulsación corta (*Tap*): Desencadena el efecto de resaltado nativo (Ripple) y abre el modal de detalle y edición.
  * - Pulsación prolongada (*Long Press*): Activa vibración háptica y modo de arrastre con banda de histéresis matemática.
  * - Intercambio in-place mediante [Collections.swap] preservando el 100% de la sincronización en vivo de los contadores TOTP.
+ * - Consumo de [Dimensions] y [Motion] para un diseño unificado y estandarizado.
  * - Restricción estricta de ordenamiento: Las cuentas favoritas solo se reordenan entre favoritas, y las normales entre normales.
  * - Barra de búsqueda en tiempo real.
  * - Alternador de modo privacidad para ocultar/mostrar códigos persistido.
@@ -204,7 +207,7 @@ fun HomeScreen(
                 onClick = { showAddOptionsDialog = true },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(Dimensions.CornerRadius.large)
             ) {
                 Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.home_add_account))
             }
@@ -224,8 +227,8 @@ fun HomeScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    contentPadding = PaddingValues(Dimensions.Spacing.lg),
+                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                 ) {
                     itemsIndexed(
                         items = localAccounts,
@@ -266,7 +269,7 @@ fun HomeScreen(
                                     // Banda de histéresis (70%): previene oscilaciones rápidas cuando el dedo se queda en el centro
                                     val threshold = cardHeightPx * 0.70f
 
-                                    if (now - lastSwapTime >= 80L) {
+                                    if (now - lastSwapTime >= Motion.Duration.DragDebounce.toLong()) {
                                         val currentIndex = localAccounts.indexOfFirst { it.account.id == item.account.id }
                                         if (currentIndex != -1) {
                                             // Arrastre hacia abajo con intercambio in-place
@@ -331,7 +334,7 @@ fun HomeScreen(
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
                 ) {
                     Button(
                         onClick = {
@@ -339,10 +342,10 @@ fun HomeScreen(
                             onNavigateToScanQr()
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                     ) {
-                        Icon(Icons.Filled.QrCodeScanner, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(Icons.Filled.QrCodeScanner, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.medium))
+                        Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
                         Text(stringResource(R.string.home_scan_qr_option), style = MaterialTheme.typography.labelLarge)
                     }
 
@@ -352,10 +355,10 @@ fun HomeScreen(
                             onNavigateToAddManual()
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                     ) {
-                        Icon(Icons.Filled.Keyboard, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(Icons.Filled.Keyboard, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.medium))
+                        Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
                         Text(stringResource(R.string.home_add_manual_option), style = MaterialTheme.typography.labelLarge)
                     }
                 }
@@ -382,14 +385,14 @@ private fun EmptyAccountsState(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(32.dp),
+            .padding(Dimensions.Spacing.xxl),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Card(
-            shape = RoundedCornerShape(24.dp),
+            shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            modifier = Modifier.size(96.dp)
+            modifier = Modifier.size(Dimensions.IconSize.illustration)
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -398,20 +401,20 @@ private fun EmptyAccountsState(
                 Icon(
                     imageVector = Icons.Filled.Lock,
                     contentDescription = null,
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(Dimensions.IconSize.hero),
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(Dimensions.Spacing.xl))
 
         Text(
             text = stringResource(R.string.home_empty_title),
             style = MaterialTheme.typography.titleLarge
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Dimensions.Spacing.sm))
 
         Text(
             text = stringResource(R.string.home_empty_description),
@@ -420,31 +423,31 @@ private fun EmptyAccountsState(
             textAlign = TextAlign.Center
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(Dimensions.Spacing.xxl))
 
         Button(
             onClick = onScanQr,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(50.dp),
-            shape = RoundedCornerShape(12.dp)
+                .height(Dimensions.ComponentHeight.buttonDefault),
+            shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
         ) {
-            Icon(Icons.Filled.QrCodeScanner, contentDescription = null, modifier = Modifier.size(20.dp))
-            Spacer(modifier = Modifier.width(8.dp))
+            Icon(Icons.Filled.QrCodeScanner, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.medium))
+            Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
             Text(stringResource(R.string.home_scan_qr_option), style = MaterialTheme.typography.labelLarge)
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(Dimensions.Spacing.md))
 
         OutlinedButton(
             onClick = onAddManual,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(50.dp),
-            shape = RoundedCornerShape(12.dp)
+                .height(Dimensions.ComponentHeight.buttonDefault),
+            shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
         ) {
-            Icon(Icons.Filled.Keyboard, contentDescription = null, modifier = Modifier.size(20.dp))
-            Spacer(modifier = Modifier.width(8.dp))
+            Icon(Icons.Filled.Keyboard, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.medium))
+            Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
             Text(stringResource(R.string.home_add_manual_option), style = MaterialTheme.typography.labelLarge)
         }
     }

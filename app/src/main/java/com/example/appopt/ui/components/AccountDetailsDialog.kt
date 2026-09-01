@@ -1,12 +1,8 @@
 package com.example.appopt.ui.components
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -41,24 +37,23 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.appopt.R
 import com.example.appopt.domain.model.OtpType
 import com.example.appopt.domain.repository.AccountWithCode
+import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.SafeGreen
 import com.example.appopt.ui.theme.UrgentRed
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 /**
- * Modal / Popup para visualizar o editar la información de una cuenta con escala tipográfica estandarizada en todos sus elementos.
+ * Modal / Popup para visualizar o editar la información de una cuenta con escala tipográfica estandarizada y animaciones centralizadas.
  *
  * Características de diseño:
  * - En modo visualización muestra limpiamente el nombre del servicio y la cuenta usando la escala tipográfica de la app.
@@ -66,7 +61,7 @@ import kotlinx.coroutines.launch
  * - Con un simple toque sobre los dígitos se copia el código al portapapeles.
  * - Iconos en la esquina superior derecha: Lápiz para alternar al modo edición y Basurero para eliminar.
  * - En modo edición permite modificar el nombre del servicio y la cuenta/usuario.
- * - El botón "Guardar cambios" incluye una animación de éxito: al presionarse transiciona a color verde y reemplaza el texto por una palomita de confirmación.
+ * - El botón "Guardar cambios" reutiliza [AppAnimatedButton] con animación a verde y palomita al confirmar.
  *
  * @param accountWithCode Cuenta seleccionada con su código activo.
  * @param onDismiss Callback para cerrar el modal.
@@ -84,14 +79,12 @@ fun AccountDetailsDialog(
     modifier: Modifier = Modifier
 ) {
     val account = accountWithCode.account
-    val scope = rememberCoroutineScope()
 
     var isEditMode by remember { mutableStateOf(false) }
     var editedIssuer by remember(account.id) { mutableStateOf(account.issuer) }
     var editedAccountName by remember(account.id) { mutableStateOf(account.accountName) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var copied by remember { mutableStateOf(false) }
-    var isSavingSuccessful by remember { mutableStateOf(false) }
 
     LaunchedEffect(account.issuer, account.accountName) {
         editedIssuer = account.issuer
@@ -100,7 +93,7 @@ fun AccountDetailsDialog(
 
     LaunchedEffect(copied) {
         if (copied) {
-            delay(1500)
+            delay(Motion.Duration.FeedbackToast.toLong())
             copied = false
         }
     }
@@ -120,12 +113,6 @@ fun AccountDetailsDialog(
         editedIssuer.trim() != account.issuer.trim() || editedAccountName.trim() != account.accountName.trim()
     }
     val isFormValid = editedIssuer.isNotBlank() && hasChanges
-
-    val saveButtonColor by animateColorAsState(
-        targetValue = if (isSavingSuccessful) SafeGreen else MaterialTheme.colorScheme.primary,
-        animationSpec = tween(durationMillis = 300),
-        label = "saveButtonColor"
-    )
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -170,14 +157,14 @@ fun AccountDetailsDialog(
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.lg)
             ) {
                 if (!isEditMode) {
                     // --- MODO VISUALIZACIÓN: Tipografía limpia sin campos de texto ---
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp)
+                            .padding(vertical = Dimensions.Spacing.xs)
                     ) {
                         Text(
                             text = account.issuer.ifEmpty { stringResource(R.string.home_default_issuer) },
@@ -186,7 +173,7 @@ fun AccountDetailsDialog(
                         )
 
                         if (account.accountName.isNotBlank()) {
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
                             Text(
                                 text = account.accountName,
                                 style = MaterialTheme.typography.bodyMedium,
@@ -199,7 +186,7 @@ fun AccountDetailsDialog(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
+                            .clip(RoundedCornerShape(Dimensions.CornerRadius.large))
                             .clickable {
                                 onCopyCode(accountWithCode.code)
                                 copied = true
@@ -207,12 +194,12 @@ fun AccountDetailsDialog(
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant
                         ),
-                        shape = RoundedCornerShape(14.dp)
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.large)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 16.dp, horizontal = 16.dp),
+                                .padding(vertical = Dimensions.Spacing.lg, horizontal = Dimensions.Spacing.lg),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
@@ -225,16 +212,16 @@ fun AccountDetailsDialog(
 
                                 AnimatedVisibility(
                                     visible = copied,
-                                    enter = fadeIn(),
-                                    exit = fadeOut()
+                                    enter = fadeIn(animationSpec = Motion.Spec.quickFadeSpec()),
+                                    exit = fadeOut(animationSpec = Motion.Spec.quickFadeSpec())
                                 ) {
                                     Row {
-                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
                                         Icon(
                                             imageVector = Icons.Filled.Check,
                                             contentDescription = stringResource(R.string.action_copied),
                                             tint = SafeGreen,
-                                            modifier = Modifier.size(22.dp)
+                                            modifier = Modifier.size(Dimensions.IconSize.large)
                                         )
                                     }
                                 }
@@ -258,6 +245,7 @@ fun AccountDetailsDialog(
                         leadingIcon = {
                             Icon(Icons.Filled.Business, contentDescription = null)
                         },
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -269,49 +257,22 @@ fun AccountDetailsDialog(
                         leadingIcon = {
                             Icon(Icons.Filled.PersonOutline, contentDescription = null)
                         },
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    // Botón animado de Guardar cambios
-                    Button(
+                    // Botón animado reutilizable de Guardar cambios
+                    AppAnimatedButton(
+                        text = stringResource(R.string.action_save_changes),
+                        enabled = isFormValid,
                         onClick = {
-                            if (isFormValid && !isSavingSuccessful) {
-                                isSavingSuccessful = true
-                                scope.launch {
-                                    onUpdateAccount(account.id, editedIssuer.trim(), editedAccountName.trim())
-                                    delay(750)
-                                    isEditMode = false
-                                    isSavingSuccessful = false
-                                }
-                            }
+                            onUpdateAccount(account.id, editedIssuer.trim(), editedAccountName.trim())
+                            true
                         },
-                        enabled = isFormValid || isSavingSuccessful,
-                        colors = ButtonDefaults.buttonColors(containerColor = saveButtonColor),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        AnimatedContent(
-                            targetState = isSavingSuccessful,
-                            transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(200)) },
-                            label = "saveChangesContent"
-                        ) { saved ->
-                            if (saved) {
-                                Icon(
-                                    imageVector = Icons.Filled.Check,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            } else {
-                                Text(
-                                    text = stringResource(R.string.action_save_changes),
-                                    style = MaterialTheme.typography.labelLarge
-                                )
-                            }
+                        onActionConfirmed = {
+                            isEditMode = false
                         }
-                    }
+                    )
                 }
             }
         },
@@ -337,6 +298,7 @@ fun AccountDetailsDialog(
                         onDeleteAccount(account.id)
                         onDismiss()
                     },
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                     colors = ButtonDefaults.buttonColors(containerColor = UrgentRed)
                 ) {
                     Text(stringResource(R.string.action_delete), style = MaterialTheme.typography.labelLarge)

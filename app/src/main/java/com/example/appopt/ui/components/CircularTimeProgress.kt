@@ -1,7 +1,6 @@
 package com.example.appopt.ui.components
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
@@ -14,16 +13,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.UrgentRed
 import com.example.appopt.ui.theme.WarningOrange
 
 /**
- * Indicador visual circular del tiempo restante en la ventana de rotación TOTP.
+ * Indicador visual circular del tiempo restante en la ventana de rotación TOTP con animaciones centralizadas.
  *
  * Características visuales:
  * - Muestra los segundos restantes en el centro con tipografía semántica.
  * - Cambia dinámicamente de color (Azul Primario -> Naranja de Advertencia -> Rojo de Urgencia)
- *   conforme se agota la validez del código.
+ *   conforme se agota la validez del código utilizando [Motion.Spec.progressColorSpec].
  *
  * @param remainingSeconds Segundos enteros restantes en la ventana.
  * @param progress Fracción de 0.0f a 1.0f para el progreso del arco circular.
@@ -41,17 +42,17 @@ fun CircularTimeProgress(
             remainingSeconds <= 10 -> WarningOrange
             else -> MaterialTheme.colorScheme.primary
         },
-        animationSpec = tween(durationMillis = 300),
+        animationSpec = Motion.Spec.progressColorSpec(),
         label = "progressColor"
     )
 
     Box(
         contentAlignment = Alignment.Center,
-        modifier = modifier.size(44.dp)
+        modifier = modifier.size(Dimensions.ComponentHeight.progressIndicator)
     ) {
         CircularProgressIndicator(
             progress = { progress },
-            modifier = Modifier.size(44.dp),
+            modifier = Modifier.size(Dimensions.ComponentHeight.progressIndicator),
             color = indicatorColor,
             strokeWidth = 3.5.dp,
             trackColor = MaterialTheme.colorScheme.surfaceVariant,

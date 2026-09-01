@@ -87,10 +87,14 @@ class HomeViewModel : ViewModel() {
     }
 
     /**
-     * Copia un código OTP de forma segura con programación de borrado automático tras 30s.
+     * Copia un código OTP de forma segura con programación de borrado automático según [com.example.appopt.security.SecurityConfig.CLIPBOARD_OTP_AUTO_CLEAR_SECONDS].
      */
     fun copyCode(code: String, label: String = "OTP") {
-        clipboardManager.copyToClipboard(label, code, autoClearSeconds = 30)
+        clipboardManager.copyToClipboard(
+            label = label,
+            text = code,
+            autoClearSeconds = com.example.appopt.security.SecurityConfig.CLIPBOARD_OTP_AUTO_CLEAR_SECONDS
+        )
     }
 
     /**

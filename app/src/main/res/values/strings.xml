@@ -103,4 +103,8 @@
     <string name="settings_export_success">Bóveda exportada exitosamente</string>
     <string name="settings_import_success">Se restauraron %1$d cuentas exitosamente</string>
     <string name="settings_import_error">Error al restaurar: Contraseña incorrecta o archivo corrupto</string>
+
+    <!-- Password Manager (Future Module) -->
+    <string name="passwords_nav_title">Gestor de contraseñas</string>
+    <string name="passwords_coming_soon">Gestor de contraseñas disponible próximamente</string>
 </resources>

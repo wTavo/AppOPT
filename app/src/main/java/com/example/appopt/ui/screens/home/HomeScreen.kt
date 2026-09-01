@@ -1,5 +1,6 @@
 package com.example.appopt.ui.screens.home
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -66,6 +67,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -107,6 +109,7 @@ fun HomeScreen(
     var showAddOptionsDialog by remember { mutableStateOf(false) }
 
     val haptic = LocalHapticFeedback.current
+    val context = LocalContext.current
 
     // Lista de renderizado local para swaps instantáneos sin animaciones residuales de reacomodo
     val localAccounts = remember { mutableStateListOf<AccountWithCode>() }
@@ -238,6 +241,23 @@ fun HomeScreen(
                             Icon(
                                 imageVector = Icons.Filled.Lock,
                                 contentDescription = stringResource(R.string.home_lock_vault),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        // 2. Gestor de Contraseñas (Módulo Próximamente)
+                        IconButton(
+                            onClick = {
+                                Toast.makeText(
+                                    context,
+                                    context.getString(R.string.passwords_coming_soon),
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Keyboard,
+                                contentDescription = stringResource(R.string.passwords_nav_title),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }

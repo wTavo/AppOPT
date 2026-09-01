@@ -1,5 +1,9 @@
 package com.example.appopt.ui.screens.home
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -182,10 +186,19 @@ fun HomeScreen(
                         }
 
                         IconButton(onClick = { viewModel.toggleHideCodes() }) {
-                            Icon(
-                                imageVector = if (isHideCodesEnabled) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                                contentDescription = if (isHideCodesEnabled) stringResource(R.string.action_show_codes) else stringResource(R.string.action_hide_codes)
-                            )
+                            androidx.compose.animation.AnimatedContent(
+                                targetState = isHideCodesEnabled,
+                                transitionSpec = {
+                                    androidx.compose.animation.fadeIn(animationSpec = Motion.Spec.quickFadeSpec()) togetherWith
+                                            androidx.compose.animation.fadeOut(animationSpec = Motion.Spec.quickFadeSpec())
+                                },
+                                label = "hideCodesIconAnimation"
+                            ) { hideEnabled ->
+                                Icon(
+                                    imageVector = if (hideEnabled) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                    contentDescription = if (hideEnabled) stringResource(R.string.action_show_codes) else stringResource(R.string.action_hide_codes)
+                                )
+                            }
                         }
 
                         IconButton(onClick = onNavigateToSettings) {

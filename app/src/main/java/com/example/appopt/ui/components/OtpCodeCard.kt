@@ -1,8 +1,10 @@
 package com.example.appopt.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -65,10 +67,10 @@ import kotlinx.coroutines.delay
  * - Pulsar sobre la tarjeta genera el efecto ripple visual y abre el modal de detalle/edición.
  * - Mantener presionada la tarjeta activa vibración háptica y modo de arrastre para reordenamiento.
  * - Pulsar directamente sobre los dígitos copia inmediatamente el código al portapapeles.
- * - Modo de privacidad (`hideCodes`): oculta completamente los números y el contador.
+ * - Modo de privacidad (`hideCodes`): anima suavemente el colapso y despliegue de los números y contador mediante [Motion.Spec.privacyCollapseSpec].
  *
  * @param accountWithCode Contenedor con la información de la cuenta, código activo y progreso temporal.
- * @param hideCodes Si es verdadero, oculta por completo la sección de códigos y temporizadores.
+ * @param hideCodes Si es verdadero, oculta por completo la sección de códigos y temporizadores con animación fluida.
  * @param isDragging Si es verdadero, resalta visualmente la tarjeta mientras se arrastra para reordenar.
  * @param onCardClick Callback al pulsar en la tarjeta para abrir el popup modal.
  * @param onCopyCode Callback invocado al pulsar sobre los dígitos para copiar el código al portapapeles.
@@ -204,64 +206,72 @@ fun OtpCodeCard(
                 }
             }
 
-            // Si hideCodes está activo, ocultamos por completo los dígitos y el contador
-            if (!hideCodes) {
-                Spacer(modifier = Modifier.height(Dimensions.Spacing.md))
+            // Animación fluida de colapso y despliegue del modo de privacidad
+            AnimatedVisibility(
+                visible = !hideCodes,
+                enter = fadeIn(animationSpec = Motion.Spec.privacyCollapseSpec()) +
+                        expandVertically(animationSpec = Motion.Spec.privacyCollapseSpec()),
+                exit = fadeOut(animationSpec = Motion.Spec.privacyCollapseSpec()) +
+                        shrinkVertically(animationSpec = Motion.Spec.privacyCollapseSpec())
+            ) {
+                Column {
+                    Spacer(modifier = Modifier.height(Dimensions.Spacing.md))
 
-                // Cuerpo: Dígitos OTP y Temporizador / Acción HOTP
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    // Zona táctil de los dígitos: toque directo para copiar
+                    // Cuerpo: Dígitos OTP y Temporizador / Acción HOTP
                     Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(Dimensions.CornerRadius.small))
-                            .clickable {
-                                onCopyCode(accountWithCode.code)
-                                copied = true
-                            }
-                            .padding(vertical = Dimensions.Spacing.xs, horizontal = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            text = formattedCode,
-                            style = MaterialTheme.typography.displayMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-
-                        AnimatedVisibility(
-                            visible = copied,
-                            enter = fadeIn(animationSpec = Motion.Spec.quickFadeSpec()),
-                            exit = fadeOut(animationSpec = Motion.Spec.quickFadeSpec())
+                        // Zona táctil de los dígitos: toque directo para copiar
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(Dimensions.CornerRadius.small))
+                                .clickable {
+                                    onCopyCode(accountWithCode.code)
+                                    copied = true
+                                }
+                                .padding(vertical = Dimensions.Spacing.xs, horizontal = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row {
-                                Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
-                                Icon(
-                                    imageVector = Icons.Filled.Check,
-                                    contentDescription = stringResource(R.string.action_copied),
-                                    tint = SafeGreen,
-                                    modifier = Modifier.size(Dimensions.IconSize.medium)
-                                )
+                            Text(
+                                text = formattedCode,
+                                style = MaterialTheme.typography.displayMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+
+                            AnimatedVisibility(
+                                visible = copied,
+                                enter = fadeIn(animationSpec = Motion.Spec.quickFadeSpec()),
+                                exit = fadeOut(animationSpec = Motion.Spec.quickFadeSpec())
+                            ) {
+                                Row {
+                                    Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = stringResource(R.string.action_copied),
+                                        tint = SafeGreen,
+                                        modifier = Modifier.size(Dimensions.IconSize.medium)
+                                    )
+                                }
                             }
                         }
-                    }
 
-                    if (account.type == OtpType.TOTP) {
-                        CircularTimeProgress(
-                            remainingSeconds = accountWithCode.remainingSeconds,
-                            progress = accountWithCode.progress
-                        )
-                    } else {
-                        IconButton(
-                            onClick = { onNextHotpCode(account.id) }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Refresh,
-                                contentDescription = stringResource(R.string.home_next_hotp_code),
-                                tint = MaterialTheme.colorScheme.primary
+                        if (account.type == OtpType.TOTP) {
+                            CircularTimeProgress(
+                                remainingSeconds = accountWithCode.remainingSeconds,
+                                progress = accountWithCode.progress
                             )
+                        } else {
+                            IconButton(
+                                onClick = { onNextHotpCode(account.id) }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Refresh,
+                                    contentDescription = stringResource(R.string.home_next_hotp_code),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
                     }
                 }

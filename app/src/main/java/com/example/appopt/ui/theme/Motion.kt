@@ -76,6 +76,12 @@ object Motion {
             easing = EasingCurve.Standard
         )
 
+        /** Especificación de expansión/colapso para el modo de privacidad de códigos. */
+        fun <T> privacyCollapseSpec() = tween<T>(
+            durationMillis = Duration.Medium,
+            easing = EasingCurve.Emphasized
+        )
+
         /** Especificación física con amortiguación elástica para elevaciones y escalas táctiles. */
         fun <T> springFeedbackSpec() = spring<T>(
             dampingRatio = Spring.DampingRatioMediumBouncy,

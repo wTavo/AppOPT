@@ -3,9 +3,8 @@ package com.example.appopt.ui.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,7 +25,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -50,21 +48,21 @@ import com.example.appopt.ui.theme.WarningOrange
 import kotlinx.coroutines.delay
 
 /**
- * Tarjeta visual limpia para representar una cuenta 2FA y su código OTP actual.
+ * Tarjeta visual para representar una cuenta 2FA y su código OTP actual con alto contraste.
  *
- * Características de interacción:
- * - Pulsar sobre la tarjeta abre el popup/modal de edición y detalles.
- * - Mantener presionado específicamente sobre la zona de los dígitos copia el código al portapapeles.
- * - Modo de privacidad (`hideCodes`) para ocultar los números en público.
+ * Características de diseño e interacción:
+ * - Contraste nítido respecto al fondo de pantalla con borde sutil y elevación.
+ * - Pulsar sobre la tarjeta (área general) abre el popup/modal de edición y detalles.
+ * - Pulsar directamente sobre los dígitos copia inmediatamente el código al portapapeles.
+ * - Modo de privacidad (`hideCodes`): oculta completamente los números y el contador, dejando únicamente los datos identificativos.
  *
  * @param accountWithCode Contenedor con la información de la cuenta, código activo y progreso temporal.
- * @param hideCodes Si es verdadero, enmascara los dígitos numéricos.
+ * @param hideCodes Si es verdadero, oculta por completo la sección de códigos y temporizadores.
  * @param onCardClick Callback al pulsar en la tarjeta para abrir el popup modal.
- * @param onCopyCode Callback invocado al mantener presionado sobre los dígitos para copiar el código.
+ * @param onCopyCode Callback invocado al pulsar sobre los dígitos para copiar el código al portapapeles.
  * @param onToggleFavorite Callback para marcar o desmarcar como favorita.
  * @param onNextHotpCode Callback para avanzar el contador de una cuenta HOTP.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun OtpCodeCard(
     accountWithCode: AccountWithCode,
@@ -86,19 +84,12 @@ fun OtpCodeCard(
     }
 
     // Formatear código: e.g. "123 456" para 6 dígitos o "1234 5678" para 8 dígitos
-    val formattedCode = remember(accountWithCode.code, hideCodes) {
-        if (hideCodes) {
-            when (account.digits) {
-                8 -> "•••• ••••"
-                else -> "••• •••"
-            }
-        } else {
-            val raw = accountWithCode.code
-            when (raw.length) {
-                6 -> "${raw.substring(0, 3)} ${raw.substring(3)}"
-                8 -> "${raw.substring(0, 4)} ${raw.substring(4)}"
-                else -> raw
-            }
+    val formattedCode = remember(accountWithCode.code) {
+        val raw = accountWithCode.code
+        when (raw.length) {
+            6 -> "${raw.substring(0, 3)} ${raw.substring(3)}"
+            8 -> "${raw.substring(0, 4)} ${raw.substring(4)}"
+            else -> raw
         }
     }
 
@@ -110,7 +101,8 @@ fun OtpCodeCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
     ) {
         Column(
             modifier = Modifier
@@ -153,30 +145,25 @@ fun OtpCodeCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            // Si hideCodes está activo, ocultamos por completo los dígitos y el contador
+            if (!hideCodes) {
+                Spacer(modifier = Modifier.height(12.dp))
 
-            // Cuerpo: Dígitos OTP (con long-press para copiar) y Temporizador / Acción HOTP
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                // Zona táctil exclusiva para los dígitos: Long click = Copiar, Click = Abrir popup
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .combinedClickable(
-                            onLongClick = {
+                // Cuerpo: Dígitos OTP (sin caja de color de fondo) y Temporizador / Acción HOTP
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Zona táctil de los dígitos: toque directo para copiar
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable {
                                 onCopyCode(accountWithCode.code)
                                 copied = true
-                            },
-                            onClick = { onCardClick() }
-                        )
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            }
+                            .padding(vertical = 4.dp, horizontal = 2.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
@@ -194,7 +181,7 @@ fun OtpCodeCard(
                             exit = fadeOut()
                         ) {
                             Row {
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Icon(
                                     imageVector = Icons.Filled.Check,
                                     contentDescription = stringResource(R.string.action_copied),
@@ -204,22 +191,22 @@ fun OtpCodeCard(
                             }
                         }
                     }
-                }
 
-                if (account.type == OtpType.TOTP) {
-                    CircularTimeProgress(
-                        remainingSeconds = accountWithCode.remainingSeconds,
-                        progress = accountWithCode.progress
-                    )
-                } else {
-                    IconButton(
-                        onClick = { onNextHotpCode(account.id) }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Refresh,
-                            contentDescription = stringResource(R.string.home_next_hotp_code),
-                            tint = MaterialTheme.colorScheme.primary
+                    if (account.type == OtpType.TOTP) {
+                        CircularTimeProgress(
+                            remainingSeconds = accountWithCode.remainingSeconds,
+                            progress = accountWithCode.progress
                         )
+                    } else {
+                        IconButton(
+                            onClick = { onNextHotpCode(account.id) }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Refresh,
+                                contentDescription = stringResource(R.string.home_next_hotp_code),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
             }

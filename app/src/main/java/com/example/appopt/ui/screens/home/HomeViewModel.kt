@@ -8,6 +8,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
@@ -20,15 +21,21 @@ import kotlinx.coroutines.launch
  * Principio de diseño:
  * - El cálculo del código y del progreso temporal se actualiza automáticamente mediante [tickerFlow] cada 500ms.
  * - Filtra las cuentas en memoria según la consulta del buscador sin bloquear el hilo principal.
+ * - Persiste y sincroniza el estado de privacidad para ocultar/mostrar códigos.
  */
 class HomeViewModel : ViewModel() {
 
     private val repository = AuthenticatorApp.instance.accountRepository
     private val clipboardManager = AuthenticatorApp.instance.secureClipboardManager
     private val appLockManager = AuthenticatorApp.instance.appLockManager
+    private val preferencesManager = AuthenticatorApp.instance.preferencesManager
 
     /** Consulta de búsqueda actual para filtrar cuentas por emisor o nombre de usuario. */
     val searchQuery = MutableStateFlow("")
+
+    /** Estado persistente del modo de privacidad para ocultar códigos. */
+    private val _isHideCodesEnabled = MutableStateFlow(preferencesManager.isHideCodesEnabled())
+    val isHideCodesEnabled: StateFlow<Boolean> = _isHideCodesEnabled.asStateFlow()
 
     /** Flujo de pulsos de reloj (500ms) para animaciones suaves del temporizador. */
     private val tickerFlow = flow {
@@ -61,6 +68,15 @@ class HomeViewModel : ViewModel() {
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
+
+    /**
+     * Alterna y persiste el modo de privacidad para ocultar los códigos numéricos.
+     */
+    fun toggleHideCodes() {
+        val newState = !_isHideCodesEnabled.value
+        _isHideCodesEnabled.value = newState
+        preferencesManager.setHideCodesEnabled(newState)
+    }
 
     /**
      * Actualiza el término de búsqueda.

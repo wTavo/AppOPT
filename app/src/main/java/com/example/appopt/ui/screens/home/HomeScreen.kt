@@ -61,7 +61,7 @@ import com.example.appopt.ui.components.OtpCodeCard
  * Pantalla principal de la aplicación.
  *
  * Muestra el listado de cuentas 2FA sincronizadas con el reloj, buscador en tiempo real,
- * botón de privacidad para ocultar/mostrar códigos en todas las tarjetas,
+ * botón de privacidad persistente para ocultar/mostrar códigos en todas las tarjetas,
  * botón de bloqueo inmediato de bóveda y accesos rápidos para agregar cuentas o configurar respaldos.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -75,9 +75,9 @@ fun HomeScreen(
 ) {
     val accounts by viewModel.accounts.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val isHideCodesEnabled by viewModel.isHideCodesEnabled.collectAsStateWithLifecycle()
 
     var showSearch by remember { mutableStateOf(false) }
-    var hideCodes by remember { mutableStateOf(false) }
     var accountToDeleteId by remember { mutableStateOf<String?>(null) }
     var showAddOptionsDialog by remember { mutableStateOf(false) }
     var selectedAccountId by remember { mutableStateOf<String?>(null) }
@@ -127,11 +127,11 @@ fun HomeScreen(
                 },
                 actions = {
                     if (!showSearch) {
-                        // Botón de privacidad: Ocultar / Mostrar códigos
-                        IconButton(onClick = { hideCodes = !hideCodes }) {
+                        // Botón de privacidad: Ocultar / Mostrar códigos (Persistente)
+                        IconButton(onClick = { viewModel.toggleHideCodes() }) {
                             Icon(
-                                imageVector = if (hideCodes) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                contentDescription = if (hideCodes) stringResource(R.string.action_show_codes) else stringResource(R.string.action_hide_codes)
+                                imageVector = if (isHideCodesEnabled) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                contentDescription = if (isHideCodesEnabled) stringResource(R.string.action_show_codes) else stringResource(R.string.action_hide_codes)
                             )
                         }
                         IconButton(onClick = { showSearch = true }) {
@@ -184,7 +184,7 @@ fun HomeScreen(
                     ) { item ->
                         OtpCodeCard(
                             accountWithCode = item,
-                            hideCodes = hideCodes,
+                            hideCodes = isHideCodesEnabled,
                             onCardClick = { selectedAccountId = item.account.id },
                             onCopyCode = { code -> viewModel.copyCode(code, item.account.issuer) },
                             onToggleFavorite = viewModel::toggleFavorite,

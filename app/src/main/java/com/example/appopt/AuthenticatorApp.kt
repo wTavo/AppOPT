@@ -2,6 +2,7 @@ package com.example.appopt
 
 import android.app.Application
 import com.example.appopt.data.local.AppDatabase
+import com.example.appopt.data.local.PreferencesManager
 import com.example.appopt.data.repository.AccountRepositoryImpl
 import com.example.appopt.domain.repository.AccountRepository
 import com.example.appopt.security.AppLockManager
@@ -46,6 +47,12 @@ class AuthenticatorApp : Application() {
         private set
 
     /**
+     * Gestor de preferencias persistentes del usuario.
+     */
+    lateinit var preferencesManager: PreferencesManager
+        private set
+
+    /**
      * Inicializa las instancias de base de datos, seguridad y repositorios al iniciar la aplicación.
      */
     override fun onCreate() {
@@ -58,6 +65,7 @@ class AuthenticatorApp : Application() {
         biometricAuthManager = BiometricAuthManager(this)
         appLockManager = AppLockManager()
         secureClipboardManager = SecureClipboardManager(this)
+        preferencesManager = PreferencesManager(this)
     }
 
     companion object {

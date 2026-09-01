@@ -21,6 +21,8 @@ private val DarkColorScheme = darkColorScheme(
     background = BackgroundDark,
     surface = SurfaceDark,
     surfaceVariant = SurfaceVariantDark,
+    outline = OutlineDark,
+    outlineVariant = OutlineDark,
     onPrimary = BackgroundDark,
     onBackground = TextPrimaryDark,
     onSurface = TextPrimaryDark,
@@ -33,6 +35,8 @@ private val LightColorScheme = lightColorScheme(
     background = BackgroundLight,
     surface = SurfaceLight,
     surfaceVariant = SurfaceVariantLight,
+    outline = OutlineLight,
+    outlineVariant = OutlineLight,
     onPrimary = SurfaceLight,
     onBackground = TextPrimaryLight,
     onSurface = TextPrimaryLight,
@@ -40,16 +44,16 @@ private val LightColorScheme = lightColorScheme(
 )
 
 /**
- * Tema principal de la aplicación con soporte para Material You (Dynamic Color) y temas Claro/Oscuro.
+ * Tema principal de la aplicación con soporte para Material You (Dynamic Color) y temas Claro/Oscuro de alto contraste.
  *
  * @param darkTheme Determina si se aplica la paleta oscura (por defecto según el sistema operativo).
- * @param dynamicColor Habilita colores dinámicos en Android 12+ (API 31+).
+ * @param dynamicColor Habilita colores dinámicos del sistema (falso por defecto para garantizar contraste de seguridad).
  * @param content Contenido composable a envolver en el tema.
  */
 @Composable
 fun AppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {

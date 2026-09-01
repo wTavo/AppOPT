@@ -47,6 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.appopt.R
+import com.example.appopt.domain.model.OtpType
 import com.example.appopt.domain.repository.AccountWithCode
 import com.example.appopt.ui.theme.SafeGreen
 import com.example.appopt.ui.theme.UrgentRed
@@ -57,7 +58,8 @@ import kotlinx.coroutines.delay
  *
  * Características de diseño:
  * - En modo visualización muestra limpiamente el nombre del servicio y la cuenta (sin campos de texto).
- * - Los dígitos aparecen abajo y se copian al portapapeles con un simple toque sobre ellos.
+ * - Los dígitos aparecen abajo junto con el contador/temporizador circular de rotación TOTP.
+ * - Con un simple toque sobre los dígitos se copia el código al portapapeles.
  * - Iconos en la esquina superior derecha: Lápiz para alternar al modo edición y Basurero para eliminar.
  * - En modo edición permite modificar el nombre del servicio y la cuenta/usuario.
  *
@@ -176,7 +178,7 @@ fun AccountDetailsDialog(
                         }
                     }
 
-                    // Dígitos grandes abajo (con copiado directo al presionar sobre la tarjeta)
+                    // Dígitos grandes abajo con el contador circular integrado
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -190,20 +192,21 @@ fun AccountDetailsDialog(
                         ),
                         shape = RoundedCornerShape(14.dp)
                     ) {
-                        Column(
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 18.dp, horizontal = 16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                                .padding(vertical = 16.dp, horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     text = formattedCode,
-                                    fontSize = 34.sp,
+                                    fontSize = 30.sp,
                                     fontWeight = FontWeight.Bold,
                                     fontFamily = FontFamily.Monospace,
                                     color = MaterialTheme.colorScheme.primary,
-                                    letterSpacing = 3.sp
+                                    letterSpacing = 2.sp
                                 )
 
                                 AnimatedVisibility(
@@ -217,10 +220,17 @@ fun AccountDetailsDialog(
                                             imageVector = Icons.Filled.Check,
                                             contentDescription = stringResource(R.string.action_copied),
                                             tint = SafeGreen,
-                                            modifier = Modifier.size(24.dp)
+                                            modifier = Modifier.size(22.dp)
                                         )
                                     }
                                 }
+                            }
+
+                            if (account.type == OtpType.TOTP) {
+                                CircularTimeProgress(
+                                    remainingSeconds = accountWithCode.remainingSeconds,
+                                    progress = accountWithCode.progress
+                                )
                             }
                         }
                     }

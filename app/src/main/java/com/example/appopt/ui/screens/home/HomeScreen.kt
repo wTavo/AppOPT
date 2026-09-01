@@ -140,9 +140,9 @@ fun HomeScreen(
         }
     }
 
-    // Cuenta actualmente seleccionada para el popup modal
-    val selectedAccountWithCode = remember(localAccounts, selectedAccountId) {
-        localAccounts.find { it.account.id == selectedAccountId }
+    // Cuenta actualmente seleccionada para el popup modal (reactiva a los ticks en vivo de localAccounts)
+    val selectedAccountWithCode = selectedAccountId?.let { id ->
+        localAccounts.find { it.account.id == id }
     }
 
     Scaffold(

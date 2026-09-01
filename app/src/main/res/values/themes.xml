@@ -1,8 +1,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Base.Theme.AppOPT" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+    <!-- Base application theme for Jetpack Compose Activity. -->
+    <style name="Base.Theme.AppOPT" parent="android:Theme.Material.Light.NoActionBar">
     </style>
 
     <style name="Theme.AppOPT" parent="Base.Theme.AppOPT" />

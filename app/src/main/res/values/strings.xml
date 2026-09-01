@@ -1,3 +1,106 @@
 <resources>
-    <string name="app_name">AppOPT</string>
+    <string name="app_name">Authenticator</string>
+
+    <!-- General & Actions -->
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_delete">Eliminar</string>
+    <string name="action_edit">Editar</string>
+    <string name="action_cancel_edit">Cancelar edición</string>
+    <string name="action_save">Guardar en Bóveda</string>
+    <string name="action_save_changes">Guardar Cambios</string>
+    <string name="action_generate">Generar</string>
+    <string name="action_unlock">Desbloquear</string>
+    <string name="action_grant_permission">Conceder Permiso</string>
+    <string name="action_back">Regresar</string>
+    <string name="action_search">Buscar</string>
+    <string name="action_close_search">Cerrar búsqueda</string>
+    <string name="action_favorite">Favorito</string>
+    <string name="action_copy_code">Copiar código</string>
+    <string name="action_copied">Copiado al portapapeles (30s)</string>
+    <string name="action_copied_recovery">Copiado al portapapeles (60s)</string>
+    <string name="action_copy_key">Copiar Clave</string>
+    <string name="action_hide_codes">Ocultar códigos</string>
+    <string name="action_show_codes">Mostrar códigos</string>
+    <string name="action_long_press_to_copy">Mantén presionado para copiar</string>
+
+    <!-- Home Screen -->
+    <string name="home_title">Authenticator</string>
+    <string name="home_search_placeholder">Buscar servicio o cuenta…</string>
+    <string name="home_lock_vault">Bloquear bóveda</string>
+    <string name="home_add_account">Agregar cuenta</string>
+    <string name="home_empty_title">Sin cuentas configuradas</string>
+    <string name="home_empty_description">Protege tus servicios con autenticación de dos factores (2FA). Agrega tu primera cuenta escaneando un código QR.</string>
+    <string name="home_scan_qr_option">Escanear código QR</string>
+    <string name="home_add_manual_option">Ingresar clave manualmente</string>
+    <string name="home_add_dialog_title">Agregar nueva cuenta</string>
+    <string name="home_delete_dialog_title">¿Eliminar cuenta?</string>
+    <string name="home_delete_dialog_message">Esta acción eliminará el secreto de tu bóveda de forma permanente. Asegúrate de tener otro método de acceso o backup antes de continuar.</string>
+    <string name="home_next_hotp_code">Generar siguiente código HOTP</string>
+    <string name="home_default_account_name">Principal</string>
+    <string name="home_default_issuer">Servicio</string>
+
+    <!-- Account Modal / Popup -->
+    <string name="account_modal_title">Detalle de Cuenta</string>
+    <string name="account_modal_edit_title">Editar Cuenta</string>
+    <string name="account_modal_issuer_label">Servicio / Emisor</string>
+    <string name="account_modal_name_label">Cuenta / Usuario (Opcional)</string>
+    <string name="account_modal_close_button">Cerrar</string>
+
+    <!-- Lock Screen -->
+    <string name="lock_title">Bóveda Bloqueada</string>
+    <string name="lock_subtitle">Confirma tu identidad para acceder a tus códigos 2FA</string>
+    <string name="lock_description">Tus secretos criptográficos están cifrados con hardware seguro. Autentícate para continuar.</string>
+    <string name="lock_biometric_prompt_title">Desbloquear Authenticator</string>
+    <string name="lock_biometric_prompt_subtitle">Confirma tu identidad para acceder a tus códigos</string>
+
+    <!-- Add Account Screen -->
+    <string name="add_account_title">Ingresar Clave Manual</string>
+    <string name="add_account_issuer_label">Servicio / Emisor *</string>
+    <string name="add_account_name_label">Cuenta / Usuario (Opcional)</string>
+    <string name="add_account_secret_label">Clave Secreta (Base32) *</string>
+    <string name="add_account_preview_title">Código de prueba generado:</string>
+    <string name="add_account_advanced_options">Opciones avanzadas</string>
+    <string name="add_account_advanced_description">La mayoría de los servicios usan SHA1 y 6 dígitos por defecto.</string>
+    <string name="add_account_algorithm_label">Algoritmo HMAC</string>
+    <string name="add_account_digits_label">Dígitos</string>
+    <string name="add_account_digits_format">%1$d dígitos</string>
+    <string name="add_account_error_issuer_required">El nombre del servicio es obligatorio</string>
+    <string name="add_account_error_secret_invalid">La clave secreta Base32 no es válida</string>
+    <string name="add_account_error_save_failed">Error al cifrar y guardar: %1$s</string>
+    <string name="add_account_valid_indicator">Válido</string>
+    <string name="add_account_invalid_indicator">Inválido</string>
+
+    <!-- QR Scanner Screen -->
+    <string name="scan_title">Escanear Código QR</string>
+    <string name="scan_hint">Apunta la cámara al código QR 2FA</string>
+    <string name="scan_permission_required_title">Se requiere permiso de cámara</string>
+    <string name="scan_permission_required_description">La app necesita acceso a la cámara para leer el código QR de configuración localmente.</string>
+    <string name="scan_error_save">Error al guardar: %1$s</string>
+    <string name="scan_error_invalid_qr">QR no válido: %1$s</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">Seguridad y Respaldo</string>
+    <string name="settings_vault_status_title">Bóveda Local Cifrada</string>
+    <string name="settings_vault_status_details">• Cifrado AES-256-GCM autenticado\n• Clave maestra en Android Keystore (TEE)\n• Memoria RAM con limpieza de buffers\n• Protección activa contra capturas de pantalla</string>
+    <string name="settings_recovery_key_title">Clave de Recuperación (Recovery Key)</string>
+    <string name="settings_recovery_key_description">Genera un secreto criptográfico de 256 bits para respaldar de forma offline tus cuentas. Anótalo en un lugar seguro.</string>
+    <string name="settings_generate_recovery_button">Generar Clave de Recuperación</string>
+    <string name="settings_recovery_dialog_title">Generar Recovery Key</string>
+    <string name="settings_recovery_dialog_message">Esta clave de alta entropía es tu única vía de recuperación si pierdes el acceso biométrico o cambias de dispositivo. ¿Deseas generarla ahora?</string>
+
+    <!-- Backup & Restore -->
+    <string name="settings_backup_section_title">Copia de Seguridad y Restauración</string>
+    <string name="settings_backup_section_description">Exporta un archivo cifrado con contraseña o restaura cuentas desde un respaldo previo.</string>
+    <string name="settings_export_backup_button">Exportar Bóveda Cifrada</string>
+    <string name="settings_import_backup_button">Restaurar Bóveda Cifrada</string>
+    <string name="settings_export_dialog_title">Exportar Bóveda Cifrada</string>
+    <string name="settings_export_password_label">Contraseña de Cifrado</string>
+    <string name="settings_export_password_confirm_label">Confirmar Contraseña</string>
+    <string name="settings_export_password_mismatch">Las contraseñas no coinciden</string>
+    <string name="settings_export_password_too_short">La contraseña debe tener al menos 8 caracteres</string>
+    <string name="settings_import_dialog_title">Restaurar Bóveda Cifrada</string>
+    <string name="settings_import_password_label">Contraseña del Respaldo</string>
+    <string name="settings_export_success">Bóveda exportada exitosamente</string>
+    <string name="settings_import_success">Se restauraron %1$d cuentas exitosamente</string>
+    <string name="settings_import_error">Error al restaurar: Contraseña incorrecta o archivo corrupto</string>
 </resources>

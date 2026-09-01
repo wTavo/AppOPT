@@ -14,7 +14,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.appopt.ui.theme.UrgentRed
 import com.example.appopt.ui.theme.WarningOrange
 
@@ -22,7 +21,7 @@ import com.example.appopt.ui.theme.WarningOrange
  * Indicador visual circular del tiempo restante en la ventana de rotación TOTP.
  *
  * Características visuales:
- * - Muestra los segundos restantes en el centro.
+ * - Muestra los segundos restantes en el centro con tipografía semántica.
  * - Cambia dinámicamente de color (Azul Primario -> Naranja de Advertencia -> Rojo de Urgencia)
  *   conforme se agota la validez del código.
  *
@@ -61,8 +60,7 @@ fun CircularTimeProgress(
 
         Text(
             text = "$remainingSeconds",
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
             color = indicatorColor
         )
     }

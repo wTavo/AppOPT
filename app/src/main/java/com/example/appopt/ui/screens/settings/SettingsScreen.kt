@@ -23,7 +23,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.AlertDialog
@@ -55,11 +54,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
 import com.example.appopt.ui.theme.SafeGreen
@@ -67,7 +64,7 @@ import com.example.appopt.ui.theme.UrgentRed
 import kotlinx.coroutines.launch
 
 /**
- * Pantalla de configuración de seguridad, respaldos cifrados y recuperación offline.
+ * Pantalla de configuración de seguridad, respaldos cifrados y recuperación offline con escala tipográfica estandarizada.
  *
  * Características:
  * - Generación de Recovery Key de 256 bits de entropía.
@@ -126,7 +123,7 @@ fun SettingsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.settings_title), fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -171,8 +168,7 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = stringResource(R.string.settings_vault_status_title),
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.titleMedium
                         )
                     }
 
@@ -180,9 +176,8 @@ fun SettingsScreen(
 
                     Text(
                         text = stringResource(R.string.settings_vault_status_details),
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = 20.sp
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -206,8 +201,7 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = stringResource(R.string.settings_backup_section_title),
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.titleMedium
                         )
                     }
 
@@ -215,7 +209,7 @@ fun SettingsScreen(
 
                     Text(
                         text = stringResource(R.string.settings_backup_section_description),
-                        fontSize = 13.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
@@ -234,7 +228,7 @@ fun SettingsScreen(
                         ) {
                             Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(stringResource(R.string.settings_export_backup_button), fontSize = 13.sp)
+                            Text(stringResource(R.string.settings_export_backup_button), style = MaterialTheme.typography.labelSmall)
                         }
 
                         OutlinedButton(
@@ -246,7 +240,7 @@ fun SettingsScreen(
                         ) {
                             Icon(Icons.Filled.SaveAlt, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(stringResource(R.string.settings_import_backup_button), fontSize = 13.sp)
+                            Text(stringResource(R.string.settings_import_backup_button), style = MaterialTheme.typography.labelSmall)
                         }
                     }
                 }
@@ -271,8 +265,7 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = stringResource(R.string.settings_recovery_key_title),
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.titleMedium
                         )
                     }
 
@@ -280,7 +273,7 @@ fun SettingsScreen(
 
                     Text(
                         text = stringResource(R.string.settings_recovery_key_description),
-                        fontSize = 13.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
@@ -292,7 +285,7 @@ fun SettingsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp)
                         ) {
-                            Text(stringResource(R.string.settings_generate_recovery_button))
+                            Text(stringResource(R.string.settings_generate_recovery_button), style = MaterialTheme.typography.labelLarge)
                         }
                     } else {
                         Surface(
@@ -304,8 +297,7 @@ fun SettingsScreen(
                                 Text(
                                     text = recoveryKey ?: "",
                                     fontFamily = FontFamily.Monospace,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.primary
                                 )
 
@@ -328,7 +320,8 @@ fun SettingsScreen(
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         if (copiedKey) stringResource(R.string.action_copied_recovery)
-                                        else stringResource(R.string.action_copy_key)
+                                        else stringResource(R.string.action_copy_key),
+                                        style = MaterialTheme.typography.labelLarge
                                     )
                                 }
                             }
@@ -355,13 +348,13 @@ fun SettingsScreen(
                 showExportDialog = false
                 pendingExportUri = null
             },
-            title = { Text(stringResource(R.string.settings_export_dialog_title)) },
+            title = { Text(stringResource(R.string.settings_export_dialog_title), style = MaterialTheme.typography.titleLarge) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(
                         value = password,
                         onValueChange = { password = it; errorMessage = null },
-                        label = { Text(stringResource(R.string.settings_export_password_label)) },
+                        label = { Text(stringResource(R.string.settings_export_password_label), style = MaterialTheme.typography.bodyMedium) },
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         singleLine = true,
@@ -371,7 +364,7 @@ fun SettingsScreen(
                     OutlinedTextField(
                         value = confirmPassword,
                         onValueChange = { confirmPassword = it; errorMessage = null },
-                        label = { Text(stringResource(R.string.settings_export_password_confirm_label)) },
+                        label = { Text(stringResource(R.string.settings_export_password_confirm_label), style = MaterialTheme.typography.bodyMedium) },
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         singleLine = true,
@@ -379,7 +372,7 @@ fun SettingsScreen(
                     )
 
                     if (errorMessage != null) {
-                        Text(text = errorMessage ?: "", color = UrgentRed, fontSize = 13.sp)
+                        Text(text = errorMessage ?: "", color = UrgentRed, style = MaterialTheme.typography.bodySmall)
                     }
                 }
             },
@@ -415,7 +408,7 @@ fun SettingsScreen(
                         }
                     }
                 ) {
-                    Text(stringResource(R.string.action_save))
+                    Text(stringResource(R.string.action_save), style = MaterialTheme.typography.labelLarge)
                 }
             },
             dismissButton = {
@@ -423,7 +416,7 @@ fun SettingsScreen(
                     showExportDialog = false
                     pendingExportUri = null
                 }) {
-                    Text(stringResource(R.string.action_cancel))
+                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
                 }
             }
         )
@@ -439,13 +432,13 @@ fun SettingsScreen(
                 showImportDialog = false
                 pendingImportUri = null
             },
-            title = { Text(stringResource(R.string.settings_import_dialog_title)) },
+            title = { Text(stringResource(R.string.settings_import_dialog_title), style = MaterialTheme.typography.titleLarge) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(
                         value = importPassword,
                         onValueChange = { importPassword = it; importError = null },
-                        label = { Text(stringResource(R.string.settings_import_password_label)) },
+                        label = { Text(stringResource(R.string.settings_import_password_label), style = MaterialTheme.typography.bodyMedium) },
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         singleLine = true,
@@ -453,7 +446,7 @@ fun SettingsScreen(
                     )
 
                     if (importError != null) {
-                        Text(text = importError ?: "", color = UrgentRed, fontSize = 13.sp)
+                        Text(text = importError ?: "", color = UrgentRed, style = MaterialTheme.typography.bodySmall)
                     }
                 }
             },
@@ -486,7 +479,7 @@ fun SettingsScreen(
                         }
                     }
                 ) {
-                    Text(stringResource(R.string.action_unlock))
+                    Text(stringResource(R.string.action_unlock), style = MaterialTheme.typography.labelLarge)
                 }
             },
             dismissButton = {
@@ -494,7 +487,7 @@ fun SettingsScreen(
                     showImportDialog = false
                     pendingImportUri = null
                 }) {
-                    Text(stringResource(R.string.action_cancel))
+                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
                 }
             }
         )
@@ -504,9 +497,9 @@ fun SettingsScreen(
     if (showGenerateDialog) {
         AlertDialog(
             onDismissRequest = { showGenerateDialog = false },
-            title = { Text(stringResource(R.string.settings_recovery_dialog_title)) },
+            title = { Text(stringResource(R.string.settings_recovery_dialog_title), style = MaterialTheme.typography.titleLarge) },
             text = {
-                Text(stringResource(R.string.settings_recovery_dialog_message))
+                Text(stringResource(R.string.settings_recovery_dialog_message), style = MaterialTheme.typography.bodyMedium)
             },
             confirmButton = {
                 Button(
@@ -515,12 +508,12 @@ fun SettingsScreen(
                         showGenerateDialog = false
                     }
                 ) {
-                    Text(stringResource(R.string.action_generate))
+                    Text(stringResource(R.string.action_generate), style = MaterialTheme.typography.labelLarge)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showGenerateDialog = false }) {
-                    Text(stringResource(R.string.action_cancel))
+                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
                 }
             }
         )

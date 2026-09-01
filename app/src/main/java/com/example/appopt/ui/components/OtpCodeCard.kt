@@ -36,10 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.appopt.R
 import com.example.appopt.domain.model.OtpType
 import com.example.appopt.domain.repository.AccountWithCode
@@ -48,7 +45,7 @@ import com.example.appopt.ui.theme.WarningOrange
 import kotlinx.coroutines.delay
 
 /**
- * Tarjeta visual para representar una cuenta 2FA y su código OTP actual con alto contraste.
+ * Tarjeta visual para representar una cuenta 2FA y su código OTP actual con alto contraste y tipografía escalable.
  *
  * Características de diseño e interacción:
  * - Contraste nítido respecto al fondo de pantalla con borde sutil y elevación.
@@ -118,15 +115,14 @@ fun OtpCodeCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = account.issuer.ifEmpty { stringResource(R.string.home_default_issuer) },
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1
                     )
                     if (account.accountName.isNotBlank()) {
                         Text(
                             text = account.accountName,
-                            fontSize = 13.sp,
+                            style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1
                         )
@@ -155,7 +151,7 @@ fun OtpCodeCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Zona táctil de los dígitos: toque directo para copiar
+                    // Zona táctil de los dígitos: toque directo para copiar (fondo limpio integrado)
                     Row(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
@@ -168,11 +164,8 @@ fun OtpCodeCard(
                     ) {
                         Text(
                             text = formattedCode,
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace,
-                            color = MaterialTheme.colorScheme.primary,
-                            letterSpacing = 2.sp
+                            style = MaterialTheme.typography.displayMedium,
+                            color = MaterialTheme.colorScheme.primary
                         )
 
                         AnimatedVisibility(

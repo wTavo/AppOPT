@@ -55,10 +55,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -72,7 +70,7 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
 
 /**
- * Pantalla de escaneo de códigos QR 2FA con CameraX y Google ML Kit.
+ * Pantalla de escaneo de códigos QR 2FA con CameraX, Google ML Kit y escala tipográfica estandarizada.
  *
  * Principio de privacidad y seguridad:
  * - El procesamiento de la imagen del código QR se realiza exclusivamente en el hardware local.
@@ -118,7 +116,7 @@ fun QrScannerScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.scan_title), fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.scan_title), style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -275,7 +273,7 @@ fun QrScannerScreen(
                         Text(
                             text = stringResource(R.string.scan_hint),
                             color = Color.White,
-                            fontSize = 14.sp,
+                            style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                         )
@@ -302,8 +300,7 @@ fun QrScannerScreen(
                     Text(
                         text = stringResource(R.string.scan_permission_required_title),
                         color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.titleLarge
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -311,20 +308,20 @@ fun QrScannerScreen(
                     Text(
                         text = stringResource(R.string.scan_permission_required_description),
                         color = Color.LightGray,
-                        fontSize = 14.sp,
+                        style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
 
                     Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
-                        Text(stringResource(R.string.action_grant_permission))
+                        Text(stringResource(R.string.action_grant_permission), style = MaterialTheme.typography.labelLarge)
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
                     OutlinedButton(onClick = onNavigateToManual) {
-                        Text(stringResource(R.string.home_add_manual_option), color = Color.White)
+                        Text(stringResource(R.string.home_add_manual_option), color = Color.White, style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }

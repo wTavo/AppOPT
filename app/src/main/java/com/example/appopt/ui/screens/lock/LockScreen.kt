@@ -24,16 +24,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
 
 /**
- * Pantalla de bloqueo de seguridad.
+ * Pantalla de bloqueo de seguridad con escala tipográfica estandarizada.
  *
  * Se presenta al iniciar la aplicación o cuando el usuario / timeout del ciclo de vida
  * bloquea la bóveda criptográfica. Exige autenticación biométrica o PIN.
@@ -99,8 +97,7 @@ fun LockScreen(
 
             Text(
                 text = stringResource(R.string.lock_title),
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onBackground
             )
 
@@ -108,7 +105,7 @@ fun LockScreen(
 
             Text(
                 text = stringResource(R.string.lock_description),
-                fontSize = 14.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -126,7 +123,10 @@ fun LockScreen(
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.size(8.dp))
-                Text(stringResource(R.string.action_unlock))
+                Text(
+                    text = stringResource(R.string.action_unlock),
+                    style = MaterialTheme.typography.labelLarge
+                )
             }
         }
     }

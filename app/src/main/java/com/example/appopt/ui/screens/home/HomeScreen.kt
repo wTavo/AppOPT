@@ -48,17 +48,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.appopt.R
 import com.example.appopt.ui.components.AccountDetailsDialog
 import com.example.appopt.ui.components.OtpCodeCard
 
 /**
- * Pantalla principal de la aplicación.
+ * Pantalla principal de la aplicación con escala tipográfica estandarizada.
  *
  * Muestra el listado de cuentas 2FA sincronizadas con el reloj, buscador en tiempo real,
  * botón de privacidad persistente para ocultar/mostrar códigos en todas las tarjetas,
@@ -93,7 +91,7 @@ fun HomeScreen(
                         OutlinedTextField(
                             value = searchQuery,
                             onValueChange = viewModel::onSearchQueryChanged,
-                            placeholder = { Text(stringResource(R.string.home_search_placeholder)) },
+                            placeholder = { Text(stringResource(R.string.home_search_placeholder), style = MaterialTheme.typography.bodyMedium) },
                             singleLine = true,
                             trailingIcon = {
                                 IconButton(onClick = {
@@ -119,8 +117,7 @@ fun HomeScreen(
                             Spacer(modifier = Modifier.size(10.dp))
                             Text(
                                 text = stringResource(R.string.home_title),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 20.sp
+                                style = MaterialTheme.typography.titleLarge
                             )
                         }
                     }
@@ -214,7 +211,7 @@ fun HomeScreen(
     if (showAddOptionsDialog) {
         AlertDialog(
             onDismissRequest = { showAddOptionsDialog = false },
-            title = { Text(stringResource(R.string.home_add_dialog_title), fontWeight = FontWeight.Bold) },
+            title = { Text(stringResource(R.string.home_add_dialog_title), style = MaterialTheme.typography.titleLarge) },
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -229,7 +226,7 @@ fun HomeScreen(
                     ) {
                         Icon(Icons.Filled.QrCodeScanner, contentDescription = null)
                         Spacer(modifier = Modifier.size(8.dp))
-                        Text(stringResource(R.string.home_scan_qr_option))
+                        Text(stringResource(R.string.home_scan_qr_option), style = MaterialTheme.typography.labelLarge)
                     }
 
                     OutlinedButton(
@@ -241,14 +238,14 @@ fun HomeScreen(
                     ) {
                         Icon(Icons.Filled.Edit, contentDescription = null)
                         Spacer(modifier = Modifier.size(8.dp))
-                        Text(stringResource(R.string.home_add_manual_option))
+                        Text(stringResource(R.string.home_add_manual_option), style = MaterialTheme.typography.labelLarge)
                     }
                 }
             },
             confirmButton = {},
             dismissButton = {
                 TextButton(onClick = { showAddOptionsDialog = false }) {
-                    Text(stringResource(R.string.action_cancel))
+                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
                 }
             }
         )
@@ -258,9 +255,9 @@ fun HomeScreen(
     if (accountToDeleteId != null) {
         AlertDialog(
             onDismissRequest = { accountToDeleteId = null },
-            title = { Text(stringResource(R.string.home_delete_dialog_title)) },
+            title = { Text(stringResource(R.string.home_delete_dialog_title), style = MaterialTheme.typography.titleLarge) },
             text = {
-                Text(stringResource(R.string.home_delete_dialog_message))
+                Text(stringResource(R.string.home_delete_dialog_message), style = MaterialTheme.typography.bodyMedium)
             },
             confirmButton = {
                 Button(
@@ -269,12 +266,12 @@ fun HomeScreen(
                         accountToDeleteId = null
                     }
                 ) {
-                    Text(stringResource(R.string.action_delete))
+                    Text(stringResource(R.string.action_delete), style = MaterialTheme.typography.labelLarge)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { accountToDeleteId = null }) {
-                    Text(stringResource(R.string.action_cancel))
+                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
                 }
             }
         )
@@ -316,8 +313,7 @@ private fun EmptyAccountsState(
 
         Text(
             text = stringResource(R.string.home_empty_title),
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.onBackground
         )
 
@@ -325,7 +321,7 @@ private fun EmptyAccountsState(
 
         Text(
             text = stringResource(R.string.home_empty_description),
-            fontSize = 14.sp,
+            style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -339,7 +335,7 @@ private fun EmptyAccountsState(
         ) {
             Icon(Icons.Filled.QrCodeScanner, contentDescription = null)
             Spacer(modifier = Modifier.size(8.dp))
-            Text(stringResource(R.string.home_scan_qr_option))
+            Text(stringResource(R.string.home_scan_qr_option), style = MaterialTheme.typography.labelLarge)
         }
 
         Spacer(modifier = Modifier.height(10.dp))
@@ -351,7 +347,7 @@ private fun EmptyAccountsState(
         ) {
             Icon(Icons.Filled.Edit, contentDescription = null)
             Spacer(modifier = Modifier.size(8.dp))
-            Text(stringResource(R.string.home_add_manual_option))
+            Text(stringResource(R.string.home_add_manual_option), style = MaterialTheme.typography.labelLarge)
         }
     }
 }

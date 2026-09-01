@@ -52,10 +52,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.appopt.R
 import com.example.appopt.domain.model.OtpAlgorithm
@@ -63,7 +60,7 @@ import com.example.appopt.ui.theme.SafeGreen
 import com.example.appopt.ui.theme.UrgentRed
 
 /**
- * Pantalla de registro manual de una cuenta TOTP.
+ * Pantalla de registro manual de una cuenta TOTP con escala tipográfica estandarizada.
  *
  * Características de diseño:
  * - Campos obligatorios prioritarios: Servicio/Emisor y Clave Secreta Base32 (sin texto de ejemplo intrusivo).
@@ -90,7 +87,7 @@ fun AddAccountScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.add_account_title), fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.add_account_title), style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -184,17 +181,14 @@ fun AddAccountScreen(
                     ) {
                         Text(
                             text = stringResource(R.string.add_account_preview_title),
-                            fontSize = 12.sp,
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = uiState.previewCode ?: "",
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace,
-                            color = MaterialTheme.colorScheme.primary,
-                            letterSpacing = 3.sp
+                            style = MaterialTheme.typography.displayMedium,
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -219,12 +213,11 @@ fun AddAccountScreen(
                         Column {
                             Text(
                                 text = stringResource(R.string.add_account_advanced_options),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold
+                                style = MaterialTheme.typography.titleSmall
                             )
                             Text(
                                 text = stringResource(R.string.add_account_advanced_description),
-                                fontSize = 12.sp,
+                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -247,8 +240,7 @@ fun AddAccountScreen(
                             // Algoritmo HMAC
                             Text(
                                 text = stringResource(R.string.add_account_algorithm_label),
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
+                                style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onBackground
                             )
 
@@ -260,7 +252,7 @@ fun AddAccountScreen(
                                     FilterChip(
                                         selected = uiState.algorithm == algo,
                                         onClick = { viewModel.onAlgorithmChanged(algo) },
-                                        label = { Text(algo.standardName) }
+                                        label = { Text(algo.standardName, style = MaterialTheme.typography.labelMedium) }
                                     )
                                 }
                             }
@@ -268,8 +260,7 @@ fun AddAccountScreen(
                             // Cantidad de dígitos
                             Text(
                                 text = stringResource(R.string.add_account_digits_label),
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
+                                style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onBackground
                             )
 
@@ -281,7 +272,7 @@ fun AddAccountScreen(
                                     FilterChip(
                                         selected = uiState.digits == digit,
                                         onClick = { viewModel.onDigitsChanged(digit) },
-                                        label = { Text(stringResource(R.string.add_account_digits_format, digit)) }
+                                        label = { Text(stringResource(R.string.add_account_digits_format, digit), style = MaterialTheme.typography.labelMedium) }
                                     )
                                 }
                             }
@@ -295,7 +286,7 @@ fun AddAccountScreen(
                 Text(
                     text = uiState.errorMessage ?: "",
                     color = UrgentRed,
-                    fontSize = 13.sp
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
 
@@ -314,8 +305,7 @@ fun AddAccountScreen(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = stringResource(R.string.action_save),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.labelLarge
                 )
             }
 

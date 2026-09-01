@@ -42,10 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.appopt.R
 import com.example.appopt.domain.model.OtpType
 import com.example.appopt.domain.repository.AccountWithCode
@@ -54,10 +51,10 @@ import com.example.appopt.ui.theme.UrgentRed
 import kotlinx.coroutines.delay
 
 /**
- * Modal / Popup para visualizar o editar la información de una cuenta.
+ * Modal / Popup para visualizar o editar la información de una cuenta con escala tipográfica estandarizada en todos sus elementos.
  *
  * Características de diseño:
- * - En modo visualización muestra limpiamente el nombre del servicio y la cuenta (sin campos de texto).
+ * - En modo visualización muestra limpiamente el nombre del servicio y la cuenta usando la escala tipográfica de la app.
  * - Los dígitos aparecen abajo junto con el contador/temporizador circular de rotación TOTP.
  * - Con un simple toque sobre los dígitos se copia el código al portapapeles.
  * - Iconos en la esquina superior derecha: Lápiz para alternar al modo edición y Basurero para eliminar.
@@ -118,8 +115,7 @@ fun AccountDetailsDialog(
             ) {
                 Text(
                     text = if (isEditMode) stringResource(R.string.account_modal_edit_title) else stringResource(R.string.account_modal_title),
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
@@ -163,8 +159,7 @@ fun AccountDetailsDialog(
                     ) {
                         Text(
                             text = account.issuer.ifEmpty { stringResource(R.string.home_default_issuer) },
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.headlineMedium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
 
@@ -172,7 +167,7 @@ fun AccountDetailsDialog(
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = account.accountName,
-                                fontSize = 15.sp,
+                                style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -202,11 +197,8 @@ fun AccountDetailsDialog(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     text = formattedCode,
-                                    fontSize = 30.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    letterSpacing = 2.sp
+                                    style = MaterialTheme.typography.displayMedium,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
 
                                 AnimatedVisibility(
@@ -239,7 +231,7 @@ fun AccountDetailsDialog(
                     OutlinedTextField(
                         value = editedIssuer,
                         onValueChange = { editedIssuer = it },
-                        label = { Text(stringResource(R.string.account_modal_issuer_label)) },
+                        label = { Text(stringResource(R.string.account_modal_issuer_label), style = MaterialTheme.typography.bodyMedium) },
                         singleLine = true,
                         leadingIcon = {
                             Icon(Icons.Filled.Business, contentDescription = null)
@@ -250,7 +242,7 @@ fun AccountDetailsDialog(
                     OutlinedTextField(
                         value = editedAccountName,
                         onValueChange = { editedAccountName = it },
-                        label = { Text(stringResource(R.string.account_modal_name_label)) },
+                        label = { Text(stringResource(R.string.account_modal_name_label), style = MaterialTheme.typography.bodyMedium) },
                         singleLine = true,
                         leadingIcon = {
                             Icon(Icons.Filled.PersonOutline, contentDescription = null)
@@ -271,7 +263,7 @@ fun AccountDetailsDialog(
                     ) {
                         Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(stringResource(R.string.action_save_changes))
+                        Text(stringResource(R.string.action_save_changes), style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
@@ -279,7 +271,7 @@ fun AccountDetailsDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.account_modal_close_button))
+                Text(stringResource(R.string.account_modal_close_button), style = MaterialTheme.typography.labelLarge)
             }
         },
         modifier = modifier
@@ -289,8 +281,8 @@ fun AccountDetailsDialog(
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text(stringResource(R.string.home_delete_dialog_title)) },
-            text = { Text(stringResource(R.string.home_delete_dialog_message)) },
+            title = { Text(stringResource(R.string.home_delete_dialog_title), style = MaterialTheme.typography.titleLarge) },
+            text = { Text(stringResource(R.string.home_delete_dialog_message), style = MaterialTheme.typography.bodyMedium) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -300,12 +292,12 @@ fun AccountDetailsDialog(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = UrgentRed)
                 ) {
-                    Text(stringResource(R.string.action_delete))
+                    Text(stringResource(R.string.action_delete), style = MaterialTheme.typography.labelLarge)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text(stringResource(R.string.action_cancel))
+                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
                 }
             }
         )

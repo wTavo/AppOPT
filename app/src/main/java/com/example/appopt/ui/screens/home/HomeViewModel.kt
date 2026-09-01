@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
  * - El cálculo del código y del progreso temporal se actualiza automáticamente mediante [tickerFlow] cada 500ms.
  * - Filtra las cuentas en memoria según la consulta del buscador sin bloquear el hilo principal.
  * - Persiste y sincroniza el estado de privacidad para ocultar/mostrar códigos.
+ * - Persiste de forma atómica el ordenamiento personalizado tras finalizar el arrastre.
  */
 class HomeViewModel : ViewModel() {
 
@@ -107,6 +108,17 @@ class HomeViewModel : ViewModel() {
     fun toggleFavorite(id: String) {
         viewModelScope.launch {
             repository.toggleFavorite(id)
+        }
+    }
+
+    /**
+     * Guarda de forma atómica el orden final de la lista de cuentas en la base de datos Room.
+     *
+     * @param orderedIds Lista de IDs de cuentas en su orden definitivo tras finalizar el arrastre.
+     */
+    fun commitReorder(orderedIds: List<String>) {
+        viewModelScope.launch {
+            repository.reorderAccounts(orderedIds)
         }
     }
 

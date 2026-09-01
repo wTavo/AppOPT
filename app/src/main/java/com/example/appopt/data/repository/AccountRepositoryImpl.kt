@@ -164,6 +164,13 @@ class AccountRepositoryImpl(
     }
 
     /**
+     * Actualiza el orden secuencial de una lista de cuentas persistiendo los nuevos índices.
+     */
+    override suspend fun reorderAccounts(orderedIds: List<String>) {
+        accountDao.updateAccountsOrder(orderedIds)
+    }
+
+    /**
      * Elimina permanentemente una cuenta de la base de datos.
      */
     override suspend fun deleteAccount(id: String) {

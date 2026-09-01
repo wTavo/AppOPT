@@ -65,6 +65,13 @@ interface AccountRepository {
     suspend fun toggleFavorite(id: String)
 
     /**
+     * Actualiza el orden secuencial de una lista de identificadores de cuentas.
+     *
+     * @param orderedIds Lista de IDs en su nuevo orden de visualización.
+     */
+    suspend fun reorderAccounts(orderedIds: List<String>)
+
+    /**
      * Elimina permanentemente una cuenta de la bóveda local.
      */
     suspend fun deleteAccount(id: String)

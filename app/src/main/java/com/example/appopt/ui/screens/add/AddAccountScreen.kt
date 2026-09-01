@@ -1,10 +1,14 @@
 package com.example.appopt.ui.screens.add
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,7 +19,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -30,6 +33,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.PersonOutline
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -51,6 +55,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -58,6 +63,7 @@ import com.example.appopt.R
 import com.example.appopt.domain.model.OtpAlgorithm
 import com.example.appopt.ui.theme.SafeGreen
 import com.example.appopt.ui.theme.UrgentRed
+import kotlinx.coroutines.delay
 
 /**
  * Pantalla de registro manual de una cuenta TOTP con escala tipográfica estandarizada.
@@ -67,6 +73,7 @@ import com.example.appopt.ui.theme.UrgentRed
  * - Campo opcional: Nombre de cuenta / correo.
  * - Opciones avanzadas (Algoritmo HMAC y Dígitos) agrupadas en un panel desplegable colapsado por defecto.
  * - Validación en tiempo real y vista previa del código OTP generado.
+ * - Botón de guardado animado: al confirmarse el guardado, transiciona a verde y reemplaza el texto con una palomita de éxito.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,12 +84,21 @@ fun AddAccountScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showAdvancedOptions by remember { mutableStateOf(false) }
+    var isSavingSuccessful by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.isSavedSuccessfully) {
         if (uiState.isSavedSuccessfully) {
+            isSavingSuccessful = true
+            delay(750)
             onNavigateBack()
         }
     }
+
+    val saveButtonColor by animateColorAsState(
+        targetValue = if (isSavingSuccessful) SafeGreen else MaterialTheme.colorScheme.primary,
+        animationSpec = tween(durationMillis = 300),
+        label = "saveAccountButtonColor"
+    )
 
     Scaffold(
         topBar = {
@@ -292,21 +308,35 @@ fun AddAccountScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Botón de Guardado
+            // Botón de Guardado animado
             Button(
                 onClick = { viewModel.saveAccount() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
                 shape = RoundedCornerShape(12.dp),
-                enabled = uiState.issuer.isNotBlank() && uiState.isSecretValid
+                colors = ButtonDefaults.buttonColors(containerColor = saveButtonColor),
+                enabled = (uiState.issuer.isNotBlank() && uiState.isSecretValid) || isSavingSuccessful
             ) {
-                Icon(Icons.Filled.Check, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = stringResource(R.string.action_save),
-                    style = MaterialTheme.typography.labelLarge
-                )
+                AnimatedContent(
+                    targetState = isSavingSuccessful,
+                    transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(200)) },
+                    label = "saveAccountButtonContent"
+                ) { saved ->
+                    if (saved) {
+                        Icon(
+                            imageVector = Icons.Filled.Check,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    } else {
+                        Text(
+                            text = stringResource(R.string.action_save),
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))

@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.Flow
  * Principio de diseño:
  * - Consultas reactivas basadas en [Flow] para emitir actualizaciones automáticas a la UI.
  * - Los campos sensibles siempre se leen como arreglos binarios cifrados.
+ * - Persistencia del orden personalizado mediante [orderIndex].
  */
 @Dao
 interface AccountDao {
@@ -53,6 +55,25 @@ interface AccountDao {
      */
     @Query("UPDATE totp_accounts SET issuer = :issuer, accountName = :accountName, updatedAt = :updatedAt WHERE id = :id")
     suspend fun updateMetadata(id: String, issuer: String, accountName: String, updatedAt: Long = System.currentTimeMillis())
+
+    /**
+     * Actualiza el índice de orden posicional de una cuenta.
+     */
+    @Query("UPDATE totp_accounts SET orderIndex = :orderIndex, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateOrderIndex(id: String, orderIndex: Int, updatedAt: Long = System.currentTimeMillis())
+
+    /**
+     * Actualiza atómicamente el orden de un lote de cuentas.
+     *
+     * @param orderedIds Lista de identificadores en su nuevo orden de visualización.
+     */
+    @Transaction
+    suspend fun updateAccountsOrder(orderedIds: List<String>) {
+        val now = System.currentTimeMillis()
+        orderedIds.forEachIndexed { index, id ->
+            updateOrderIndex(id, index, now)
+        }
+    }
 
     /**
      * Elimina una entidad de cuenta.

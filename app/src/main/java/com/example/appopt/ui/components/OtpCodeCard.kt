@@ -5,6 +5,11 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,15 +31,22 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.appopt.R
@@ -45,33 +57,47 @@ import com.example.appopt.ui.theme.WarningOrange
 import kotlinx.coroutines.delay
 
 /**
- * Tarjeta visual para representar una cuenta 2FA y su código OTP actual con alto contraste y tipografía escalable.
+ * Tarjeta visual para representar una cuenta 2FA y su código OTP actual con alto contraste, tipografía escalable, ripple nativo y arrastre.
  *
  * Características de diseño e interacción:
- * - Contraste nítido respecto al fondo de pantalla con borde sutil y elevación.
- * - Pulsar sobre la tarjeta (área general) abre el popup/modal de edición y detalles.
+ * - Pulsar sobre la tarjeta genera el efecto ripple visual y abre el modal de detalle/edición.
+ * - Mantener presionada la tarjeta activa vibración háptica y modo de arrastre para reordenamiento.
  * - Pulsar directamente sobre los dígitos copia inmediatamente el código al portapapeles.
- * - Modo de privacidad (`hideCodes`): oculta completamente los números y el contador, dejando únicamente los datos identificativos.
+ * - Modo de privacidad (`hideCodes`): oculta completamente los números y el contador.
  *
  * @param accountWithCode Contenedor con la información de la cuenta, código activo y progreso temporal.
  * @param hideCodes Si es verdadero, oculta por completo la sección de códigos y temporizadores.
+ * @param isDragging Si es verdadero, resalta visualmente la tarjeta mientras se arrastra para reordenar.
  * @param onCardClick Callback al pulsar en la tarjeta para abrir el popup modal.
  * @param onCopyCode Callback invocado al pulsar sobre los dígitos para copiar el código al portapapeles.
  * @param onToggleFavorite Callback para marcar o desmarcar como favorita.
  * @param onNextHotpCode Callback para avanzar el contador de una cuenta HOTP.
+ * @param onStartDrag Callback invocado al iniciar el arrastre por pulsación prolongada.
+ * @param onDragDelta Callback con el desplazamiento vertical continuo durante el arrastre.
+ * @param onEndDrag Callback invocado al soltar la tarjeta.
  */
 @Composable
 fun OtpCodeCard(
     accountWithCode: AccountWithCode,
     hideCodes: Boolean,
+    modifier: Modifier = Modifier,
+    isDragging: Boolean = false,
     onCardClick: () -> Unit,
     onCopyCode: (String) -> Unit,
     onToggleFavorite: (String) -> Unit,
     onNextHotpCode: (String) -> Unit,
-    modifier: Modifier = Modifier
+    onStartDrag: () -> Unit = {},
+    onDragDelta: (Float, Float) -> Unit = { _, _ -> },
+    onEndDrag: () -> Unit = {}
 ) {
     val account = accountWithCode.account
+    val haptic = LocalHapticFeedback.current
+    val density = LocalDensity.current
+    val interactionSource = remember { MutableInteractionSource() }
+
     var copied by remember { mutableStateOf(false) }
+    var cardHeightPx by remember { mutableFloatStateOf(300f) }
+    val spacingPx = with(density) { 12.dp.toPx() }
 
     LaunchedEffect(copied) {
         if (copied) {
@@ -94,12 +120,45 @@ fun OtpCodeCard(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .clickable { onCardClick() },
+            .onGloballyPositioned { coordinates ->
+                cardHeightPx = coordinates.size.height.toFloat() + spacingPx
+            }
+            .indication(interactionSource, ripple())
+            .pointerInput(account.id) {
+                detectDragGesturesAfterLongPress(
+                    onDragStart = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onStartDrag()
+                    },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        onDragDelta(dragAmount.y, cardHeightPx)
+                    },
+                    onDragEnd = { onEndDrag() },
+                    onDragCancel = { onEndDrag() }
+                )
+            }
+            .pointerInput(account.id) {
+                detectTapGestures(
+                    onPress = { offset ->
+                        val press = PressInteraction.Press(offset)
+                        interactionSource.emit(press)
+                        tryAwaitRelease()
+                        interactionSource.emit(PressInteraction.Release(press))
+                    },
+                    onTap = {
+                        onCardClick()
+                    }
+                )
+            },
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = if (isDragging) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isDragging) 12.dp else 3.dp),
+        border = BorderStroke(
+            width = if (isDragging) 2.dp else 1.dp,
+            color = if (isDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+        )
     ) {
         Column(
             modifier = Modifier
@@ -145,13 +204,13 @@ fun OtpCodeCard(
             if (!hideCodes) {
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Cuerpo: Dígitos OTP (sin caja de color de fondo) y Temporizador / Acción HOTP
+                // Cuerpo: Dígitos OTP y Temporizador / Acción HOTP
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Zona táctil de los dígitos: toque directo para copiar (fondo limpio integrado)
+                    // Zona táctil de los dígitos: toque directo para copiar
                     Row(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))

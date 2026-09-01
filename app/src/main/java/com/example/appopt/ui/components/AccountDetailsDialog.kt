@@ -1,8 +1,12 @@
 package com.example.appopt.ui.components
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -37,10 +41,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.appopt.R
@@ -49,6 +55,7 @@ import com.example.appopt.domain.repository.AccountWithCode
 import com.example.appopt.ui.theme.SafeGreen
 import com.example.appopt.ui.theme.UrgentRed
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * Modal / Popup para visualizar o editar la información de una cuenta con escala tipográfica estandarizada en todos sus elementos.
@@ -59,6 +66,7 @@ import kotlinx.coroutines.delay
  * - Con un simple toque sobre los dígitos se copia el código al portapapeles.
  * - Iconos en la esquina superior derecha: Lápiz para alternar al modo edición y Basurero para eliminar.
  * - En modo edición permite modificar el nombre del servicio y la cuenta/usuario.
+ * - El botón "Guardar cambios" incluye una animación de éxito: al presionarse transiciona a color verde y reemplaza el texto por una palomita de confirmación.
  *
  * @param accountWithCode Cuenta seleccionada con su código activo.
  * @param onDismiss Callback para cerrar el modal.
@@ -76,12 +84,14 @@ fun AccountDetailsDialog(
     modifier: Modifier = Modifier
 ) {
     val account = accountWithCode.account
+    val scope = rememberCoroutineScope()
 
     var isEditMode by remember { mutableStateOf(false) }
     var editedIssuer by remember(account.id) { mutableStateOf(account.issuer) }
     var editedAccountName by remember(account.id) { mutableStateOf(account.accountName) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var copied by remember { mutableStateOf(false) }
+    var isSavingSuccessful by remember { mutableStateOf(false) }
 
     LaunchedEffect(account.issuer, account.accountName) {
         editedIssuer = account.issuer
@@ -104,6 +114,18 @@ fun AccountDetailsDialog(
             else -> raw
         }
     }
+
+    // Comprueba si hubo alguna modificación real en los campos editados
+    val hasChanges = remember(editedIssuer, editedAccountName, account.issuer, account.accountName) {
+        editedIssuer.trim() != account.issuer.trim() || editedAccountName.trim() != account.accountName.trim()
+    }
+    val isFormValid = editedIssuer.isNotBlank() && hasChanges
+
+    val saveButtonColor by animateColorAsState(
+        targetValue = if (isSavingSuccessful) SafeGreen else MaterialTheme.colorScheme.primary,
+        animationSpec = tween(durationMillis = 300),
+        label = "saveButtonColor"
+    )
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -250,20 +272,45 @@ fun AccountDetailsDialog(
                         modifier = Modifier.fillMaxWidth()
                     )
 
+                    // Botón animado de Guardar cambios
                     Button(
                         onClick = {
-                            if (editedIssuer.isNotBlank()) {
-                                onUpdateAccount(account.id, editedIssuer, editedAccountName)
-                                isEditMode = false
+                            if (isFormValid && !isSavingSuccessful) {
+                                isSavingSuccessful = true
+                                scope.launch {
+                                    onUpdateAccount(account.id, editedIssuer.trim(), editedAccountName.trim())
+                                    delay(750)
+                                    isEditMode = false
+                                    isSavingSuccessful = false
+                                }
                             }
                         },
-                        enabled = editedIssuer.isNotBlank(),
-                        modifier = Modifier.fillMaxWidth(),
+                        enabled = isFormValid || isSavingSuccessful,
+                        colors = ButtonDefaults.buttonColors(containerColor = saveButtonColor),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
                         shape = RoundedCornerShape(10.dp)
                     ) {
-                        Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(stringResource(R.string.action_save_changes), style = MaterialTheme.typography.labelLarge)
+                        AnimatedContent(
+                            targetState = isSavingSuccessful,
+                            transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(200)) },
+                            label = "saveChangesContent"
+                        ) { saved ->
+                            if (saved) {
+                                Icon(
+                                    imageVector = Icons.Filled.Check,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            } else {
+                                Text(
+                                    text = stringResource(R.string.action_save_changes),
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
+                        }
                     }
                 }
             }

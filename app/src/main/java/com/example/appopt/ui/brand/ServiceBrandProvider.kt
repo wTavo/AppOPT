@@ -35,10 +35,10 @@ object ServiceBrandProvider {
     private val KnownBrands = listOf(
         BrandInfo("Google", "G", Color(0xFFFFFFFF), R.drawable.ic_brand_google, Color.Black),
         BrandInfo("GitHub", "GH", Color(0xFF24292E), R.drawable.ic_brand_github),
-        BrandInfo("Microsoft", "MS", Color(0xFF2F2F2F), R.drawable.ic_brand_microsoft),
+        BrandInfo("Microsoft", "MS", Color(0xFFFFFFFF), R.drawable.ic_brand_microsoft, Color.Black),
         BrandInfo("Discord", "D", Color(0xFF5865F2), R.drawable.ic_brand_discord),
-        BrandInfo("Amazon", "AMZ", Color(0xFFFF9900), R.drawable.ic_brand_amazon),
-        BrandInfo("AWS", "AWS", Color(0xFFFF9900), R.drawable.ic_brand_amazon),
+        BrandInfo("Amazon", "AMZ", Color(0xFF232F3E), R.drawable.ic_brand_amazon),
+        BrandInfo("AWS", "AWS", Color(0xFF232F3E), R.drawable.ic_brand_amazon),
         BrandInfo("Steam", "ST", Color(0xFF171A21), R.drawable.ic_brand_steam),
         BrandInfo("Apple", "AP", Color(0xFF000000), R.drawable.ic_brand_apple),
         BrandInfo("Twitter", "X", Color(0xFF000000), R.drawable.ic_brand_x),

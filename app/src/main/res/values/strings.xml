@@ -82,27 +82,25 @@
     <string name="settings_title">Seguridad y respaldo</string>
     <string name="settings_vault_status_title">Bóveda local cifrada</string>
     <string name="settings_vault_status_details">• Cifrado AES-256-GCM autenticado\n• Clave maestra en Android Keystore (TEE)\n• Memoria RAM con limpieza de buffers\n• Protección activa contra capturas de pantalla</string>
-    <string name="settings_recovery_key_title">Clave de recuperación (Recovery Key)</string>
-    <string name="settings_recovery_key_description">Genera un secreto criptográfico de 256 bits para respaldar de forma offline tus cuentas. Anótalo en un lugar seguro.</string>
-    <string name="settings_generate_recovery_button">Generar clave de recuperación</string>
-    <string name="settings_recovery_dialog_title">Generar Recovery Key</string>
-    <string name="settings_recovery_dialog_message">Esta clave de alta entropía es tu única vía de recuperación si pierdes el acceso biométrico o cambias de dispositivo. ¿Deseas generarla ahora?</string>
+    <!-- Transfer Accounts (QR Code) -->
+    <string name="settings_transfer_title">Transferir cuentas</string>
+    <string name="settings_transfer_description">Transfiere tus cuentas directamente a otro teléfono mediante un código QR sin pasar por ningún servidor.</string>
+    <string name="settings_export_qr_button">Exportar cuentas</string>
+    <string name="settings_import_qr_button">Importar cuentas</string>
+    <string name="settings_export_qr_dialog_title">Escanear para transferir</string>
+    <string name="settings_export_qr_dialog_hint">En tu nuevo teléfono, abre el escáner QR de la app y apunta a este código.</string>
+    <string name="settings_export_qr_empty">No tienes cuentas guardadas para transferir</string>
+    <string name="settings_transfer_success">Se importaron %1$d cuentas exitosamente</string>
 
-    <!-- Backup & Restore -->
-    <string name="settings_backup_section_title">Copia de seguridad y restauración</string>
-    <string name="settings_backup_section_description">Exporta un archivo cifrado con contraseña o restaura cuentas desde un respaldo previo.</string>
-    <string name="settings_export_backup_button">Exportar bóveda cifrada</string>
-    <string name="settings_import_backup_button">Restaurar bóveda cifrada</string>
-    <string name="settings_export_dialog_title">Exportar bóveda cifrada</string>
-    <string name="settings_export_password_label">Contraseña de cifrado</string>
-    <string name="settings_export_password_confirm_label">Confirmar contraseña</string>
-    <string name="settings_export_password_mismatch">Las contraseñas no coinciden</string>
-    <string name="settings_export_password_too_short">La contraseña debe tener al menos 8 caracteres</string>
-    <string name="settings_import_dialog_title">Restaurar bóveda cifrada</string>
-    <string name="settings_import_password_label">Contraseña del respaldo</string>
-    <string name="settings_export_success">Bóveda exportada exitosamente</string>
-    <string name="settings_import_success">Se restauraron %1$d cuentas exitosamente</string>
-    <string name="settings_import_error">Error al restaurar: Contraseña incorrecta o archivo corrupto</string>
+    <!-- Cloud Backup (Google Drive) -->
+    <string name="settings_drive_title">Copia de seguridad en Google Drive</string>
+    <string name="settings_drive_description">Guarda una copia cifrada de tu bóveda en tu espacio privado de Google Drive para restaurarla si pierdes tu teléfono.</string>
+    <string name="settings_drive_status_not_synced">Sin sincronizar</string>
+    <string name="settings_drive_status_synced">Sincronizado</string>
+    <string name="settings_drive_sync_button">Sincronizar con Google Drive</string>
+    <string name="settings_drive_restore_button">Restaurar de Google Drive</string>
+    <string name="settings_drive_sync_success">Copia de seguridad sincronizada exitosamente</string>
+    <string name="settings_drive_feature_info">La sincronización con Google Drive se vinculará con tu cuenta de Google.</string>
 
     <!-- Password Manager (Future Module) -->
     <string name="passwords_nav_title">Gestor de contraseñas</string>

@@ -102,4 +102,19 @@ interface AccountRepository {
      * @return [Result] con el número de cuentas importadas exitosamente.
      */
     suspend fun importVault(backupBytes: ByteArray, password: CharArray): Result<Int>
+
+    /**
+     * Exporta las cuentas de la bóveda para migración y transferencia por código QR.
+     *
+     * @return Cadena formateada para codificarse en un código QR de migración.
+     */
+    suspend fun exportAccountsForTransfer(): String
+
+    /**
+     * Importa una o múltiples cuentas a partir de los datos escaneados de un código QR de transferencia.
+     *
+     * @param transferPayload Cadena de texto obtenida del código QR.
+     * @return [Result] con la cantidad de cuentas importadas exitosamente.
+     */
+    suspend fun importAccountsFromTransfer(transferPayload: String): Result<Int>
 }

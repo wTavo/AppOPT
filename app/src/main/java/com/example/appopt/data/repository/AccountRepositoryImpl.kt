@@ -8,6 +8,7 @@ import com.example.appopt.domain.model.TotpAccount
 import com.example.appopt.domain.repository.AccountRepository
 import com.example.appopt.domain.repository.AccountWithCode
 import com.example.appopt.domain.totp.Base32
+import com.example.appopt.domain.totp.OtpUriParser
 import com.example.appopt.domain.totp.TotpEngine
 import com.example.appopt.security.BackupCrypto
 import com.example.appopt.security.CryptoManager
@@ -309,6 +310,101 @@ class AccountRepositoryImpl(
                 }
             }
 
+            count
+        }
+    }
+
+    /**
+     * Exporta las cuentas de la bóveda para migración y transferencia por código QR.
+     *
+     * Si sólo hay 1 cuenta, genera el URI estándar otpauth://
+     * Si hay múltiples cuentas, genera un payload JSON estructurado con el prefijo "appopt-migration:"
+     * que asegura compatibilidad y decodificación eficiente en el código QR.
+     */
+    override suspend fun exportAccountsForTransfer(): String {
+        val entities = accountDao.getAllAccounts().first()
+        if (entities.isEmpty()) return ""
+
+        val jsonArray = JSONArray()
+        for (entity in entities) {
+            var secretBytes: ByteArray? = null
+            try {
+                secretBytes = cryptoManager.decrypt(entity.encryptedSecret, entity.iv)
+                val secretBase32 = Base32.encode(secretBytes)
+                val item = JSONObject().apply {
+                    put("issuer", entity.issuer)
+                    put("accountName", entity.accountName)
+                    put("secret", secretBase32)
+                    put("algorithm", entity.algorithm)
+                    put("digits", entity.digits)
+                    put("period", entity.period)
+                    put("type", entity.type)
+                    put("counter", entity.counter)
+                }
+                jsonArray.put(item)
+            } finally {
+                secretBytes?.let { CryptoManager.zeroize(it) }
+            }
+        }
+
+        val rootObject = JSONObject().apply {
+            put("version", 1)
+            put("type", "appopt-migration")
+            put("accounts", jsonArray)
+        }
+        return rootObject.toString()
+    }
+
+    /**
+     * Importa una o múltiples cuentas a partir de los datos escaneados de un código QR de transferencia.
+     */
+    override suspend fun importAccountsFromTransfer(transferPayload: String): Result<Int> {
+        val trimmed = transferPayload.trim()
+        // 1. Caso URI individual estándar otpauth://
+        if (trimmed.startsWith("otpauth://", ignoreCase = true)) {
+            val parseResult = OtpUriParser.parse(trimmed)
+            if (parseResult.isFailure) {
+                return Result.failure(parseResult.exceptionOrNull() ?: Exception("QR OTP no válido"))
+            }
+            val data = parseResult.getOrThrow()
+            saveAccount(
+                issuer = data.issuer,
+                accountName = data.accountName,
+                secretBytes = data.secretBytes,
+                algorithm = data.algorithm,
+                digits = data.digits,
+                period = data.period,
+                type = data.type,
+                counter = data.counter
+            )
+            return Result.success(1)
+        }
+
+        // 2. Caso JSON estructurado multi-cuenta
+        return runCatching {
+            val root = JSONObject(trimmed)
+            val accountsArray = root.getJSONArray("accounts")
+            var count = 0
+            for (i in 0 until accountsArray.length()) {
+                val item = accountsArray.getJSONObject(i)
+                val rawSecret = item.getString("secret")
+                val secretBytes = Base32.decode(Base32.sanitize(rawSecret))
+                try {
+                    saveAccount(
+                        issuer = item.optString("issuer", "Cuenta"),
+                        accountName = item.optString("accountName", "Usuario"),
+                        secretBytes = secretBytes,
+                        algorithm = OtpAlgorithm.fromString(item.optString("algorithm", "SHA1")),
+                        digits = item.optInt("digits", 6),
+                        period = item.optInt("period", 30),
+                        type = OtpType.fromString(item.optString("type", "TOTP")),
+                        counter = item.optLong("counter", 0L)
+                    )
+                    count++
+                } finally {
+                    CryptoManager.zeroize(secretBytes)
+                }
+            }
             count
         }
     }

@@ -1,9 +1,10 @@
 package com.example.appopt.ui.screens.settings
 
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import android.graphics.Bitmap
+import android.widget.Toast
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,16 +16,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.SaveAlt
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -34,7 +31,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -51,73 +47,43 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
+import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.SafeGreen
-import com.example.appopt.ui.theme.UrgentRed
+import com.example.appopt.ui.util.QrCodeGenerator
 import kotlinx.coroutines.launch
 
 /**
- * Pantalla de configuración de seguridad, respaldos cifrados y recuperación offline con escala tipográfica estandarizada.
+ * Pantalla de configuración de seguridad, transferencia offline de cuentas y respaldo en la nube.
  *
  * Características:
- * - Generación de Recovery Key de 256 bits de entropía.
- * - Exportación de la bóveda a un archivo cifrado con contraseña (PBKDF2 + AES-GCM).
- * - Importación y restauración de cuentas desde archivos de respaldo.
+ * - Diagnóstico del estado criptográfico de la bóveda local (AES-256-GCM + Android Keystore TEE).
+ * - Transferencia directa e interoperable entre dispositivos mediante Códigos QR.
+ * - Preparación de copia de seguridad en Google Drive sin archivos ni contraseñas manuales.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToScanQr: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-
-    val cryptoManager = AuthenticatorApp.instance.cryptoManager
     val repository = AuthenticatorApp.instance.accountRepository
-    val clipboardManager = AuthenticatorApp.instance.secureClipboardManager
 
-    var recoveryKey by remember { mutableStateOf<String?>(null) }
-    var copiedKey by remember { mutableStateOf(false) }
-    var showGenerateDialog by remember { mutableStateOf(false) }
+    var transferQrBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var showExportQrDialog by remember { mutableStateOf(false) }
 
-    // Estados de diálogo de exportación / importación
-    var showExportDialog by remember { mutableStateOf(false) }
-    var showImportDialog by remember { mutableStateOf(false) }
-    var pendingExportUri by remember { mutableStateOf<Uri?>(null) }
-    var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
-
-    // Export Launcher (Storage Access Framework)
-    val exportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/octet-stream")
-    ) { uri ->
-        if (uri != null) {
-            pendingExportUri = uri
-            showExportDialog = true
-        }
-    }
-
-    // Import Launcher
-    val importLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        if (uri != null) {
-            pendingImportUri = uri
-            showImportDialog = true
-        }
-    }
-
-    val exportSuccessMsg = stringResource(R.string.settings_export_success)
-    val importSuccessFormat = stringResource(R.string.settings_import_success)
-    val importErrorMsg = stringResource(R.string.settings_import_error)
+    val emptyAccountsMsg = stringResource(R.string.settings_export_qr_empty)
+    val driveInfoMsg = stringResource(R.string.settings_drive_feature_info)
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -143,36 +109,36 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = Dimensions.Spacing.lg)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
         ) {
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
 
-            // Tarjeta de estado y diagnóstico de seguridad
+            // 1. Tarjeta de Estado y Diagnóstico de Seguridad
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 ),
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(Dimensions.CornerRadius.large)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.padding(Dimensions.Spacing.md)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Filled.Shield,
                             contentDescription = null,
                             tint = SafeGreen,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(Dimensions.IconSize.medium)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
                         Text(
                             text = stringResource(R.string.settings_vault_status_title),
                             style = MaterialTheme.typography.titleMedium
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(Dimensions.Spacing.sm))
 
                     Text(
                         text = stringResource(R.string.settings_vault_status_details),
@@ -182,338 +148,186 @@ fun SettingsScreen(
                 }
             }
 
-            // Sección de Copia de Seguridad y Restauración
+            // 2. Tarjeta de Transferencia Directa por Código QR (Offline)
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 ),
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(Dimensions.CornerRadius.large)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.padding(Dimensions.Spacing.md)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = Icons.Filled.SaveAlt,
+                            imageVector = Icons.Filled.QrCodeScanner,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(Dimensions.IconSize.medium)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
                         Text(
-                            text = stringResource(R.string.settings_backup_section_title),
+                            text = stringResource(R.string.settings_transfer_title),
                             style = MaterialTheme.typography.titleMedium
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
 
                     Text(
-                        text = stringResource(R.string.settings_backup_section_description),
+                        text = stringResource(R.string.settings_transfer_description),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(Dimensions.Spacing.md))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
                     ) {
                         Button(
                             onClick = {
-                                exportLauncher.launch("authenticator_backup_${System.currentTimeMillis()}.enc")
+                                scope.launch {
+                                    val payload = repository.exportAccountsForTransfer()
+                                    if (payload.isBlank()) {
+                                        snackbarHostState.showSnackbar(emptyAccountsMsg)
+                                    } else {
+                                        val bitmap = QrCodeGenerator.generateQrBitmap(payload, size = 600)
+                                        transferQrBitmap = bitmap
+                                        showExportQrDialog = true
+                                    }
+                                }
                             },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp)
+                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                         ) {
-                            Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(stringResource(R.string.settings_export_backup_button), style = MaterialTheme.typography.labelSmall)
+                            Text(stringResource(R.string.settings_export_qr_button), style = MaterialTheme.typography.labelLarge)
                         }
 
                         OutlinedButton(
-                            onClick = {
-                                importLauncher.launch(arrayOf("*/*"))
-                            },
+                            onClick = onNavigateToScanQr,
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp)
+                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                         ) {
-                            Icon(Icons.Filled.SaveAlt, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(stringResource(R.string.settings_import_backup_button), style = MaterialTheme.typography.labelSmall)
+                            Text(stringResource(R.string.settings_import_qr_button), style = MaterialTheme.typography.labelLarge)
                         }
                     }
                 }
             }
 
-            // Sección de Clave de Recuperación
+            // 3. Tarjeta de Copia de Seguridad en la Nube (Google Drive)
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 ),
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(Dimensions.CornerRadius.large)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Filled.Key,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = stringResource(R.string.settings_recovery_key_title),
-                            style = MaterialTheme.typography.titleMedium
-                        )
+                Column(modifier = Modifier.padding(Dimensions.Spacing.md)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Filled.Sync,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(Dimensions.IconSize.medium)
+                            )
+                            Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
+                            Text(
+                                text = stringResource(R.string.settings_drive_title),
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
+                            color = MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Text(
+                                text = stringResource(R.string.settings_drive_status_not_synced),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = 2.dp)
+                            )
+                        }
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
 
                     Text(
-                        text = stringResource(R.string.settings_recovery_key_description),
+                        text = stringResource(R.string.settings_drive_description),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(Dimensions.Spacing.md))
 
-                    if (recoveryKey == null) {
-                        Button(
-                            onClick = { showGenerateDialog = true },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Text(stringResource(R.string.settings_generate_recovery_button), style = MaterialTheme.typography.labelLarge)
-                        }
-                    } else {
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Text(
-                                    text = recoveryKey ?: "",
-                                    fontFamily = FontFamily.Monospace,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-
-                                Spacer(modifier = Modifier.height(10.dp))
-
-                                OutlinedButton(
-                                    onClick = {
-                                        recoveryKey?.let {
-                                            clipboardManager.copyToClipboard("Recovery Key", it, 60)
-                                            copiedKey = true
-                                        }
-                                    },
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Icon(
-                                        imageVector = if (copiedKey) Icons.Filled.Check else Icons.Filled.ContentCopy,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        if (copiedKey) stringResource(R.string.action_copied_recovery)
-                                        else stringResource(R.string.action_copy_key),
-                                        style = MaterialTheme.typography.labelLarge
-                                    )
-                                }
-                            }
-                        }
+                    Button(
+                        onClick = {
+                            Toast.makeText(context, driveInfoMsg, Toast.LENGTH_LONG).show()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                    ) {
+                        Icon(Icons.Filled.Sync, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
+                        Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
+                        Text(stringResource(R.string.settings_drive_sync_button), style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 
-    // Modal para Exportar Respaldo Cifrado con Contraseña
-    if (showExportDialog) {
-        var password by remember { mutableStateOf("") }
-        var confirmPassword by remember { mutableStateOf("") }
-        var errorMessage by remember { mutableStateOf<String?>(null) }
-
-        val mismatchError = stringResource(R.string.settings_export_password_mismatch)
-        val shortError = stringResource(R.string.settings_export_password_too_short)
-
+    // Modal para visualizar el Código QR de Transferencia directa
+    if (showExportQrDialog && transferQrBitmap != null) {
         AlertDialog(
-            onDismissRequest = {
-                showExportDialog = false
-                pendingExportUri = null
+            onDismissRequest = { showExportQrDialog = false },
+            title = {
+                Text(
+                    text = stringResource(R.string.settings_export_qr_dialog_title),
+                    style = MaterialTheme.typography.titleLarge
+                )
             },
-            title = { Text(stringResource(R.string.settings_export_dialog_title), style = MaterialTheme.typography.titleLarge) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedTextField(
-                        value = password,
-                        onValueChange = { password = it; errorMessage = null },
-                        label = { Text(stringResource(R.string.settings_export_password_label), style = MaterialTheme.typography.bodyMedium) },
-                        visualTransformation = PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = confirmPassword,
-                        onValueChange = { confirmPassword = it; errorMessage = null },
-                        label = { Text(stringResource(R.string.settings_export_password_confirm_label), style = MaterialTheme.typography.bodyMedium) },
-                        visualTransformation = PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    if (errorMessage != null) {
-                        Text(text = errorMessage ?: "", color = UrgentRed, style = MaterialTheme.typography.bodySmall)
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                ) {
+                    transferQrBitmap?.let { bitmap ->
+                        Surface(
+                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                            color = androidx.compose.ui.graphics.Color.White,
+                            modifier = Modifier.padding(Dimensions.Spacing.sm)
+                        ) {
+                            Image(
+                                bitmap = bitmap.asImageBitmap(),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(240.dp)
+                                    .padding(Dimensions.Spacing.sm)
+                            )
+                        }
                     }
+
+                    Text(
+                        text = stringResource(R.string.settings_export_qr_dialog_hint),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
                 }
             },
             confirmButton = {
                 Button(
-                    onClick = {
-                        if (password.length < 8) {
-                            errorMessage = shortError
-                            return@Button
-                        }
-                        if (password != confirmPassword) {
-                            errorMessage = mismatchError
-                            return@Button
-                        }
-
-                        val uri = pendingExportUri ?: return@Button
-                        val pwdArray = password.toCharArray()
-
-                        scope.launch {
-                            try {
-                                val encryptedBytes = repository.exportVault(pwdArray)
-                                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                                    outputStream.write(encryptedBytes)
-                                }
-                                showExportDialog = false
-                                pendingExportUri = null
-                                snackbarHostState.showSnackbar(exportSuccessMsg)
-                            } catch (e: Exception) {
-                                errorMessage = e.localizedMessage
-                            } finally {
-                                pwdArray.fill('0')
-                            }
-                        }
-                    }
+                    onClick = { showExportQrDialog = false },
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                 ) {
-                    Text(stringResource(R.string.action_save), style = MaterialTheme.typography.labelLarge)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showExportDialog = false
-                    pendingExportUri = null
-                }) {
-                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
-                }
-            }
-        )
-    }
-
-    // Modal para Importar Respaldo Cifrado con Contraseña
-    if (showImportDialog) {
-        var importPassword by remember { mutableStateOf("") }
-        var importError by remember { mutableStateOf<String?>(null) }
-
-        AlertDialog(
-            onDismissRequest = {
-                showImportDialog = false
-                pendingImportUri = null
-            },
-            title = { Text(stringResource(R.string.settings_import_dialog_title), style = MaterialTheme.typography.titleLarge) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedTextField(
-                        value = importPassword,
-                        onValueChange = { importPassword = it; importError = null },
-                        label = { Text(stringResource(R.string.settings_import_password_label), style = MaterialTheme.typography.bodyMedium) },
-                        visualTransformation = PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    if (importError != null) {
-                        Text(text = importError ?: "", color = UrgentRed, style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val uri = pendingImportUri ?: return@Button
-                        val pwdArray = importPassword.toCharArray()
-
-                        scope.launch {
-                            try {
-                                val bytes = context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                                    inputStream.readBytes()
-                                } ?: throw Exception("No se pudo leer el archivo seleccionado")
-
-                                val result = repository.importVault(bytes, pwdArray)
-                                if (result.isSuccess) {
-                                    val count = result.getOrThrow()
-                                    showImportDialog = false
-                                    pendingImportUri = null
-                                    snackbarHostState.showSnackbar(String.format(importSuccessFormat, count))
-                                } else {
-                                    importError = importErrorMsg
-                                }
-                            } catch (e: Exception) {
-                                importError = importErrorMsg
-                            } finally {
-                                pwdArray.fill('0')
-                            }
-                        }
-                    }
-                ) {
-                    Text(stringResource(R.string.action_unlock), style = MaterialTheme.typography.labelLarge)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showImportDialog = false
-                    pendingImportUri = null
-                }) {
-                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
-                }
-            }
-        )
-    }
-
-    // Modal de confirmación para generación de Recovery Key
-    if (showGenerateDialog) {
-        AlertDialog(
-            onDismissRequest = { showGenerateDialog = false },
-            title = { Text(stringResource(R.string.settings_recovery_dialog_title), style = MaterialTheme.typography.titleLarge) },
-            text = {
-                Text(stringResource(R.string.settings_recovery_dialog_message), style = MaterialTheme.typography.bodyMedium)
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        recoveryKey = cryptoManager.generateRecoveryKey()
-                        showGenerateDialog = false
-                    }
-                ) {
-                    Text(stringResource(R.string.action_generate), style = MaterialTheme.typography.labelLarge)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showGenerateDialog = false }) {
-                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(R.string.account_modal_close_button), style = MaterialTheme.typography.labelLarge)
                 }
             }
         )

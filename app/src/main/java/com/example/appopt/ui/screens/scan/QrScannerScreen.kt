@@ -188,32 +188,16 @@ fun QrScannerScreen(
                                             for (barcode in barcodes) {
                                                 if (barcode.valueType == Barcode.TYPE_TEXT || barcode.valueType == Barcode.TYPE_UNKNOWN) {
                                                     val rawValue = barcode.rawValue ?: continue
-                                                    if (rawValue.startsWith("otpauth://", ignoreCase = true) && !isProcessingQr) {
+                                                    val trimmed = rawValue.trim()
+                                                    if ((trimmed.startsWith("otpauth://", ignoreCase = true) || trimmed.startsWith("{")) && !isProcessingQr) {
                                                         isProcessingQr = true
-                                                        val parseResult = OtpUriParser.parse(rawValue)
-                                                        parseResult.onSuccess { data ->
-                                                            scope.launch {
-                                                                try {
-                                                                    repository.saveAccount(
-                                                                        issuer = data.issuer,
-                                                                        accountName = data.accountName,
-                                                                        secretBytes = data.secretBytes,
-                                                                        algorithm = data.algorithm,
-                                                                        digits = data.digits,
-                                                                        period = data.period,
-                                                                        type = data.type,
-                                                                        counter = data.counter
-                                                                    )
-                                                                    onScanSuccess()
-                                                                } catch (e: Exception) {
-                                                                    isProcessingQr = false
-                                                                    snackbarHostState.showSnackbar("Error al guardar: ${e.localizedMessage}")
-                                                                }
-                                                            }
-                                                        }.onFailure { error ->
-                                                            isProcessingQr = false
-                                                            scope.launch {
-                                                                snackbarHostState.showSnackbar("QR no válido: ${error.localizedMessage}")
+                                                        scope.launch {
+                                                            val importResult = repository.importAccountsFromTransfer(trimmed)
+                                                            importResult.onSuccess {
+                                                                onScanSuccess()
+                                                            }.onFailure { error ->
+                                                                isProcessingQr = false
+                                                                snackbarHostState.showSnackbar(context.getString(R.string.scan_error_invalid_qr, error.localizedMessage ?: ""))
                                                             }
                                                         }
                                                     }

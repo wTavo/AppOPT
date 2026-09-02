@@ -128,8 +128,19 @@ fun SettingsScreen(
     // Estados para la sincronización persistente con Google Identity Services
     val authClient = remember { GoogleDriveManager.getAuthorizationClient(context) }
     var isDriveConnected by remember { mutableStateOf(prefsManager.isGoogleDriveConnected()) }
+    var lastSyncTimestamp by remember { mutableStateOf(prefsManager.getLastSyncTimestamp()) }
     var driveAccessToken by remember { mutableStateOf<String?>(null) }
     var isDriveLoading by remember { mutableStateOf(false) }
+
+    val formattedLastSync = remember(lastSyncTimestamp) {
+        if (lastSyncTimestamp == 0L) {
+            null
+        } else {
+            val date = java.util.Date(lastSyncTimestamp)
+            val format = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault())
+            format.format(date)
+        }
+    }
 
     // Autorización silenciosa al abrir la pantalla si ya existía consentimiento
     LaunchedEffect(Unit) {
@@ -401,6 +412,28 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+
+                    if (isDriveConnected) {
+                        Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Filled.CloudDone,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(Dimensions.IconSize.small)
+                            )
+                            Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                            Text(
+                                text = if (formattedLastSync != null) {
+                                    stringResource(R.string.settings_drive_last_sync, formattedLastSync)
+                                } else {
+                                    stringResource(R.string.settings_drive_last_sync_never)
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(Dimensions.Spacing.md))
 
@@ -827,6 +860,11 @@ fun SettingsScreen(
                                 val payload = repository.exportAccountsForTransfer()
                                 val uploadResult = GoogleDriveManager.uploadBackup(driveAccessToken!!, payload, passChars)
                                 uploadResult.onSuccess {
+                                    val now = System.currentTimeMillis()
+                                    isDriveConnected = true
+                                    prefsManager.setGoogleDriveConnected(true)
+                                    prefsManager.setLastSyncTimestamp(now)
+                                    lastSyncTimestamp = now
                                     snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_sync_success))
                                 }.onFailure { error ->
                                     snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error, error.localizedMessage ?: ""))

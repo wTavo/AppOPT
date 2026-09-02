@@ -1,7 +1,9 @@
 package com.example.appopt.ui.screens.settings
 
+import android.app.Activity
 import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -70,12 +72,13 @@ import com.example.appopt.ui.components.ServiceBrandAvatar
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.SafeGreen
 import com.example.appopt.ui.util.QrCodeGenerator
-import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.common.api.ApiException
 import kotlinx.coroutines.launch
 
 /**
  * Pantalla de configuración de seguridad, transferencia offline de servicios y sincronización en la nube con Google Drive.
+ *
+ * Utiliza Google Identity Services (GIS) mediante [GoogleDriveManager], sin APIs obsoletas.
  *
  * Características de seguridad y diseño:
  * - Diagnóstico del estado criptográfico de la bóveda local (AES-256-GCM + Android Keystore TEE).
@@ -104,35 +107,69 @@ fun SettingsScreen(
     var transferQrBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var showExportQrDialog by remember { mutableStateOf(false) }
 
-    // Estados para la sincronización con Google Drive
-    val googleSignInClient = remember { GoogleDriveManager.getGoogleSignInClient(context) }
-    var googleAccount by remember { mutableStateOf(GoogleDriveManager.getLastSignedInAccount(context)) }
+    // Estados para la sincronización moderna con Google Identity Services
+    val authClient = remember { GoogleDriveManager.getAuthorizationClient(context) }
+    var driveAccessToken by remember { mutableStateOf<String?>(null) }
     var isDriveLoading by remember { mutableStateOf(false) }
     var showDriveRestoreConfirmDialog by remember { mutableStateOf(false) }
 
     val emptyServicesMsg = stringResource(R.string.settings_export_services_empty)
     val servicesDeletedMsg = stringResource(R.string.settings_services_deleted_after_export)
 
-    // Launcher para el flujo interactivo de Google Sign-In
-    val googleSignInLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-        try {
-            val account = task.getResult(ApiException::class.java)
-            googleAccount = account
-            scope.launch {
-                snackbarHostState.showSnackbar(
-                    context.getString(R.string.settings_drive_connected_as, account.email ?: "")
-                )
-            }
-        } catch (e: ApiException) {
-            scope.launch {
-                snackbarHostState.showSnackbar(
-                    context.getString(R.string.settings_drive_error, e.localizedMessage ?: "Error de autenticación (${e.statusCode})")
-                )
+    // Lanzador moderno para resolver el consentimiento de Google Identity
+    val authLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { activityResult ->
+        if (activityResult.resultCode == Activity.RESULT_OK) {
+            try {
+                val authResult = authClient.getAuthorizationResultFromIntent(activityResult.data)
+                val token = authResult.accessToken
+                if (token != null) {
+                    driveAccessToken = token
+                    scope.launch {
+                        snackbarHostState.showSnackbar(
+                            context.getString(R.string.settings_drive_sync_success)
+                        )
+                    }
+                }
+            } catch (e: ApiException) {
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        context.getString(R.string.settings_drive_error, e.localizedMessage ?: "Código (${e.statusCode})")
+                    )
+                }
             }
         }
+    }
+
+    /**
+     * Solicita autorización a Google Identity Services de forma moderna.
+     */
+    fun requestGoogleAuthorization(onAuthorized: (String) -> Unit) {
+        authClient.authorize(GoogleDriveManager.getAuthorizationRequest())
+            .addOnSuccessListener { result ->
+                if (result.hasResolution()) {
+                    val pendingIntent = result.pendingIntent
+                    if (pendingIntent != null) {
+                        authLauncher.launch(
+                            IntentSenderRequest.Builder(pendingIntent.intentSender).build()
+                        )
+                    }
+                } else {
+                    val token = result.accessToken
+                    if (token != null) {
+                        driveAccessToken = token
+                        onAuthorized(token)
+                    }
+                }
+            }
+            .addOnFailureListener { error ->
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        context.getString(R.string.settings_drive_error, error.localizedMessage ?: "")
+                    )
+                }
+            }
     }
 
     Scaffold(
@@ -281,9 +318,9 @@ fun SettingsScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = if (googleAccount != null) Icons.Filled.CloudDone else Icons.Filled.Sync,
+                                imageVector = if (driveAccessToken != null) Icons.Filled.CloudDone else Icons.Filled.Sync,
                                 contentDescription = null,
-                                tint = if (googleAccount != null) SafeGreen else MaterialTheme.colorScheme.primary,
+                                tint = if (driveAccessToken != null) SafeGreen else MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(Dimensions.IconSize.medium)
                             )
                             Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
@@ -295,16 +332,16 @@ fun SettingsScreen(
 
                         Surface(
                             shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
-                            color = if (googleAccount != null) SafeGreen.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
+                            color = if (driveAccessToken != null) SafeGreen.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
                         ) {
                             Text(
-                                text = if (googleAccount != null) {
+                                text = if (driveAccessToken != null) {
                                     stringResource(R.string.settings_drive_status_synced)
                                 } else {
                                     stringResource(R.string.settings_drive_status_not_synced)
                                 },
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (googleAccount != null) SafeGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = if (driveAccessToken != null) SafeGreen else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = 2.dp)
                             )
                         }
@@ -318,22 +355,16 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    // Muestra el correo de la cuenta de Google vinculada
-                    googleAccount?.email?.let { email ->
-                        Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
-                        Text(
-                            text = stringResource(R.string.settings_drive_connected_as, email),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
                     Spacer(modifier = Modifier.height(Dimensions.Spacing.md))
 
-                    if (googleAccount == null) {
+                    if (driveAccessToken == null) {
                         Button(
                             onClick = {
-                                googleSignInLauncher.launch(googleSignInClient.signInIntent)
+                                requestGoogleAuthorization { token ->
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_sync_success))
+                                    }
+                                }
                             },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
@@ -360,7 +391,7 @@ fun SettingsScreen(
                                             snackbarHostState.showSnackbar(emptyServicesMsg)
                                             isDriveLoading = false
                                         } else {
-                                            val uploadResult = GoogleDriveManager.uploadBackup(context, googleAccount!!, payload)
+                                            val uploadResult = GoogleDriveManager.uploadBackup(driveAccessToken!!, payload)
                                             uploadResult.onSuccess {
                                                 snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_sync_success))
                                             }.onFailure { error ->
@@ -607,7 +638,7 @@ fun SettingsScreen(
     }
 
     // Modal 3: Confirmación de Restauración desde Google Drive
-    if (showDriveRestoreConfirmDialog && googleAccount != null) {
+    if (showDriveRestoreConfirmDialog && driveAccessToken != null) {
         AlertDialog(
             onDismissRequest = { showDriveRestoreConfirmDialog = false },
             title = {
@@ -628,7 +659,7 @@ fun SettingsScreen(
                         showDriveRestoreConfirmDialog = false
                         scope.launch {
                             isDriveLoading = true
-                            val downloadResult = GoogleDriveManager.downloadBackup(context, googleAccount!!)
+                            val downloadResult = GoogleDriveManager.downloadBackup(driveAccessToken!!)
                             downloadResult.onSuccess { jsonPayload ->
                                 val importResult = repository.importAccountsFromTransfer(jsonPayload)
                                 importResult.onSuccess { count ->

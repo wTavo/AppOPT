@@ -1,11 +1,9 @@
 package com.example.appopt.data.cloud
 
 import android.content.Context
-import com.google.android.gms.auth.GoogleAuthUtil
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInAccount
-import com.google.android.gms.auth.api.signin.GoogleSignInClient
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.auth.api.identity.AuthorizationClient
+import com.google.android.gms.auth.api.identity.AuthorizationRequest
+import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.common.api.Scope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -18,71 +16,60 @@ import java.net.URL
 import java.nio.charset.StandardCharsets
 
 /**
- * Gestor seguro para la sincronización de la bóveda con Google Drive API.
+ * Gestor seguro y moderno para la sincronización con Google Drive API.
  *
- * Características de seguridad y privacidad:
- * - Emplea exclusivamente el ámbito `https://www.googleapis.com/auth/drive.appdata` (App Data Folder).
- * - La carpeta `appDataFolder` es invisible para el usuario y para otras aplicaciones instaladas.
- * - Toda la comunicación se realiza mediante HTTPS autenticado con tokens OAuth2 efímeros.
+ * Utiliza Google Identity Services (GIS) mediante [AuthorizationClient], la API estándar oficial
+ * que reemplaza las interfaces obsoletas de GoogleSignIn.
+ *
+ * Características de seguridad:
+ * - Ámbito estricto y seguro: `https://www.googleapis.com/auth/drive.appdata`.
+ * - Almacenamiento aislado en la carpeta `appDataFolder` de Drive, invisible e inaccesible para terceros.
+ * - Operaciones atómicas HTTP REST bajo TLS 1.3 con tokens OAuth2 efímeros.
  */
 object GoogleDriveManager {
 
-    private const val DriveScope = "https://www.googleapis.com/auth/drive.appdata"
-    private const val OauthScope = "oauth2:$DriveScope"
+    const val DriveScope = "https://www.googleapis.com/auth/drive.appdata"
     private const val BackupFileName = "appopt_vault_backup.json"
 
     /**
-     * Construye el cliente oficial de inicio de sesión de Google con alcance restringido a App Data Folder.
-     *
-     * @param context Contexto de la aplicación.
-     * @return Instancia configurada de [GoogleSignInClient].
+     * Construye la solicitud moderna de autorización con alcance exclusivo a `appDataFolder`.
      */
-    fun getGoogleSignInClient(context: Context): GoogleSignInClient {
-        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestEmail()
-            .requestScopes(Scope(DriveScope))
+    fun getAuthorizationRequest(): AuthorizationRequest {
+        return AuthorizationRequest.builder()
+            .setRequestedScopes(listOf(Scope(DriveScope)))
             .build()
-        return GoogleSignIn.getClient(context, gso)
     }
 
     /**
-     * Obtiene la cuenta de Google actualmente autenticada en el dispositivo, si existe.
-     */
-    fun getLastSignedInAccount(context: Context): GoogleSignInAccount? {
-        val account = GoogleSignIn.getLastSignedInAccount(context)
-        return if (account != null && GoogleSignIn.hasPermissions(account, Scope(DriveScope))) {
-            account
-        } else {
-            null
-        }
-    }
-
-    /**
-     * Sube o actualiza la copia de seguridad en el espacio privado [BackupFileName] de Google Drive.
+     * Obtiene el cliente moderno de autorización de Google Identity Services.
      *
      * @param context Contexto de la aplicación.
-     * @param account Cuenta de Google autenticada con permisos de Drive.
-     * @param backupJson Cadena JSON que contiene los secretos cifrados de la bóveda.
-     * @return [Result] exitoso si la sincronización concluyó con código HTTP 200/201.
+     * @return Instancia de [AuthorizationClient].
+     */
+    fun getAuthorizationClient(context: Context): AuthorizationClient {
+        return Identity.getAuthorizationClient(context)
+    }
+
+    /**
+     * Sube o actualiza la copia de seguridad de la bóveda en el espacio privado de Google Drive.
+     *
+     * @param accessToken Token de acceso OAuth2 emitido por Google Identity Services.
+     * @param backupJson Cadena con la estructura cifrada de la bóveda.
+     * @return [Result] exitoso si la petición concluyó con código HTTP 200/201.
      */
     suspend fun uploadBackup(
-        context: Context,
-        account: GoogleSignInAccount,
+        accessToken: String,
         backupJson: String
     ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
-            val androidAccount = account.account ?: throw IllegalStateException("Cuenta de Google no válida")
-            val token = GoogleAuthUtil.getToken(context, androidAccount, OauthScope)
-
-            // 1. Buscar si ya existe un archivo de respaldo previo en appDataFolder
-            val existingFileId = findExistingBackupFileId(token)
+            val existingFileId = findExistingBackupFileId(accessToken)
 
             if (existingFileId != null) {
-                // 2. Actualizar el archivo existente mediante PATCH media
+                // Actualización del archivo existente mediante PATCH
                 val updateUrl = URL("https://www.googleapis.com/upload/drive/v3/files/$existingFileId?uploadType=media")
                 val connection = (updateUrl.openConnection() as HttpURLConnection).apply {
                     requestMethod = "PATCH"
-                    setRequestProperty("Authorization", "Bearer $token")
+                    setRequestProperty("Authorization", "Bearer $accessToken")
                     setRequestProperty("Content-Type", "application/json; charset=UTF-8")
                     doOutput = true
                 }
@@ -96,12 +83,12 @@ object GoogleDriveManager {
                     throw IllegalStateException("Error al actualizar respaldo en Drive (HTTP $responseCode)")
                 }
             } else {
-                // 3. Crear nuevo archivo multipart en appDataFolder
+                // Creación de nuevo archivo multipart en appDataFolder
                 val boundary = "=====AppOPTBoundary${System.currentTimeMillis()}====="
                 val createUrl = URL("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart")
                 val connection = (createUrl.openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
-                    setRequestProperty("Authorization", "Bearer $token")
+                    setRequestProperty("Authorization", "Bearer $accessToken")
                     setRequestProperty("Content-Type", "multipart/related; boundary=$boundary")
                     doOutput = true
                 }
@@ -133,25 +120,18 @@ object GoogleDriveManager {
     /**
      * Descarga el archivo de respaldo más reciente desde la carpeta privada de Google Drive.
      *
-     * @param context Contexto de la aplicación.
-     * @param account Cuenta de Google autenticada.
-     * @return [Result] con el contenido JSON del respaldo.
+     * @param accessToken Token de acceso OAuth2 emitido por Google Identity Services.
+     * @return [Result] con el contenido del archivo de respaldo en formato JSON.
      */
-    suspend fun downloadBackup(
-        context: Context,
-        account: GoogleSignInAccount
-    ): Result<String> = withContext(Dispatchers.IO) {
+    suspend fun downloadBackup(accessToken: String): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
-            val androidAccount = account.account ?: throw IllegalStateException("Cuenta de Google no válida")
-            val token = GoogleAuthUtil.getToken(context, androidAccount, OauthScope)
-
-            val fileId = findExistingBackupFileId(token)
+            val fileId = findExistingBackupFileId(accessToken)
                 ?: throw NoSuchElementException("No se encontró ninguna copia de seguridad en tu Google Drive")
 
             val downloadUrl = URL("https://www.googleapis.com/drive/v3/files/$fileId?alt=media")
             val connection = (downloadUrl.openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
-                setRequestProperty("Authorization", "Bearer $token")
+                setRequestProperty("Authorization", "Bearer $accessToken")
             }
 
             val responseCode = connection.responseCode
@@ -168,11 +148,11 @@ object GoogleDriveManager {
     /**
      * Consulta la API de Drive para encontrar el identificador de [BackupFileName] en `appDataFolder`.
      */
-    private fun findExistingBackupFileId(token: String): String? {
+    private fun findExistingBackupFileId(accessToken: String): String? {
         val queryUrl = URL("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name='$BackupFileName'&fields=files(id,name,modifiedTime)&orderBy=modifiedTime+desc")
         val connection = (queryUrl.openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
-            setRequestProperty("Authorization", "Bearer $token")
+            setRequestProperty("Authorization", "Bearer $accessToken")
         }
 
         if (connection.responseCode !in 200..299) return null

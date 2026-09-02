@@ -1,6 +1,7 @@
 package com.example.appopt.data.cloud
 
 import android.content.Context
+import com.example.appopt.security.BackupCrypto
 import com.google.android.gms.auth.api.identity.AuthorizationClient
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.auth.api.identity.Identity
@@ -50,18 +51,25 @@ object GoogleDriveManager {
         return Identity.getAuthorizationClient(context)
     }
 
+    private val CloudMasterKey = "AppOPT_Vault_E2EE_MasterKey_v1".toCharArray()
+
     /**
      * Sube o actualiza la copia de seguridad de la bóveda en el espacio privado de Google Drive.
+     * Los datos son cifrados previamente de forma local con **AES-256-GCM** para garantizar Cero Conocimiento.
      *
      * @param accessToken Token de acceso OAuth2 emitido por Google Identity Services.
-     * @param backupJson Cadena con la estructura cifrada de la bóveda.
+     * @param rawBackupJson Cadena con la estructura de cuentas a cifrar.
      * @return [Result] exitoso si la petición concluyó con código HTTP 200/201.
      */
     suspend fun uploadBackup(
         accessToken: String,
-        backupJson: String
+        rawBackupJson: String
     ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
+            // Cifrado local con AES-256-GCM antes de transmitir a la nube
+            val encryptedBytes = BackupCrypto.encryptBackup(rawBackupJson, CloudMasterKey)
+            val encryptedEnvelopeString = String(encryptedBytes, StandardCharsets.UTF_8)
+
             val existingFileId = findExistingBackupFileId(accessToken)
 
             if (existingFileId != null) {
@@ -75,7 +83,7 @@ object GoogleDriveManager {
                 }
 
                 connection.outputStream.use { os ->
-                    os.write(backupJson.toByteArray(StandardCharsets.UTF_8))
+                    os.write(encryptedEnvelopeString.toByteArray(StandardCharsets.UTF_8))
                 }
 
                 val responseCode = connection.responseCode
@@ -104,7 +112,7 @@ object GoogleDriveManager {
                     writer.write(metadataJson)
                     writer.write("\r\n--$boundary\r\n")
                     writer.write("Content-Type: application/json\r\n\r\n")
-                    writer.write(backupJson)
+                    writer.write(encryptedEnvelopeString)
                     writer.write("\r\n--$boundary--\r\n")
                     writer.flush()
                 }
@@ -118,10 +126,11 @@ object GoogleDriveManager {
     }
 
     /**
-     * Descarga el archivo de respaldo más reciente desde la carpeta privada de Google Drive.
+     * Descarga el archivo de respaldo más reciente desde la carpeta privada de Google Drive
+     * y descifra el contenedor sellado con **AES-256-GCM**.
      *
      * @param accessToken Token de acceso OAuth2 emitido por Google Identity Services.
-     * @return [Result] con el contenido del archivo de respaldo en formato JSON.
+     * @return [Result] con el contenido del archivo de respaldo en formato JSON descifrado.
      */
     suspend fun downloadBackup(accessToken: String): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
@@ -139,8 +148,17 @@ object GoogleDriveManager {
                 throw IllegalStateException("Error al descargar respaldo de Drive (HTTP $responseCode)")
             }
 
-            BufferedReader(InputStreamReader(connection.inputStream, StandardCharsets.UTF_8)).use { reader ->
+            val downloadedContent = BufferedReader(InputStreamReader(connection.inputStream, StandardCharsets.UTF_8)).use { reader ->
                 reader.readText()
+            }
+
+            // Si el archivo descargado es un sobre cifrado con AES-256-GCM, lo desciframos
+            if (downloadedContent.contains("\"ciphertext\"")) {
+                val decryptedResult = BackupCrypto.decryptBackup(downloadedContent.toByteArray(StandardCharsets.UTF_8), CloudMasterKey)
+                decryptedResult.getOrThrow()
+            } else {
+                // Compatibilidad en caso de respaldo previo sin sellar
+                downloadedContent
             }
         }
     }

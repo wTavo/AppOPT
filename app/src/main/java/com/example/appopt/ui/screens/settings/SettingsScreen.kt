@@ -59,6 +59,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -85,6 +86,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
 import com.example.appopt.data.cloud.GoogleDriveManager
+import com.example.appopt.data.local.PreferencesManager
 import com.example.appopt.security.CryptoManager
 import com.example.appopt.ui.components.ServiceBrandAvatar
 import com.example.appopt.ui.theme.Dimensions
@@ -111,6 +113,7 @@ fun SettingsScreen(
     val clipboardManager = LocalClipboardManager.current
     val snackbarHostState = remember { SnackbarHostState() }
     val repository = AuthenticatorApp.instance.accountRepository
+    val prefsManager = remember { PreferencesManager(context) }
 
     val accounts by repository.getAccounts().collectAsStateWithLifecycle(initialValue = emptyList())
 
@@ -122,10 +125,23 @@ fun SettingsScreen(
     var transferQrBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var showExportQrDialog by remember { mutableStateOf(false) }
 
-    // Estados para la sincronización moderna con Google Identity Services
+    // Estados para la sincronización persistente con Google Identity Services
     val authClient = remember { GoogleDriveManager.getAuthorizationClient(context) }
+    var isDriveConnected by remember { mutableStateOf(prefsManager.isGoogleDriveConnected()) }
     var driveAccessToken by remember { mutableStateOf<String?>(null) }
     var isDriveLoading by remember { mutableStateOf(false) }
+
+    // Autorización silenciosa al abrir la pantalla si ya existía consentimiento
+    LaunchedEffect(Unit) {
+        authClient.authorize(GoogleDriveManager.getAuthorizationRequest())
+            .addOnSuccessListener { result ->
+                if (!result.hasResolution() && result.accessToken != null) {
+                    driveAccessToken = result.accessToken
+                    isDriveConnected = true
+                    prefsManager.setGoogleDriveConnected(true)
+                }
+            }
+    }
 
     // Estados para el diálogo de protección E2EE al sincronizar
     var showDriveProtectDialog by remember { mutableStateOf(false) }
@@ -153,6 +169,8 @@ fun SettingsScreen(
                 val token = authResult.accessToken
                 if (token != null) {
                     driveAccessToken = token
+                    isDriveConnected = true
+                    prefsManager.setGoogleDriveConnected(true)
                     scope.launch {
                         snackbarHostState.showSnackbar(
                             context.getString(R.string.settings_drive_sync_success)
@@ -170,7 +188,7 @@ fun SettingsScreen(
     }
 
     /**
-     * Solicita autorización a Google Identity Services de forma moderna.
+     * Solicita autorización a Google Identity Services de forma moderna y reactiva.
      */
     fun requestGoogleAuthorization(onAuthorized: (String) -> Unit) {
         authClient.authorize(GoogleDriveManager.getAuthorizationRequest())
@@ -186,6 +204,8 @@ fun SettingsScreen(
                     val token = result.accessToken
                     if (token != null) {
                         driveAccessToken = token
+                        isDriveConnected = true
+                        prefsManager.setGoogleDriveConnected(true)
                         onAuthorized(token)
                     }
                 }
@@ -345,9 +365,9 @@ fun SettingsScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = if (driveAccessToken != null) Icons.Filled.CloudDone else Icons.Filled.Sync,
+                                imageVector = if (isDriveConnected) Icons.Filled.CloudDone else Icons.Filled.Sync,
                                 contentDescription = null,
-                                tint = if (driveAccessToken != null) SafeGreen else MaterialTheme.colorScheme.primary,
+                                tint = if (isDriveConnected) SafeGreen else MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(Dimensions.IconSize.medium)
                             )
                             Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
@@ -359,16 +379,16 @@ fun SettingsScreen(
 
                         Surface(
                             shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
-                            color = if (driveAccessToken != null) SafeGreen.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
+                            color = if (isDriveConnected) SafeGreen.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
                         ) {
                             Text(
-                                text = if (driveAccessToken != null) {
+                                text = if (isDriveConnected) {
                                     stringResource(R.string.settings_drive_status_synced)
                                 } else {
                                     stringResource(R.string.settings_drive_status_not_synced)
                                 },
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (driveAccessToken != null) SafeGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = if (isDriveConnected) SafeGreen else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = 2.dp)
                             )
                         }
@@ -384,7 +404,7 @@ fun SettingsScreen(
 
                     Spacer(modifier = Modifier.height(Dimensions.Spacing.md))
 
-                    if (driveAccessToken == null) {
+                    if (!isDriveConnected) {
                         Button(
                             onClick = {
                                 requestGoogleAuthorization { token ->
@@ -414,7 +434,13 @@ fun SettingsScreen(
                                     syncPinText = ""
                                     syncPinConfirmText = ""
                                     generated64Key = GoogleDriveManager.generate64DigitKey()
-                                    showDriveProtectDialog = true
+                                    if (driveAccessToken == null) {
+                                        requestGoogleAuthorization {
+                                            showDriveProtectDialog = true
+                                        }
+                                    } else {
+                                        showDriveProtectDialog = true
+                                    }
                                 },
                                 enabled = !isDriveLoading,
                                 modifier = Modifier.weight(1f),
@@ -434,7 +460,13 @@ fun SettingsScreen(
                             OutlinedButton(
                                 onClick = {
                                     restoreKeyOrPinText = ""
-                                    showDriveDecryptDialog = true
+                                    if (driveAccessToken == null) {
+                                        requestGoogleAuthorization {
+                                            showDriveDecryptDialog = true
+                                        }
+                                    } else {
+                                        showDriveDecryptDialog = true
+                                    }
                                 },
                                 enabled = !isDriveLoading,
                                 modifier = Modifier.weight(1f),

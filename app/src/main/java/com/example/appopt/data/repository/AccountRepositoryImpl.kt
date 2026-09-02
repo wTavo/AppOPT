@@ -321,8 +321,13 @@ class AccountRepositoryImpl(
      * Si hay múltiples cuentas, genera un payload JSON estructurado con el prefijo "appopt-migration:"
      * que asegura compatibilidad y decodificación eficiente en el código QR.
      */
-    override suspend fun exportAccountsForTransfer(): String {
-        val entities = accountDao.getAllAccounts().first()
+    override suspend fun exportAccountsForTransfer(selectedAccountIds: Set<String>?): String {
+        val allEntities = accountDao.getAllAccounts().first()
+        val entities = if (selectedAccountIds != null) {
+            allEntities.filter { it.id in selectedAccountIds }
+        } else {
+            allEntities
+        }
         if (entities.isEmpty()) return ""
 
         val jsonArray = JSONArray()

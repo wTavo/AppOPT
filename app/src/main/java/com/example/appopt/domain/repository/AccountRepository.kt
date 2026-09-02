@@ -106,9 +106,10 @@ interface AccountRepository {
     /**
      * Exporta las cuentas de la bóveda para migración y transferencia por código QR.
      *
+     * @param selectedAccountIds Conjunto opcional de identificadores de cuentas a exportar. Si es null, exporta todas.
      * @return Cadena formateada para codificarse en un código QR de migración.
      */
-    suspend fun exportAccountsForTransfer(): String
+    suspend fun exportAccountsForTransfer(selectedAccountIds: Set<String>? = null): String
 
     /**
      * Importa una o múltiples cuentas a partir de los datos escaneados de un código QR de transferencia.

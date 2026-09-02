@@ -3,14 +3,15 @@ package com.example.appopt.ui.screens.settings
 import android.graphics.Bitmap
 import android.widget.Toast
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -26,7 +27,9 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,36 +38,42 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
+import com.example.appopt.ui.components.ServiceBrandAvatar
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.SafeGreen
 import com.example.appopt.ui.util.QrCodeGenerator
 import kotlinx.coroutines.launch
 
 /**
- * Pantalla de configuración de seguridad, transferencia offline de cuentas y respaldo en la nube.
+ * Pantalla de configuración de seguridad, transferencia granular de servicios y respaldo en la nube.
  *
- * Características:
+ * Características de seguridad y diseño:
  * - Diagnóstico del estado criptográfico de la bóveda local (AES-256-GCM + Android Keystore TEE).
- * - Transferencia directa e interoperable entre dispositivos mediante Códigos QR.
+ * - Transferencia directa e interoperable entre dispositivos mediante Códigos QR con selección granular de servicios.
+ * - Opción de conservar o purgar de la bóveda local los servicios transferidos.
  * - Preparación de copia de seguridad en Google Drive sin archivos ni contraseñas manuales.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -79,11 +88,19 @@ fun SettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val repository = AuthenticatorApp.instance.accountRepository
 
+    val accounts by repository.getAccounts().collectAsStateWithLifecycle(initialValue = emptyList())
+
+    // Estados para el flujo de exportación de servicios
+    var showSelectServicesDialog by remember { mutableStateOf(false) }
+    val selectedServiceIds = remember { mutableStateListOf<String>() }
+    var keepServicesOnDevice by remember { mutableStateOf(true) }
+    var exportedServiceIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var transferQrBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var showExportQrDialog by remember { mutableStateOf(false) }
 
-    val emptyAccountsMsg = stringResource(R.string.settings_export_qr_empty)
+    val emptyServicesMsg = stringResource(R.string.settings_export_services_empty)
     val driveInfoMsg = stringResource(R.string.settings_drive_feature_info)
+    val servicesDeletedMsg = stringResource(R.string.settings_services_deleted_after_export)
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -187,21 +204,21 @@ fun SettingsScreen(
                     ) {
                         Button(
                             onClick = {
-                                scope.launch {
-                                    val payload = repository.exportAccountsForTransfer()
-                                    if (payload.isBlank()) {
-                                        snackbarHostState.showSnackbar(emptyAccountsMsg)
-                                    } else {
-                                        val bitmap = QrCodeGenerator.generateQrBitmap(payload, size = 600)
-                                        transferQrBitmap = bitmap
-                                        showExportQrDialog = true
+                                if (accounts.isEmpty()) {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(emptyServicesMsg)
                                     }
+                                } else {
+                                    selectedServiceIds.clear()
+                                    selectedServiceIds.addAll(accounts.map { it.id })
+                                    keepServicesOnDevice = true
+                                    showSelectServicesDialog = true
                                 }
                             },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                         ) {
-                            Text(stringResource(R.string.settings_export_qr_button), style = MaterialTheme.typography.labelLarge)
+                            Text(stringResource(R.string.settings_export_services_button), style = MaterialTheme.typography.labelLarge)
                         }
 
                         OutlinedButton(
@@ -209,7 +226,7 @@ fun SettingsScreen(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                         ) {
-                            Text(stringResource(R.string.settings_import_qr_button), style = MaterialTheme.typography.labelLarge)
+                            Text(stringResource(R.string.settings_import_services_button), style = MaterialTheme.typography.labelLarge)
                         }
                     }
                 }
@@ -282,7 +299,140 @@ fun SettingsScreen(
         }
     }
 
-    // Modal para visualizar el Código QR de Transferencia directa
+    // Modal 1: Selección de Servicios y Opción de Retención
+    if (showSelectServicesDialog) {
+        AlertDialog(
+            onDismissRequest = { showSelectServicesDialog = false },
+            title = {
+                Text(
+                    text = stringResource(R.string.settings_export_services_dialog_title),
+                    style = MaterialTheme.typography.titleLarge
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_export_services_dialog_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
+
+                    // Lista seleccionable de servicios con scroll acotado
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 240.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                    ) {
+                        accounts.forEach { account ->
+                            val isSelected = account.id in selectedServiceIds
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        if (isSelected) {
+                                            selectedServiceIds.remove(account.id)
+                                        } else {
+                                            selectedServiceIds.add(account.id)
+                                        }
+                                    }
+                                    .padding(vertical = Dimensions.Spacing.xs),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                ServiceBrandAvatar(
+                                    issuer = account.issuer,
+                                    size = 36.dp
+                                )
+                                Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = account.issuer,
+                                        style = MaterialTheme.typography.titleSmall
+                                    )
+                                    if (account.accountName.isNotBlank()) {
+                                        Text(
+                                            text = account.accountName,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                Checkbox(
+                                    checked = isSelected,
+                                    onCheckedChange = { checked ->
+                                        if (checked) {
+                                            selectedServiceIds.add(account.id)
+                                        } else {
+                                            selectedServiceIds.remove(account.id)
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = Dimensions.Spacing.xs))
+
+                    // Opción: Mantener o Quitar del dispositivo
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { keepServicesOnDevice = !keepServicesOnDevice }
+                            .padding(vertical = Dimensions.Spacing.xs),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = Dimensions.Spacing.sm)) {
+                            Text(
+                                text = stringResource(R.string.settings_keep_services_label),
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                            Text(
+                                text = stringResource(R.string.settings_keep_services_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = keepServicesOnDevice,
+                            onCheckedChange = { keepServicesOnDevice = it }
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val idsToExport = selectedServiceIds.toSet()
+                        scope.launch {
+                            val payload = repository.exportAccountsForTransfer(idsToExport)
+                            transferQrBitmap = QrCodeGenerator.generateQrBitmap(payload, size = 600)
+                            exportedServiceIds = idsToExport
+                            showSelectServicesDialog = false
+                            showExportQrDialog = true
+                        }
+                    },
+                    enabled = selectedServiceIds.isNotEmpty(),
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                ) {
+                    Text(stringResource(R.string.settings_generate_qr_button), style = MaterialTheme.typography.labelLarge)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSelectServicesDialog = false }) {
+                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
+                }
+            }
+        )
+    }
+
+    // Modal 2: Visualizar Código QR generado y Confirmar Transferencia
     if (showExportQrDialog && transferQrBitmap != null) {
         AlertDialog(
             onDismissRequest = { showExportQrDialog = false },
@@ -301,7 +451,7 @@ fun SettingsScreen(
                     transferQrBitmap?.let { bitmap ->
                         Surface(
                             shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                            color = androidx.compose.ui.graphics.Color.White,
+                            color = Color.White,
                             modifier = Modifier.padding(Dimensions.Spacing.sm)
                         ) {
                             Image(
@@ -324,10 +474,34 @@ fun SettingsScreen(
             },
             confirmButton = {
                 Button(
-                    onClick = { showExportQrDialog = false },
+                    onClick = {
+                        if (!keepServicesOnDevice && exportedServiceIds.isNotEmpty()) {
+                            scope.launch {
+                                exportedServiceIds.forEach { id ->
+                                    repository.deleteAccount(id)
+                                }
+                                snackbarHostState.showSnackbar(servicesDeletedMsg)
+                            }
+                        }
+                        showExportQrDialog = false
+                    },
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                 ) {
-                    Text(stringResource(R.string.account_modal_close_button), style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = if (!keepServicesOnDevice) {
+                            stringResource(R.string.settings_export_confirm_done)
+                        } else {
+                            stringResource(R.string.account_modal_close_button)
+                        },
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+            },
+            dismissButton = {
+                if (!keepServicesOnDevice) {
+                    TextButton(onClick = { showExportQrDialog = false }) {
+                        Text(stringResource(R.string.account_modal_close_button), style = MaterialTheme.typography.labelLarge)
+                    }
                 }
             }
         )

@@ -51,7 +51,14 @@ object GoogleDriveManager {
         return Identity.getAuthorizationClient(context)
     }
 
-    private val CloudMasterKey = "AppOPT_Vault_E2EE_MasterKey_v1".toCharArray()
+    /**
+     * Genera una clave criptográfica de 64 dígitos hexadecimales (256 bits de entropía) mediante [java.security.SecureRandom].
+     */
+    fun generate64DigitKey(): String {
+        val randomBytes = ByteArray(32)
+        java.security.SecureRandom().nextBytes(randomBytes)
+        return randomBytes.joinToString("") { "%02x".format(it) }
+    }
 
     /**
      * Sube o actualiza la copia de seguridad de la bóveda en el espacio privado de Google Drive.
@@ -59,15 +66,17 @@ object GoogleDriveManager {
      *
      * @param accessToken Token de acceso OAuth2 emitido por Google Identity Services.
      * @param rawBackupJson Cadena con la estructura de cuentas a cifrar.
+     * @param secretKeyPass Contraseña o PIN de cifrado en [CharArray].
      * @return [Result] exitoso si la petición concluyó con código HTTP 200/201.
      */
     suspend fun uploadBackup(
         accessToken: String,
-        rawBackupJson: String
+        rawBackupJson: String,
+        secretKeyPass: CharArray
     ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             // Cifrado local con AES-256-GCM antes de transmitir a la nube
-            val encryptedBytes = BackupCrypto.encryptBackup(rawBackupJson, CloudMasterKey)
+            val encryptedBytes = BackupCrypto.encryptBackup(rawBackupJson, secretKeyPass)
             val encryptedEnvelopeString = String(encryptedBytes, StandardCharsets.UTF_8)
 
             val existingFileId = findExistingBackupFileId(accessToken)
@@ -130,9 +139,13 @@ object GoogleDriveManager {
      * y descifra el contenedor sellado con **AES-256-GCM**.
      *
      * @param accessToken Token de acceso OAuth2 emitido por Google Identity Services.
+     * @param secretKeyPass Contraseña o PIN de descifrado en [CharArray].
      * @return [Result] con el contenido del archivo de respaldo en formato JSON descifrado.
      */
-    suspend fun downloadBackup(accessToken: String): Result<String> = withContext(Dispatchers.IO) {
+    suspend fun downloadBackup(
+        accessToken: String,
+        secretKeyPass: CharArray
+    ): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
             val fileId = findExistingBackupFileId(accessToken)
                 ?: throw NoSuchElementException("No se encontró ninguna copia de seguridad en tu Google Drive")
@@ -152,9 +165,9 @@ object GoogleDriveManager {
                 reader.readText()
             }
 
-            // Si el archivo descargado es un sobre cifrado con AES-256-GCM, lo desciframos
+            // Si el archivo descargado es un sobre cifrado con AES-256-GCM, lo desciframos con la clave provista
             if (downloadedContent.contains("\"ciphertext\"")) {
-                val decryptedResult = BackupCrypto.decryptBackup(downloadedContent.toByteArray(StandardCharsets.UTF_8), CloudMasterKey)
+                val decryptedResult = BackupCrypto.decryptBackup(downloadedContent.toByteArray(StandardCharsets.UTF_8), secretKeyPass)
                 decryptedResult.getOrThrow()
             } else {
                 // Compatibilidad en caso de respaldo previo sin sellar

@@ -20,13 +20,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Pin
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -39,17 +46,21 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,15 +70,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
 import com.example.appopt.data.cloud.GoogleDriveManager
+import com.example.appopt.security.CryptoManager
 import com.example.appopt.ui.components.ServiceBrandAvatar
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.SafeGreen
@@ -78,12 +96,8 @@ import kotlinx.coroutines.launch
 /**
  * Pantalla de configuración de seguridad, transferencia offline de servicios y sincronización en la nube con Google Drive.
  *
- * Utiliza Google Identity Services (GIS) mediante [GoogleDriveManager], sin APIs obsoletas.
- *
- * Características de seguridad y diseño:
- * - Diagnóstico del estado criptográfico de la bóveda local (AES-256-GCM + Android Keystore TEE).
- * - Transferencia directa e interoperable entre dispositivos mediante Códigos QR con selección granular de servicios.
- * - Sincronización en la nube con Google Drive (`appDataFolder`) utilizando tokens OAuth2 efímeros.
+ * Utiliza Google Identity Services (GIS) mediante [GoogleDriveManager] y ofrece protección E2EE dual
+ * mediante PIN numérico o Clave de 64 dígitos con AES-256-GCM.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -94,6 +108,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val clipboardManager = LocalClipboardManager.current
     val snackbarHostState = remember { SnackbarHostState() }
     val repository = AuthenticatorApp.instance.accountRepository
 
@@ -111,10 +126,22 @@ fun SettingsScreen(
     val authClient = remember { GoogleDriveManager.getAuthorizationClient(context) }
     var driveAccessToken by remember { mutableStateOf<String?>(null) }
     var isDriveLoading by remember { mutableStateOf(false) }
-    var showDriveRestoreConfirmDialog by remember { mutableStateOf(false) }
+
+    // Estados para el diálogo de protección E2EE al sincronizar
+    var showDriveProtectDialog by remember { mutableStateOf(false) }
+    var selectedProtectionTab by remember { mutableIntStateOf(0) } // 0: PIN, 1: Clave 64 dígitos
+    var syncPinText by remember { mutableStateOf("") }
+    var syncPinConfirmText by remember { mutableStateOf("") }
+    var generated64Key by remember { mutableStateOf(GoogleDriveManager.generate64DigitKey()) }
+
+    // Estados para el diálogo de descifrado al restaurar
+    var showDriveDecryptDialog by remember { mutableStateOf(false) }
+    var restoreKeyOrPinText by remember { mutableStateOf("") }
+    var isRestoreSecretVisible by remember { mutableStateOf(false) }
 
     val emptyServicesMsg = stringResource(R.string.settings_export_services_empty)
     val servicesDeletedMsg = stringResource(R.string.settings_services_deleted_after_export)
+    val keyCopiedMsg = stringResource(R.string.settings_drive_key_copied)
 
     // Lanzador moderno para resolver el consentimiento de Google Identity
     val authLauncher = rememberLauncherForActivityResult(
@@ -384,22 +411,10 @@ fun SettingsScreen(
                         ) {
                             Button(
                                 onClick = {
-                                    scope.launch {
-                                        isDriveLoading = true
-                                        val payload = repository.exportAccountsForTransfer()
-                                        if (payload.isBlank()) {
-                                            snackbarHostState.showSnackbar(emptyServicesMsg)
-                                            isDriveLoading = false
-                                        } else {
-                                            val uploadResult = GoogleDriveManager.uploadBackup(driveAccessToken!!, payload)
-                                            uploadResult.onSuccess {
-                                                snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_sync_success))
-                                            }.onFailure { error ->
-                                                snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error, error.localizedMessage ?: ""))
-                                            }
-                                            isDriveLoading = false
-                                        }
-                                    }
+                                    syncPinText = ""
+                                    syncPinConfirmText = ""
+                                    generated64Key = GoogleDriveManager.generate64DigitKey()
+                                    showDriveProtectDialog = true
                                 },
                                 enabled = !isDriveLoading,
                                 modifier = Modifier.weight(1f),
@@ -417,7 +432,10 @@ fun SettingsScreen(
                             }
 
                             OutlinedButton(
-                                onClick = { showDriveRestoreConfirmDialog = true },
+                                onClick = {
+                                    restoreKeyOrPinText = ""
+                                    showDriveDecryptDialog = true
+                                },
                                 enabled = !isDriveLoading,
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
@@ -431,7 +449,7 @@ fun SettingsScreen(
         }
     }
 
-    // Modal 1: Selección de Servicios y Opción de Retención
+    // Modal: Selección de Servicios y Opción de Retención (Exportación QR)
     if (showSelectServicesDialog) {
         AlertDialog(
             onDismissRequest = { showSelectServicesDialog = false },
@@ -562,7 +580,7 @@ fun SettingsScreen(
         )
     }
 
-    // Modal 2: Visualizar Código QR generado y Confirmar Transferencia
+    // Modal: Visualizar Código QR generado y Confirmar Transferencia
     if (showExportQrDialog && transferQrBitmap != null) {
         AlertDialog(
             onDismissRequest = { showExportQrDialog = false },
@@ -637,55 +655,250 @@ fun SettingsScreen(
         )
     }
 
-    // Modal 3: Confirmación de Restauración desde Google Drive
-    if (showDriveRestoreConfirmDialog && driveAccessToken != null) {
+    // Modal: Protección E2EE al sincronizar en Google Drive (PIN numérico o Clave de 64 dígitos)
+    if (showDriveProtectDialog) {
+        val isPinMethod = selectedProtectionTab == 0
+        val isPinValid = syncPinText.length >= 4 && syncPinText == syncPinConfirmText
+        val canConfirmSync = if (isPinMethod) isPinValid else generated64Key.isNotBlank()
+
         AlertDialog(
-            onDismissRequest = { showDriveRestoreConfirmDialog = false },
+            onDismissRequest = { showDriveProtectDialog = false },
             title = {
                 Text(
-                    text = stringResource(R.string.settings_drive_restore_confirm_title),
+                    text = stringResource(R.string.settings_drive_protect_title),
                     style = MaterialTheme.typography.titleLarge
                 )
             },
             text = {
-                Text(
-                    text = stringResource(R.string.settings_drive_restore_confirm_msg),
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_drive_protect_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    TabRow(selectedTabIndex = selectedProtectionTab) {
+                        Tab(
+                            selected = selectedProtectionTab == 0,
+                            onClick = { selectedProtectionTab = 0 },
+                            text = { Text(stringResource(R.string.settings_drive_method_pin), style = MaterialTheme.typography.labelMedium) },
+                            icon = { Icon(Icons.Filled.Pin, contentDescription = null) }
+                        )
+                        Tab(
+                            selected = selectedProtectionTab == 1,
+                            onClick = { selectedProtectionTab = 1 },
+                            text = { Text(stringResource(R.string.settings_drive_method_key), style = MaterialTheme.typography.labelMedium) },
+                            icon = { Icon(Icons.Filled.Key, contentDescription = null) }
+                        )
+                    }
+
+                    if (isPinMethod) {
+                        // Opción 1: PIN Numérico
+                        Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
+                            OutlinedTextField(
+                                value = syncPinText,
+                                onValueChange = { if (it.length <= 6) syncPinText = it },
+                                label = { Text(stringResource(R.string.settings_drive_pin_label)) },
+                                visualTransformation = PasswordVisualTransformation(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            OutlinedTextField(
+                                value = syncPinConfirmText,
+                                onValueChange = { if (it.length <= 6) syncPinConfirmText = it },
+                                label = { Text(stringResource(R.string.settings_drive_pin_confirm_label)) },
+                                visualTransformation = PasswordVisualTransformation(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                                singleLine = true,
+                                isError = syncPinConfirmText.isNotEmpty() && syncPinText != syncPinConfirmText,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            if (syncPinConfirmText.isNotEmpty() && syncPinText != syncPinConfirmText) {
+                                Text(
+                                    text = stringResource(R.string.settings_drive_pin_mismatch),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                    } else {
+                        // Opción 2: Clave generada de 64 dígitos
+                        Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
+                            Surface(
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(Dimensions.Spacing.sm)) {
+                                    Text(
+                                        text = generated64Key,
+                                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                TextButton(
+                                    onClick = {
+                                        clipboardManager.setText(AnnotatedString(generated64Key))
+                                        scope.launch { snackbarHostState.showSnackbar(keyCopiedMsg) }
+                                    }
+                                ) {
+                                    Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
+                                    Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                                    Text(stringResource(R.string.action_copy), style = MaterialTheme.typography.labelMedium)
+                                }
+
+                                TextButton(
+                                    onClick = { generated64Key = GoogleDriveManager.generate64DigitKey() }
+                                ) {
+                                    Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
+                                    Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                                    Text(stringResource(R.string.settings_drive_key_regenerate), style = MaterialTheme.typography.labelMedium)
+                                }
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.small),
+                                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.settings_drive_key_warning),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    modifier = Modifier.padding(Dimensions.Spacing.sm)
+                                )
+                            }
+                        }
+                    }
+                }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        showDriveRestoreConfirmDialog = false
+                        val passChars = if (isPinMethod) syncPinText.toCharArray() else generated64Key.toCharArray()
+                        showDriveProtectDialog = false
                         scope.launch {
                             isDriveLoading = true
-                            val downloadResult = GoogleDriveManager.downloadBackup(driveAccessToken!!)
-                            downloadResult.onSuccess { jsonPayload ->
-                                val importResult = repository.importAccountsFromTransfer(jsonPayload)
-                                importResult.onSuccess { count ->
-                                    snackbarHostState.showSnackbar(
-                                        context.getString(R.string.settings_drive_restore_success, count)
-                                    )
+                            try {
+                                val payload = repository.exportAccountsForTransfer()
+                                val uploadResult = GoogleDriveManager.uploadBackup(driveAccessToken!!, payload, passChars)
+                                uploadResult.onSuccess {
+                                    snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_sync_success))
                                 }.onFailure { error ->
-                                    snackbarHostState.showSnackbar(
-                                        context.getString(R.string.settings_drive_error, error.localizedMessage ?: "")
-                                    )
+                                    snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error, error.localizedMessage ?: ""))
                                 }
-                            }.onFailure { error ->
-                                snackbarHostState.showSnackbar(
-                                    context.getString(R.string.settings_drive_error, error.localizedMessage ?: "")
-                                )
+                            } finally {
+                                passChars.fill('0')
+                                isDriveLoading = false
                             }
-                            isDriveLoading = false
                         }
                     },
+                    enabled = canConfirmSync,
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                 ) {
-                    Text(stringResource(R.string.settings_drive_restore_button), style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(R.string.settings_drive_encrypt_and_sync), style = MaterialTheme.typography.labelLarge)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDriveRestoreConfirmDialog = false }) {
+                TextButton(onClick = { showDriveProtectDialog = false }) {
+                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
+                }
+            }
+        )
+    }
+
+    // Modal: Descifrado y Restauración desde Google Drive
+    if (showDriveDecryptDialog) {
+        AlertDialog(
+            onDismissRequest = { showDriveDecryptDialog = false },
+            title = {
+                Text(
+                    text = stringResource(R.string.settings_drive_decrypt_title),
+                    style = MaterialTheme.typography.titleLarge
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_drive_decrypt_hint),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
+
+                    OutlinedTextField(
+                        value = restoreKeyOrPinText,
+                        onValueChange = { restoreKeyOrPinText = it },
+                        label = { Text(stringResource(R.string.settings_drive_decrypt_input_label)) },
+                        visualTransformation = if (isRestoreSecretVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(onClick = { isRestoreSecretVisible = !isRestoreSecretVisible }) {
+                                Icon(
+                                    imageVector = if (isRestoreSecretVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                    contentDescription = null
+                                )
+                            }
+                        },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val passChars = restoreKeyOrPinText.toCharArray()
+                        showDriveDecryptDialog = false
+                        scope.launch {
+                            isDriveLoading = true
+                            try {
+                                val downloadResult = GoogleDriveManager.downloadBackup(driveAccessToken!!, passChars)
+                                downloadResult.onSuccess { jsonPayload ->
+                                    val importResult = repository.importAccountsFromTransfer(jsonPayload)
+                                    importResult.onSuccess { count ->
+                                        snackbarHostState.showSnackbar(
+                                            context.getString(R.string.settings_drive_restore_success, count)
+                                        )
+                                    }.onFailure { error ->
+                                        snackbarHostState.showSnackbar(
+                                            context.getString(R.string.settings_drive_error, error.localizedMessage ?: "")
+                                        )
+                                    }
+                                }.onFailure {
+                                    snackbarHostState.showSnackbar(
+                                        context.getString(R.string.settings_drive_decrypt_error)
+                                    )
+                                }
+                            } finally {
+                                passChars.fill('0')
+                                isDriveLoading = false
+                            }
+                        }
+                    },
+                    enabled = restoreKeyOrPinText.isNotBlank(),
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                ) {
+                    Text(stringResource(R.string.settings_drive_decrypt_and_restore), style = MaterialTheme.typography.labelLarge)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDriveDecryptDialog = false }) {
                     Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
                 }
             }

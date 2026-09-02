@@ -2,6 +2,7 @@
     <string name="app_name">Authenticator</string>
 
     <!-- General & Actions -->
+    <string name="action_copy">Copiar</string>
     <string name="action_cancel">Cancelar</string>
     <string name="action_delete">Eliminar</string>
     <string name="action_edit">Editar</string>
@@ -116,6 +117,26 @@
     <string name="settings_drive_error">Error en Google Drive: %1$s</string>
     <string name="settings_drive_restore_confirm_title">Restaurar de Google Drive</string>
     <string name="settings_drive_restore_confirm_msg">¿Deseas descargar e importar los servicios respaldados en tu cuenta de Google?</string>
+
+    <!-- Dual E2EE Cloud Protection (PIN or 64-digit key) -->
+    <string name="settings_drive_protect_title">Proteger copia en la nube</string>
+    <string name="settings_drive_protect_description">Elige cómo deseas cifrar tu respaldo de extremo a extremo antes de subirlo a Google Drive.</string>
+    <string name="settings_drive_method_pin">Usar PIN numérico</string>
+    <string name="settings_drive_method_key">Clave de 64 dígitos</string>
+    <string name="settings_drive_pin_label">PIN de cifrado (4 a 6 dígitos)</string>
+    <string name="settings_drive_pin_confirm_label">Confirmar PIN</string>
+    <string name="settings_drive_pin_mismatch">Los PIN no coinciden</string>
+    <string name="settings_drive_pin_too_short">El PIN debe tener al menos 4 dígitos</string>
+    <string name="settings_drive_key_label">Clave criptográfica de 64 dígitos</string>
+    <string name="settings_drive_key_copied">Clave copiada al portapapeles</string>
+    <string name="settings_drive_key_warning">Guarda esta clave en un lugar seguro. Si la pierdes, nadie podrá recuperar tu copia de seguridad.</string>
+    <string name="settings_drive_key_regenerate">Generar nueva clave</string>
+    <string name="settings_drive_decrypt_title">Descifrar copia de seguridad</string>
+    <string name="settings_drive_decrypt_hint">Ingresa el PIN numérico o la clave de 64 dígitos con la que protegiste tu respaldo.</string>
+    <string name="settings_drive_decrypt_input_label">PIN o clave de 64 dígitos</string>
+    <string name="settings_drive_decrypt_error">PIN o clave incorrecta. No se pudo descifrar la copia de seguridad.</string>
+    <string name="settings_drive_encrypt_and_sync">Cifrar y sincronizar</string>
+    <string name="settings_drive_decrypt_and_restore">Descifrar y restaurar</string>
 
     <!-- Password Manager (Future Module) -->
     <string name="passwords_nav_title">Gestor de contraseñas</string>

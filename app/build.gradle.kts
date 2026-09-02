@@ -61,6 +61,7 @@ dependencies {
 
     // Security & Biometrics
     implementation(libs.androidx.biometric)
+    implementation(libs.google.play.services.auth)
 
     // CameraX & ML Kit
     implementation(libs.androidx.camera.core)

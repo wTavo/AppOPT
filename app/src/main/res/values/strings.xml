@@ -104,10 +104,18 @@
     <string name="settings_drive_description">Guarda una copia cifrada de tu bóveda en tu espacio privado de Google Drive para restaurarla si pierdes tu teléfono.</string>
     <string name="settings_drive_status_not_synced">Sin sincronizar</string>
     <string name="settings_drive_status_synced">Sincronizado</string>
-    <string name="settings_drive_sync_button">Sincronizar con Google Drive</string>
+    <string name="settings_drive_connect_button">Conectar cuenta de Google</string>
+    <string name="settings_drive_sync_button">Sincronizar ahora</string>
     <string name="settings_drive_restore_button">Restaurar de Google Drive</string>
-    <string name="settings_drive_sync_success">Copia de seguridad sincronizada exitosamente</string>
-    <string name="settings_drive_feature_info">La sincronización con Google Drive se vinculará con tu cuenta de Google.</string>
+    <string name="settings_drive_connected_as">Conectado como: %1$s</string>
+    <string name="settings_drive_syncing">Sincronizando con Google Drive…</string>
+    <string name="settings_drive_restoring">Descargando respaldo de Google Drive…</string>
+    <string name="settings_drive_sync_success">Copia de seguridad sincronizada exitosamente en Google Drive</string>
+    <string name="settings_drive_restore_success">Se restauraron %1$d servicios desde Google Drive</string>
+    <string name="settings_drive_error_not_signed_in">Debes conectar tu cuenta de Google para sincronizar</string>
+    <string name="settings_drive_error">Error en Google Drive: %1$s</string>
+    <string name="settings_drive_restore_confirm_title">Restaurar de Google Drive</string>
+    <string name="settings_drive_restore_confirm_msg">¿Deseas descargar e importar los servicios respaldados en tu cuenta de Google?</string>
 
     <!-- Password Manager (Future Module) -->
     <string name="passwords_nav_title">Gestor de contraseñas</string>

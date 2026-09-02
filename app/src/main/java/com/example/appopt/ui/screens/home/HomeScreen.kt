@@ -69,6 +69,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -256,7 +257,7 @@ fun HomeScreen(
                             }
                         ) {
                             Icon(
-                                imageVector = Icons.Filled.Keyboard,
+                                painter = painterResource(R.drawable.ic_key),
                                 contentDescription = stringResource(R.string.passwords_nav_title),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )

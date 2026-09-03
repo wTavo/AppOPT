@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
@@ -200,37 +199,18 @@ fun OtpCodeCard(
                     }
                 }
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                IconButton(
+                    onClick = {
+                        appHaptics.click()
+                        onToggleFavorite(account.id)
+                    },
+                    modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
                 ) {
-                    IconButton(
-                        onClick = {
-                            appHaptics.click()
-                            onToggleFavorite(account.id)
-                        },
-                        modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
-                    ) {
-                        Icon(
-                            imageVector = if (account.isFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
-                            contentDescription = stringResource(R.string.action_favorite),
-                            tint = if (account.isFavorite) WarningOrange else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .size(Dimensions.ComponentSize.actionIconButton)
-                            .clip(RoundedCornerShape(Dimensions.CornerRadius.small)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.DragHandle,
-                            contentDescription = stringResource(R.string.action_reorder),
-                            tint = if (isDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                            modifier = Modifier.size(Dimensions.IconSize.medium)
-                        )
-                    }
+                    Icon(
+                        imageVector = if (account.isFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                        contentDescription = stringResource(R.string.action_favorite),
+                        tint = if (account.isFavorite) WarningOrange else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 

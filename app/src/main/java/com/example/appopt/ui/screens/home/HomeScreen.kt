@@ -146,7 +146,7 @@ fun HomeScreen(
     val onNextHotpCode = remember(viewModel) { viewModel::nextHotpCode }
     val onCommitReorder = remember(viewModel) { viewModel::commitReorder }
 
-    // Motor de auto-scroll continuo cuando se arrastra una tarjeta cerca de los bordes superior/inferior
+    // Motor de auto-scroll continuo proporcional cuando se arrastra una tarjeta cerca de los bordes superior/inferior
     LaunchedEffect(draggingAccountId) {
         if (draggingAccountId != null) {
             while (true) {
@@ -154,19 +154,49 @@ fun HomeScreen(
                 val visibleItems = layoutInfo.visibleItemsInfo
                 val draggedItem = visibleItems.find { it.key == draggingAccountId }
                 if (draggedItem != null) {
-                    val itemTop = draggedItem.offset + dragOffsetY
-                    val itemBottom = itemTop + draggedItem.size
-                    val viewportHeight = layoutInfo.viewportEndOffset.toFloat()
+                    val viewportHeight = (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset).toFloat()
+                    val topZone = viewportHeight * 0.28f
+                    val bottomZone = viewportHeight * 0.72f
+                    val itemCenter = draggedItem.offset + (draggedItem.size / 2f) + dragOffsetY
 
-                    val topThreshold = 220f
-                    val bottomThreshold = viewportHeight - 220f
-
-                    if (itemTop < topThreshold && listState.canScrollBackward) {
-                        val speed = ((topThreshold - itemTop) / 5f).coerceIn(12f, 60f)
+                    if (itemCenter < topZone && listState.canScrollBackward) {
+                        val factor = ((topZone - itemCenter) / topZone).coerceIn(0.1f, 3.0f)
+                        val speed = 6f + factor * 26f
                         listState.scrollBy(-speed)
-                    } else if (itemBottom > bottomThreshold && listState.canScrollForward) {
-                        val speed = ((itemBottom - bottomThreshold) / 5f).coerceIn(12f, 60f)
+
+                        // Intercambio dinámico continuo mientras se desplaza hacia arriba
+                        val currentIndex = localAccounts.indexOfFirst { it.account.id == draggingAccountId }
+                        if (currentIndex > 0) {
+                            val currentAccount = localAccounts[currentIndex]
+                            val prevAccount = localAccounts[currentIndex - 1]
+                            if (currentAccount.account.isFavorite == prevAccount.account.isFavorite) {
+                                val prevItem = visibleItems.find { it.key == prevAccount.account.id }
+                                if (prevItem != null && itemCenter < prevItem.offset + (prevItem.size / 2f)) {
+                                    Collections.swap(localAccounts, currentIndex, currentIndex - 1)
+                                    dragOffsetY += prevItem.size
+                                    appHaptics.dragTick()
+                                }
+                            }
+                        }
+                    } else if (itemCenter > bottomZone && listState.canScrollForward) {
+                        val factor = ((itemCenter - bottomZone) / (viewportHeight - bottomZone)).coerceIn(0.1f, 3.0f)
+                        val speed = 6f + factor * 26f
                         listState.scrollBy(speed)
+
+                        // Intercambio dinámico continuo mientras se desplaza hacia abajo
+                        val currentIndex = localAccounts.indexOfFirst { it.account.id == draggingAccountId }
+                        if (currentIndex != -1 && currentIndex < localAccounts.lastIndex) {
+                            val currentAccount = localAccounts[currentIndex]
+                            val nextAccount = localAccounts[currentIndex + 1]
+                            if (currentAccount.account.isFavorite == nextAccount.account.isFavorite) {
+                                val nextItem = visibleItems.find { it.key == nextAccount.account.id }
+                                if (nextItem != null && itemCenter > nextItem.offset + (nextItem.size / 2f)) {
+                                    Collections.swap(localAccounts, currentIndex, currentIndex + 1)
+                                    dragOffsetY -= nextItem.size
+                                    appHaptics.dragTick()
+                                }
+                            }
+                        }
                     }
                 }
                 kotlinx.coroutines.delay(16L)

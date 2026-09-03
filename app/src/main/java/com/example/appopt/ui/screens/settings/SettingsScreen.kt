@@ -1303,38 +1303,46 @@ fun SettingsScreen(
                                             style = MaterialTheme.typography.titleSmall
                                         )
 
-                                        Row(
+                                        Column(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
                                         ) {
                                             question.options.forEach { option ->
                                                 val isSelected = quizSelectedAnswers[question.position] == option
-                                                OutlinedButton(
-                                                    onClick = {
-                                                        appHaptics.click()
-                                                        isQuizError = false
-                                                        quizSelectedAnswers = quizSelectedAnswers + (question.position to option)
-                                                    },
-                                                    modifier = Modifier.weight(1f),
+                                                Surface(
                                                     shape = RoundedCornerShape(Dimensions.CornerRadius.small),
-                                                    colors = if (isSelected) {
-                                                        ButtonDefaults.outlinedButtonColors(
-                                                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                                                        )
-                                                    } else {
-                                                        ButtonDefaults.outlinedButtonColors()
-                                                    },
-                                                    border = if (isSelected) {
-                                                        BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
-                                                    } else {
-                                                        BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                                                    }
+                                                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                                                    border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clickable {
+                                                            appHaptics.click()
+                                                            isQuizError = false
+                                                            quizSelectedAnswers = quizSelectedAnswers + (question.position to option)
+                                                        }
                                                 ) {
-                                                    Text(
-                                                        text = option,
-                                                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
-                                                    )
+                                                    Row(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.sm),
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.SpaceBetween
+                                                    ) {
+                                                        Text(
+                                                            text = option,
+                                                            style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                                                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                            maxLines = 1
+                                                        )
+                                                        if (isSelected) {
+                                                            Icon(
+                                                                imageVector = Icons.Filled.CheckCircle,
+                                                                contentDescription = null,
+                                                                modifier = Modifier.size(Dimensions.IconSize.small),
+                                                                tint = MaterialTheme.colorScheme.primary
+                                                            )
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }

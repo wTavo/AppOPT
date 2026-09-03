@@ -14,8 +14,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
@@ -629,22 +631,29 @@ fun SettingsScreen(
                                 }
                             }
 
-                            // Contenedor 2: Botón independiente para desvincular cuenta
-                            Surface(
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f),
-                                modifier = Modifier.clickable { showDisconnectConfirmDialog = true }
+                            // Contenedor 2: Botón independiente para desvincular cuenta (oculto durante búsqueda o sincronización activa)
+                            val isDisconnectAllowed = !isCheckingDriveBackup && !isDriveLoading && syncButtonState != SyncButtonState.LOADING
+                            AnimatedVisibility(
+                                visible = isDisconnectAllowed,
+                                enter = fadeIn() + expandVertically(),
+                                exit = fadeOut() + shrinkVertically()
                             ) {
-                                Box(
-                                    modifier = Modifier.padding(Dimensions.Spacing.sm),
-                                    contentAlignment = Alignment.Center
+                                Surface(
+                                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f),
+                                    modifier = Modifier.clickable { showDisconnectConfirmDialog = true }
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.SyncDisabled,
-                                        contentDescription = stringResource(R.string.settings_drive_disconnect_button),
-                                        tint = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.size(Dimensions.IconSize.medium)
-                                    )
+                                    Box(
+                                        modifier = Modifier.padding(Dimensions.Spacing.sm),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.SyncDisabled,
+                                            contentDescription = stringResource(R.string.settings_drive_disconnect_button),
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(Dimensions.IconSize.medium)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -719,9 +728,9 @@ fun SettingsScreen(
                                     onClick = {
                                         if (syncButtonState != SyncButtonState.LOADING) {
                                             val performSync: (String) -> Unit = { token ->
-                                                scope.launch {
-                                                    isDriveLoading = true
-                                                    syncButtonState = SyncButtonState.LOADING
+                                                isDriveLoading = true
+                                                syncButtonState = SyncButtonState.LOADING
+                                                AuthenticatorApp.instance.applicationScope.launch {
                                                     try {
                                                         val payload = repository.exportAccountsForTransfer()
                                                         val autoSyncKey = "AppOPT_AutoSync_Vault_E2EE_v1".toCharArray()
@@ -730,27 +739,33 @@ fun SettingsScreen(
                                                             uploadResult.onSuccess {
                                                                 val now = System.currentTimeMillis()
                                                                 val currentHash = CloudVaultSyncManager.computeAccountsSignature(accounts)
-                                                                lastSyncTimestamp = now
                                                                 prefsManager.setLastSyncTimestamp(now)
                                                                 prefsManager.setLastSyncedVaultHash(currentHash)
-                                                                lastSyncedHash = currentHash
-                                                                driveBackupExists = true
-                                                                appHaptics.success()
-                                                                syncButtonState = SyncButtonState.SUCCESS
-                                                                delay(1800L)
-                                                                syncButtonState = SyncButtonState.IDLE
+                                                                withContext(Dispatchers.Main) {
+                                                                    lastSyncTimestamp = now
+                                                                    lastSyncedHash = currentHash
+                                                                    driveBackupExists = true
+                                                                    appHaptics.success()
+                                                                    syncButtonState = SyncButtonState.SUCCESS
+                                                                    delay(1800L)
+                                                                    syncButtonState = SyncButtonState.IDLE
+                                                                }
                                                             }.onFailure { error ->
-                                                                appHaptics.error()
-                                                                syncButtonState = SyncButtonState.ERROR
-                                                                snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error, error.localizedMessage ?: ""))
-                                                                delay(1800L)
-                                                                syncButtonState = SyncButtonState.IDLE
+                                                                withContext(Dispatchers.Main) {
+                                                                    appHaptics.error()
+                                                                    syncButtonState = SyncButtonState.ERROR
+                                                                    snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error, error.localizedMessage ?: ""))
+                                                                    delay(1800L)
+                                                                    syncButtonState = SyncButtonState.IDLE
+                                                                }
                                                             }
                                                         } finally {
                                                             autoSyncKey.fill('0')
                                                         }
                                                     } finally {
-                                                        isDriveLoading = false
+                                                        withContext(Dispatchers.Main) {
+                                                            isDriveLoading = false
+                                                        }
                                                     }
                                                 }
                                             }

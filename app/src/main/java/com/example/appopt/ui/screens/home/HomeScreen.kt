@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -332,22 +333,25 @@ fun HomeScreen(
                         ),
                         verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                     ) {
-                    itemsIndexed(
+                    items(
                         items = accountsToDisplay,
-                        key = { _, item -> item.account.id }
-                    ) { index, item ->
+                        key = { it.account.id },
+                        contentType = { "otp_card" }
+                    ) { item ->
                         val isDragging = draggingAccountId == item.account.id
 
-                        val cardModifier = Modifier
-                            .zIndex(if (isDragging) 10f else 1f)
-                            .graphicsLayer {
-                                if (isDragging) {
+                        val cardModifier = if (isDragging) {
+                            Modifier
+                                .zIndex(10f)
+                                .graphicsLayer {
                                     translationY = dragOffsetY
                                     scaleX = 1.02f
                                     scaleY = 1.02f
                                     shadowElevation = 16f
                                 }
-                            }
+                        } else {
+                            Modifier
+                        }
 
                         OtpCodeCard(
                             accountWithCode = item,

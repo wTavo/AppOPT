@@ -50,8 +50,10 @@ fun CircularTimeProgress(
 
     LaunchedEffect(Unit) {
         while (true) {
-            currentTime = System.currentTimeMillis()
-            delay(250L)
+            val now = System.currentTimeMillis()
+            currentTime = now
+            val millisUntilNextSecond = 1000L - (now % 1000L)
+            delay(millisUntilNextSecond.coerceAtLeast(50L))
         }
     }
 

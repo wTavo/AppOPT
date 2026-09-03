@@ -831,42 +831,9 @@ fun SettingsScreen(
                                     }
                                 }
 
-                                HorizontalDivider(modifier = Modifier.padding(vertical = Dimensions.Spacing.xs))
-
-                                // Fila: Desvincular cuenta
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { showDisconnectConfirmDialog = true }
-                                        .padding(vertical = Dimensions.Spacing.xs),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.SyncDisabled,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(Dimensions.IconSize.small)
-                                        )
-                                        Text(
-                                            text = stringResource(R.string.settings_drive_disconnect_button),
-                                            style = MaterialTheme.typography.titleSmall,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                    }
-                                    Icon(
-                                        imageVector = Icons.Filled.ChevronRight,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-
                                 // Fila: Eliminar copia de seguridad (si existe alguna registrada)
                                 if (formattedLastSync != null || driveBackupExists) {
+                                    HorizontalDivider(modifier = Modifier.padding(vertical = Dimensions.Spacing.xs))
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -903,6 +870,27 @@ fun SettingsScreen(
                                 }
                             }
                         }
+
+                        // Botón secundario dedicado: Desvincular cuenta de Google Drive
+                        OutlinedButton(
+                            onClick = { showDisconnectConfirmDialog = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.SyncDisabled,
+                                contentDescription = null,
+                                modifier = Modifier.size(Dimensions.IconSize.small)
+                            )
+                            Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                            Text(
+                                text = stringResource(R.string.settings_drive_disconnect_button),
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
                     }
                 }
             }
@@ -930,8 +918,13 @@ fun SettingsScreen(
                         showDisconnectConfirmDialog = false
                         isDriveConnected = false
                         driveAccessToken = null
+                        driveBackupExists = false
+                        lastSyncTimestamp = 0L
                         prefsManager.setGoogleDriveConnected(false)
+                        prefsManager.setLastSyncTimestamp(0L)
+                        prefsManager.setLastSyncedVaultHash("")
                         CloudVaultSyncManager.schedulePeriodicSync(context, SyncFrequency.OFF, false)
+                        com.google.android.gms.auth.api.identity.Identity.getSignInClient(context).signOut()
                         scope.launch {
                             snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_disconnected_success))
                         }

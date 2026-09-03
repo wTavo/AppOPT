@@ -143,13 +143,15 @@
     <!-- E2EE Cloud Protection (Dual-Recovery: Primary Method + Mandatory Emergency BIP-39) -->
     <string name="settings_drive_protect_title">Proteger copia en la nube</string>
     <string name="settings_drive_protect_step1_title">Paso 1: Elige tu método principal</string>
-    <string name="settings_drive_protect_step2_title">Paso 2: Frase de emergencia (BIP-39)</string>
+    <string name="settings_drive_protect_step2_title">Paso 2: Tu kit de recuperación</string>
     <string name="settings_drive_protect_description">Configura tu método principal de acceso a tu copia de seguridad.</string>
-    <string name="settings_drive_emergency_description">Esta frase de 12 palabras es tu clave de respaldo de emergencia por si olvidas tu contraseña o pierdes tu clave. Anota las palabras en el orden exacto del 1 al 12 y guárdalas en un lugar seguro.</string>
+    <string name="settings_drive_emergency_description">Revisa tu kit de recuperación completo. Puedes imprimirlo en PDF para conservarlo físicamente o copiar tu frase de 12 palabras antes de la verificación.</string>
+    <string name="settings_drive_summary_primary_title">1. Método principal:</string>
+    <string name="settings_drive_summary_emergency_title">2. Frase de emergencia (12 palabras BIP-39):</string>
     <string name="settings_drive_method_password">Contraseña maestra</string>
     <string name="settings_drive_method_key">Clave de 64 dígitos</string>
     <string name="settings_drive_words_label">Frase de recuperación de emergencia</string>
-    <string name="settings_drive_words_warning">Asegúrate de anotar las 12 palabras en su orden numérico exacto. Si pierdes tu acceso principal y no cuentas con esta frase, nadie podrá recuperar tu bóveda.</string>
+    <string name="settings_drive_words_warning">Asegúrate de guardar este kit en un lugar seguro. Si pierdes tu acceso principal y no cuentas con esta frase, nadie podrá recuperar tu bóveda.</string>
     <string name="settings_drive_words_copied">Frase de 12 palabras copiada. Se borrará del portapapeles en 60 segundos.</string>
     <string name="settings_drive_words_regenerate">Generar nueva frase</string>
     <string name="settings_drive_password_label">Contraseña maestra</string>
@@ -162,10 +164,10 @@
     <string name="settings_drive_key_warning">Guarda esta clave en un lugar seguro. Es el acceso principal a tu copia de seguridad; si la pierdes, no podrás recuperar tus datos.</string>
     <string name="settings_drive_key_regenerate">Generar nueva clave</string>
     <string name="settings_drive_copy_60s">Copiar (60 s)</string>
-    <string name="settings_drive_next_step">Continuar a frase de emergencia</string>
-    <string name="settings_drive_print_pdf">Imprimir / Guardar PDF</string>
+    <string name="settings_drive_next_step">Continuar a kit de recuperación</string>
+    <string name="settings_drive_print_pdf">Imprimir / Guardar kit en PDF</string>
     <string name="settings_drive_print_pdf_hint">Recomendado: imprime en papel físico o guarda en una memoria USB externa.</string>
-    <string name="settings_drive_to_quiz_step">Verificar frase de emergencia</string>
+    <string name="settings_drive_to_quiz_step">Verificar y activar respaldo</string>
     <string name="settings_drive_quiz_title">Paso 3: Verificación de respaldo</string>
     <string name="settings_drive_quiz_description">Para garantizar que anotaste tu frase de 12 palabras, selecciona la palabra correcta para cada posición solicitada.</string>
     <string name="settings_drive_quiz_question_label">¿Cuál es tu palabra #%1$d?</string>

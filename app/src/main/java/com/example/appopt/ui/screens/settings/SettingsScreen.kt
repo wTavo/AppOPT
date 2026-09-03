@@ -1117,7 +1117,7 @@ fun SettingsScreen(
                             }
                         }
                         2 -> {
-                            // PASO 2: Frase de Emergencia Obligatoria (12 Palabras BIP-39)
+                            // PASO 2: Kit de Recuperación Consolidado (Método Ppal + 12 Palabras BIP-39)
                             Text(
                                 text = stringResource(R.string.settings_drive_emergency_description),
                                 style = MaterialTheme.typography.bodySmall,
@@ -1125,6 +1125,47 @@ fun SettingsScreen(
                             )
 
                             Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
+                                // 1. Resumen del Método Principal
+                                Text(
+                                    text = stringResource(R.string.settings_drive_summary_primary_title),
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+
+                                Surface(
+                                    shape = RoundedCornerShape(Dimensions.CornerRadius.small),
+                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(Dimensions.Spacing.sm),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = if (selectedProtectionTab == 0) Icons.Filled.Password else Icons.Filled.Key,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(Dimensions.IconSize.small),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                                        Text(
+                                            text = if (selectedProtectionTab == 0) {
+                                                "•••••••••••• (${masterPasswordText.length} caracteres)"
+                                            } else {
+                                                generated64Key
+                                            },
+                                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
+
+                                // 2. Resumen de la Frase de Emergencia (12 Palabras BIP-39)
+                                Text(
+                                    text = stringResource(R.string.settings_drive_summary_emergency_title),
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)

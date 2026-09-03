@@ -210,9 +210,6 @@ fun SettingsScreen(
                                 val syncTime = info.modifiedTimeMillis
                                 lastSyncTimestamp = syncTime
                                 prefsManager.setLastSyncTimestamp(syncTime)
-                                if (prefsManager.getLastSyncedVaultHash().isNullOrEmpty()) {
-                                    prefsManager.setLastSyncedVaultHash(currentVaultHash)
-                                }
                             }
                         }
                     }
@@ -629,9 +626,6 @@ fun SettingsScreen(
                                             val syncTime = info.modifiedTimeMillis
                                             lastSyncTimestamp = syncTime
                                             prefsManager.setLastSyncTimestamp(syncTime)
-                                            if (prefsManager.getLastSyncedVaultHash().isNullOrEmpty()) {
-                                                prefsManager.setLastSyncedVaultHash(currentVaultHash)
-                                            }
                                         }
                                         snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_connected_success))
                                     }

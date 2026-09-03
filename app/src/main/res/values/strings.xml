@@ -183,10 +183,8 @@
     <string name="emergency_kit_pdf_generated_at">Fecha de emisión</string>
     <string name="emergency_kit_pdf_words_section_title">Frase de recuperación de emergencia (12 palabras BIP-39)</string>
     <string name="emergency_kit_pdf_words_instruction">Anota o guarda estas palabras en su orden numérico exacto (del 1 al 12).</string>
-    <string name="emergency_kit_pdf_qr_section_title">Código QR de restauración rápida</string>
-    <string name="emergency_kit_pdf_qr_instruction">Escanea este código con la app AppOPT en tu nuevo teléfono para restaurar tu bóveda al instante.</string>
-    <string name="emergency_kit_pdf_warning_1">ADVERTENCIA DE SEGURIDAD: Cualquier persona con acceso a esta hoja o código QR podrá acceder a tus cuentas.</string>
-    <string name="emergency_kit_pdf_warning_2">Guarda este documento en un lugar físico seguro (como una caja fuerte) y nunca lo envíes por correo sin cifrar.</string>
+    <string name="emergency_kit_pdf_warning_1">ADVERTENCIA DE SEGURIDAD: Cualquier persona con acceso a esta hoja podrá acceder a tus cuentas.</string>
+    <string name="emergency_kit_pdf_warning_2">Guarda este documento impreso en un lugar físico seguro (como una caja fuerte) y nunca lo envíes por internet sin cifrar.</string>
 
     <!-- Password Manager (Future Module) -->
     <string name="passwords_nav_title">Gestor de contraseñas</string>

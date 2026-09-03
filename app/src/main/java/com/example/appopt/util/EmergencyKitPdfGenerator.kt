@@ -255,23 +255,8 @@ object EmergencyKitPdfGenerator {
 
         currentY = wordsGridRect.bottom + 24f
 
-        // 5. Sección: Código QR de Recuperación Rápida
-        canvas.drawText(context.getString(R.string.emergency_kit_pdf_qr_section_title), leftMargin, currentY, sectionTitlePaint)
-        currentY += 10f
-        canvas.drawText(context.getString(R.string.emergency_kit_pdf_qr_instruction), leftMargin, currentY, subtitlePaint)
-        currentY += 14f
-
-        val qrContent = mnemonicWords.joinToString(" ")
-        val qrBitmap = QrCodeGenerator.generateQrBitmap(qrContent, 160)
-
-        if (qrBitmap != null) {
-            val qrX = leftMargin + (contentWidth - 160f) / 2f
-            canvas.drawBitmap(qrBitmap, qrX, currentY, null)
-            currentY += 175f
-        }
-
-        // 6. Pie de página de seguridad y advertencia
-        val warningRect = RectF(leftMargin, PAGE_HEIGHT - 90f, leftMargin + contentWidth, PAGE_HEIGHT - 40f)
+        // 5. Pie de página de seguridad y advertencia
+        val warningRect = RectF(leftMargin, PAGE_HEIGHT - 110f, leftMargin + contentWidth, PAGE_HEIGHT - 50f)
         val warningBgPaint = Paint().apply {
             color = Color.rgb(254, 242, 242) // Red 50
             style = Paint.Style.FILL

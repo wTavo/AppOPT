@@ -145,13 +145,13 @@
     <string name="settings_drive_protect_step1_title">Paso 1: Elige tu método principal</string>
     <string name="settings_drive_protect_step2_title">Paso 2: Tu kit de recuperación</string>
     <string name="settings_drive_protect_description">Configura tu método principal de acceso a tu copia de seguridad.</string>
-    <string name="settings_drive_emergency_description">Revisa tu kit de recuperación completo. Puedes imprimirlo en PDF para conservarlo físicamente o copiar tu frase de 12 palabras antes de la verificación.</string>
+    <string name="settings_drive_emergency_description">Este es tu kit de recuperación. Contiene tu método principal de acceso y una frase de emergencia de respaldo por si olvidas tu contraseña o pierdes tu clave.</string>
     <string name="settings_drive_summary_primary_title">1. Método principal:</string>
     <string name="settings_drive_summary_emergency_title">2. Frase de emergencia (12 palabras BIP-39):</string>
     <string name="settings_drive_method_password">Contraseña maestra</string>
     <string name="settings_drive_method_key">Clave de 64 dígitos</string>
     <string name="settings_drive_words_label">Frase de recuperación de emergencia</string>
-    <string name="settings_drive_words_warning">Asegúrate de guardar este kit en un lugar seguro. Si pierdes tu acceso principal y no cuentas con esta frase, nadie podrá recuperar tu bóveda.</string>
+    <string name="settings_drive_words_warning">Guarda este kit en un lugar seguro. Si pierdes ambos métodos de recuperación, tu bóveda no se podrá recuperar bajo ninguna circunstancia.</string>
     <string name="settings_drive_words_copied">Frase de 12 palabras copiada. Se borrará del portapapeles en 60 segundos.</string>
     <string name="settings_drive_words_regenerate">Generar nueva frase</string>
     <string name="settings_drive_password_label">Contraseña maestra</string>

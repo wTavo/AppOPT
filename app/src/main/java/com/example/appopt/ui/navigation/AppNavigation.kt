@@ -33,22 +33,17 @@ fun AppNavigation() {
     val appLockManager = AuthenticatorApp.instance.appLockManager
     val isUnlocked by appLockManager.isUnlocked.collectAsStateWithLifecycle()
 
-    AnimatedContent(
-        targetState = isUnlocked,
-        transitionSpec = { fadeIn() togetherWith fadeOut() },
-        label = "AppLockTransition"
-    ) { unlocked ->
-        if (!unlocked) {
-            LockScreen(
-                onUnlocked = { appLockManager.unlock() }
-            )
-        } else {
-            val navController = rememberNavController()
+    if (!isUnlocked) {
+        LockScreen(
+            onUnlocked = { appLockManager.unlock() }
+        )
+    } else {
+        val navController = rememberNavController()
 
-            NavHost(
-                navController = navController,
-                startDestination = Screen.Home.route
-            ) {
+        NavHost(
+            navController = navController,
+            startDestination = Screen.Home.route
+        ) {
                 composable(Screen.Home.route) {
                     val homeViewModel: HomeViewModel = viewModel()
                     HomeScreen(
@@ -91,5 +86,4 @@ fun AppNavigation() {
                 }
             }
         }
-    }
 }

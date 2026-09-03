@@ -123,15 +123,6 @@ fun HomeScreen(
     val currentSuccessAccounts = (uiState as? UiState.Success<*>)?.data as? List<AccountWithCode>
     val accountsToDisplay = if (localAccounts.isNotEmpty()) localAccounts else (currentSuccessAccounts ?: emptyList())
 
-    // Control de animación escalonada: se ejecuta una sola vez al cargar la lista, nunca durante el scroll
-    var hasAnimatedInitialCascade by remember { mutableStateOf(false) }
-    LaunchedEffect(accountsToDisplay.isNotEmpty()) {
-        if (accountsToDisplay.isNotEmpty() && !hasAnimatedInitialCascade) {
-            kotlinx.coroutines.delay((Motion.Duration.MaxStaggerIndex * Motion.Duration.StaggerStep + Motion.Duration.StaggerItem).toLong())
-            hasAnimatedInitialCascade = true
-        }
-    }
-
     // Sincronización continua de datos en vivo desde UiState (previene parpadeos de carga)
     LaunchedEffect(uiState) {
         when (val state = uiState) {
@@ -349,24 +340,6 @@ fun HomeScreen(
                     ) { index, item ->
                         val isDragging = draggingAccountId == item.account.id
 
-                        val density = LocalDensity.current
-                        val slideDistancePx = remember(density) {
-                            with(density) { Dimensions.Offset.staggerSlideDistance.toPx() }
-                        }
-
-                        val shouldAnimate = !hasAnimatedInitialCascade && index <= Motion.Duration.MaxStaggerIndex
-                        val staggerAnim = remember { Animatable(if (shouldAnimate) 0f else 1f) }
-
-                        if (shouldAnimate) {
-                            LaunchedEffect(item.account.id) {
-                                val delayMs = index * Motion.Duration.StaggerStep
-                                staggerAnim.animateTo(
-                                    targetValue = 1f,
-                                    animationSpec = Motion.Spec.staggerItemSpec(delayMillis = delayMs)
-                                )
-                            }
-                        }
-
                         val cardModifier = Modifier
                             .zIndex(if (isDragging) 10f else 1f)
                             .graphicsLayer {
@@ -375,13 +348,6 @@ fun HomeScreen(
                                     scaleX = 1.02f
                                     scaleY = 1.02f
                                     shadowElevation = 16f
-                                    alpha = 1f
-                                } else {
-                                    val progress = staggerAnim.value
-                                    alpha = progress
-                                    translationY = (1f - progress) * slideDistancePx
-                                    scaleX = 0.94f + (0.06f * progress)
-                                    scaleY = 0.94f + (0.06f * progress)
                                 }
                             }
 

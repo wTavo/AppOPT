@@ -47,13 +47,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -71,11 +71,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -111,7 +109,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val clipboardManager = LocalClipboardManager.current
+    val secureClipboard = remember { AuthenticatorApp.instance.secureClipboardManager }
     val snackbarHostState = remember { SnackbarHostState() }
     val repository = AuthenticatorApp.instance.accountRepository
     val prefsManager = remember { PreferencesManager(context) }
@@ -822,7 +820,7 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    TabRow(selectedTabIndex = selectedProtectionTab) {
+                    PrimaryTabRow(selectedTabIndex = selectedProtectionTab) {
                         Tab(
                             selected = selectedProtectionTab == 0,
                             onClick = { selectedProtectionTab = 0 },
@@ -893,7 +891,11 @@ fun SettingsScreen(
                             ) {
                                 TextButton(
                                     onClick = {
-                                        clipboardManager.setText(AnnotatedString(generated64Key))
+                                        secureClipboard.copyToClipboard(
+                                            label = context.getString(R.string.settings_drive_key_label),
+                                            text = generated64Key,
+                                            autoClearSeconds = 60
+                                        )
                                         scope.launch { snackbarHostState.showSnackbar(keyCopiedMsg) }
                                     }
                                 ) {

@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.SyncDisabled
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import com.example.appopt.util.EmergencyKitPdfGenerator
@@ -205,6 +206,7 @@ fun SettingsScreen(
     var showDriveDecryptDialog by remember { mutableStateOf(false) }
     var restoreSecretText by remember { mutableStateOf("") }
     var isRestoreSecretVisible by remember { mutableStateOf(false) }
+    var showDisconnectConfirmDialog by remember { mutableStateOf(false) }
 
     val emptyServicesMsg = stringResource(R.string.settings_export_services_empty)
     val servicesDeletedMsg = stringResource(R.string.settings_services_deleted_after_export)
@@ -828,12 +830,131 @@ fun SettingsScreen(
                                         )
                                     }
                                 }
+
+                                HorizontalDivider(modifier = Modifier.padding(vertical = Dimensions.Spacing.xs))
+
+                                // Fila: Desvincular cuenta
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { showDisconnectConfirmDialog = true }
+                                        .padding(vertical = Dimensions.Spacing.xs),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.SyncDisabled,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(Dimensions.IconSize.small)
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.settings_drive_disconnect_button),
+                                            style = MaterialTheme.typography.titleSmall,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = Icons.Filled.ChevronRight,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
+                                // Fila: Eliminar copia de seguridad (si existe alguna registrada)
+                                if (formattedLastSync != null || driveBackupExists) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                isConfirmingDeleteInDialog = true
+                                                showBackupDetailsDialog = true
+                                            }
+                                            .padding(vertical = Dimensions.Spacing.xs),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.DeleteOutline,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.error,
+                                                modifier = Modifier.size(Dimensions.IconSize.small)
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.settings_drive_delete_button),
+                                                style = MaterialTheme.typography.titleSmall,
+                                                color = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                        Icon(
+                                            imageVector = Icons.Filled.ChevronRight,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
         }
+
+    // Modal: Confirmación de Desvinculación de Google Drive
+    if (showDisconnectConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showDisconnectConfirmDialog = false },
+            title = {
+                Text(
+                    text = stringResource(R.string.settings_drive_disconnect_confirm_title),
+                    style = MaterialTheme.typography.titleLarge
+                )
+            },
+            text = {
+                Text(
+                    text = stringResource(R.string.settings_drive_disconnect_confirm_msg),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDisconnectConfirmDialog = false
+                        isDriveConnected = false
+                        driveAccessToken = null
+                        prefsManager.setGoogleDriveConnected(false)
+                        CloudVaultSyncManager.schedulePeriodicSync(context, SyncFrequency.OFF, false)
+                        scope.launch {
+                            snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_disconnected_success))
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    ),
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_drive_disconnect_button),
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDisconnectConfirmDialog = false }) {
+                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
+                }
+            }
+        )
+    }
 
     // Modal Unificado: Selección de Servicios y Visualización de Código QR para Transferencia
     if (showExportDialog) {

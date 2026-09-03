@@ -36,6 +36,11 @@ android {
     }
 }
 
+composeCompiler {
+    metricsDestination = layout.buildDirectory.dir("compose_compiler/metrics")
+    reportsDestination = layout.buildDirectory.dir("compose_compiler/reports")
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

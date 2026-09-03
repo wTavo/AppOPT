@@ -168,9 +168,9 @@ object EmergencyKitPdfGenerator {
 
         canvas.save()
         canvas.rotate(-32f, PAGE_WIDTH / 2f, PAGE_HEIGHT / 2f)
-        val text = "APPOPT • COPIA PRIVADA • ZERO-KNOWLEDGE E2EE"
+        val text = "APPOPT • CONFIDENCIAL"
         for (y in -200..1200 step 140) {
-            for (x in -300..900 step 480) {
+            for (x in -300..900 step 360) {
                 canvas.drawText(text, x.toFloat(), y.toFloat(), watermarkPaint)
             }
         }

@@ -673,8 +673,11 @@ fun SettingsScreen(
     if (showExportDialog) {
         AlertDialog(
             onDismissRequest = {
-                showExportDialog = false
-                isShowingQrInExportDialog = false
+                if (isShowingQrInExportDialog) {
+                    isShowingQrInExportDialog = false
+                } else {
+                    showExportDialog = false
+                }
             },
             title = {
                 Text(
@@ -1205,8 +1208,11 @@ fun SettingsScreen(
     if (showBackupDetailsDialog) {
         AlertDialog(
             onDismissRequest = {
-                showBackupDetailsDialog = false
-                isConfirmingDeleteInDialog = false
+                if (isConfirmingDeleteInDialog) {
+                    isConfirmingDeleteInDialog = false
+                } else {
+                    showBackupDetailsDialog = false
+                }
             },
             title = {
                 Text(

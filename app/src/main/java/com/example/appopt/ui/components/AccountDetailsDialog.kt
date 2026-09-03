@@ -113,6 +113,8 @@ fun AccountDetailsDialog(
         onDismissRequest = {
             if (showDeleteConfirm) {
                 showDeleteConfirm = false
+            } else if (isEditMode) {
+                isEditMode = false
             } else {
                 onDismiss()
             }

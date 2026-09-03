@@ -118,6 +118,7 @@ import com.example.appopt.ui.components.ServiceBrandAvatar
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.SafeGreen
+import com.example.appopt.ui.theme.WarningOrange
 import com.example.appopt.ui.theme.appSwitchColors
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.ui.util.QrCodeGenerator
@@ -193,26 +194,36 @@ fun SettingsScreen(
     // Autorización silenciosa y comprobación de respaldo al abrir la pantalla si ya estaba configurada
     var driveBackupExists by remember { mutableStateOf(false) }
     var driveBackupInfo by remember { mutableStateOf<DriveBackupInfo?>(null) }
+    var isCheckingDriveBackup by remember { mutableStateOf(false) }
     var showOverwriteWarningDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         if (prefsManager.isGoogleDriveConnected()) {
+            isCheckingDriveBackup = true
             authClient.authorize(GoogleDriveManager.getAuthorizationRequest())
                 .addOnSuccessListener { result ->
                     if (!result.hasResolution() && result.accessToken != null) {
                         driveAccessToken = result.accessToken
                         isDriveConnected = true
                         scope.launch {
-                            val info = GoogleDriveManager.fetchBackupDetails(result.accessToken!!)
-                            driveBackupExists = info != null
-                            driveBackupInfo = info
-                            if (info != null && accounts.isNotEmpty() && lastSyncTimestamp == 0L) {
-                                val syncTime = info.modifiedTimeMillis
-                                lastSyncTimestamp = syncTime
-                                prefsManager.setLastSyncTimestamp(syncTime)
+                            try {
+                                val info = GoogleDriveManager.fetchBackupDetails(result.accessToken!!)
+                                driveBackupExists = info != null
+                                driveBackupInfo = info
+                                if (info != null && accounts.isNotEmpty() && lastSyncTimestamp == 0L) {
+                                    val syncTime = info.modifiedTimeMillis
+                                    lastSyncTimestamp = syncTime
+                                    prefsManager.setLastSyncTimestamp(syncTime)
+                                }
+                            } finally {
+                                isCheckingDriveBackup = false
                             }
                         }
+                    } else {
+                        isCheckingDriveBackup = false
                     }
+                }.addOnFailureListener {
+                    isCheckingDriveBackup = false
                 }
         }
     }
@@ -526,7 +537,8 @@ fun SettingsScreen(
 
                     // 3. Fila con Contenedor de Estado de Copia y Contenedor Independiente de Desvinculación
                     if (isDriveConnected) {
-                        val hasBackupInfo = formattedLastSync != null || driveBackupExists
+                        val isChecking = isCheckingDriveBackup
+                        val hasBackupInfo = !isChecking && (formattedLastSync != null || driveBackupExists)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
@@ -547,7 +559,7 @@ fun SettingsScreen(
                                         }
                                     ),
                                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                                color = if (isChecking) WarningOrange.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
                             ) {
                                 Row(
                                     modifier = Modifier.padding(
@@ -563,19 +575,24 @@ fun SettingsScreen(
                                         modifier = Modifier.weight(1f, fill = false)
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Filled.CloudDone,
+                                            imageVector = if (isChecking) Icons.Filled.Sync else Icons.Filled.CloudDone,
                                             contentDescription = null,
-                                            tint = if (hasBackupInfo) SafeGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            tint = when {
+                                                isChecking -> WarningOrange
+                                                hasBackupInfo -> SafeGreen
+                                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                            },
                                             modifier = Modifier.size(Dimensions.IconSize.small)
                                         )
                                         Text(
                                             text = when {
+                                                isChecking -> stringResource(R.string.settings_drive_checking_backup)
                                                 formattedLastSync != null -> stringResource(R.string.settings_drive_last_sync, formattedLastSync)
                                                 driveBackupExists -> stringResource(R.string.settings_drive_backup_found)
                                                 else -> stringResource(R.string.settings_drive_last_sync_never)
                                             },
                                             style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurface
+                                            color = if (isChecking) WarningOrange else MaterialTheme.colorScheme.onSurface
                                         )
                                     }
 
@@ -618,16 +635,21 @@ fun SettingsScreen(
                                 requestGoogleAuthorization { token ->
                                     isDriveConnected = true
                                     prefsManager.setGoogleDriveConnected(true)
+                                    isCheckingDriveBackup = true
                                     scope.launch {
-                                        val info = GoogleDriveManager.fetchBackupDetails(token)
-                                        driveBackupExists = info != null
-                                        driveBackupInfo = info
-                                        if (info != null && accounts.isNotEmpty()) {
-                                            val syncTime = info.modifiedTimeMillis
-                                            lastSyncTimestamp = syncTime
-                                            prefsManager.setLastSyncTimestamp(syncTime)
+                                        try {
+                                            val info = GoogleDriveManager.fetchBackupDetails(token)
+                                            driveBackupExists = info != null
+                                            driveBackupInfo = info
+                                            if (info != null && accounts.isNotEmpty()) {
+                                                val syncTime = info.modifiedTimeMillis
+                                                lastSyncTimestamp = syncTime
+                                                prefsManager.setLastSyncTimestamp(syncTime)
+                                            }
+                                            snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_connected_success))
+                                        } finally {
+                                            isCheckingDriveBackup = false
                                         }
-                                        snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_connected_success))
                                     }
                                 }
                             },

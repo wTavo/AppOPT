@@ -144,7 +144,7 @@
     <string name="settings_drive_protect_title">Proteger copia en la nube</string>
     <string name="settings_drive_protect_step1_title">Paso 1: Elige tu método principal</string>
     <string name="settings_drive_protect_step2_title">Paso 2: Frase de emergencia (BIP-39)</string>
-    <string name="settings_drive_protect_description">Configura tu método principal de acceso a tu copia de seguridad. Guarda esta credencial en un lugar seguro; es necesaria para restaurar tus datos.</string>
+    <string name="settings_drive_protect_description">Configura tu método principal de acceso a tu copia de seguridad.</string>
     <string name="settings_drive_emergency_description">Esta frase de 12 palabras es tu clave de respaldo de emergencia por si olvidas tu contraseña o pierdes tu clave. Anota las palabras en el orden exacto del 1 al 12 y guárdalas en un lugar seguro.</string>
     <string name="settings_drive_method_password">Contraseña maestra</string>
     <string name="settings_drive_method_key">Clave de 64 dígitos</string>
@@ -158,11 +158,9 @@
     <string name="settings_drive_password_too_short">La contraseña debe tener al menos 10 caracteres</string>
     <string name="settings_drive_password_warning">Guarda esta contraseña en un lugar seguro. Es el acceso principal a tu copia de seguridad; si la pierdes, no podrás recuperar tus datos.</string>
     <string name="settings_drive_key_label">Clave criptográfica de 64 dígitos</string>
-    <string name="settings_drive_key_copied">Clave copiada al portapapeles. Se borrará en 60 segundos.</string>
+    <string name="settings_drive_key_copied">Clave copiada. Se borrará del portapapeles en 60 segundos.</string>
     <string name="settings_drive_key_warning">Guarda esta clave en un lugar seguro. Es el acceso principal a tu copia de seguridad; si la pierdes, no podrás recuperar tus datos.</string>
     <string name="settings_drive_key_regenerate">Generar nueva clave</string>
-    <string name="settings_drive_copy_60s">Copiar (60 s)</string>
-    <string name="settings_drive_copied_inline_feedback">Copiado al portapapeles. Se borrará en 60 s por seguridad.</string>
     <string name="settings_drive_next_step">Continuar a frase de emergencia</string>
     <string name="settings_drive_decrypt_title">Descifrar copia de seguridad</string>
     <string name="settings_drive_decrypt_hint">Ingresa tu contraseña maestra, tu clave de 64 dígitos o tu frase de 12 palabras de emergencia para descifrar tu respaldo.</string>

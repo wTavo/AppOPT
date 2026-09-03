@@ -186,7 +186,6 @@ fun SettingsScreen(
     var masterPasswordConfirmText by remember { mutableStateOf("") }
     var isMasterPasswordVisible by remember { mutableStateOf(false) }
     var generated64Key by remember { mutableStateOf(GoogleDriveManager.generate64DigitKey()) }
-    var isCopiedInlineFeedbackVisible by remember { mutableStateOf(false) }
 
     // Estados para el diálogo de descifrado al restaurar
     var showDriveDecryptDialog by remember { mutableStateOf(false) }
@@ -970,37 +969,6 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                 ) {
-                    // Banner animado de confirmación de copiado dentro del propio diálogo
-                    AnimatedVisibility(
-                        visible = isCopiedInlineFeedbackVisible,
-                        enter = fadeIn() + expandVertically(),
-                        exit = fadeOut() + shrinkVertically()
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(Dimensions.CornerRadius.small),
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.sm),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
-                            ) {
-                                Icon(
-                                    Icons.Filled.CheckCircle,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(Dimensions.IconSize.small)
-                                )
-                                Text(
-                                    text = stringResource(R.string.settings_drive_copied_inline_feedback),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-                        }
-                    }
-
                     if (driveProtectStep == 1) {
                         // PASO 1: Selección y configuración del Método Principal
                         Text(
@@ -1110,21 +1078,12 @@ fun SettingsScreen(
                                                 text = generated64Key,
                                                 autoClearSeconds = 60
                                             )
-                                            Toast.makeText(
-                                                context,
-                                                context.getString(R.string.settings_drive_copied_inline_feedback),
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                            isCopiedInlineFeedbackVisible = true
-                                            scope.launch {
-                                                kotlinx.coroutines.delay(4000L)
-                                                isCopiedInlineFeedbackVisible = false
-                                            }
+                                            Toast.makeText(context, keyCopiedMsg, Toast.LENGTH_SHORT).show()
                                         }
                                     ) {
                                         Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
                                         Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                                        Text(stringResource(R.string.settings_drive_copy_60s), style = MaterialTheme.typography.labelMedium)
+                                        Text(stringResource(R.string.action_copy), style = MaterialTheme.typography.labelMedium)
                                     }
 
                                     TextButton(
@@ -1214,21 +1173,12 @@ fun SettingsScreen(
                                             text = fullPhrase,
                                             autoClearSeconds = 60
                                         )
-                                        Toast.makeText(
-                                            context,
-                                            context.getString(R.string.settings_drive_copied_inline_feedback),
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                        isCopiedInlineFeedbackVisible = true
-                                        scope.launch {
-                                            kotlinx.coroutines.delay(4000L)
-                                            isCopiedInlineFeedbackVisible = false
-                                        }
+                                        Toast.makeText(context, wordsCopiedMsg, Toast.LENGTH_SHORT).show()
                                     }
                                 ) {
                                     Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
                                     Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                                    Text(stringResource(R.string.settings_drive_copy_60s), style = MaterialTheme.typography.labelMedium)
+                                    Text(stringResource(R.string.action_copy), style = MaterialTheme.typography.labelMedium)
                                 }
 
                                 TextButton(

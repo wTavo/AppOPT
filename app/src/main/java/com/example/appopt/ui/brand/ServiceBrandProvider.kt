@@ -126,7 +126,7 @@ object ServiceBrandProvider {
      */
     fun preloadBrandIcons(context: android.content.Context) {
         val appContext = context.applicationContext
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+        CoroutineScope(Dispatchers.IO + kotlinx.coroutines.SupervisorJob()).launch {
             KnownBrands.forEach { brand ->
                 brand.iconResId?.let { resId ->
                     try {

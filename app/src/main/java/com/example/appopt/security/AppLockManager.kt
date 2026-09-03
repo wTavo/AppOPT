@@ -3,14 +3,9 @@ package com.example.appopt.security
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
-import com.example.appopt.AuthenticatorApp
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.launch
 
 /**
  * Gestor del estado de bloqueo global de la aplicación.
@@ -60,20 +55,6 @@ class AppLockManager : DefaultLifecycleObserver {
         super.onStart(owner)
         if (backgroundTimestamp > 0L && (System.currentTimeMillis() - backgroundTimestamp) >= lockTimeoutMillis) {
             lock()
-        }
-
-        // Precalentamiento de códigos en segundo plano mientras el usuario se autentica
-        try {
-            val repo = AuthenticatorApp.instance.accountRepository
-            CoroutineScope(Dispatchers.IO).launch {
-                repo.getAccounts().firstOrNull()?.let { accounts ->
-                    if (accounts.isNotEmpty()) {
-                        repo.computeAccountsWithCodes(accounts, System.currentTimeMillis())
-                    }
-                }
-            }
-        } catch (_: Exception) {
-            // Repositorio aún no inicializado
         }
     }
 }

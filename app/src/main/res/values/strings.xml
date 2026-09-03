@@ -23,6 +23,7 @@
     <string name="action_hide_codes">Ocultar códigos</string>
     <string name="action_show_codes">Mostrar códigos</string>
     <string name="action_long_press_to_copy">Mantén presionado para copiar</string>
+    <string name="action_reorder">Reordenar servicio</string>
 
     <!-- Home Screen -->
     <string name="home_title">Authenticator</string>

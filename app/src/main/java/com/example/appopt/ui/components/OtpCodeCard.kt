@@ -7,12 +7,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,6 +23,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
@@ -37,16 +37,13 @@ import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -69,7 +66,7 @@ import kotlinx.coroutines.delay
  *
  * Características de diseño e interacción:
  * - Pulsar sobre la tarjeta genera el efecto ripple visual y abre el modal de detalle/edición.
- * - Mantener presionada la tarjeta activa vibración háptica y modo de arrastre para reordenamiento.
+ * - Manija de arrastre dedicada ([Icons.Filled.DragHandle]) para reordenamiento sin interferir con el scroll a 120 FPS.
  * - Pulsar directamente sobre los dígitos copia inmediatamente el código al portapapeles.
  * - Modo de privacidad (`hideCodes`): anima suavemente el colapso y despliegue de los números y contador mediante [Motion.Spec.privacyCollapseSpec].
  *
@@ -80,7 +77,7 @@ import kotlinx.coroutines.delay
  * @param onCopyCode Callback invocado al pulsar sobre los dígitos para copiar el código al portapapeles.
  * @param onToggleFavorite Callback para marcar o desmarcar como favorita.
  * @param onNextHotpCode Callback para avanzar el contador de una cuenta HOTP.
- * @param onStartDrag Callback invocado al iniciar el arrastre por pulsación prolongada.
+ * @param onStartDrag Callback invocado al iniciar el arrastre por la manija.
  * @param onDragDelta Callback con el desplazamiento vertical continuo durante el arrastre.
  * @param onEndDrag Callback invocado al soltar la tarjeta.
  */
@@ -139,20 +136,6 @@ fun OtpCodeCard(
                     onCardClick()
                 }
             )
-            .pointerInput(account.id) {
-                detectDragGesturesAfterLongPress(
-                    onDragStart = {
-                        appHaptics.dragTick()
-                        onStartDrag()
-                    },
-                    onDrag = { change, dragAmount ->
-                        change.consume()
-                        onDragDelta(dragAmount.y, cardHeightPx)
-                    },
-                    onDragEnd = { onEndDrag() },
-                    onDragCancel = { onEndDrag() }
-                )
-            }
             .semantics {
                 contentDescription = AccessibilityUtils.buildAccountCardContentDescription(
                     context = context,
@@ -174,7 +157,7 @@ fun OtpCodeCard(
                 .fillMaxWidth()
                 .padding(Dimensions.Spacing.lg)
         ) {
-            // Cabecera: Avatar de Marca, Nombres y Botón de Favorito
+            // Cabecera: Avatar de Marca, Nombres, Botón de Favorito y Manija de Arrastre
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -210,18 +193,51 @@ fun OtpCodeCard(
                     }
                 }
 
-                IconButton(
-                    onClick = {
-                        appHaptics.click()
-                        onToggleFavorite(account.id)
-                    },
-                    modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
                 ) {
-                    Icon(
-                        imageVector = if (account.isFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
-                        contentDescription = stringResource(R.string.action_favorite),
-                        tint = if (account.isFavorite) WarningOrange else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    IconButton(
+                        onClick = {
+                            appHaptics.click()
+                            onToggleFavorite(account.id)
+                        },
+                        modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
+                    ) {
+                        Icon(
+                            imageVector = if (account.isFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                            contentDescription = stringResource(R.string.action_favorite),
+                            tint = if (account.isFavorite) WarningOrange else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(Dimensions.ComponentSize.actionIconButton)
+                            .clip(RoundedCornerShape(Dimensions.CornerRadius.small))
+                            .pointerInput(account.id) {
+                                detectDragGestures(
+                                    onDragStart = {
+                                        appHaptics.dragTick()
+                                        onStartDrag()
+                                    },
+                                    onDrag = { change, dragAmount ->
+                                        change.consume()
+                                        onDragDelta(dragAmount.y, cardHeightPx)
+                                    },
+                                    onDragEnd = { onEndDrag() },
+                                    onDragCancel = { onEndDrag() }
+                                )
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.DragHandle,
+                            contentDescription = stringResource(R.string.action_reorder),
+                            tint = if (isDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            modifier = Modifier.size(Dimensions.IconSize.medium)
+                        )
+                    }
                 }
             }
 

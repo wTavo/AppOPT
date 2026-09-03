@@ -377,20 +377,26 @@ fun SettingsScreen(
                 ),
                 shape = RoundedCornerShape(Dimensions.CornerRadius.large)
             ) {
-                Column(modifier = Modifier.padding(Dimensions.Spacing.md)) {
+                Column(
+                    modifier = Modifier.padding(Dimensions.Spacing.lg),
+                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                ) {
+                    // 1. Cabecera con icono, título y badge de estado
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                        ) {
                             Icon(
                                 imageVector = if (isDriveConnected) Icons.Filled.CloudDone else Icons.Filled.Sync,
                                 contentDescription = null,
                                 tint = if (isDriveConnected) SafeGreen else MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(Dimensions.IconSize.medium)
                             )
-                            Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
                             Text(
                                 text = stringResource(R.string.settings_drive_title),
                                 style = MaterialTheme.typography.titleMedium
@@ -399,7 +405,7 @@ fun SettingsScreen(
 
                         Surface(
                             shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
-                            color = if (isDriveConnected) SafeGreen.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
+                            color = if (isDriveConnected) SafeGreen.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant
                         ) {
                             Text(
                                 text = if (isDriveConnected) {
@@ -409,43 +415,50 @@ fun SettingsScreen(
                                 },
                                 style = MaterialTheme.typography.labelSmall,
                                 color = if (isDriveConnected) SafeGreen else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = 2.dp)
+                                modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
-
+                    // 2. Descripción clara
                     Text(
                         text = stringResource(R.string.settings_drive_description),
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
+                    // 3. Estado de última copia (Contenedor informativo suave)
                     if (isDriveConnected) {
-                        Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Filled.CloudDone,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(Dimensions.IconSize.small)
-                            )
-                            Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                            Text(
-                                text = if (formattedLastSync != null) {
-                                    stringResource(R.string.settings_drive_last_sync, formattedLastSync)
-                                } else {
-                                    stringResource(R.string.settings_drive_last_sync_never)
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.sm),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.CloudDone,
+                                    contentDescription = null,
+                                    tint = if (formattedLastSync != null) SafeGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(Dimensions.IconSize.small)
+                                )
+                                Text(
+                                    text = if (formattedLastSync != null) {
+                                        stringResource(R.string.settings_drive_last_sync, formattedLastSync)
+                                    } else {
+                                        stringResource(R.string.settings_drive_last_sync_never)
+                                    },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(Dimensions.Spacing.md))
-
+                    // 4. Bloque de acciones
                     if (!isDriveConnected) {
                         Button(
                             onClick = {
@@ -464,9 +477,13 @@ fun SettingsScreen(
                                 modifier = Modifier.size(Dimensions.IconSize.small)
                             )
                             Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
-                            Text(stringResource(R.string.settings_drive_connect_button), style = MaterialTheme.typography.labelLarge)
+                            Text(
+                                text = stringResource(R.string.settings_drive_connect_button),
+                                style = MaterialTheme.typography.labelLarge
+                            )
                         }
                     } else {
+                        // Acciones principales: Sincronizar y Restaurar
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
@@ -495,7 +512,10 @@ fun SettingsScreen(
                                         strokeWidth = 2.dp
                                     )
                                 } else {
-                                    Text(stringResource(R.string.settings_drive_sync_button), style = MaterialTheme.typography.labelLarge)
+                                    Text(
+                                        text = stringResource(R.string.settings_drive_sync_button),
+                                        style = MaterialTheme.typography.labelLarge
+                                    )
                                 }
                             }
 
@@ -514,95 +534,111 @@ fun SettingsScreen(
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                             ) {
-                                Text(stringResource(R.string.settings_drive_restore_button), style = MaterialTheme.typography.labelLarge)
-                            }
-                        }
-
-                        HorizontalDivider(modifier = Modifier.padding(vertical = Dimensions.Spacing.xs))
-
-                        // Fila interactiva: Frecuencia de la copia de seguridad
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { showFrequencyDialog = true }
-                                .padding(vertical = Dimensions.Spacing.xs),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column(modifier = Modifier.weight(1f).padding(end = Dimensions.Spacing.sm)) {
                                 Text(
-                                    text = stringResource(R.string.settings_drive_frequency_title),
+                                    text = stringResource(R.string.settings_drive_restore_button),
                                     style = MaterialTheme.typography.labelLarge
                                 )
-                                val frequencyLabel = when (syncFrequency) {
-                                    SyncFrequency.DAILY -> stringResource(R.string.settings_drive_frequency_daily)
-                                    SyncFrequency.WEEKLY -> stringResource(R.string.settings_drive_frequency_weekly)
-                                    SyncFrequency.MONTHLY -> stringResource(R.string.settings_drive_frequency_monthly)
-                                    SyncFrequency.OFF -> stringResource(R.string.settings_drive_frequency_off)
-                                }
-                                Text(
-                                    text = frequencyLabel,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
                             }
-                            Icon(
-                                imageVector = Icons.Filled.ChevronRight,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
                         }
 
-                        // Switch: Uso de datos móviles (solo visible si la frecuencia no está desactivada)
-                        if (syncFrequency != SyncFrequency.OFF) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        val newState = !isSyncMobileDataAllowed
-                                        isSyncMobileDataAllowed = newState
-                                        prefsManager.setSyncMobileDataAllowed(newState)
-                                        CloudVaultSyncManager.schedulePeriodicSync(context, syncFrequency, newState)
-                                    }
-                                    .padding(vertical = Dimensions.Spacing.xs),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                        // 5. Contenedor de configuración de automatización
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(Dimensions.Spacing.md),
+                                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
                             ) {
-                                Column(modifier = Modifier.weight(1f).padding(end = Dimensions.Spacing.sm)) {
-                                    Text(
-                                        text = stringResource(R.string.settings_drive_mobile_data_label),
-                                        style = MaterialTheme.typography.labelLarge
-                                    )
-                                    Text(
-                                        text = stringResource(R.string.settings_drive_mobile_data_description),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                // Fila: Frecuencia de la copia
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { showFrequencyDialog = true }
+                                        .padding(vertical = Dimensions.Spacing.xs),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(
+                                        modifier = Modifier.weight(1f).padding(end = Dimensions.Spacing.sm),
+                                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.settings_drive_frequency_title),
+                                            style = MaterialTheme.typography.titleSmall
+                                        )
+                                        val frequencyLabel = when (syncFrequency) {
+                                            SyncFrequency.DAILY -> stringResource(R.string.settings_drive_frequency_daily)
+                                            SyncFrequency.WEEKLY -> stringResource(R.string.settings_drive_frequency_weekly)
+                                            SyncFrequency.MONTHLY -> stringResource(R.string.settings_drive_frequency_monthly)
+                                            SyncFrequency.OFF -> stringResource(R.string.settings_drive_frequency_off)
+                                        }
+                                        Text(
+                                            text = frequencyLabel,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = Icons.Filled.ChevronRight,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                                Switch(
-                                    checked = isSyncMobileDataAllowed,
-                                    onCheckedChange = {
-                                        isSyncMobileDataAllowed = it
-                                        prefsManager.setSyncMobileDataAllowed(it)
-                                        CloudVaultSyncManager.schedulePeriodicSync(context, syncFrequency, it)
+
+                                // Fila: Uso de datos móviles (solo si no está desactivada)
+                                if (syncFrequency != SyncFrequency.OFF) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                val newState = !isSyncMobileDataAllowed
+                                                isSyncMobileDataAllowed = newState
+                                                prefsManager.setSyncMobileDataAllowed(newState)
+                                                CloudVaultSyncManager.schedulePeriodicSync(context, syncFrequency, newState)
+                                            }
+                                            .padding(vertical = Dimensions.Spacing.xs),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.weight(1f).padding(end = Dimensions.Spacing.sm),
+                                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                                        ) {
+                                            Text(
+                                                text = stringResource(R.string.settings_drive_mobile_data_label),
+                                                style = MaterialTheme.typography.titleSmall
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.settings_drive_mobile_data_description),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Switch(
+                                            checked = isSyncMobileDataAllowed,
+                                            onCheckedChange = {
+                                                isSyncMobileDataAllowed = it
+                                                prefsManager.setSyncMobileDataAllowed(it)
+                                                CloudVaultSyncManager.schedulePeriodicSync(context, syncFrequency, it)
+                                            }
+                                        )
                                     }
-                                )
+                                }
                             }
                         }
 
-                        // Botón de eliminar copia de seguridad (visible si existe una copia previa en Drive)
+                        // 6. Botón de eliminar copia de seguridad (Zona destructiva limpia)
                         if (lastSyncTimestamp > 0L) {
-                            HorizontalDivider(modifier = Modifier.padding(vertical = Dimensions.Spacing.xs))
-
-                            OutlinedButton(
+                            TextButton(
                                 onClick = { showDeleteDriveBackupDialog = true },
                                 enabled = !isDriveLoading,
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                colors = ButtonDefaults.outlinedButtonColors(
+                                colors = ButtonDefaults.textButtonColors(
                                     contentColor = MaterialTheme.colorScheme.error
-                                ),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
+                                )
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.DeleteOutline,

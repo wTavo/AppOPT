@@ -141,7 +141,7 @@ object Dimensions {
      * Desplazamientos y offsets para animaciones de entrada y movimiento.
      */
     object Offset {
-        /** Desplazamiento vertical inicial para la animación de entrada escalonada en cascada (28.dp). */
-        val staggerSlideDistance: Dp = 28.dp
+        /** Desplazamiento vertical inicial para la animación de entrada escalonada en cascada (48.dp). */
+        val staggerSlideDistance: Dp = 48.dp
     }
 }

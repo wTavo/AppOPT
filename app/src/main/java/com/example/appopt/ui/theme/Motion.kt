@@ -39,14 +39,14 @@ object Motion {
         /** Tiempo de permanencia para avisos de copiado al portapapeles o mensajes breves (1500ms). */
         const val FeedbackToast = 1500
 
-        /** Retardo incremental entre elementos consecutivos en animaciones escalonadas en cascada (45ms). */
-        const val StaggerStep = 45
+        /** Retardo incremental entre elementos consecutivos en animaciones escalonadas en cascada (90ms). */
+        const val StaggerStep = 90
 
-        /** Duración de la animación de entrada y desplazamiento de cada tarjeta de servicio (350ms). */
-        const val StaggerItem = 350
+        /** Duración de la animación de entrada y desplazamiento de cada tarjeta de servicio (550ms). */
+        const val StaggerItem = 550
 
-        /** Límite superior de elementos para el cálculo de retardo escalonado (8 elementos = 360ms máx). */
-        const val MaxStaggerIndex = 8
+        /** Límite superior de elementos para el cálculo de retardo escalonado (10 elementos). */
+        const val MaxStaggerIndex = 10
     }
 
     /**

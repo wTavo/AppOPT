@@ -177,6 +177,29 @@ object GoogleDriveManager {
     }
 
     /**
+     * Elimina permanentemente el archivo de copia de seguridad de la carpeta privada de Google Drive.
+     *
+     * @param accessToken Token de acceso OAuth2 emitido por Google Identity Services.
+     * @return [Result] exitoso si el archivo fue eliminado o si no existía previamente.
+     */
+    suspend fun deleteBackup(accessToken: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val fileId = findExistingBackupFileId(accessToken) ?: return@runCatching
+
+            val deleteUrl = URL("https://www.googleapis.com/drive/v3/files/$fileId")
+            val connection = (deleteUrl.openConnection() as HttpURLConnection).apply {
+                requestMethod = "DELETE"
+                setRequestProperty("Authorization", "Bearer $accessToken")
+            }
+
+            val responseCode = connection.responseCode
+            if (responseCode !in 200..299 && responseCode != 404) {
+                throw IllegalStateException("Error al eliminar la copia en Google Drive (HTTP $responseCode)")
+            }
+        }
+    }
+
+    /**
      * Consulta la API de Drive para encontrar el identificador de [BackupFileName] en `appDataFolder`.
      */
     private fun findExistingBackupFileId(accessToken: String): String? {

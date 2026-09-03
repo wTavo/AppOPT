@@ -121,8 +121,19 @@
     <string name="settings_drive_restore_confirm_msg">¿Deseas descargar e importar los servicios respaldados en tu cuenta de Google?</string>
     <string name="settings_drive_auto_sync_label">Copia de seguridad automática</string>
     <string name="settings_drive_auto_sync_description">Respalda tus servicios periódicamente si se detectan cambios.</string>
+    <string name="settings_drive_frequency_title">Frecuencia de la copia</string>
+    <string name="settings_drive_frequency_daily">Diariamente</string>
+    <string name="settings_drive_frequency_weekly">Semanalmente</string>
+    <string name="settings_drive_frequency_monthly">Mensualmente</string>
+    <string name="settings_drive_frequency_off">Desactivada</string>
     <string name="settings_drive_mobile_data_label">Usar datos móviles para la copia</string>
     <string name="settings_drive_mobile_data_description">Si está desactivado, la copia automática solo se realizará mediante Wi-Fi.</string>
+    <string name="settings_drive_delete_button">Eliminar copia de Google Drive</string>
+    <string name="settings_drive_delete_confirm_title">Eliminar copia de seguridad</string>
+    <string name="settings_drive_delete_confirm_msg">¿Deseas eliminar permanentemente tu copia de seguridad de Google Drive? Esta acción no se puede deshacer y no podrás restaurar tus servicios desde la nube.</string>
+    <string name="settings_drive_delete_confirm_btn">Eliminar copia</string>
+    <string name="settings_drive_delete_success">Copia de seguridad eliminada de Google Drive</string>
+    <string name="settings_drive_deleting">Eliminando copia de Google Drive…</string>
 
     <!-- Dual E2EE Cloud Protection (PIN or 64-digit key) -->
     <string name="settings_drive_protect_title">Proteger copia en la nube</string>

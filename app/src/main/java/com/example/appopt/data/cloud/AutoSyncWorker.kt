@@ -26,7 +26,7 @@ class AutoSyncWorker(
         val prefsManager = PreferencesManager(applicationContext)
 
         // 1. Validar si la sincronización automática está habilitada y la cuenta conectada
-        if (!prefsManager.isGoogleDriveConnected() || !prefsManager.isAutoSyncEnabled()) {
+        if (!prefsManager.isGoogleDriveConnected() || !prefsManager.isAutoSyncEnabled() || prefsManager.getSyncFrequency() == SyncFrequency.OFF) {
             return@withContext Result.success()
         }
 

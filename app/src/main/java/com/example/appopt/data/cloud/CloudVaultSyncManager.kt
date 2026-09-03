@@ -12,11 +12,32 @@ import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 
 /**
+ * Frecuencia configurable de la copia de seguridad automática en Google Drive.
+ *
+ * @property intervalDays Intervalo de días entre ejecuciones periódicas (0 para desactivada).
+ */
+enum class SyncFrequency(val intervalDays: Long) {
+    DAILY(1L),
+    WEEKLY(7L),
+    MONTHLY(30L),
+    OFF(0L);
+
+    companion object {
+        /**
+         * Retorna la frecuencia a partir de su nombre o [DAILY] por defecto.
+         */
+        fun fromName(name: String?): SyncFrequency {
+            return entries.firstOrNull { it.name.equals(name, ignoreCase = true) } ?: DAILY
+        }
+    }
+}
+
+/**
  * Gestor centralizado de sincronización periódica en la nube y cálculo de huellas criptográficas SHA-256.
  *
  * Responsabilidades:
  * - Calcula la huella digital SHA-256 del contenido exportado para evitar peticiones redundantes.
- * - Orquesta las tareas periódicas en segundo plano con [WorkManager] respetando restricciones de red y batería.
+ * - Orquesta las tareas periódicas en segundo plano con [WorkManager] respetando restricciones de red, batería y frecuencia.
  */
 object CloudVaultSyncManager {
 
@@ -38,17 +59,17 @@ object CloudVaultSyncManager {
      * Programa o cancela la tarea periódica de sincronización en segundo plano con [WorkManager].
      *
      * @param context Contexto de la aplicación.
-     * @param isEnabled Indica si la copia de seguridad automática está activada por el usuario.
+     * @param frequency Frecuencia configurada ([SyncFrequency.DAILY], [SyncFrequency.WEEKLY], [SyncFrequency.MONTHLY] o [SyncFrequency.OFF]).
      * @param allowMobileData Indica si la sincronización tiene permiso para usar datos móviles (4G/5G).
      */
     fun schedulePeriodicSync(
         context: Context,
-        isEnabled: Boolean,
+        frequency: SyncFrequency,
         allowMobileData: Boolean
     ) {
         val workManager = WorkManager.getInstance(context)
 
-        if (!isEnabled) {
+        if (frequency == SyncFrequency.OFF) {
             workManager.cancelUniqueWork(PeriodicWorkName)
             return
         }
@@ -64,7 +85,7 @@ object CloudVaultSyncManager {
             .setRequiresBatteryNotLow(true)
             .build()
 
-        val syncRequest = PeriodicWorkRequestBuilder<AutoSyncWorker>(24, TimeUnit.HOURS)
+        val syncRequest = PeriodicWorkRequestBuilder<AutoSyncWorker>(frequency.intervalDays, TimeUnit.DAYS)
             .setConstraints(constraints)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, TimeUnit.MINUTES)
             .build()

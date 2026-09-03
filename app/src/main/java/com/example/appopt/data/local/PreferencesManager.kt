@@ -99,6 +99,28 @@ class PreferencesManager(context: Context) {
         sharedPreferences.edit().putString(KEY_LAST_VAULT_HASH, hash).apply()
     }
 
+    /**
+     * Retorna la frecuencia configurada para la copia de seguridad automática.
+     */
+    fun getSyncFrequency(): com.example.appopt.data.cloud.SyncFrequency {
+        val name = sharedPreferences.getString(KEY_SYNC_FREQUENCY, null)
+        return if (name != null) {
+            com.example.appopt.data.cloud.SyncFrequency.fromName(name)
+        } else {
+            if (isAutoSyncEnabled()) com.example.appopt.data.cloud.SyncFrequency.DAILY else com.example.appopt.data.cloud.SyncFrequency.OFF
+        }
+    }
+
+    /**
+     * Guarda la frecuencia configurada para la copia de seguridad automática.
+     */
+    fun setSyncFrequency(frequency: com.example.appopt.data.cloud.SyncFrequency) {
+        sharedPreferences.edit()
+            .putString(KEY_SYNC_FREQUENCY, frequency.name)
+            .putBoolean(KEY_AUTO_SYNC_ENABLED, frequency != com.example.appopt.data.cloud.SyncFrequency.OFF)
+            .apply()
+    }
+
     companion object {
         private const val PREFS_NAME = "authenticator_user_preferences"
         private const val KEY_HIDE_CODES = "key_hide_codes"
@@ -107,5 +129,6 @@ class PreferencesManager(context: Context) {
         private const val KEY_AUTO_SYNC_ENABLED = "key_auto_sync_enabled"
         private const val KEY_SYNC_MOBILE_DATA = "key_sync_mobile_data"
         private const val KEY_LAST_VAULT_HASH = "key_last_vault_hash"
+        private const val KEY_SYNC_FREQUENCY = "key_sync_frequency"
     }
 }

@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -24,8 +25,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Pin
 import androidx.compose.material.icons.filled.QrCodeScanner
@@ -36,6 +39,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -48,6 +52,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -85,6 +90,7 @@ import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
 import com.example.appopt.data.cloud.CloudVaultSyncManager
 import com.example.appopt.data.cloud.GoogleDriveManager
+import com.example.appopt.data.cloud.SyncFrequency
 import com.example.appopt.data.local.PreferencesManager
 import com.example.appopt.security.CryptoManager
 import com.example.appopt.ui.components.ServiceBrandAvatar
@@ -127,11 +133,13 @@ fun SettingsScreen(
     // Estados para la sincronización persistente con Google Identity Services
     val authClient = remember { GoogleDriveManager.getAuthorizationClient(context) }
     var isDriveConnected by remember { mutableStateOf(prefsManager.isGoogleDriveConnected()) }
-    var isAutoSyncEnabled by remember { mutableStateOf(prefsManager.isAutoSyncEnabled()) }
+    var syncFrequency by remember { mutableStateOf(prefsManager.getSyncFrequency()) }
     var isSyncMobileDataAllowed by remember { mutableStateOf(prefsManager.isSyncMobileDataAllowed()) }
     var lastSyncTimestamp by remember { mutableStateOf(prefsManager.getLastSyncTimestamp()) }
     var driveAccessToken by remember { mutableStateOf<String?>(null) }
     var isDriveLoading by remember { mutableStateOf(false) }
+    var showFrequencyDialog by remember { mutableStateOf(false) }
+    var showDeleteDriveBackupDialog by remember { mutableStateOf(false) }
 
     val formattedLastSync = remember(lastSyncTimestamp) {
         if (lastSyncTimestamp == 0L) {
@@ -512,43 +520,41 @@ fun SettingsScreen(
 
                         HorizontalDivider(modifier = Modifier.padding(vertical = Dimensions.Spacing.xs))
 
-                        // Switch 1: Copia de seguridad automática periódica
+                        // Fila interactiva: Frecuencia de la copia de seguridad
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable {
-                                    val newState = !isAutoSyncEnabled
-                                    isAutoSyncEnabled = newState
-                                    prefsManager.setAutoSyncEnabled(newState)
-                                    CloudVaultSyncManager.schedulePeriodicSync(context, newState, isSyncMobileDataAllowed)
-                                }
+                                .clickable { showFrequencyDialog = true }
                                 .padding(vertical = Dimensions.Spacing.xs),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column(modifier = Modifier.weight(1f).padding(end = Dimensions.Spacing.sm)) {
                                 Text(
-                                    text = stringResource(R.string.settings_drive_auto_sync_label),
+                                    text = stringResource(R.string.settings_drive_frequency_title),
                                     style = MaterialTheme.typography.labelLarge
                                 )
+                                val frequencyLabel = when (syncFrequency) {
+                                    SyncFrequency.DAILY -> stringResource(R.string.settings_drive_frequency_daily)
+                                    SyncFrequency.WEEKLY -> stringResource(R.string.settings_drive_frequency_weekly)
+                                    SyncFrequency.MONTHLY -> stringResource(R.string.settings_drive_frequency_monthly)
+                                    SyncFrequency.OFF -> stringResource(R.string.settings_drive_frequency_off)
+                                }
                                 Text(
-                                    text = stringResource(R.string.settings_drive_auto_sync_description),
+                                    text = frequencyLabel,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            Switch(
-                                checked = isAutoSyncEnabled,
-                                onCheckedChange = {
-                                    isAutoSyncEnabled = it
-                                    prefsManager.setAutoSyncEnabled(it)
-                                    CloudVaultSyncManager.schedulePeriodicSync(context, it, isSyncMobileDataAllowed)
-                                }
+                            Icon(
+                                imageVector = Icons.Filled.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
 
-                        // Switch 2: Uso de datos móviles
-                        if (isAutoSyncEnabled) {
+                        // Switch: Uso de datos móviles (solo visible si la frecuencia no está desactivada)
+                        if (syncFrequency != SyncFrequency.OFF) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -556,7 +562,7 @@ fun SettingsScreen(
                                         val newState = !isSyncMobileDataAllowed
                                         isSyncMobileDataAllowed = newState
                                         prefsManager.setSyncMobileDataAllowed(newState)
-                                        CloudVaultSyncManager.schedulePeriodicSync(context, isAutoSyncEnabled, newState)
+                                        CloudVaultSyncManager.schedulePeriodicSync(context, syncFrequency, newState)
                                     }
                                     .padding(vertical = Dimensions.Spacing.xs),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -578,8 +584,35 @@ fun SettingsScreen(
                                     onCheckedChange = {
                                         isSyncMobileDataAllowed = it
                                         prefsManager.setSyncMobileDataAllowed(it)
-                                        CloudVaultSyncManager.schedulePeriodicSync(context, isAutoSyncEnabled, it)
+                                        CloudVaultSyncManager.schedulePeriodicSync(context, syncFrequency, it)
                                     }
+                                )
+                            }
+                        }
+
+                        // Botón de eliminar copia de seguridad (visible si existe una copia previa en Drive)
+                        if (lastSyncTimestamp > 0L) {
+                            HorizontalDivider(modifier = Modifier.padding(vertical = Dimensions.Spacing.xs))
+
+                            OutlinedButton(
+                                onClick = { showDeleteDriveBackupDialog = true },
+                                enabled = !isDriveLoading,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.error
+                                ),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.DeleteOutline,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(Dimensions.IconSize.small)
+                                )
+                                Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                                Text(
+                                    text = stringResource(R.string.settings_drive_delete_button),
+                                    style = MaterialTheme.typography.labelLarge
                                 )
                             }
                         }
@@ -945,8 +978,7 @@ fun SettingsScreen(
                                     prefsManager.setGoogleDriveConnected(true)
                                     prefsManager.setLastSyncTimestamp(now)
                                     prefsManager.setLastSyncedVaultHash(currentHash)
-                                    lastSyncTimestamp = now
-                                    CloudVaultSyncManager.schedulePeriodicSync(context, isAutoSyncEnabled, isSyncMobileDataAllowed)
+                                    CloudVaultSyncManager.schedulePeriodicSync(context, syncFrequency, isSyncMobileDataAllowed)
                                     snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_sync_success))
                                 }.onFailure { error ->
                                     snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error, error.localizedMessage ?: ""))
@@ -1002,7 +1034,7 @@ fun SettingsScreen(
                         trailingIcon = {
                             IconButton(onClick = { isRestoreSecretVisible = !isRestoreSecretVisible }) {
                                 Icon(
-                                    imageVector = if (isRestoreSecretVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                    imageVector = if (isRestoreSecretVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
                                     contentDescription = null
                                 )
                             }
@@ -1051,6 +1083,132 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showDriveDecryptDialog = false }) {
+                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
+                }
+            }
+        )
+    }
+
+    // Modal: Selección de Frecuencia de Copia de Seguridad
+    if (showFrequencyDialog) {
+        AlertDialog(
+            onDismissRequest = { showFrequencyDialog = false },
+            title = {
+                Text(
+                    text = stringResource(R.string.settings_drive_frequency_title),
+                    style = MaterialTheme.typography.titleLarge
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                ) {
+                    val frequencyOptions = listOf(
+                        SyncFrequency.DAILY to R.string.settings_drive_frequency_daily,
+                        SyncFrequency.WEEKLY to R.string.settings_drive_frequency_weekly,
+                        SyncFrequency.MONTHLY to R.string.settings_drive_frequency_monthly,
+                        SyncFrequency.OFF to R.string.settings_drive_frequency_off
+                    )
+
+                    frequencyOptions.forEach { (frequencyOption, labelRes) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    syncFrequency = frequencyOption
+                                    prefsManager.setSyncFrequency(frequencyOption)
+                                    CloudVaultSyncManager.schedulePeriodicSync(context, frequencyOption, isSyncMobileDataAllowed)
+                                    showFrequencyDialog = false
+                                }
+                                .padding(vertical = Dimensions.Spacing.xs),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = syncFrequency == frequencyOption,
+                                onClick = {
+                                    syncFrequency = frequencyOption
+                                    prefsManager.setSyncFrequency(frequencyOption)
+                                    CloudVaultSyncManager.schedulePeriodicSync(context, frequencyOption, isSyncMobileDataAllowed)
+                                    showFrequencyDialog = false
+                                }
+                            )
+                            Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
+                            Text(
+                                text = stringResource(labelRes),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showFrequencyDialog = false }) {
+                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
+                }
+            }
+        )
+    }
+
+    // Modal: Confirmación para Eliminar Copia de Seguridad de Drive
+    if (showDeleteDriveBackupDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDriveBackupDialog = false },
+            title = {
+                Text(
+                    text = stringResource(R.string.settings_drive_delete_confirm_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.error
+                )
+            },
+            text = {
+                Text(
+                    text = stringResource(R.string.settings_drive_delete_confirm_msg),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteDriveBackupDialog = false
+                        val executeDelete: (String) -> Unit = { token ->
+                            scope.launch {
+                                isDriveLoading = true
+                                try {
+                                    val deleteResult = GoogleDriveManager.deleteBackup(token)
+                                    deleteResult.onSuccess {
+                                        prefsManager.setLastSyncTimestamp(0L)
+                                        prefsManager.setLastSyncedVaultHash("")
+                                        lastSyncTimestamp = 0L
+                                        snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_delete_success))
+                                    }.onFailure { error ->
+                                        snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error, error.localizedMessage ?: ""))
+                                    }
+                                } finally {
+                                    isDriveLoading = false
+                                }
+                            }
+                        }
+
+                        if (driveAccessToken == null) {
+                            requestGoogleAuthorization { token ->
+                                executeDelete(token)
+                            }
+                        } else {
+                            executeDelete(driveAccessToken!!)
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    ),
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                ) {
+                    Text(stringResource(R.string.settings_drive_delete_confirm_btn), style = MaterialTheme.typography.labelLarge)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDriveBackupDialog = false }) {
                     Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
                 }
             }

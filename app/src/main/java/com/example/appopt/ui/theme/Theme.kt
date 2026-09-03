@@ -83,17 +83,20 @@ fun AppTheme(
 }
 
 /**
- * Colores de alto contraste para los interruptores [androidx.compose.material3.Switch] de la aplicación.
+ * Colores de alto contraste adaptativos para los interruptores [androidx.compose.material3.Switch] de la aplicación.
  *
- * En estado apagado (*unchecked*), el botón deslizante (*thumb*) se muestra en color blanco puro
- * con borde claro para máxima visibilidad y distinción sobre fondos oscuros y claros.
+ * - En modo oscuro (*Dark Theme*): El botón deslizante apagado es blanco puro ([androidx.compose.ui.graphics.Color.White]) para máxima visibilidad.
+ * - En modo claro (*Light Theme*): El botón deslizante apagado es gris pizarra de alto contraste para destacar claramente sobre superficies claras.
  */
 @Composable
-fun appSwitchColors(): androidx.compose.material3.SwitchColors = androidx.compose.material3.SwitchDefaults.colors(
-    uncheckedThumbColor = androidx.compose.ui.graphics.Color.White,
-    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
-    uncheckedBorderColor = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f),
-    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-    checkedTrackColor = MaterialTheme.colorScheme.primary,
-    checkedBorderColor = androidx.compose.ui.graphics.Color.Transparent
-)
+fun appSwitchColors(): androidx.compose.material3.SwitchColors {
+    val isDark = MaterialTheme.colorScheme.surface == SurfaceDark || MaterialTheme.colorScheme.background == BackgroundDark
+    return androidx.compose.material3.SwitchDefaults.colors(
+        uncheckedThumbColor = if (isDark) androidx.compose.ui.graphics.Color.White else TextSecondaryLight,
+        uncheckedTrackColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else SurfaceVariantLight,
+        uncheckedBorderColor = if (isDark) androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f) else OutlineLight,
+        checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+        checkedTrackColor = MaterialTheme.colorScheme.primary,
+        checkedBorderColor = androidx.compose.ui.graphics.Color.Transparent
+    )
+}

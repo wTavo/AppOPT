@@ -174,8 +174,7 @@
     <string name="settings_drive_quiz_description">Para garantizar que anotaste tu frase de 12 palabras, selecciona la palabra correcta para cada posición solicitada.</string>
     <string name="settings_drive_quiz_question_label">¿Cuál es tu palabra #%1$d?</string>
     <string name="settings_drive_quiz_review_words">Revisar 12 palabras</string>
-    <string name="settings_drive_quiz_error">Una o más palabras seleccionadas no coinciden. Por favor revisa tus 12 palabras.</string>
-    <string name="settings_drive_decrypt_title">Descifrar copia de seguridad</string>
+    <string name="settings_drive_quiz_error">Una o más palabras seleccionadas no coinciden. Por favor revisa tus 12 palabras.</string>    <string name="settings_drive_decrypt_title">Descifrar copia de seguridad</string>
     <string name="settings_drive_decrypt_hint">Ingresa tu contraseña maestra, tu clave de 64 dígitos o tu frase de 12 palabras de emergencia para descifrar tu respaldo.</string>
     <string name="settings_drive_decrypt_input_label">Contraseña, clave de 64 dígitos o 12 palabras</string>
     <string name="settings_drive_decrypt_error">Credenciales incorrectas. No se pudo descifrar la copia de seguridad.</string>

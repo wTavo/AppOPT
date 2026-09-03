@@ -57,10 +57,55 @@ class PreferencesManager(context: Context) {
         sharedPreferences.edit().putLong(KEY_DRIVE_LAST_SYNC, timestamp).apply()
     }
 
+    /**
+     * Retorna si la copia de seguridad automática está activada (por defecto true).
+     */
+    fun isAutoSyncEnabled(): Boolean {
+        return sharedPreferences.getBoolean(KEY_AUTO_SYNC_ENABLED, true)
+    }
+
+    /**
+     * Guarda si la copia de seguridad automática está activada.
+     */
+    fun setAutoSyncEnabled(enabled: Boolean) {
+        sharedPreferences.edit().putBoolean(KEY_AUTO_SYNC_ENABLED, enabled).apply()
+    }
+
+    /**
+     * Retorna si la sincronización puede usar datos móviles (por defecto false -> solo Wi-Fi).
+     */
+    fun isSyncMobileDataAllowed(): Boolean {
+        return sharedPreferences.getBoolean(KEY_SYNC_MOBILE_DATA, false)
+    }
+
+    /**
+     * Guarda la preferencia de uso de datos móviles para sincronización.
+     */
+    fun setSyncMobileDataAllowed(allowed: Boolean) {
+        sharedPreferences.edit().putBoolean(KEY_SYNC_MOBILE_DATA, allowed).apply()
+    }
+
+    /**
+     * Retorna el último hash SHA-256 de la bóveda sincronizada en la nube.
+     */
+    fun getLastSyncedVaultHash(): String? {
+        return sharedPreferences.getString(KEY_LAST_VAULT_HASH, null)
+    }
+
+    /**
+     * Guarda el hash SHA-256 de la bóveda sincronizada.
+     */
+    fun setLastSyncedVaultHash(hash: String) {
+        sharedPreferences.edit().putString(KEY_LAST_VAULT_HASH, hash).apply()
+    }
+
     companion object {
         private const val PREFS_NAME = "authenticator_user_preferences"
         private const val KEY_HIDE_CODES = "key_hide_codes"
         private const val KEY_DRIVE_CONNECTED = "key_drive_connected"
         private const val KEY_DRIVE_LAST_SYNC = "key_drive_last_sync"
+        private const val KEY_AUTO_SYNC_ENABLED = "key_auto_sync_enabled"
+        private const val KEY_SYNC_MOBILE_DATA = "key_sync_mobile_data"
+        private const val KEY_LAST_VAULT_HASH = "key_last_vault_hash"
     }
 }

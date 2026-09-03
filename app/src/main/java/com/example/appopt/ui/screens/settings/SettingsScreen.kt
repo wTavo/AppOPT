@@ -85,6 +85,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
+import com.example.appopt.data.cloud.CloudVaultSyncManager
 import com.example.appopt.data.cloud.GoogleDriveManager
 import com.example.appopt.data.local.PreferencesManager
 import com.example.appopt.security.CryptoManager
@@ -128,6 +129,8 @@ fun SettingsScreen(
     // Estados para la sincronización persistente con Google Identity Services
     val authClient = remember { GoogleDriveManager.getAuthorizationClient(context) }
     var isDriveConnected by remember { mutableStateOf(prefsManager.isGoogleDriveConnected()) }
+    var isAutoSyncEnabled by remember { mutableStateOf(prefsManager.isAutoSyncEnabled()) }
+    var isSyncMobileDataAllowed by remember { mutableStateOf(prefsManager.isSyncMobileDataAllowed()) }
     var lastSyncTimestamp by remember { mutableStateOf(prefsManager.getLastSyncTimestamp()) }
     var driveAccessToken by remember { mutableStateOf<String?>(null) }
     var isDriveLoading by remember { mutableStateOf(false) }
@@ -508,6 +511,80 @@ fun SettingsScreen(
                                 Text(stringResource(R.string.settings_drive_restore_button), style = MaterialTheme.typography.labelLarge)
                             }
                         }
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = Dimensions.Spacing.xs))
+
+                        // Switch 1: Copia de seguridad automática periódica
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val newState = !isAutoSyncEnabled
+                                    isAutoSyncEnabled = newState
+                                    prefsManager.setAutoSyncEnabled(newState)
+                                    CloudVaultSyncManager.schedulePeriodicSync(context, newState, isSyncMobileDataAllowed)
+                                }
+                                .padding(vertical = Dimensions.Spacing.xs),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f).padding(end = Dimensions.Spacing.sm)) {
+                                Text(
+                                    text = stringResource(R.string.settings_drive_auto_sync_label),
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                                Text(
+                                    text = stringResource(R.string.settings_drive_auto_sync_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = isAutoSyncEnabled,
+                                onCheckedChange = {
+                                    isAutoSyncEnabled = it
+                                    prefsManager.setAutoSyncEnabled(it)
+                                    CloudVaultSyncManager.schedulePeriodicSync(context, it, isSyncMobileDataAllowed)
+                                }
+                            )
+                        }
+
+                        // Switch 2: Uso de datos móviles
+                        if (isAutoSyncEnabled) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        val newState = !isSyncMobileDataAllowed
+                                        isSyncMobileDataAllowed = newState
+                                        prefsManager.setSyncMobileDataAllowed(newState)
+                                        CloudVaultSyncManager.schedulePeriodicSync(context, isAutoSyncEnabled, newState)
+                                    }
+                                    .padding(vertical = Dimensions.Spacing.xs),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f).padding(end = Dimensions.Spacing.sm)) {
+                                    Text(
+                                        text = stringResource(R.string.settings_drive_mobile_data_label),
+                                        style = MaterialTheme.typography.labelLarge
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.settings_drive_mobile_data_description),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = isSyncMobileDataAllowed,
+                                    onCheckedChange = {
+                                        isSyncMobileDataAllowed = it
+                                        prefsManager.setSyncMobileDataAllowed(it)
+                                        CloudVaultSyncManager.schedulePeriodicSync(context, isAutoSyncEnabled, it)
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -861,10 +938,13 @@ fun SettingsScreen(
                                 val uploadResult = GoogleDriveManager.uploadBackup(driveAccessToken!!, payload, passChars)
                                 uploadResult.onSuccess {
                                     val now = System.currentTimeMillis()
+                                    val currentHash = CloudVaultSyncManager.computeVaultHash(payload)
                                     isDriveConnected = true
                                     prefsManager.setGoogleDriveConnected(true)
                                     prefsManager.setLastSyncTimestamp(now)
+                                    prefsManager.setLastSyncedVaultHash(currentHash)
                                     lastSyncTimestamp = now
+                                    CloudVaultSyncManager.schedulePeriodicSync(context, isAutoSyncEnabled, isSyncMobileDataAllowed)
                                     snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_sync_success))
                                 }.onFailure { error ->
                                     snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error, error.localizedMessage ?: ""))

@@ -119,6 +119,10 @@
     <string name="settings_drive_error">Error en Google Drive: %1$s</string>
     <string name="settings_drive_restore_confirm_title">Restaurar de Google Drive</string>
     <string name="settings_drive_restore_confirm_msg">¿Deseas descargar e importar los servicios respaldados en tu cuenta de Google?</string>
+    <string name="settings_drive_auto_sync_label">Copia de seguridad automática</string>
+    <string name="settings_drive_auto_sync_description">Respalda tus servicios periódicamente si se detectan cambios.</string>
+    <string name="settings_drive_mobile_data_label">Usar datos móviles para la copia</string>
+    <string name="settings_drive_mobile_data_description">Si está desactivado, la copia automática solo se realizará mediante Wi-Fi.</string>
 
     <!-- Dual E2EE Cloud Protection (PIN or 64-digit key) -->
     <string name="settings_drive_protect_title">Proteger copia en la nube</string>

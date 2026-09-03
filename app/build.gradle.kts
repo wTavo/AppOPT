@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.example.appopt"
-    compileSdk = 35
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.example.appopt"
@@ -59,9 +59,10 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
-    // Security & Biometrics
+    // Security, Biometrics & WorkManager
     implementation(libs.androidx.biometric)
     implementation(libs.google.play.services.auth)
+    implementation(libs.androidx.work.runtime.ktx)
 
     // CameraX & ML Kit
     implementation(libs.androidx.camera.core)

@@ -39,12 +39,14 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.FormatListNumbered
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Password
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import com.example.appopt.util.EmergencyKitPdfGenerator
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -92,8 +94,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
@@ -177,15 +179,18 @@ fun SettingsScreen(
             }
     }
 
-    // Estados para el diálogo de protección E2EE al sincronizar (Flujo de 2 pasos)
+    // Estados para el diálogo de protección E2EE al sincronizar (Flujo de 3 pasos: Método Ppal -> 12 Palabras -> Cuestionario)
     var showDriveProtectDialog by remember { mutableStateOf(false) }
-    var driveProtectStep by remember { mutableIntStateOf(1) } // 1: Método Principal, 2: Frase de Emergencia Obligatoria
+    var driveProtectStep by remember { mutableIntStateOf(1) } // 1: Método Principal, 2: 12 Palabras, 3: Cuestionario
     var selectedProtectionTab by remember { mutableIntStateOf(0) } // 0: Contraseña maestra, 1: Clave 64 dígitos
     var generatedMnemonicWords by remember { mutableStateOf(MnemonicManager.generate12WordPhrase()) }
     var masterPasswordText by remember { mutableStateOf("") }
     var masterPasswordConfirmText by remember { mutableStateOf("") }
     var isMasterPasswordVisible by remember { mutableStateOf(false) }
     var generated64Key by remember { mutableStateOf(GoogleDriveManager.generate64DigitKey()) }
+    var quizQuestions by remember { mutableStateOf<List<MnemonicManager.MnemonicQuizQuestion>>(emptyList()) }
+    var quizSelectedAnswers by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
+    var isQuizError by remember { mutableStateOf(false) }
 
     // Estados para el diálogo de descifrado al restaurar
     var showDriveDecryptDialog by remember { mutableStateOf(false) }
@@ -941,25 +946,26 @@ fun SettingsScreen(
         )
     }
 
-    // Modal: Protección E2EE al sincronizar en Google Drive (Máquina de 2 Pasos: Método Principal + Frase BIP-39 Obligatoria)
+    // Modal: Protección E2EE al sincronizar en Google Drive (Máquina de 3 Pasos: Método Principal -> 12 Palabras -> Cuestionario)
     if (showDriveProtectDialog) {
         val isPasswordValid = masterPasswordText.length >= 10 && masterPasswordText == masterPasswordConfirmText
         val isStep1Valid = if (selectedProtectionTab == 0) isPasswordValid else generated64Key.isNotBlank()
+        val isQuizAnswered = quizQuestions.isNotEmpty() && quizSelectedAnswers.size == quizQuestions.size
 
         AlertDialog(
             onDismissRequest = {
-                if (driveProtectStep == 2) {
-                    driveProtectStep = 1 // Navegación defensiva hacia atrás antes de cerrar
-                } else {
-                    showDriveProtectDialog = false
+                when (driveProtectStep) {
+                    3 -> driveProtectStep = 2 // Navegación defensiva hacia atrás
+                    2 -> driveProtectStep = 1
+                    else -> showDriveProtectDialog = false
                 }
             },
             title = {
                 Text(
-                    text = if (driveProtectStep == 1) {
-                        stringResource(R.string.settings_drive_protect_step1_title)
-                    } else {
-                        stringResource(R.string.settings_drive_protect_step2_title)
+                    text = when (driveProtectStep) {
+                        1 -> stringResource(R.string.settings_drive_protect_step1_title)
+                        2 -> stringResource(R.string.settings_drive_protect_step2_title)
+                        else -> stringResource(R.string.settings_drive_quiz_title)
                     },
                     style = MaterialTheme.typography.titleLarge
                 )
@@ -969,99 +975,195 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                 ) {
-                    if (driveProtectStep == 1) {
-                        // PASO 1: Selección y configuración del Método Principal
-                        Text(
-                            text = stringResource(R.string.settings_drive_protect_description),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        PrimaryTabRow(selectedTabIndex = selectedProtectionTab) {
-                            Tab(
-                                selected = selectedProtectionTab == 0,
-                                onClick = { selectedProtectionTab = 0 },
-                                text = { Text(stringResource(R.string.settings_drive_method_password), style = MaterialTheme.typography.labelSmall) },
-                                icon = { Icon(Icons.Filled.Password, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small)) }
+                    when (driveProtectStep) {
+                        1 -> {
+                            // PASO 1: Selección y configuración del Método Principal
+                            Text(
+                                text = stringResource(R.string.settings_drive_protect_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Tab(
-                                selected = selectedProtectionTab == 1,
-                                onClick = { selectedProtectionTab = 1 },
-                                text = { Text(stringResource(R.string.settings_drive_method_key), style = MaterialTheme.typography.labelSmall) },
-                                icon = { Icon(Icons.Filled.Key, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small)) }
-                            )
-                        }
 
-                        if (selectedProtectionTab == 0) {
-                            // Opción 1: Contraseña Maestra Fuerte
-                            Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
-                                OutlinedTextField(
-                                    value = masterPasswordText,
-                                    onValueChange = { masterPasswordText = it },
-                                    label = { Text(stringResource(R.string.settings_drive_password_label)) },
-                                    visualTransformation = if (isMasterPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                                    trailingIcon = {
-                                        IconButton(onClick = { isMasterPasswordVisible = !isMasterPasswordVisible }) {
-                                            Icon(
-                                                imageVector = if (isMasterPasswordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                                contentDescription = null
+                            PrimaryTabRow(selectedTabIndex = selectedProtectionTab) {
+                                Tab(
+                                    selected = selectedProtectionTab == 0,
+                                    onClick = { selectedProtectionTab = 0 },
+                                    text = { Text(stringResource(R.string.settings_drive_method_password), style = MaterialTheme.typography.labelSmall) },
+                                    icon = { Icon(Icons.Filled.Password, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small)) }
+                                )
+                                Tab(
+                                    selected = selectedProtectionTab == 1,
+                                    onClick = { selectedProtectionTab = 1 },
+                                    text = { Text(stringResource(R.string.settings_drive_method_key), style = MaterialTheme.typography.labelSmall) },
+                                    icon = { Icon(Icons.Filled.Key, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small)) }
+                                )
+                            }
+
+                            if (selectedProtectionTab == 0) {
+                                // Opción 1: Contraseña Maestra Fuerte
+                                Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
+                                    OutlinedTextField(
+                                        value = masterPasswordText,
+                                        onValueChange = { masterPasswordText = it },
+                                        label = { Text(stringResource(R.string.settings_drive_password_label)) },
+                                        visualTransformation = if (isMasterPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                        trailingIcon = {
+                                            IconButton(onClick = { isMasterPasswordVisible = !isMasterPasswordVisible }) {
+                                                Icon(
+                                                    imageVector = if (isMasterPasswordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                                    contentDescription = null
+                                                )
+                                            }
+                                        },
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+
+                                    OutlinedTextField(
+                                        value = masterPasswordConfirmText,
+                                        onValueChange = { masterPasswordConfirmText = it },
+                                        label = { Text(stringResource(R.string.settings_drive_password_confirm_label)) },
+                                        visualTransformation = if (isMasterPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                        singleLine = true,
+                                        isError = masterPasswordConfirmText.isNotEmpty() && masterPasswordText != masterPasswordConfirmText,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+
+                                    if (masterPasswordText.isNotEmpty() && masterPasswordText.length < 10) {
+                                        Text(
+                                            text = stringResource(R.string.settings_drive_password_too_short),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    } else if (masterPasswordConfirmText.isNotEmpty() && masterPasswordText != masterPasswordConfirmText) {
+                                        Text(
+                                            text = stringResource(R.string.settings_drive_password_mismatch),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+
+                                    Surface(
+                                        shape = RoundedCornerShape(Dimensions.CornerRadius.small),
+                                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.settings_drive_password_warning),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onErrorContainer,
+                                            modifier = Modifier.padding(Dimensions.Spacing.sm)
+                                        )
+                                    }
+                                }
+                            } else {
+                                // Opción 2: Clave generada de 64 dígitos
+                                Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
+                                    Surface(
+                                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                        color = MaterialTheme.colorScheme.surfaceVariant,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(modifier = Modifier.padding(Dimensions.Spacing.sm)) {
+                                            Text(
+                                                text = generated64Key,
+                                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                                modifier = Modifier.fillMaxWidth()
                                             )
                                         }
-                                    },
-                                    singleLine = true,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
+                                    }
 
-                                OutlinedTextField(
-                                    value = masterPasswordConfirmText,
-                                    onValueChange = { masterPasswordConfirmText = it },
-                                    label = { Text(stringResource(R.string.settings_drive_password_confirm_label)) },
-                                    visualTransformation = if (isMasterPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                                    singleLine = true,
-                                    isError = masterPasswordConfirmText.isNotEmpty() && masterPasswordText != masterPasswordConfirmText,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        TextButton(
+                                            onClick = {
+                                                appHaptics.copy()
+                                                secureClipboard.copyToClipboard(
+                                                    label = "AppOPT-BackupKey",
+                                                    text = generated64Key,
+                                                    autoClearSeconds = 60
+                                                )
+                                                Toast.makeText(context, keyCopiedMsg, Toast.LENGTH_LONG).show()
+                                            }
+                                        ) {
+                                            Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
+                                            Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                                            Text(stringResource(R.string.settings_drive_copy_60s), style = MaterialTheme.typography.labelMedium)
+                                        }
 
-                                if (masterPasswordText.isNotEmpty() && masterPasswordText.length < 10) {
-                                    Text(
-                                        text = stringResource(R.string.settings_drive_password_too_short),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                } else if (masterPasswordConfirmText.isNotEmpty() && masterPasswordText != masterPasswordConfirmText) {
-                                    Text(
-                                        text = stringResource(R.string.settings_drive_password_mismatch),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                }
+                                        TextButton(
+                                            onClick = { generated64Key = GoogleDriveManager.generate64DigitKey() }
+                                        ) {
+                                            Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
+                                            Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                                            Text(stringResource(R.string.settings_drive_key_regenerate), style = MaterialTheme.typography.labelMedium)
+                                        }
+                                    }
 
-                                Surface(
-                                    shape = RoundedCornerShape(Dimensions.CornerRadius.small),
-                                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.settings_drive_password_warning),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onErrorContainer,
-                                        modifier = Modifier.padding(Dimensions.Spacing.sm)
-                                    )
+                                    Surface(
+                                        shape = RoundedCornerShape(Dimensions.CornerRadius.small),
+                                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.settings_drive_key_warning),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onErrorContainer,
+                                            modifier = Modifier.padding(Dimensions.Spacing.sm)
+                                        )
+                                    }
                                 }
                             }
-                        } else {
-                            // Opción 2: Clave generada de 64 dígitos
+                        }
+                        2 -> {
+                            // PASO 2: Frase de Emergencia Obligatoria (12 Palabras BIP-39)
+                            Text(
+                                text = stringResource(R.string.settings_drive_emergency_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
                             Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
-                                Surface(
-                                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                    color = MaterialTheme.colorScheme.surfaceVariant,
-                                    modifier = Modifier.fillMaxWidth()
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
                                 ) {
-                                    Column(modifier = Modifier.padding(Dimensions.Spacing.sm)) {
-                                        Text(
-                                            text = generated64Key,
-                                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                                            modifier = Modifier.fillMaxWidth()
-                                        )
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                                    ) {
+                                        generatedMnemonicWords.take(6).forEachIndexed { index, word ->
+                                            Surface(
+                                                shape = RoundedCornerShape(Dimensions.CornerRadius.small),
+                                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Text(
+                                                    text = "${index + 1}. $word",
+                                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                                    modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs)
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                                    ) {
+                                        generatedMnemonicWords.drop(6).forEachIndexed { index, word ->
+                                            Surface(
+                                                shape = RoundedCornerShape(Dimensions.CornerRadius.small),
+                                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Text(
+                                                    text = "${index + 7}. $word",
+                                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                                    modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs)
+                                                )
+                                            }
+                                        }
                                     }
                                 }
 
@@ -1073,12 +1175,13 @@ fun SettingsScreen(
                                     TextButton(
                                         onClick = {
                                             appHaptics.copy()
+                                            val fullPhrase = generatedMnemonicWords.joinToString(" ")
                                             secureClipboard.copyToClipboard(
-                                                label = "AppOPT-BackupKey",
-                                                text = generated64Key,
+                                                label = "AppOPT-MnemonicWords",
+                                                text = fullPhrase,
                                                 autoClearSeconds = 60
                                             )
-                                            Toast.makeText(context, keyCopiedMsg, Toast.LENGTH_LONG).show()
+                                            Toast.makeText(context, wordsCopiedMsg, Toast.LENGTH_LONG).show()
                                         }
                                     ) {
                                         Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
@@ -1087,12 +1190,41 @@ fun SettingsScreen(
                                     }
 
                                     TextButton(
-                                        onClick = { generated64Key = GoogleDriveManager.generate64DigitKey() }
+                                        onClick = { generatedMnemonicWords = MnemonicManager.generate12WordPhrase() }
                                     ) {
                                         Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
                                         Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                                        Text(stringResource(R.string.settings_drive_key_regenerate), style = MaterialTheme.typography.labelMedium)
+                                        Text(stringResource(R.string.settings_drive_words_regenerate), style = MaterialTheme.typography.labelMedium)
                                     }
+                                }
+
+                                // Botón para Imprimir / Guardar Emergency Kit en PDF
+                                OutlinedButton(
+                                    onClick = {
+                                        appHaptics.click()
+                                        val methodTitle = if (selectedProtectionTab == 0) {
+                                            context.getString(R.string.settings_drive_password_label)
+                                        } else {
+                                            context.getString(R.string.settings_drive_key_label)
+                                        }
+                                        val methodValue = if (selectedProtectionTab == 0) {
+                                            "•••••••••••• (${masterPasswordText.length} caracteres)"
+                                        } else {
+                                            generated64Key
+                                        }
+                                        EmergencyKitPdfGenerator.printEmergencyKit(
+                                            context = context,
+                                            primaryMethodTitle = methodTitle,
+                                            primaryMethodValue = methodValue,
+                                            mnemonicWords = generatedMnemonicWords
+                                        )
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                                ) {
+                                    Icon(Icons.Filled.Print, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
+                                    Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                                    Text(stringResource(R.string.settings_drive_print_pdf), style = MaterialTheme.typography.labelMedium)
                                 }
 
                                 Surface(
@@ -1100,7 +1232,7 @@ fun SettingsScreen(
                                     color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
                                 ) {
                                     Text(
-                                        text = stringResource(R.string.settings_drive_key_warning),
+                                        text = stringResource(R.string.settings_drive_words_warning),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onErrorContainer,
                                         modifier = Modifier.padding(Dimensions.Spacing.sm)
@@ -1108,176 +1240,176 @@ fun SettingsScreen(
                                 }
                             }
                         }
-                    } else {
-                        // PASO 2: Frase de Emergencia Obligatoria (12 Palabras BIP-39)
-                        Text(
-                            text = stringResource(R.string.settings_drive_emergency_description),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        else -> {
+                            // PASO 3: Cuestionario de Verificación BIP-39
+                            Text(
+                                text = stringResource(R.string.settings_drive_quiz_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
 
-                        Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
-                            ) {
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
-                                ) {
-                                    generatedMnemonicWords.take(6).forEachIndexed { index, word ->
-                                        Surface(
-                                            shape = RoundedCornerShape(Dimensions.CornerRadius.small),
-                                            color = MaterialTheme.colorScheme.surfaceVariant,
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Text(
-                                                text = "${index + 1}. $word",
-                                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                                                modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs)
-                                            )
-                                        }
-                                    }
-                                }
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
-                                ) {
-                                    generatedMnemonicWords.drop(6).forEachIndexed { index, word ->
-                                        Surface(
-                                            shape = RoundedCornerShape(Dimensions.CornerRadius.small),
-                                            color = MaterialTheme.colorScheme.surfaceVariant,
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Text(
-                                                text = "${index + 7}. $word",
-                                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                                                modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                TextButton(
-                                    onClick = {
-                                        appHaptics.copy()
-                                        val fullPhrase = generatedMnemonicWords.joinToString(" ")
-                                        secureClipboard.copyToClipboard(
-                                            label = "AppOPT-MnemonicWords",
-                                            text = fullPhrase,
-                                            autoClearSeconds = 60
+                            Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)) {
+                                quizQuestions.forEach { question ->
+                                    Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)) {
+                                        Text(
+                                            text = stringResource(R.string.settings_drive_quiz_question_label, question.position),
+                                            style = MaterialTheme.typography.titleSmall
                                         )
-                                        Toast.makeText(context, wordsCopiedMsg, Toast.LENGTH_LONG).show()
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                                        ) {
+                                            question.options.forEach { option ->
+                                                val isSelected = quizSelectedAnswers[question.position] == option
+                                                OutlinedButton(
+                                                    onClick = {
+                                                        appHaptics.click()
+                                                        isQuizError = false
+                                                        quizSelectedAnswers = quizSelectedAnswers + (question.position to option)
+                                                    },
+                                                    modifier = Modifier.weight(1f),
+                                                    shape = RoundedCornerShape(Dimensions.CornerRadius.small),
+                                                    colors = if (isSelected) {
+                                                        ButtonDefaults.outlinedButtonColors(
+                                                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                                        )
+                                                    } else {
+                                                        ButtonDefaults.outlinedButtonColors()
+                                                    },
+                                                    border = if (isSelected) {
+                                                        BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
+                                                    } else {
+                                                        BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                                                    }
+                                                ) {
+                                                    Text(
+                                                        text = option,
+                                                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
+                                                    )
+                                                }
+                                            }
+                                        }
                                     }
-                                ) {
-                                    Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
-                                    Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                                    Text(stringResource(R.string.settings_drive_copy_60s), style = MaterialTheme.typography.labelMedium)
                                 }
 
-                                TextButton(
-                                    onClick = { generatedMnemonicWords = MnemonicManager.generate12WordPhrase() }
-                                ) {
-                                    Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
-                                    Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                                    Text(stringResource(R.string.settings_drive_words_regenerate), style = MaterialTheme.typography.labelMedium)
+                                if (isQuizError) {
+                                    Surface(
+                                        shape = RoundedCornerShape(Dimensions.CornerRadius.small),
+                                        color = MaterialTheme.colorScheme.errorContainer
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.settings_drive_quiz_error),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onErrorContainer,
+                                            modifier = Modifier.padding(Dimensions.Spacing.sm)
+                                        )
+                                    }
                                 }
-                            }
-
-                            Surface(
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.small),
-                                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.settings_drive_words_warning),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onErrorContainer,
-                                    modifier = Modifier.padding(Dimensions.Spacing.sm)
-                                )
                             }
                         }
                     }
                 }
             },
             confirmButton = {
-                if (driveProtectStep == 1) {
-                    Button(
-                        onClick = { driveProtectStep = 2 },
-                        enabled = isStep1Valid,
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                    ) {
-                        Text(stringResource(R.string.settings_drive_next_step), style = MaterialTheme.typography.labelLarge)
+                when (driveProtectStep) {
+                    1 -> {
+                        Button(
+                            onClick = { driveProtectStep = 2 },
+                            enabled = isStep1Valid,
+                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                        ) {
+                            Text(stringResource(R.string.settings_drive_next_step), style = MaterialTheme.typography.labelLarge)
+                        }
                     }
-                } else {
-                    Button(
-                        onClick = {
-                            val primaryPassChars = if (selectedProtectionTab == 0) {
-                                masterPasswordText.toCharArray()
-                            } else {
-                                generated64Key.toCharArray()
-                            }
-                            val emergencyMnemonicChars = MnemonicManager.normalizePhrase(
-                                generatedMnemonicWords.joinToString(" ")
-                            ).toCharArray()
-
-                            showDriveProtectDialog = false
-                            scope.launch {
-                                isDriveLoading = true
-                                try {
-                                    val payload = repository.exportAccountsForTransfer()
-                                    val uploadResult = GoogleDriveManager.uploadBackup(
-                                        accessToken = driveAccessToken!!,
-                                        rawBackupJson = payload,
-                                        secretKeyPass = primaryPassChars,
-                                        emergencyMnemonic = emergencyMnemonicChars
-                                    )
-                                    uploadResult.onSuccess {
-                                        val now = System.currentTimeMillis()
-                                        val currentHash = CloudVaultSyncManager.computeVaultHash(payload)
-                                        isDriveConnected = true
-                                        prefsManager.setGoogleDriveConnected(true)
-                                        prefsManager.setLastSyncTimestamp(now)
-                                        prefsManager.setLastSyncedVaultHash(currentHash)
-                                        CloudVaultSyncManager.schedulePeriodicSync(context, syncFrequency, isSyncMobileDataAllowed)
-                                        snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_sync_success))
-                                    }.onFailure { error ->
-                                        snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error, error.localizedMessage ?: ""))
-                                    }
-                                } finally {
-                                    primaryPassChars.fill('0')
-                                    emergencyMnemonicChars.fill('0')
-                                    isDriveLoading = false
+                    2 -> {
+                        Button(
+                            onClick = {
+                                quizQuestions = MnemonicManager.generateQuiz(generatedMnemonicWords, 2)
+                                quizSelectedAnswers = emptyMap()
+                                isQuizError = false
+                                driveProtectStep = 3
+                            },
+                            enabled = generatedMnemonicWords.size == 12,
+                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                        ) {
+                            Text(stringResource(R.string.settings_drive_to_quiz_step), style = MaterialTheme.typography.labelLarge)
+                        }
+                    }
+                    else -> {
+                        Button(
+                            onClick = {
+                                val isAllCorrect = quizQuestions.all { quizSelectedAnswers[it.position] == it.correctWord }
+                                if (!isAllCorrect) {
+                                    appHaptics.error()
+                                    isQuizError = true
+                                    Toast.makeText(context, context.getString(R.string.settings_drive_quiz_error), Toast.LENGTH_LONG).show()
+                                    return@Button
                                 }
-                            }
-                        },
-                        enabled = generatedMnemonicWords.size == 12,
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                    ) {
-                        Text(stringResource(R.string.settings_drive_encrypt_and_sync), style = MaterialTheme.typography.labelLarge)
+
+                                val primaryPassChars = if (selectedProtectionTab == 0) {
+                                    masterPasswordText.toCharArray()
+                                } else {
+                                    generated64Key.toCharArray()
+                                }
+                                val emergencyMnemonicChars = MnemonicManager.normalizePhrase(
+                                    generatedMnemonicWords.joinToString(" ")
+                                ).toCharArray()
+
+                                showDriveProtectDialog = false
+                                scope.launch {
+                                    isDriveLoading = true
+                                    try {
+                                        val payload = repository.exportAccountsForTransfer()
+                                        val uploadResult = GoogleDriveManager.uploadBackup(
+                                            accessToken = driveAccessToken!!,
+                                            rawBackupJson = payload,
+                                            secretKeyPass = primaryPassChars,
+                                            emergencyMnemonic = emergencyMnemonicChars
+                                        )
+                                        uploadResult.onSuccess {
+                                            val now = System.currentTimeMillis()
+                                            val currentHash = CloudVaultSyncManager.computeVaultHash(payload)
+                                            isDriveConnected = true
+                                            prefsManager.setGoogleDriveConnected(true)
+                                            prefsManager.setLastSyncTimestamp(now)
+                                            prefsManager.setLastSyncedVaultHash(currentHash)
+                                            CloudVaultSyncManager.schedulePeriodicSync(context, syncFrequency, isSyncMobileDataAllowed)
+                                            snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_sync_success))
+                                        }.onFailure { error ->
+                                            snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error, error.localizedMessage ?: ""))
+                                        }
+                                    } finally {
+                                        primaryPassChars.fill('0')
+                                        emergencyMnemonicChars.fill('0')
+                                        isDriveLoading = false
+                                    }
+                                }
+                            },
+                            enabled = isQuizAnswered,
+                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                        ) {
+                            Text(stringResource(R.string.settings_drive_encrypt_and_sync), style = MaterialTheme.typography.labelLarge)
+                        }
                     }
                 }
             },
             dismissButton = {
                 TextButton(
                     onClick = {
-                        if (driveProtectStep == 2) {
-                            driveProtectStep = 1
-                        } else {
-                            showDriveProtectDialog = false
+                        when (driveProtectStep) {
+                            3 -> driveProtectStep = 2
+                            2 -> driveProtectStep = 1
+                            else -> showDriveProtectDialog = false
                         }
                     }
                 ) {
                     Text(
-                        text = if (driveProtectStep == 2) {
-                            stringResource(R.string.settings_drive_details_back)
-                        } else {
-                            stringResource(R.string.action_cancel)
+                        text = when (driveProtectStep) {
+                            3 -> stringResource(R.string.settings_drive_quiz_review_words)
+                            2 -> stringResource(R.string.settings_drive_details_back)
+                            else -> stringResource(R.string.action_cancel)
                         },
                         style = MaterialTheme.typography.labelLarge
                     )

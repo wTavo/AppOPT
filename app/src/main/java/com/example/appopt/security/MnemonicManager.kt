@@ -34,6 +34,47 @@ object MnemonicManager {
     }
 
     /**
+     * Modelo inmutable para representar una pregunta interactiva del reto de verificación BIP-39.
+     *
+     * @property position Posición numérica 1-based (ej. 4 para "Palabra #4").
+     * @property correctWord La palabra correcta que el usuario debe seleccionar.
+     * @property options Lista con 3 opciones mezcladas (la correcta + 2 señuelos aleatorios).
+     */
+    data class MnemonicQuizQuestion(
+        val position: Int,
+        val correctWord: String,
+        val options: List<String>
+    )
+
+    /**
+     * Genera un cuestionario interactivo de verificación seleccionando posiciones aleatorias de las 12 palabras.
+     *
+     * @param mnemonicWords Lista de las 12 palabras generadas.
+     * @param questionsCount Cantidad de preguntas a generar (por defecto 2).
+     * @return Lista de [MnemonicQuizQuestion] ordenadas por posición creciente.
+     */
+    fun generateQuiz(mnemonicWords: List<String>, questionsCount: Int = 2): List<MnemonicQuizQuestion> {
+        require(mnemonicWords.size == 12) { "Se requieren exactamente 12 palabras" }
+        val indices = (0 until 12).shuffled(secureRandom).take(questionsCount).sorted()
+        return indices.map { idx ->
+            val correct = mnemonicWords[idx]
+            val decoys = mutableListOf<String>()
+            while (decoys.size < 2) {
+                val randomWord = BIP39_WORDLIST[secureRandom.nextInt(BIP39_WORDLIST.size)]
+                if (randomWord != correct && !decoys.contains(randomWord) && !mnemonicWords.contains(randomWord)) {
+                    decoys.add(randomWord)
+                }
+            }
+            val allOptions = (decoys + correct).shuffled(secureRandom)
+            MnemonicQuizQuestion(
+                position = idx + 1,
+                correctWord = correct,
+                options = allOptions
+            )
+        }
+    }
+
+    /**
      * Valida si una cadena de texto contiene exactamente 12 palabras válidas presentes en el diccionario BIP-39.
      *
      * @param phrase Cadena de texto ingresada por el usuario (separada por espacios).

@@ -52,4 +52,19 @@ class MnemonicManagerTest {
         assertTrue(decryptResult.isSuccess)
         assertEquals(sampleJson, decryptResult.getOrThrow())
     }
+
+    @Test
+    fun testGenerateQuizCreatesValidQuestions() {
+        val words = MnemonicManager.generate12WordPhrase()
+        val quiz = MnemonicManager.generateQuiz(words, 2)
+
+        assertEquals(2, quiz.size)
+        quiz.forEach { question ->
+            assertTrue(question.position in 1..12)
+            assertEquals(words[question.position - 1], question.correctWord)
+            assertEquals(3, question.options.size)
+            assertTrue(question.options.contains(question.correctWord))
+            assertEquals(3, question.options.distinct().size)
+        }
+    }
 }

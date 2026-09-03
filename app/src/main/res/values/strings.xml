@@ -163,12 +163,30 @@
     <string name="settings_drive_key_regenerate">Generar nueva clave</string>
     <string name="settings_drive_copy_60s">Copiar (60 s)</string>
     <string name="settings_drive_next_step">Continuar a frase de emergencia</string>
+    <string name="settings_drive_print_pdf">Imprimir / Guardar PDF</string>
+    <string name="settings_drive_to_quiz_step">Verificar frase de emergencia</string>
+    <string name="settings_drive_quiz_title">Paso 3: Verificación de respaldo</string>
+    <string name="settings_drive_quiz_description">Para garantizar que anotaste tu frase de 12 palabras, selecciona la palabra correcta para cada posición solicitada.</string>
+    <string name="settings_drive_quiz_question_label">¿Cuál es tu palabra #%1$d?</string>
+    <string name="settings_drive_quiz_review_words">Revisar 12 palabras</string>
+    <string name="settings_drive_quiz_error">Una o más palabras seleccionadas no coinciden. Por favor revisa tus 12 palabras.</string>
     <string name="settings_drive_decrypt_title">Descifrar copia de seguridad</string>
     <string name="settings_drive_decrypt_hint">Ingresa tu contraseña maestra, tu clave de 64 dígitos o tu frase de 12 palabras de emergencia para descifrar tu respaldo.</string>
     <string name="settings_drive_decrypt_input_label">Contraseña, clave de 64 dígitos o 12 palabras</string>
     <string name="settings_drive_decrypt_error">Credenciales incorrectas. No se pudo descifrar la copia de seguridad.</string>
     <string name="settings_drive_encrypt_and_sync">Cifrar y sincronizar</string>
     <string name="settings_drive_decrypt_and_restore">Descifrar y restaurar</string>
+
+    <!-- Emergency Kit PDF Strings -->
+    <string name="emergency_kit_pdf_title">AppOPT Authenticator</string>
+    <string name="emergency_kit_pdf_subtitle">Kit de recuperación de emergencia (Cifrado E2EE)</string>
+    <string name="emergency_kit_pdf_generated_at">Fecha de emisión</string>
+    <string name="emergency_kit_pdf_words_section_title">Frase de recuperación de emergencia (12 palabras BIP-39)</string>
+    <string name="emergency_kit_pdf_words_instruction">Anota o guarda estas palabras en su orden numérico exacto (del 1 al 12).</string>
+    <string name="emergency_kit_pdf_qr_section_title">Código QR de restauración rápida</string>
+    <string name="emergency_kit_pdf_qr_instruction">Escanea este código con la app AppOPT en tu nuevo teléfono para restaurar tu bóveda al instante.</string>
+    <string name="emergency_kit_pdf_warning_1">ADVERTENCIA DE SEGURIDAD: Cualquier persona con acceso a esta hoja o código QR podrá acceder a tus cuentas.</string>
+    <string name="emergency_kit_pdf_warning_2">Guarda este documento en un lugar físico seguro (como una caja fuerte) y nunca lo envíes por correo sin cifrar.</string>
 
     <!-- Password Manager (Future Module) -->
     <string name="passwords_nav_title">Gestor de contraseñas</string>

@@ -84,11 +84,12 @@ object GoogleDriveManager {
                 BackupCrypto.encryptBackup(rawBackupJson, secretKeyPass)
             }
             val encryptedEnvelopeString = String(encryptedBytes, StandardCharsets.UTF_8)
+            val deviceName = "${android.os.Build.MANUFACTURER.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }} ${android.os.Build.MODEL}".trim()
 
             val existingFileId = findExistingBackupFileId(accessToken)
 
             if (existingFileId != null) {
-                // Actualización del archivo existente mediante PATCH
+                // Actualización del contenido del archivo existente mediante PATCH
                 val updateUrl = URL("https://www.googleapis.com/upload/drive/v3/files/$existingFileId?uploadType=media")
                 val connection = (updateUrl.openConnection() as HttpURLConnection).apply {
                     requestMethod = "PATCH"
@@ -105,6 +106,25 @@ object GoogleDriveManager {
                 if (responseCode !in 200..299) {
                     throw IllegalStateException("Error al actualizar respaldo en Drive (HTTP $responseCode)")
                 }
+
+                // Actualización de metadatos del dispositivo
+                try {
+                    val metaUpdateUrl = URL("https://www.googleapis.com/drive/v3/files/$existingFileId")
+                    val metaConn = (metaUpdateUrl.openConnection() as HttpURLConnection).apply {
+                        requestMethod = "PATCH"
+                        setRequestProperty("Authorization", "Bearer $accessToken")
+                        setRequestProperty("Content-Type", "application/json; charset=UTF-8")
+                        doOutput = true
+                    }
+                    val updateMetaJson = JSONObject().apply {
+                        put("description", deviceName)
+                        put("appProperties", JSONObject().apply {
+                            put("deviceName", deviceName)
+                        })
+                    }.toString()
+                    metaConn.outputStream.use { it.write(updateMetaJson.toByteArray(StandardCharsets.UTF_8)) }
+                    metaConn.responseCode
+                } catch (_: Exception) { }
             } else {
                 // Creación de nuevo archivo multipart en appDataFolder
                 val boundary = "=====AppOPTBoundary${System.currentTimeMillis()}====="
@@ -118,6 +138,10 @@ object GoogleDriveManager {
 
                 val metadataJson = JSONObject().apply {
                     put("name", BackupFileName)
+                    put("description", deviceName)
+                    put("appProperties", JSONObject().apply {
+                        put("deviceName", deviceName)
+                    })
                     put("parents", org.json.JSONArray().apply { put("appDataFolder") })
                 }.toString()
 
@@ -137,6 +161,7 @@ object GoogleDriveManager {
                     throw IllegalStateException("Error al crear respaldo en Drive (HTTP $responseCode)")
                 }
             }
+            Unit
         }
     }
 
@@ -216,6 +241,53 @@ object GoogleDriveManager {
     }
 
     /**
+     * Consulta la información y metadatos del respaldo existente en Google Drive.
+     *
+     * @param accessToken Token de acceso OAuth2 emitido por Google Identity Services.
+     * @return [DriveBackupInfo] con detalles del archivo o `null` si no existe.
+     */
+    suspend fun fetchBackupDetails(accessToken: String): DriveBackupInfo? = withContext(Dispatchers.IO) {
+        val encodedQuery = java.net.URLEncoder.encode("name = '$BackupFileName' and trashed = false", "UTF-8")
+        val queryUrl = URL("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=$encodedQuery&fields=files(id,name,modifiedTime,description,appProperties,trashed)&orderBy=modifiedTime+desc")
+        val connection = (queryUrl.openConnection() as HttpURLConnection).apply {
+            requestMethod = "GET"
+            setRequestProperty("Authorization", "Bearer $accessToken")
+        }
+
+        if (connection.responseCode !in 200..299) return@withContext null
+
+        val responseText = BufferedReader(InputStreamReader(connection.inputStream, StandardCharsets.UTF_8)).use {
+            it.readText()
+        }
+
+        val json = JSONObject(responseText)
+        val filesArray = json.optJSONArray("files") ?: return@withContext null
+        if (filesArray.length() == 0) return@withContext null
+
+        val fileObj = filesArray.getJSONObject(0)
+        val fileId = fileObj.optString("id").ifEmpty { return@withContext null }
+        val modifiedTimeStr = fileObj.optString("modifiedTime")
+        val appProps = fileObj.optJSONObject("appProperties")
+        val deviceName = appProps?.optString("deviceName")?.ifEmpty { null }
+            ?: fileObj.optString("description").ifEmpty { "Dispositivo Android" }
+
+        val modifiedTimeMillis = try {
+            val format = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }
+            format.parse(modifiedTimeStr)?.time ?: System.currentTimeMillis()
+        } catch (_: Exception) {
+            System.currentTimeMillis()
+        }
+
+        DriveBackupInfo(
+            fileId = fileId,
+            modifiedTimeMillis = modifiedTimeMillis,
+            deviceName = deviceName
+        )
+    }
+
+    /**
      * Consulta la API de Drive para encontrar el identificador de [BackupFileName] en `appDataFolder`.
      */
     private fun findExistingBackupFileId(accessToken: String): String? {
@@ -239,3 +311,16 @@ object GoogleDriveManager {
         return filesArray.getJSONObject(0).optString("id").ifEmpty { null }
     }
 }
+
+/**
+ * Metadatos descriptivos del archivo de respaldo en Google Drive.
+ *
+ * @property fileId Identificador único en Google Drive.
+ * @property modifiedTimeMillis Marca de tiempo UNIX de modificación.
+ * @property deviceName Modelo del dispositivo que originó la copia.
+ */
+data class DriveBackupInfo(
+    val fileId: String,
+    val modifiedTimeMillis: Long,
+    val deviceName: String
+)

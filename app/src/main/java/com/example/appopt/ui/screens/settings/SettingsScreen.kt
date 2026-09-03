@@ -108,6 +108,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
 import com.example.appopt.data.cloud.CloudVaultSyncManager
+import com.example.appopt.data.cloud.DriveBackupInfo
 import com.example.appopt.data.cloud.GoogleDriveManager
 import com.example.appopt.data.cloud.SyncFrequency
 import com.example.appopt.data.local.PreferencesManager
@@ -191,6 +192,8 @@ fun SettingsScreen(
 
     // Autorización silenciosa y comprobación de respaldo al abrir la pantalla si ya estaba configurada
     var driveBackupExists by remember { mutableStateOf(false) }
+    var driveBackupInfo by remember { mutableStateOf<DriveBackupInfo?>(null) }
+    var showOverwriteWarningDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         if (prefsManager.isGoogleDriveConnected()) {
@@ -200,7 +203,9 @@ fun SettingsScreen(
                         driveAccessToken = result.accessToken
                         isDriveConnected = true
                         scope.launch {
-                            driveBackupExists = GoogleDriveManager.hasExistingBackup(result.accessToken!!)
+                            val info = GoogleDriveManager.fetchBackupDetails(result.accessToken!!)
+                            driveBackupExists = info != null
+                            driveBackupInfo = info
                         }
                     }
                 }
@@ -609,7 +614,9 @@ fun SettingsScreen(
                                     isDriveConnected = true
                                     prefsManager.setGoogleDriveConnected(true)
                                     scope.launch {
-                                        driveBackupExists = GoogleDriveManager.hasExistingBackup(token)
+                                        val info = GoogleDriveManager.fetchBackupDetails(token)
+                                        driveBackupExists = info != null
+                                        driveBackupInfo = info
                                         snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_connected_success))
                                     }
                                 }
@@ -793,12 +800,7 @@ fun SettingsScreen(
 
                             OutlinedButton(
                                 onClick = {
-                                    driveProtectStep = 1
-                                    generatedMnemonicWords = MnemonicManager.generate12WordPhrase()
-                                    masterPasswordText = ""
-                                    masterPasswordConfirmText = ""
-                                    generated64Key = GoogleDriveManager.generate64DigitKey()
-                                    showDriveProtectDialog = true
+                                    showOverwriteWarningDialog = true
                                 },
                                 enabled = !isDriveLoading,
                                 modifier = Modifier.weight(1f),
@@ -1997,6 +1999,110 @@ fun SettingsScreen(
                 if (isConfirmingDeleteInDialog) {
                     TextButton(onClick = { isConfirmingDeleteInDialog = false }) {
                         Text(stringResource(R.string.settings_drive_details_back), style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+            }
+        )
+    }
+
+    if (showOverwriteWarningDialog) {
+        val backupDateFormatted = remember(driveBackupInfo, formattedLastSync) {
+            driveBackupInfo?.modifiedTimeMillis?.let {
+                DateTimeFormatter.formatAbsoluteDateTime(it)
+            } ?: (formattedLastSync ?: "")
+        }
+        val deviceName = driveBackupInfo?.deviceName ?: "Dispositivo Android"
+
+        AlertDialog(
+            onDismissRequest = { showOverwriteWarningDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Filled.Shield,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(Dimensions.IconSize.hero)
+                )
+            },
+            title = {
+                Text(
+                    text = stringResource(R.string.settings_drive_overwrite_title),
+                    style = MaterialTheme.typography.titleLarge
+                )
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_drive_overwrite_msg),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.small),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(Dimensions.Spacing.sm),
+                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.settings_drive_overwrite_date, backupDateFormatted),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = stringResource(R.string.settings_drive_overwrite_device, deviceName),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showOverwriteWarningDialog = false
+                        driveProtectStep = 1
+                        generatedMnemonicWords = MnemonicManager.generate12WordPhrase()
+                        masterPasswordText = ""
+                        masterPasswordConfirmText = ""
+                        generated64Key = GoogleDriveManager.generate64DigitKey()
+                        showDriveProtectDialog = true
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = androidx.compose.ui.graphics.Color.White
+                    ),
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_drive_overwrite_confirm_btn),
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)) {
+                    TextButton(onClick = { showOverwriteWarningDialog = false }) {
+                        Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
+                    }
+                    TextButton(onClick = {
+                        showOverwriteWarningDialog = false
+                        restoreSecretText = ""
+                        if (driveAccessToken == null) {
+                            requestGoogleAuthorization {
+                                showDriveDecryptDialog = true
+                            }
+                        } else {
+                            showDriveDecryptDialog = true
+                        }
+                    }) {
+                        Text(stringResource(R.string.settings_drive_overwrite_restore_btn), style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }

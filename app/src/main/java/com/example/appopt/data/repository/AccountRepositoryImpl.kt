@@ -152,13 +152,8 @@ class AccountRepositoryImpl(
                 }
             }
 
-            val remainingSeconds = if (domainAccount.type == OtpType.TOTP) {
-                TotpEngine.getRemainingSeconds(currentTimeMillis, domainAccount.period)
-            } else 0
-
-            val progress = if (domainAccount.type == OtpType.TOTP) {
-                TotpEngine.getProgress(currentTimeMillis, domainAccount.period)
-            } else 1.0f
+            val remainingSeconds = domainAccount.period
+            val progress = 1.0f
 
             AccountWithCode(
                 account = domainAccount,

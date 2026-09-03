@@ -282,8 +282,7 @@ fun OtpCodeCard(
 
                         if (account.type == OtpType.TOTP) {
                             CircularTimeProgress(
-                                remainingSeconds = accountWithCode.remainingSeconds,
-                                progress = accountWithCode.progress
+                                period = account.period
                             )
                         } else {
                             IconButton(

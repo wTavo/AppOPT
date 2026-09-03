@@ -22,25 +22,42 @@ import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.UrgentRed
 import com.example.appopt.ui.theme.WarningOrange
 
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
+
 /**
  * Indicador visual circular del tiempo restante en la ventana de rotación TOTP con animaciones centralizadas.
  *
- * Características visuales y de accesibilidad:
+ * Características de alto rendimiento:
+ * - Aísla las actualizaciones del temporizador a 4 Hz dentro de su propio canvas sin provocar recomposiciones en la lista ni tarjetas.
  * - Muestra los segundos restantes en el centro con tipografía semántica.
  * - Incluye descripción semántica para lectores de pantalla TalkBack.
  * - Cambia dinámicamente de color (Azul Primario -> Naranja de Advertencia -> Rojo de Urgencia)
  *   conforme se agota la validez del código utilizando [Motion.Spec.progressColorSpec].
  *
- * @param remainingSeconds Segundos enteros restantes en la ventana.
- * @param progress Fracción de 0.0f a 1.0f para el progreso del arco circular.
+ * @param period Período en segundos de la ventana de rotación TOTP (por defecto 30).
  * @param modifier Modificador de layout.
  */
 @Composable
 fun CircularTimeProgress(
-    remainingSeconds: Int,
-    progress: Float,
+    period: Int = 30,
     modifier: Modifier = Modifier
 ) {
+    var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            currentTime = System.currentTimeMillis()
+            delay(250L)
+        }
+    }
+
+    val remainingSeconds = (period - ((currentTime / 1000L) % period)).toInt().coerceIn(1, period)
+    val progress = remainingSeconds.toFloat() / period.toFloat()
+
     val indicatorColor by animateColorAsState(
         targetValue = when {
             remainingSeconds <= 5 -> UrgentRed

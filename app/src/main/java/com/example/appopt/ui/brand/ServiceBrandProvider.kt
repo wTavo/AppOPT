@@ -3,6 +3,9 @@ package com.example.appopt.ui.brand
 import androidx.annotation.DrawableRes
 import androidx.compose.ui.graphics.Color
 import com.example.appopt.R
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 /**
@@ -111,6 +114,27 @@ object ServiceBrandProvider {
                     shortInitials = initials,
                     backgroundColor = color
                 )
+            }
+        }
+    }
+
+    /**
+     * Precalienta los recursos vectoriales de las marcas conocidas en la caché de Resources en segundo plano
+     * para eliminar por completo la latencia de inflado XML al hacer scroll en la lista.
+     *
+     * @param context Contexto de la aplicación.
+     */
+    fun preloadBrandIcons(context: android.content.Context) {
+        val appContext = context.applicationContext
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            KnownBrands.forEach { brand ->
+                brand.iconResId?.let { resId ->
+                    try {
+                        androidx.core.content.ContextCompat.getDrawable(appContext, resId)
+                    } catch (_: Exception) {
+                        // Ignorar fallos de pre-carga individual
+                    }
+                }
             }
         }
     }

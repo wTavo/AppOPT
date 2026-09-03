@@ -66,6 +66,9 @@ class AuthenticatorApp : Application() {
         appLockManager = AppLockManager()
         secureClipboardManager = SecureClipboardManager(this)
         preferencesManager = PreferencesManager(this)
+
+        // Precalienta la caché de drawables vectoriales en segundo plano
+        com.example.appopt.ui.brand.ServiceBrandProvider.preloadBrandIcons(this)
     }
 
     companion object {

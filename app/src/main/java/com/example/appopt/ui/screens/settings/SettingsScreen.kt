@@ -479,7 +479,7 @@ fun SettingsScreen(
                     modifier = Modifier.padding(Dimensions.Spacing.lg),
                     verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                 ) {
-                    // 1. Cabecera con icono, título y badge de estado
+                    // 1. Cabecera con icono, título, badge de estado y acción de desvincular
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -487,7 +487,8 @@ fun SettingsScreen(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
+                            modifier = Modifier.weight(1f, fill = false)
                         ) {
                             Icon(
                                 imageVector = if (isDriveConnected) Icons.Filled.CloudDone else Icons.Filled.Sync,
@@ -501,20 +502,39 @@ fun SettingsScreen(
                             )
                         }
 
-                        Surface(
-                            shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
-                            color = if (isDriveConnected) SafeGreen.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
                         ) {
-                            Text(
-                                text = if (isDriveConnected) {
-                                    stringResource(R.string.settings_drive_status_synced)
-                                } else {
-                                    stringResource(R.string.settings_drive_status_not_synced)
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (isDriveConnected) SafeGreen else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs)
-                            )
+                            Surface(
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
+                                color = if (isDriveConnected) SafeGreen.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                Text(
+                                    text = if (isDriveConnected) {
+                                        stringResource(R.string.settings_drive_status_synced)
+                                    } else {
+                                        stringResource(R.string.settings_drive_status_not_synced)
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (isDriveConnected) SafeGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs)
+                                )
+                            }
+
+                            if (isDriveConnected) {
+                                IconButton(
+                                    onClick = { showDisconnectConfirmDialog = true },
+                                    modifier = Modifier.size(Dimensions.IconSize.large)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.SyncDisabled,
+                                        contentDescription = stringResource(R.string.settings_drive_disconnect_button),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(Dimensions.IconSize.small)
+                                    )
+                                }
+                            }
                         }
                     }
 
@@ -869,27 +889,6 @@ fun SettingsScreen(
                                     }
                                 }
                             }
-                        }
-
-                        // Botón secundario dedicado: Desvincular cuenta de Google Drive
-                        OutlinedButton(
-                            onClick = { showDisconnectConfirmDialog = true },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.SyncDisabled,
-                                contentDescription = null,
-                                modifier = Modifier.size(Dimensions.IconSize.small)
-                            )
-                            Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                            Text(
-                                text = stringResource(R.string.settings_drive_disconnect_button),
-                                style = MaterialTheme.typography.labelLarge
-                            )
                         }
                     }
                 }

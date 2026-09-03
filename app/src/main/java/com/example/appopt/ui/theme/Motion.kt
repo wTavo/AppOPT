@@ -38,6 +38,15 @@ object Motion {
 
         /** Tiempo de permanencia para avisos de copiado al portapapeles o mensajes breves (1500ms). */
         const val FeedbackToast = 1500
+
+        /** Retardo incremental entre elementos consecutivos en animaciones escalonadas en cascada (45ms). */
+        const val StaggerStep = 45
+
+        /** Duración de la animación de entrada y desplazamiento de cada tarjeta de servicio (350ms). */
+        const val StaggerItem = 350
+
+        /** Límite superior de elementos para el cálculo de retardo escalonado (8 elementos = 360ms máx). */
+        const val MaxStaggerIndex = 8
     }
 
     /**
@@ -79,6 +88,13 @@ object Motion {
         /** Especificación de expansión/colapso para el modo de privacidad de códigos. */
         fun <T> privacyCollapseSpec() = tween<T>(
             durationMillis = Duration.Medium,
+            easing = EasingCurve.Emphasized
+        )
+
+        /** Especificación de entrada escalonada en cascada (*staggered entry*) para tarjetas de lista. */
+        fun <T> staggerItemSpec(delayMillis: Int = 0) = tween<T>(
+            durationMillis = Duration.StaggerItem,
+            delayMillis = delayMillis,
             easing = EasingCurve.Emphasized
         )
 

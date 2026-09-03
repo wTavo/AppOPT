@@ -136,4 +136,12 @@ object Dimensions {
         /** Grosor del arco circular de progreso TOTP (3.5.dp). */
         val progressArc: Dp = 3.5.dp
     }
+
+    /**
+     * Desplazamientos y offsets para animaciones de entrada y movimiento.
+     */
+    object Offset {
+        /** Desplazamiento vertical inicial para la animación de entrada escalonada en cascada (28.dp). */
+        val staggerSlideDistance: Dp = 28.dp
+    }
 }

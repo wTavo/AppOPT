@@ -66,7 +66,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.animation.core.Animatable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -333,6 +335,20 @@ fun HomeScreen(
                     ) { index, item ->
                         val isDragging = draggingAccountId == item.account.id
 
+                        val density = LocalDensity.current
+                        val slideDistancePx = remember(density) {
+                            with(density) { Dimensions.Offset.staggerSlideDistance.toPx() }
+                        }
+
+                        val staggerAnim = remember { Animatable(0f) }
+                        LaunchedEffect(item.account.id) {
+                            val delayMs = (index.coerceAtMost(Motion.Duration.MaxStaggerIndex) * Motion.Duration.StaggerStep)
+                            staggerAnim.animateTo(
+                                targetValue = 1f,
+                                animationSpec = Motion.Spec.staggerItemSpec(delayMillis = delayMs)
+                            )
+                        }
+
                         val cardModifier = Modifier
                             .zIndex(if (isDragging) 10f else 1f)
                             .graphicsLayer {
@@ -341,6 +357,13 @@ fun HomeScreen(
                                     scaleX = 1.02f
                                     scaleY = 1.02f
                                     shadowElevation = 16f
+                                    alpha = 1f
+                                } else {
+                                    val progress = staggerAnim.value
+                                    alpha = progress
+                                    translationY = (1f - progress) * slideDistancePx
+                                    scaleX = 0.94f + (0.06f * progress)
+                                    scaleY = 0.94f + (0.06f * progress)
                                 }
                             }
 

@@ -40,11 +40,11 @@ class HomeViewModel : ViewModel() {
     private val _isHideCodesEnabled = MutableStateFlow(preferencesManager.isHideCodesEnabled())
     val isHideCodesEnabled: StateFlow<Boolean> = _isHideCodesEnabled.asStateFlow()
 
-    /** Flujo de pulsos de reloj (500ms) para animaciones suaves del temporizador. */
+    /** Flujo de pulsos de reloj (1000ms) para la actualización precisa de códigos TOTP. */
     private val tickerFlow = flow {
         while (true) {
             emit(System.currentTimeMillis())
-            delay(500)
+            delay(1000L)
         }
     }
 

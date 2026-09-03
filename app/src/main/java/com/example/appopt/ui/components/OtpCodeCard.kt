@@ -105,8 +105,6 @@ fun OtpCodeCard(
     val interactionSource = remember { MutableInteractionSource() }
 
     var copied by remember { mutableStateOf(false) }
-    var cardHeightPx by remember { mutableFloatStateOf(300f) }
-    val spacingPx = with(density) { Dimensions.Spacing.md.toPx() }
 
     LaunchedEffect(copied) {
         if (copied) {
@@ -125,24 +123,22 @@ fun OtpCodeCard(
         }
     }
 
+    val cardHeightPx = remember(density) {
+        with(density) { 112.dp.toPx() + Dimensions.Spacing.md.toPx() }
+    }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(Dimensions.CornerRadius.large))
-            .semantics {
-                contentDescription = AccessibilityUtils.buildAccountCardContentDescription(
-                    context = context,
-                    issuer = account.issuer,
-                    accountName = account.accountName,
-                    code = accountWithCode.code,
-                    remainingSeconds = accountWithCode.remainingSeconds,
-                    isFavorite = account.isFavorite
-                )
-            }
-            .onGloballyPositioned { coordinates ->
-                cardHeightPx = coordinates.size.height.toFloat() + spacingPx
-            }
-            .indication(interactionSource, ripple())
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(),
+                onClick = {
+                    appHaptics.click()
+                    onCardClick()
+                }
+            )
             .pointerInput(account.id) {
                 detectDragGesturesAfterLongPress(
                     onDragStart = {
@@ -157,18 +153,14 @@ fun OtpCodeCard(
                     onDragCancel = { onEndDrag() }
                 )
             }
-            .pointerInput(account.id) {
-                detectTapGestures(
-                    onPress = { offset ->
-                        val press = PressInteraction.Press(offset)
-                        interactionSource.emit(press)
-                        tryAwaitRelease()
-                        interactionSource.emit(PressInteraction.Release(press))
-                    },
-                    onTap = {
-                        appHaptics.click()
-                        onCardClick()
-                    }
+            .semantics {
+                contentDescription = AccessibilityUtils.buildAccountCardContentDescription(
+                    context = context,
+                    issuer = account.issuer,
+                    accountName = account.accountName,
+                    code = accountWithCode.code,
+                    remainingSeconds = accountWithCode.remainingSeconds,
+                    isFavorite = account.isFavorite
                 )
             },
         colors = CardDefaults.cardColors(

@@ -122,7 +122,7 @@ fun SettingsScreen(
     val secureClipboard = remember { AuthenticatorApp.instance.secureClipboardManager }
     val snackbarHostState = remember { SnackbarHostState() }
     val repository = AuthenticatorApp.instance.accountRepository
-    val prefsManager = remember { PreferencesManager(context) }
+    val prefsManager = remember { AuthenticatorApp.instance.preferencesManager }
 
     val accounts by repository.getAccounts().collectAsStateWithLifecycle(initialValue = emptyList())
 
@@ -145,7 +145,7 @@ fun SettingsScreen(
     var showFrequencyDialog by remember { mutableStateOf(false) }
     var showBackupDetailsDialog by remember { mutableStateOf(false) }
     var isConfirmingDeleteInDialog by remember { mutableStateOf(false) }
-    var isFpsOverlayEnabled by remember { mutableStateOf(prefsManager.isFpsOverlayEnabled()) }
+    val isFpsOverlayEnabled by prefsManager.isFpsOverlayEnabledFlow.collectAsStateWithLifecycle()
 
     val formattedLastSync = remember(lastSyncTimestamp) {
         if (lastSyncTimestamp == 0L) {
@@ -348,7 +348,7 @@ fun SettingsScreen(
                         Switch(
                             checked = isFpsOverlayEnabled,
                             onCheckedChange = { enabled ->
-                                isFpsOverlayEnabled = enabled
+                                appHaptics.click()
                                 prefsManager.setFpsOverlayEnabled(enabled)
                             }
                         )

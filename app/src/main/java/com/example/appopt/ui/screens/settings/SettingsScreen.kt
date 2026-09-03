@@ -200,12 +200,12 @@ fun SettingsScreen(
     val currentVaultHash = remember(accounts) {
         if (accounts.isEmpty()) "" else CloudVaultSyncManager.computeAccountsSignature(accounts)
     }
-    val hasUnsyncedChanges = remember(currentVaultHash, lastSyncTimestamp) {
+    var lastSyncedHash by remember { mutableStateOf(prefsManager.getLastSyncedVaultHash()) }
+    val hasUnsyncedChanges = remember(currentVaultHash, lastSyncedHash) {
         if (accounts.isEmpty()) {
             false
         } else {
-            val lastHash = prefsManager.getLastSyncedVaultHash()
-            lastHash.isNullOrEmpty() || currentVaultHash != lastHash
+            lastSyncedHash.isNullOrEmpty() || currentVaultHash != lastSyncedHash
         }
     }
 
@@ -234,6 +234,8 @@ fun SettingsScreen(
                                     val syncTime = info.modifiedTimeMillis
                                     lastSyncTimestamp = syncTime
                                     prefsManager.setLastSyncTimestamp(syncTime)
+                                    prefsManager.setLastSyncedVaultHash(currentVaultHash)
+                                    lastSyncedHash = currentVaultHash
                                 }
                             } finally {
                                 isCheckingDriveBackup = false
@@ -665,6 +667,8 @@ fun SettingsScreen(
                                                 val syncTime = info.modifiedTimeMillis
                                                 lastSyncTimestamp = syncTime
                                                 prefsManager.setLastSyncTimestamp(syncTime)
+                                                prefsManager.setLastSyncedVaultHash(currentVaultHash)
+                                                lastSyncedHash = currentVaultHash
                                             }
                                             snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_connected_success))
                                         } finally {
@@ -729,6 +733,7 @@ fun SettingsScreen(
                                                                 lastSyncTimestamp = now
                                                                 prefsManager.setLastSyncTimestamp(now)
                                                                 prefsManager.setLastSyncedVaultHash(currentHash)
+                                                                lastSyncedHash = currentHash
                                                                 driveBackupExists = true
                                                                 appHaptics.success()
                                                                 syncButtonState = SyncButtonState.SUCCESS
@@ -1011,6 +1016,7 @@ fun SettingsScreen(
                         prefsManager.setGoogleDriveConnected(false)
                         prefsManager.setLastSyncTimestamp(0L)
                         prefsManager.setLastSyncedVaultHash("")
+                        lastSyncedHash = ""
                         CloudVaultSyncManager.schedulePeriodicSync(context, SyncFrequency.OFF, false)
                         com.google.android.gms.auth.api.identity.Identity.getSignInClient(context).signOut()
                         scope.launch {
@@ -1731,6 +1737,7 @@ fun SettingsScreen(
                                             prefsManager.setGoogleDriveConnected(true)
                                             prefsManager.setLastSyncTimestamp(now)
                                             prefsManager.setLastSyncedVaultHash(currentHash)
+                                            lastSyncedHash = currentHash
                                             CloudVaultSyncManager.schedulePeriodicSync(context, syncFrequency, isSyncMobileDataAllowed)
                                             snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_sync_success))
                                         }.onFailure { error ->
@@ -1837,6 +1844,9 @@ fun SettingsScreen(
                                         val now = System.currentTimeMillis()
                                         lastSyncTimestamp = now
                                         prefsManager.setLastSyncTimestamp(now)
+                                        val currentHash = CloudVaultSyncManager.computeVaultHash(jsonPayload)
+                                        prefsManager.setLastSyncedVaultHash(currentHash)
+                                        lastSyncedHash = currentHash
                                         CloudVaultSyncManager.schedulePeriodicSync(context, syncFrequency, isSyncMobileDataAllowed)
                                         snackbarHostState.showSnackbar(
                                             context.getString(R.string.settings_drive_restore_success, count)
@@ -2015,6 +2025,7 @@ fun SettingsScreen(
                                         deleteResult.onSuccess {
                                             prefsManager.setLastSyncTimestamp(0L)
                                             prefsManager.setLastSyncedVaultHash("")
+                                            lastSyncedHash = ""
                                             lastSyncTimestamp = 0L
                                             driveBackupExists = false
                                             snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_delete_success))

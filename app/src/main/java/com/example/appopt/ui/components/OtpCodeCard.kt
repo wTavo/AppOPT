@@ -122,6 +122,20 @@ fun OtpCodeCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
+            .pointerInput(account.id) {
+                detectDragGesturesAfterLongPress(
+                    onDragStart = {
+                        appHaptics.dragTick()
+                        onStartDrag()
+                    },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        onDragDelta(dragAmount.y, cardHeightPx)
+                    },
+                    onDragEnd = { onEndDrag() },
+                    onDragCancel = { onEndDrag() }
+                )
+            }
             .clickable(
                 interactionSource = interactionSource,
                 indication = ripple(),
@@ -207,21 +221,7 @@ fun OtpCodeCard(
                     Box(
                         modifier = Modifier
                             .size(Dimensions.ComponentSize.actionIconButton)
-                            .clip(RoundedCornerShape(Dimensions.CornerRadius.small))
-                            .pointerInput(account.id) {
-                                detectDragGesturesAfterLongPress(
-                                    onDragStart = {
-                                        appHaptics.dragTick()
-                                        onStartDrag()
-                                    },
-                                    onDrag = { change, dragAmount ->
-                                        change.consume()
-                                        onDragDelta(dragAmount.y, cardHeightPx)
-                                    },
-                                    onDragEnd = { onEndDrag() },
-                                    onDragCancel = { onEndDrag() }
-                                )
-                            },
+                            .clip(RoundedCornerShape(Dimensions.CornerRadius.small)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(

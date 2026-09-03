@@ -1078,12 +1078,12 @@ fun SettingsScreen(
                                                 text = generated64Key,
                                                 autoClearSeconds = 60
                                             )
-                                            Toast.makeText(context, keyCopiedMsg, Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, keyCopiedMsg, Toast.LENGTH_LONG).show()
                                         }
                                     ) {
                                         Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
                                         Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                                        Text(stringResource(R.string.action_copy), style = MaterialTheme.typography.labelMedium)
+                                        Text(stringResource(R.string.settings_drive_copy_60s), style = MaterialTheme.typography.labelMedium)
                                     }
 
                                     TextButton(
@@ -1173,12 +1173,12 @@ fun SettingsScreen(
                                             text = fullPhrase,
                                             autoClearSeconds = 60
                                         )
-                                        Toast.makeText(context, wordsCopiedMsg, Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, wordsCopiedMsg, Toast.LENGTH_LONG).show()
                                     }
                                 ) {
                                     Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
                                     Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                                    Text(stringResource(R.string.action_copy), style = MaterialTheme.typography.labelMedium)
+                                    Text(stringResource(R.string.settings_drive_copy_60s), style = MaterialTheme.typography.labelMedium)
                                 }
 
                                 TextButton(

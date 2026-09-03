@@ -161,6 +161,7 @@
     <string name="settings_drive_key_copied">Clave copiada. Se borrará del portapapeles en 60 segundos.</string>
     <string name="settings_drive_key_warning">Guarda esta clave en un lugar seguro. Es el acceso principal a tu copia de seguridad; si la pierdes, no podrás recuperar tus datos.</string>
     <string name="settings_drive_key_regenerate">Generar nueva clave</string>
+    <string name="settings_drive_copy_60s">Copiar (60 s)</string>
     <string name="settings_drive_next_step">Continuar a frase de emergencia</string>
     <string name="settings_drive_decrypt_title">Descifrar copia de seguridad</string>
     <string name="settings_drive_decrypt_hint">Ingresa tu contraseña maestra, tu clave de 64 dígitos o tu frase de 12 palabras de emergencia para descifrar tu respaldo.</string>

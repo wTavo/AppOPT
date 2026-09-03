@@ -167,7 +167,9 @@ fun SettingsScreen(
         }
     }
 
-    // Autorización silenciosa al abrir la pantalla si la cuenta ya estaba configurada previamente
+    // Autorización silenciosa y comprobación de respaldo al abrir la pantalla si ya estaba configurada
+    var driveBackupExists by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
         if (prefsManager.isGoogleDriveConnected()) {
             authClient.authorize(GoogleDriveManager.getAuthorizationRequest())
@@ -175,6 +177,9 @@ fun SettingsScreen(
                     if (!result.hasResolution() && result.accessToken != null) {
                         driveAccessToken = result.accessToken
                         isDriveConnected = true
+                        scope.launch {
+                            driveBackupExists = GoogleDriveManager.hasExistingBackup(result.accessToken!!)
+                        }
                     }
                 }
         }
@@ -421,33 +426,37 @@ fun SettingsScreen(
 
                     Spacer(modifier = Modifier.height(Dimensions.Spacing.md))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
-                    ) {
-                        Button(
-                            onClick = {
-                                if (accounts.isEmpty()) {
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar(emptyServicesMsg)
-                                    }
-                                } else {
+                    if (accounts.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                        ) {
+                            Button(
+                                onClick = {
                                     selectedServiceIds.clear()
                                     selectedServiceIds.addAll(accounts.map { it.id })
                                     keepServicesOnDevice = true
                                     isShowingQrInExportDialog = false
                                     showExportDialog = true
-                                }
-                            },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                        ) {
-                            Text(stringResource(R.string.settings_export_services_button), style = MaterialTheme.typography.labelLarge)
-                        }
+                                },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                            ) {
+                                Text(stringResource(R.string.settings_export_services_button), style = MaterialTheme.typography.labelLarge)
+                            }
 
-                        OutlinedButton(
+                            OutlinedButton(
+                                onClick = onNavigateToScanQr,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                            ) {
+                                Text(stringResource(R.string.settings_import_services_button), style = MaterialTheme.typography.labelLarge)
+                            }
+                        }
+                    } else {
+                        Button(
                             onClick = onNavigateToScanQr,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                         ) {
                             Text(stringResource(R.string.settings_import_services_button), style = MaterialTheme.typography.labelLarge)
@@ -579,6 +588,7 @@ fun SettingsScreen(
                                     isDriveConnected = true
                                     prefsManager.setGoogleDriveConnected(true)
                                     scope.launch {
+                                        driveBackupExists = GoogleDriveManager.hasExistingBackup(token)
                                         snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_connected_success))
                                     }
                                 }
@@ -606,83 +616,70 @@ fun SettingsScreen(
                                 )
                             }
                         }
-                    } else {
-                        // Acciones principales: Sincronizar/Crear y Restaurar
+                    } else if (lastSyncTimestamp > 0L) {
+                        // Estado: Ya sincronizado (Botón único de "Sincronizar ahora")
+                        Button(
+                            onClick = {
+                                val performSync: (String) -> Unit = { token ->
+                                    scope.launch {
+                                        isDriveLoading = true
+                                        try {
+                                            val payload = repository.exportAccountsForTransfer()
+                                            val autoSyncKey = "AppOPT_AutoSync_Vault_E2EE_v1".toCharArray()
+                                            try {
+                                                val uploadResult = GoogleDriveManager.uploadBackup(token, payload, autoSyncKey)
+                                                uploadResult.onSuccess {
+                                                    val now = System.currentTimeMillis()
+                                                    val currentHash = CloudVaultSyncManager.computeVaultHash(payload)
+                                                    lastSyncTimestamp = now
+                                                    prefsManager.setLastSyncTimestamp(now)
+                                                    prefsManager.setLastSyncedVaultHash(currentHash)
+                                                    driveBackupExists = true
+                                                    snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_sync_success))
+                                                }.onFailure { error ->
+                                                    snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error, error.localizedMessage ?: ""))
+                                                }
+                                            } finally {
+                                                autoSyncKey.fill('0')
+                                            }
+                                        } finally {
+                                            isDriveLoading = false
+                                        }
+                                    }
+                                }
+
+                                if (driveAccessToken == null) {
+                                    requestGoogleAuthorization { token ->
+                                        performSync(token)
+                                    }
+                                } else {
+                                    performSync(driveAccessToken!!)
+                                }
+                            },
+                            enabled = !isDriveLoading,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                        ) {
+                            if (isDriveLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(Dimensions.IconSize.small),
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    strokeWidth = Dimensions.Stroke.regular
+                                )
+                            } else {
+                                Text(
+                                    text = stringResource(R.string.settings_drive_sync_button),
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
+                        }
+                    } else if (driveBackupExists) {
+                        // Estado: Conectado y existe copia previa en Drive (Restaurar o Crear nueva)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
                         ) {
                             Button(
-                                onClick = {
-                                    if (lastSyncTimestamp == 0L) {
-                                        // Aún no se ha configurado la bóveda inicial: abrir asistente de 3 pasos
-                                        driveProtectStep = 1
-                                        generatedMnemonicWords = MnemonicManager.generate12WordPhrase()
-                                        masterPasswordText = ""
-                                        masterPasswordConfirmText = ""
-                                        generated64Key = GoogleDriveManager.generate64DigitKey()
-                                        showDriveProtectDialog = true
-                                    } else {
-                                        // Ya configurada: sincronizar directamente en segundo plano
-                                        val performSync: (String) -> Unit = { token ->
-                                            scope.launch {
-                                                isDriveLoading = true
-                                                try {
-                                                    val payload = repository.exportAccountsForTransfer()
-                                                    val autoSyncKey = "AppOPT_AutoSync_Vault_E2EE_v1".toCharArray()
-                                                    try {
-                                                        val uploadResult = GoogleDriveManager.uploadBackup(token, payload, autoSyncKey)
-                                                        uploadResult.onSuccess {
-                                                            val now = System.currentTimeMillis()
-                                                            val currentHash = CloudVaultSyncManager.computeVaultHash(payload)
-                                                            lastSyncTimestamp = now
-                                                            prefsManager.setLastSyncTimestamp(now)
-                                                            prefsManager.setLastSyncedVaultHash(currentHash)
-                                                            snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_sync_success))
-                                                        }.onFailure { error ->
-                                                            snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error, error.localizedMessage ?: ""))
-                                                        }
-                                                    } finally {
-                                                        autoSyncKey.fill('0')
-                                                    }
-                                                } finally {
-                                                    isDriveLoading = false
-                                                }
-                                            }
-                                        }
-
-                                        if (driveAccessToken == null) {
-                                            requestGoogleAuthorization { token ->
-                                                performSync(token)
-                                            }
-                                        } else {
-                                            performSync(driveAccessToken!!)
-                                        }
-                                    }
-                                },
-                                enabled = !isDriveLoading,
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                            ) {
-                                if (isDriveLoading) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(Dimensions.IconSize.small),
-                                        color = MaterialTheme.colorScheme.onPrimary,
-                                        strokeWidth = Dimensions.Stroke.regular
-                                    )
-                                } else {
-                                    Text(
-                                        text = if (lastSyncTimestamp == 0L) {
-                                            stringResource(R.string.settings_drive_create_button)
-                                        } else {
-                                            stringResource(R.string.settings_drive_sync_button)
-                                        },
-                                        style = MaterialTheme.typography.labelLarge
-                                    )
-                                }
-                            }
-
-                            OutlinedButton(
                                 onClick = {
                                     restoreSecretText = ""
                                     if (driveAccessToken == null) {
@@ -702,7 +699,47 @@ fun SettingsScreen(
                                     style = MaterialTheme.typography.labelLarge
                                 )
                             }
+
+                            OutlinedButton(
+                                onClick = {
+                                    driveProtectStep = 1
+                                    generatedMnemonicWords = MnemonicManager.generate12WordPhrase()
+                                    masterPasswordText = ""
+                                    masterPasswordConfirmText = ""
+                                    generated64Key = GoogleDriveManager.generate64DigitKey()
+                                    showDriveProtectDialog = true
+                                },
+                                enabled = !isDriveLoading,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.settings_drive_create_button),
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
                         }
+                    } else {
+                        // Estado: Conectado sin copia en Drive (Botón único de "Crear copia de seguridad")
+                        Button(
+                            onClick = {
+                                driveProtectStep = 1
+                                generatedMnemonicWords = MnemonicManager.generate12WordPhrase()
+                                masterPasswordText = ""
+                                masterPasswordConfirmText = ""
+                                generated64Key = GoogleDriveManager.generate64DigitKey()
+                                showDriveProtectDialog = true
+                            },
+                            enabled = !isDriveLoading,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.settings_drive_create_button),
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+                    }
 
                         // 5. Contenedor de configuración de automatización
                         Surface(
@@ -796,7 +833,6 @@ fun SettingsScreen(
                 }
             }
         }
-    }
 
     // Modal Unificado: Selección de Servicios y Visualización de Código QR para Transferencia
     if (showExportDialog) {
@@ -1487,6 +1523,8 @@ fun SettingsScreen(
                                             val now = System.currentTimeMillis()
                                             val currentHash = CloudVaultSyncManager.computeVaultHash(payload)
                                             isDriveConnected = true
+                                            driveBackupExists = true
+                                            lastSyncTimestamp = now
                                             prefsManager.setGoogleDriveConnected(true)
                                             prefsManager.setLastSyncTimestamp(now)
                                             prefsManager.setLastSyncedVaultHash(currentHash)
@@ -1775,6 +1813,7 @@ fun SettingsScreen(
                                             prefsManager.setLastSyncTimestamp(0L)
                                             prefsManager.setLastSyncedVaultHash("")
                                             lastSyncTimestamp = 0L
+                                            driveBackupExists = false
                                             snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_delete_success))
                                         }.onFailure { error ->
                                             snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error, error.localizedMessage ?: ""))

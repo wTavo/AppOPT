@@ -525,13 +525,13 @@ fun SettingsScreen(
                             if (isDriveConnected) {
                                 IconButton(
                                     onClick = { showDisconnectConfirmDialog = true },
-                                    modifier = Modifier.size(Dimensions.IconSize.large)
+                                    modifier = Modifier.size(Dimensions.IconSize.hero)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Filled.SyncDisabled,
                                         contentDescription = stringResource(R.string.settings_drive_disconnect_button),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(Dimensions.IconSize.small)
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(Dimensions.IconSize.large)
                                     )
                                 }
                             }

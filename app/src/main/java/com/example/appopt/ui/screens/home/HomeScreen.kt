@@ -70,11 +70,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.appopt.R
 import com.example.appopt.domain.repository.AccountWithCode
+import com.example.appopt.ui.common.UiState
 import com.example.appopt.ui.components.AccountDetailsDialog
 import com.example.appopt.ui.components.OtpCodeCard
 import com.example.appopt.ui.theme.Dimensions
@@ -99,7 +99,7 @@ fun HomeScreen(
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val accounts by viewModel.accounts.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val isHideCodesEnabled by viewModel.isHideCodesEnabled.collectAsStateWithLifecycle()
 
@@ -116,28 +116,42 @@ fun HomeScreen(
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
     var lastSwapTime by remember { mutableLongStateOf(0L) }
 
-    // Sincronización continua de datos en vivo (los contadores y códigos continúan actualizándose en tiempo real)
-    LaunchedEffect(accounts) {
-        val currentIds = localAccounts.map { it.account.id }
-        val newIds = accounts.map { it.account.id }
+    // Sincronización continua de datos en vivo desde UiState (previene parpadeos de carga)
+    LaunchedEffect(uiState) {
+        when (val state = uiState) {
+            is UiState.Success<*> -> {
+                @Suppress("UNCHECKED_CAST")
+                val accounts = state.data as List<AccountWithCode>
+                val currentIds = localAccounts.map { it.account.id }
+                val newIds = accounts.map { it.account.id }
 
-        if (currentIds.toSet() != newIds.toSet() || currentIds.size != newIds.size || localAccounts.isEmpty()) {
-            if (draggingAccountId == null) {
-                localAccounts.clear()
-                localAccounts.addAll(accounts)
-            }
-        } else {
-            localAccounts.indices.forEach { i ->
-                val localItem = localAccounts[i]
-                val freshItem = accounts.find { it.account.id == localItem.account.id }
-                if (freshItem != null && (localItem.code != freshItem.code || localItem.remainingSeconds != freshItem.remainingSeconds || localItem.progress != freshItem.progress || localItem.account.isFavorite != freshItem.account.isFavorite || localItem.account.issuer != freshItem.account.issuer || localItem.account.accountName != freshItem.account.accountName)) {
-                    localAccounts[i] = localItem.copy(
-                        account = freshItem.account,
-                        code = freshItem.code,
-                        remainingSeconds = freshItem.remainingSeconds,
-                        progress = freshItem.progress
-                    )
+                if (currentIds.toSet() != newIds.toSet() || currentIds.size != newIds.size || localAccounts.isEmpty()) {
+                    if (draggingAccountId == null) {
+                        localAccounts.clear()
+                        localAccounts.addAll(accounts)
+                    }
+                } else {
+                    localAccounts.indices.forEach { i ->
+                        val localItem = localAccounts[i]
+                        val freshItem = accounts.find { it.account.id == localItem.account.id }
+                        if (freshItem != null && (localItem.code != freshItem.code || localItem.remainingSeconds != freshItem.remainingSeconds || localItem.progress != freshItem.progress || localItem.account.isFavorite != freshItem.account.isFavorite || localItem.account.issuer != freshItem.account.issuer || localItem.account.accountName != freshItem.account.accountName)) {
+                            localAccounts[i] = localItem.copy(
+                                account = freshItem.account,
+                                code = freshItem.code,
+                                remainingSeconds = freshItem.remainingSeconds,
+                                progress = freshItem.progress
+                            )
+                        }
+                    }
                 }
+            }
+            is UiState.Empty -> {
+                if (draggingAccountId == null) {
+                    localAccounts.clear()
+                }
+            }
+            is UiState.Loading, is UiState.Idle, is UiState.Error -> {
+                // Mantiene el estado en memoria para transiciones limpias y fluidas
             }
         }
     }
@@ -306,17 +320,13 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            if (localAccounts.isEmpty()) {
-                EmptyAccountsState(
-                    onScanQr = onNavigateToScanQr,
-                    onAddManual = onNavigateToAddManual
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(Dimensions.Spacing.lg),
-                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
-                ) {
+            when {
+                localAccounts.isNotEmpty() -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(Dimensions.Spacing.lg),
+                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                    ) {
                     itemsIndexed(
                         items = localAccounts,
                         key = { _, item -> item.account.id }
@@ -396,6 +406,16 @@ fun HomeScreen(
                     }
                 }
             }
+            uiState is UiState.Empty -> {
+                EmptyAccountsState(
+                    onScanQr = onNavigateToScanQr,
+                    onAddManual = onNavigateToAddManual
+                )
+            }
+            else -> {
+                // Estado de carga inicial (UiState.Loading): No renderiza nada prematuramente evitando parpadeos
+            }
+        }
         }
     }
 

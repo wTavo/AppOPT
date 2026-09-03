@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.domain.repository.AccountWithCode
+import com.example.appopt.ui.common.UiState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -22,6 +23,7 @@ import kotlinx.coroutines.launch
  * - El cálculo del código y del progreso temporal se actualiza automáticamente mediante [tickerFlow] cada 500ms.
  * - Filtra las cuentas en memoria según la consulta del buscador sin bloquear el hilo principal.
  * - Persiste y sincroniza el estado de privacidad para ocultar/mostrar códigos.
+ * - Modela el estado visual con [UiState] para evitar parpadeos (*flickering*) al cargar desde Room.
  * - Persiste de forma atómica el ordenamiento personalizado tras finalizar el arrastre.
  */
 class HomeViewModel : ViewModel() {
@@ -47,15 +49,18 @@ class HomeViewModel : ViewModel() {
     }
 
     /**
-     * Lista reactiva de cuentas acompañadas de sus códigos OTP actualizados y filtrados.
+     * Estado reactivo y determinístico de la pantalla principal modelado con [UiState].
+     *
+     * Inicialmente emite [UiState.Loading] para prevenir el destello visual de "Sin cuentas configuradas"
+     * antes de que Room despache el primer lote de datos en memoria.
      */
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val accounts: StateFlow<List<AccountWithCode>> = tickerFlow
+    val uiState: StateFlow<UiState<List<AccountWithCode>>> = tickerFlow
         .flatMapLatest { time ->
             repository.getAccountsWithCodes(time)
         }
         .combine(searchQuery) { list, query ->
-            if (query.isBlank()) {
+            val filtered = if (query.isBlank()) {
                 list
             } else {
                 list.filter {
@@ -63,11 +68,16 @@ class HomeViewModel : ViewModel() {
                             it.account.accountName.contains(query, ignoreCase = true)
                 }
             }
+            if (filtered.isEmpty()) {
+                UiState.Empty
+            } else {
+                UiState.Success(filtered)
+            }
         }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
+            initialValue = UiState.Loading
         )
 
     /**

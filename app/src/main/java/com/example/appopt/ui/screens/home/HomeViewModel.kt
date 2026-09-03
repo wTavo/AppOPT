@@ -42,11 +42,26 @@ class HomeViewModel : ViewModel() {
     private val _isHideCodesEnabled = MutableStateFlow(preferencesManager.isHideCodesEnabled())
     val isHideCodesEnabled: StateFlow<Boolean> = _isHideCodesEnabled.asStateFlow()
 
-    /** Flujo de pulsos de reloj (1000ms) para la actualización precisa de códigos TOTP. */
+    /**
+     * Flujo de pulsos sincronizados al borde del paso TOTP (cada 30 s por defecto).
+     *
+     * Optimización crítica de rendimiento: en lugar de emitir cada segundo y forzar la
+     * recomposición de todas las tarjetas visibles 60 veces por minuto, este flujo emite
+     * únicamente cuando el paso de tiempo cambia (es decir, cuando el código OTP realmente rota).
+     * [CircularTimeProgress] maneja el temporizador visual de forma completamente autónoma.
+     */
     private val tickerFlow = flow {
+        var lastStep = -1L
         while (true) {
-            emit(System.currentTimeMillis())
-            delay(1000L)
+            val now = System.currentTimeMillis()
+            val step = now / 1000L / 30L
+            if (step != lastStep) {
+                lastStep = step
+                emit(now)
+            }
+            // Sincronizar al borde del próximo segundo para no desperdiciar CPU
+            val msUntilNextSecond = 1000L - (now % 1000L)
+            delay(msUntilNextSecond.coerceAtLeast(50L))
         }
     }
 

@@ -164,14 +164,9 @@ class AccountRepositoryImpl(
                 }
             }
 
-            val remainingSeconds = domainAccount.period
-            val progress = 1.0f
-
             AccountWithCode(
                 account = domainAccount,
-                code = code,
-                remainingSeconds = remainingSeconds,
-                progress = progress
+                code = code
             )
         }
     }

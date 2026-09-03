@@ -6,18 +6,19 @@ import com.example.appopt.domain.model.TotpAccount
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Contenedor de presentación que asocia una cuenta [TotpAccount] con su código generado en vivo.
+ * Contenedor de presentación que asocia una cuenta [TotpAccount] con su código OTP activo.
+ *
+ * Nota de rendimiento: Los campos de tiempo (segundos restantes, progreso) se eliminaron
+ * intencionalmente de este modelo para evitar que el StateFlow emita nuevos valores cada segundo,
+ * lo que causaba la recomposición de todas las tarjetas visibles durante el scroll.
+ * [CircularTimeProgress] calcula el tiempo de forma autónoma internamente.
  *
  * @property account Datos descriptivos de la cuenta.
  * @property code Código numérico OTP activo (o valor de espera).
- * @property remainingSeconds Segundos restantes antes de que caduque el código actual.
- * @property progress Progreso porcentual (0.0f a 1.0f) para la animación del temporizador.
  */
 data class AccountWithCode(
     val account: TotpAccount,
-    val code: String,
-    val remainingSeconds: Int,
-    val progress: Float
+    val code: String
 )
 
 /**

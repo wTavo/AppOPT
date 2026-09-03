@@ -137,7 +137,6 @@ fun OtpCodeCard(
                     issuer = account.issuer,
                     accountName = account.accountName,
                     code = accountWithCode.code,
-                    remainingSeconds = accountWithCode.remainingSeconds,
                     isFavorite = account.isFavorite
                 )
             },

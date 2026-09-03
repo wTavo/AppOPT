@@ -36,7 +36,6 @@ object AccessibilityUtils {
      * @param issuer Nombre del emisor o servicio.
      * @param accountName Nombre de la cuenta o usuario.
      * @param code Código numérico actual.
-     * @param remainingSeconds Segundos restantes del período TOTP.
      * @param isFavorite Indica si la cuenta está marcada como favorita.
      * @return Cadena estructurada con la información semántica para lectores de pantalla.
      */
@@ -45,15 +44,13 @@ object AccessibilityUtils {
         issuer: String,
         accountName: String,
         code: String,
-        remainingSeconds: Int,
         isFavorite: Boolean
     ): String {
         val spokenCode = toAccessibleSpokenOtp(code)
         val issuerLabel = issuer.ifEmpty { context.getString(R.string.home_default_issuer) }
         val accountPart = if (accountName.isNotBlank()) ", $accountName" else ""
         val favPart = if (isFavorite) ", ${context.getString(R.string.action_favorite)}" else ""
-        val timePart = if (remainingSeconds > 0) ", $remainingSeconds ${context.getString(R.string.card_seconds_abbrev)}" else ""
 
-        return "$issuerLabel$accountPart$favPart. $spokenCode$timePart"
+        return "$issuerLabel$accountPart$favPart. $spokenCode"
     }
 }

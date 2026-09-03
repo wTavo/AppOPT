@@ -20,8 +20,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -159,6 +161,36 @@ fun HomeScreen(
             }
             is UiState.Loading, is UiState.Idle, is UiState.Error -> {
                 // Mantiene el estado en memoria para transiciones limpias y fluidas
+            }
+        }
+    }
+
+    val listState = rememberLazyListState()
+
+    // Motor de auto-scroll continuo cuando se arrastra una tarjeta cerca de los bordes superior/inferior
+    LaunchedEffect(draggingAccountId, dragOffsetY) {
+        if (draggingAccountId != null) {
+            while (true) {
+                val layoutInfo = listState.layoutInfo
+                val visibleItems = layoutInfo.visibleItemsInfo
+                val draggedItem = visibleItems.find { it.key == draggingAccountId }
+                if (draggedItem != null) {
+                    val itemTop = draggedItem.offset + dragOffsetY
+                    val itemBottom = itemTop + draggedItem.size
+                    val viewportHeight = layoutInfo.viewportEndOffset.toFloat()
+
+                    val topThreshold = 220f
+                    val bottomThreshold = viewportHeight - 220f
+
+                    if (itemTop < topThreshold && listState.canScrollBackward) {
+                        val speed = ((topThreshold - itemTop) / 5f).coerceIn(12f, 60f)
+                        listState.scrollBy(-speed)
+                    } else if (itemBottom > bottomThreshold && listState.canScrollForward) {
+                        val speed = ((itemBottom - bottomThreshold) / 5f).coerceIn(12f, 60f)
+                        listState.scrollBy(speed)
+                    }
+                }
+                kotlinx.coroutines.delay(16L)
             }
         }
     }
@@ -330,8 +362,14 @@ fun HomeScreen(
             when {
                 accountsToDisplay.isNotEmpty() -> {
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(Dimensions.Spacing.lg),
+                        contentPadding = PaddingValues(
+                            start = Dimensions.Spacing.lg,
+                            end = Dimensions.Spacing.lg,
+                            top = Dimensions.Spacing.lg,
+                            bottom = Dimensions.Spacing.xxl + Dimensions.ComponentSize.heroFab
+                        ),
                         verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                     ) {
                     itemsIndexed(

@@ -15,6 +15,10 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -172,11 +176,16 @@ fun SettingsScreen(
     var isConfirmingDeleteInDialog by remember { mutableStateOf(false) }
     val isFpsOverlayEnabled by prefsManager.isFpsOverlayEnabledFlow.collectAsStateWithLifecycle()
 
+    val lifecycleOwner = LocalLifecycleOwner.current
     var currentTick by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(15_000L) // Actualiza el tiempo relativo en pantalla cada 15 segundos
-            currentTick = System.currentTimeMillis()
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (isActive) {
+                val now = System.currentTimeMillis()
+                currentTick = now
+                val millisUntilNextMinute = 60_000L - (now % 60_000L)
+                delay(millisUntilNextMinute.coerceAtLeast(1_000L))
+            }
         }
     }
 
@@ -200,17 +209,17 @@ fun SettingsScreen(
         }
     }
 
-    // Autorización silenciosa y comprobación de respaldo al abrir la pantalla si ya estaba configurada
+    // Autorización silenciosa y comprobación de respaldo al abrir la pantalla si no existe timestamp local
     var driveBackupExists by remember { mutableStateOf(false) }
     var driveBackupInfo by remember { mutableStateOf<DriveBackupInfo?>(null) }
     var isCheckingDriveBackup by remember { mutableStateOf(false) }
     var showOverwriteWarningDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        if (prefsManager.isGoogleDriveConnected()) {
-            if (lastSyncTimestamp == 0L) {
-                isCheckingDriveBackup = true
-            }
+        // Arquitectura Offline-First: Si ya tenemos timestamp local, la UI carga al instante en 0 ms.
+        // Solo consultamos la nube si está conectado pero no hay registro previo (lastSyncTimestamp == 0L).
+        if (prefsManager.isGoogleDriveConnected() && lastSyncTimestamp == 0L) {
+            isCheckingDriveBackup = true
             authClient.authorize(GoogleDriveManager.getAuthorizationRequest())
                 .addOnSuccessListener { result ->
                     if (!result.hasResolution() && result.accessToken != null) {
@@ -221,7 +230,7 @@ fun SettingsScreen(
                                 val info = GoogleDriveManager.fetchBackupDetails(result.accessToken!!)
                                 driveBackupExists = info != null
                                 driveBackupInfo = info
-                                if (info != null && accounts.isNotEmpty() && lastSyncTimestamp == 0L) {
+                                if (info != null && accounts.isNotEmpty()) {
                                     val syncTime = info.modifiedTimeMillis
                                     lastSyncTimestamp = syncTime
                                     prefsManager.setLastSyncTimestamp(syncTime)

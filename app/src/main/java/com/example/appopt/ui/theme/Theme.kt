@@ -81,3 +81,19 @@ fun AppTheme(
         content = content
     )
 }
+
+/**
+ * Colores de alto contraste para los interruptores [androidx.compose.material3.Switch] de la aplicación.
+ *
+ * En estado apagado (*unchecked*), el botón deslizante (*thumb*) se muestra en color blanco puro
+ * con borde claro para máxima visibilidad y distinción sobre fondos oscuros y claros.
+ */
+@Composable
+fun appSwitchColors(): androidx.compose.material3.SwitchColors = androidx.compose.material3.SwitchDefaults.colors(
+    uncheckedThumbColor = androidx.compose.ui.graphics.Color.White,
+    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+    uncheckedBorderColor = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f),
+    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+    checkedTrackColor = MaterialTheme.colorScheme.primary,
+    checkedBorderColor = androidx.compose.ui.graphics.Color.Transparent
+)

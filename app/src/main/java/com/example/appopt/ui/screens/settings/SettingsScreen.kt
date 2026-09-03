@@ -97,6 +97,7 @@ import com.example.appopt.security.CryptoManager
 import com.example.appopt.ui.components.ServiceBrandAvatar
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.SafeGreen
+import com.example.appopt.ui.theme.appSwitchColors
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.ui.util.QrCodeGenerator
 import com.example.appopt.util.DateTimeFormatter
@@ -350,7 +351,8 @@ fun SettingsScreen(
                             onCheckedChange = { enabled ->
                                 appHaptics.click()
                                 prefsManager.setFpsOverlayEnabled(enabled)
-                            }
+                            },
+                            colors = appSwitchColors()
                         )
                     }
                 }
@@ -704,11 +706,7 @@ fun SettingsScreen(
                                                 prefsManager.setSyncMobileDataAllowed(it)
                                                 CloudVaultSyncManager.schedulePeriodicSync(context, syncFrequency, it)
                                             },
-                                            colors = SwitchDefaults.colors(
-                                                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
-                                                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
-                                                uncheckedBorderColor = MaterialTheme.colorScheme.outline
-                                            )
+                                            colors = appSwitchColors()
                                         )
                                     }
                                 }
@@ -832,11 +830,7 @@ fun SettingsScreen(
                             Switch(
                                 checked = keepServicesOnDevice,
                                 onCheckedChange = { keepServicesOnDevice = it },
-                                colors = SwitchDefaults.colors(
-                                    uncheckedThumbColor = MaterialTheme.colorScheme.outline,
-                                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    uncheckedBorderColor = MaterialTheme.colorScheme.outline
-                                )
+                                colors = appSwitchColors()
                             )
                         }
                     }

@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.shareIn
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -56,6 +57,17 @@ class AccountRepositoryImpl(
     )
 
     private val otpCodeCache = java.util.concurrent.ConcurrentHashMap<String, CachedOtp>()
+
+    init {
+        // Motor de Precarga en Caliente: Precalcula los códigos en segundo plano al arrancar la app
+        repositoryScope.launch {
+            accountsFlow.collect { accounts ->
+                if (accounts.isNotEmpty()) {
+                    computeAccountsWithCodes(accounts, System.currentTimeMillis())
+                }
+            }
+        }
+    }
 
     /**
      * Limpia de forma segura la caché de códigos OTP en memoria RAM al bloquear la bóveda.

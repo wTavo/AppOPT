@@ -76,8 +76,16 @@ object ServiceBrandProvider {
         Color(0xFF9C27B0)  // Purple
     )
 
+    private val defaultBrand = BrandInfo(
+        brandName = "Servicio",
+        shortInitials = "OTP",
+        backgroundColor = Color(0xFF546E7A)
+    )
+
+    private val brandCache = java.util.concurrent.ConcurrentHashMap<String, BrandInfo>()
+
     /**
-     * Resuelve la información de marca para un emisor dado.
+     * Resuelve la información de marca para un emisor dado con caché en memoria instantánea (0ms).
      *
      * @param issuer Nombre del servicio o emisor configurado en el token 2FA.
      * @return [BrandInfo] con las iniciales, logotipo vectorial y colores correspondientes.
@@ -85,32 +93,26 @@ object ServiceBrandProvider {
     fun getBrandInfo(issuer: String): BrandInfo {
         val trimmed = issuer.trim()
         if (trimmed.isEmpty()) {
-            return BrandInfo(
-                brandName = "Servicio",
-                shortInitials = "OTP",
-                backgroundColor = Color(0xFF546E7A)
-            )
+            return defaultBrand
         }
 
-        // Búsqueda por coincidencia en marcas conocidas
-        val matched = KnownBrands.firstOrNull { brand ->
-            trimmed.contains(brand.brandName, ignoreCase = true)
+        return brandCache.getOrPut(trimmed) {
+            val matched = KnownBrands.firstOrNull { brand ->
+                trimmed.contains(brand.brandName, ignoreCase = true)
+            }
+            if (matched != null) {
+                matched
+            } else {
+                val initials = extractInitials(trimmed)
+                val paletteIndex = abs(trimmed.lowercase().hashCode()) % FallbackPalette.size
+                val color = FallbackPalette[paletteIndex]
+                BrandInfo(
+                    brandName = trimmed,
+                    shortInitials = initials,
+                    backgroundColor = color
+                )
+            }
         }
-
-        if (matched != null) {
-            return matched
-        }
-
-        // Generación determinista para emisores personalizados
-        val initials = extractInitials(trimmed)
-        val paletteIndex = abs(trimmed.lowercase().hashCode()) % FallbackPalette.size
-        val color = FallbackPalette[paletteIndex]
-
-        return BrandInfo(
-            brandName = trimmed,
-            shortInitials = initials,
-            backgroundColor = color
-        )
     }
 
     /**

@@ -140,8 +140,8 @@ fun SettingsScreen(
     var driveAccessToken by remember { mutableStateOf<String?>(null) }
     var isDriveLoading by remember { mutableStateOf(false) }
     var showFrequencyDialog by remember { mutableStateOf(false) }
-    var showDeleteDriveBackupDialog by remember { mutableStateOf(false) }
     var showBackupDetailsDialog by remember { mutableStateOf(false) }
+    var isConfirmingDeleteInDialog by remember { mutableStateOf(false) }
 
     val formattedLastSync = remember(lastSyncTimestamp) {
         if (lastSyncTimestamp == 0L) {
@@ -436,7 +436,10 @@ fun SettingsScreen(
                                 .fillMaxWidth()
                                 .then(
                                     if (formattedLastSync != null) {
-                                        Modifier.clickable { showBackupDetailsDialog = true }
+                                        Modifier.clickable {
+                                            isConfirmingDeleteInDialog = false
+                                            showBackupDetailsDialog = true
+                                        }
                                     } else {
                                         Modifier
                                     }
@@ -1197,133 +1200,127 @@ fun SettingsScreen(
         )
     }
 
-    // Modal: Confirmación para Eliminar Copia de Seguridad de Drive
-    if (showDeleteDriveBackupDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDriveBackupDialog = false },
-            title = {
-                Text(
-                    text = stringResource(R.string.settings_drive_delete_confirm_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.error
-                )
-            },
-            text = {
-                Text(
-                    text = stringResource(R.string.settings_drive_delete_confirm_msg),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showDeleteDriveBackupDialog = false
-                        val executeDelete: (String) -> Unit = { token ->
-                            scope.launch {
-                                isDriveLoading = true
-                                try {
-                                    val deleteResult = GoogleDriveManager.deleteBackup(token)
-                                    deleteResult.onSuccess {
-                                        prefsManager.setLastSyncTimestamp(0L)
-                                        prefsManager.setLastSyncedVaultHash("")
-                                        lastSyncTimestamp = 0L
-                                        snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_delete_success))
-                                    }.onFailure { error ->
-                                        snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error, error.localizedMessage ?: ""))
-                                    }
-                                } finally {
-                                    isDriveLoading = false
-                                }
-                            }
-                        }
-
-                        if (driveAccessToken == null) {
-                            requestGoogleAuthorization { token ->
-                                executeDelete(token)
-                            }
-                        } else {
-                            executeDelete(driveAccessToken!!)
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError
-                    ),
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                ) {
-                    Text(stringResource(R.string.settings_drive_delete_confirm_btn), style = MaterialTheme.typography.labelLarge)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDriveBackupDialog = false }) {
-                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
-                }
-            }
-        )
-    }
-
-    // Modal: Detalles de la Copia de Seguridad en la Nube
+    // Modal Unificado: Detalles de la Copia de Seguridad y Confirmación de Eliminación
     if (showBackupDetailsDialog) {
         AlertDialog(
-            onDismissRequest = { showBackupDetailsDialog = false },
+            onDismissRequest = {
+                showBackupDetailsDialog = false
+                isConfirmingDeleteInDialog = false
+            },
             title = {
                 Text(
-                    text = stringResource(R.string.settings_drive_details_title),
-                    style = MaterialTheme.typography.titleLarge
+                    text = if (isConfirmingDeleteInDialog) {
+                        stringResource(R.string.settings_drive_delete_confirm_title)
+                    } else {
+                        stringResource(R.string.settings_drive_details_title)
+                    },
+                    style = MaterialTheme.typography.titleLarge,
+                    color = if (isConfirmingDeleteInDialog) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                 )
             },
             text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
-                ) {
-                    Text(
-                        text = stringResource(R.string.settings_drive_details_date, formattedLastSync ?: ""),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_drive_details_encryption),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_drive_details_location),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                if (!isConfirmingDeleteInDialog) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.settings_drive_details_date, formattedLastSync ?: ""),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_drive_details_encryption),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
 
-                    Spacer(modifier = Modifier.height(Dimensions.Spacing.sm))
+                        Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
 
-                    OutlinedButton(
+                        OutlinedButton(
+                            onClick = { isConfirmingDeleteInDialog = true },
+                            enabled = !isDriveLoading,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            ),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.DeleteOutline,
+                                contentDescription = null,
+                                modifier = Modifier.size(Dimensions.IconSize.small)
+                            )
+                            Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                            Text(
+                                text = stringResource(R.string.settings_drive_delete_button),
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+                    }
+                } else {
+                    Text(
+                        text = stringResource(R.string.settings_drive_delete_confirm_msg),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            },
+            confirmButton = {
+                if (isConfirmingDeleteInDialog) {
+                    Button(
                         onClick = {
                             showBackupDetailsDialog = false
-                            showDeleteDriveBackupDialog = true
+                            isConfirmingDeleteInDialog = false
+                            val executeDelete: (String) -> Unit = { token ->
+                                scope.launch {
+                                    isDriveLoading = true
+                                    try {
+                                        val deleteResult = GoogleDriveManager.deleteBackup(token)
+                                        deleteResult.onSuccess {
+                                            prefsManager.setLastSyncTimestamp(0L)
+                                            prefsManager.setLastSyncedVaultHash("")
+                                            lastSyncTimestamp = 0L
+                                            snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_delete_success))
+                                        }.onFailure { error ->
+                                            snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error, error.localizedMessage ?: ""))
+                                        }
+                                    } finally {
+                                        isDriveLoading = false
+                                    }
+                                }
+                            }
+
+                            if (driveAccessToken == null) {
+                                requestGoogleAuthorization { token ->
+                                    executeDelete(token)
+                                }
+                            } else {
+                                executeDelete(driveAccessToken!!)
+                            }
                         },
-                        enabled = !isDriveLoading,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError
                         ),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.DeleteOutline,
-                            contentDescription = null,
-                            modifier = Modifier.size(Dimensions.IconSize.small)
-                        )
-                        Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                        Text(
-                            text = stringResource(R.string.settings_drive_delete_button),
-                            style = MaterialTheme.typography.labelLarge
-                        )
+                        Text(stringResource(R.string.settings_drive_delete_confirm_btn), style = MaterialTheme.typography.labelLarge)
+                    }
+                } else {
+                    TextButton(onClick = {
+                        showBackupDetailsDialog = false
+                        isConfirmingDeleteInDialog = false
+                    }) {
+                        Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
                     }
                 }
             },
-            confirmButton = {
-                TextButton(onClick = { showBackupDetailsDialog = false }) {
-                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
+            dismissButton = {
+                if (isConfirmingDeleteInDialog) {
+                    TextButton(onClick = { isConfirmingDeleteInDialog = false }) {
+                        Text(stringResource(R.string.settings_drive_details_back), style = MaterialTheme.typography.labelLarge)
+                    }
                 }
             }
         )

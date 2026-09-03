@@ -114,56 +114,16 @@ fun HomeScreen(
     val appHaptics = rememberAppHaptics()
     val context = LocalContext.current
 
-    // Lista de renderizado local para swaps instantáneos sin animaciones residuales de reacomodo
+    // Lista de renderizado local activa exclusivamente durante sesiones de arrastre
     val localAccounts = remember { mutableStateListOf<AccountWithCode>() }
     var draggingAccountId by remember { mutableStateOf<String?>(null) }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
     var lastSwapTime by remember { mutableLongStateOf(0L) }
 
-    // Resuelve las cuentas de inmediato sin pausas ni pantallas en blanco
+    // Resuelve las cuentas directamente desde el UiState inmutable para máxima velocidad de renderizado
     @Suppress("UNCHECKED_CAST")
-    val currentSuccessAccounts = (uiState as? UiState.Success<*>)?.data as? List<AccountWithCode>
-    val accountsToDisplay = if (localAccounts.isNotEmpty()) localAccounts else (currentSuccessAccounts ?: emptyList())
-
-    // Sincronización continua de datos en vivo desde UiState (previene parpadeos de carga)
-    LaunchedEffect(uiState) {
-        when (val state = uiState) {
-            is UiState.Success<*> -> {
-                @Suppress("UNCHECKED_CAST")
-                val accounts = state.data as List<AccountWithCode>
-                val currentIds = localAccounts.map { it.account.id }
-                val newIds = accounts.map { it.account.id }
-
-                if (currentIds.toSet() != newIds.toSet() || currentIds.size != newIds.size || localAccounts.isEmpty()) {
-                    if (draggingAccountId == null) {
-                        localAccounts.clear()
-                        localAccounts.addAll(accounts)
-                    }
-                } else {
-                    localAccounts.indices.forEach { i ->
-                        val localItem = localAccounts[i]
-                        val freshItem = accounts.find { it.account.id == localItem.account.id }
-                        if (freshItem != null && (localItem.code != freshItem.code || localItem.remainingSeconds != freshItem.remainingSeconds || localItem.progress != freshItem.progress || localItem.account.isFavorite != freshItem.account.isFavorite || localItem.account.issuer != freshItem.account.issuer || localItem.account.accountName != freshItem.account.accountName)) {
-                            localAccounts[i] = localItem.copy(
-                                account = freshItem.account,
-                                code = freshItem.code,
-                                remainingSeconds = freshItem.remainingSeconds,
-                                progress = freshItem.progress
-                            )
-                        }
-                    }
-                }
-            }
-            is UiState.Empty -> {
-                if (draggingAccountId == null) {
-                    localAccounts.clear()
-                }
-            }
-            is UiState.Loading, is UiState.Idle, is UiState.Error -> {
-                // Mantiene el estado en memoria para transiciones limpias y fluidas
-            }
-        }
-    }
+    val currentSuccessAccounts = (uiState as? UiState.Success<*>)?.data as? List<AccountWithCode> ?: emptyList()
+    val accountsToDisplay = if (draggingAccountId != null && localAccounts.isNotEmpty()) localAccounts else currentSuccessAccounts
 
     val listState = rememberLazyListState()
 
@@ -399,6 +359,8 @@ fun HomeScreen(
                             onToggleFavorite = viewModel::toggleFavorite,
                             onNextHotpCode = viewModel::nextHotpCode,
                             onStartDrag = {
+                                localAccounts.clear()
+                                localAccounts.addAll(currentSuccessAccounts)
                                 draggingAccountId = item.account.id
                                 dragOffsetY = 0f
                                 lastSwapTime = System.currentTimeMillis()
@@ -445,6 +407,7 @@ fun HomeScreen(
                                     viewModel.commitReorder(localAccounts.map { it.account.id })
                                     draggingAccountId = null
                                     dragOffsetY = 0f
+                                    localAccounts.clear()
                                 }
                             }
                         )

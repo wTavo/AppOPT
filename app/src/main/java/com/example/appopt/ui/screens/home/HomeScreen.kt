@@ -572,7 +572,7 @@ fun HomeScreen(
                             }
                         }
 
-                        // 2. Título Central con Diseño Estilizado (Píldora con Icono y Tipografía de Alto Impacto)
+                        // 2. Título Central con Diseño Estilizado (Píldora con Tipografía de Alto Impacto)
                         Surface(
                             shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
                             color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
@@ -581,25 +581,14 @@ fun HomeScreen(
                             border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
                             modifier = Modifier.wrapContentWidth()
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = Dimensions.Spacing.lg, vertical = Dimensions.Spacing.xs),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Lock,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(Dimensions.IconSize.small)
-                                )
-                                Text(
-                                    text = stringResource(R.string.home_title),
-                                    style = MaterialTheme.typography.titleLarge.copy(
-                                        fontWeight = FontWeight.Bold
-                                    ),
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
+                            Text(
+                                text = stringResource(R.string.home_title),
+                                style = MaterialTheme.typography.headlineSmall.copy(
+                                    fontWeight = FontWeight.ExtraBold
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(horizontal = Dimensions.Spacing.lg, vertical = Dimensions.Spacing.xs)
+                            )
                         }
 
                         // 3. Botón Privacidad (Ojo) Flotante a la Derecha

@@ -140,23 +140,28 @@
     <string name="settings_drive_details_encryption">Cifrado: AES-256-GCM de extremo a extremo</string>
     <string name="settings_drive_details_back">Volver</string>
 
-    <!-- Dual E2EE Cloud Protection (PIN or 64-digit key) -->
+    <!-- E2EE Cloud Protection (12-Word Phrase BIP-39, Master Password, 64-Digit Key) -->
     <string name="settings_drive_protect_title">Proteger copia en la nube</string>
     <string name="settings_drive_protect_description">Elige cómo deseas cifrar tu respaldo de extremo a extremo antes de subirlo a Google Drive.</string>
-    <string name="settings_drive_method_pin">Usar PIN numérico</string>
+    <string name="settings_drive_method_words">12 palabras (BIP-39)</string>
+    <string name="settings_drive_method_password">Contraseña maestra</string>
     <string name="settings_drive_method_key">Clave de 64 dígitos</string>
-    <string name="settings_drive_pin_label">PIN de cifrado (4 a 6 dígitos)</string>
-    <string name="settings_drive_pin_confirm_label">Confirmar PIN</string>
-    <string name="settings_drive_pin_mismatch">Los PIN no coinciden</string>
-    <string name="settings_drive_pin_too_short">El PIN debe tener al menos 4 dígitos</string>
+    <string name="settings_drive_words_label">Frase de recuperación (12 palabras)</string>
+    <string name="settings_drive_words_warning">Anota estas 12 palabras en un lugar seguro. Si pierdes tu teléfono, las necesitarás para restaurar tu bóveda.</string>
+    <string name="settings_drive_words_copied">Frase de 12 palabras copiada al portapapeles</string>
+    <string name="settings_drive_words_regenerate">Generar nueva frase</string>
+    <string name="settings_drive_password_label">Contraseña maestra</string>
+    <string name="settings_drive_password_confirm_label">Confirmar contraseña</string>
+    <string name="settings_drive_password_mismatch">Las contraseñas no coinciden</string>
+    <string name="settings_drive_password_too_short">La contraseña debe tener al menos 10 caracteres</string>
     <string name="settings_drive_key_label">Clave criptográfica de 64 dígitos</string>
     <string name="settings_drive_key_copied">Clave copiada al portapapeles</string>
     <string name="settings_drive_key_warning">Guarda esta clave en un lugar seguro. Si la pierdes, nadie podrá recuperar tu copia de seguridad.</string>
     <string name="settings_drive_key_regenerate">Generar nueva clave</string>
     <string name="settings_drive_decrypt_title">Descifrar copia de seguridad</string>
-    <string name="settings_drive_decrypt_hint">Ingresa el PIN numérico o la clave de 64 dígitos con la que protegiste tu respaldo.</string>
-    <string name="settings_drive_decrypt_input_label">PIN o clave de 64 dígitos</string>
-    <string name="settings_drive_decrypt_error">PIN o clave incorrecta. No se pudo descifrar la copia de seguridad.</string>
+    <string name="settings_drive_decrypt_hint">Ingresa la frase de 12 palabras, la contraseña maestra o la clave de 64 dígitos con la que protegiste tu respaldo.</string>
+    <string name="settings_drive_decrypt_input_label">Frase, contraseña o clave de 64 dígitos</string>
+    <string name="settings_drive_decrypt_error">Clave, frase o contraseña incorrecta. No se pudo descifrar la copia de seguridad.</string>
     <string name="settings_drive_encrypt_and_sync">Cifrar y sincronizar</string>
     <string name="settings_drive_decrypt_and_restore">Descifrar y restaurar</string>
 

@@ -29,8 +29,9 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.FormatListNumbered
 import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.Pin
+import androidx.compose.material.icons.filled.Password
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Shield
@@ -94,6 +95,7 @@ import com.example.appopt.data.cloud.GoogleDriveManager
 import com.example.appopt.data.cloud.SyncFrequency
 import com.example.appopt.data.local.PreferencesManager
 import com.example.appopt.security.CryptoManager
+import com.example.appopt.security.MnemonicManager
 import com.example.appopt.ui.components.ServiceBrandAvatar
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.SafeGreen
@@ -170,19 +172,22 @@ fun SettingsScreen(
 
     // Estados para el diálogo de protección E2EE al sincronizar
     var showDriveProtectDialog by remember { mutableStateOf(false) }
-    var selectedProtectionTab by remember { mutableIntStateOf(0) } // 0: PIN, 1: Clave 64 dígitos
-    var syncPinText by remember { mutableStateOf("") }
-    var syncPinConfirmText by remember { mutableStateOf("") }
+    var selectedProtectionTab by remember { mutableIntStateOf(0) } // 0: 12 palabras (BIP-39), 1: Contraseña maestra, 2: Clave 64 dígitos
+    var generatedMnemonicWords by remember { mutableStateOf(MnemonicManager.generate12WordPhrase()) }
+    var masterPasswordText by remember { mutableStateOf("") }
+    var masterPasswordConfirmText by remember { mutableStateOf("") }
+    var isMasterPasswordVisible by remember { mutableStateOf(false) }
     var generated64Key by remember { mutableStateOf(GoogleDriveManager.generate64DigitKey()) }
 
     // Estados para el diálogo de descifrado al restaurar
     var showDriveDecryptDialog by remember { mutableStateOf(false) }
-    var restoreKeyOrPinText by remember { mutableStateOf("") }
+    var restoreSecretText by remember { mutableStateOf("") }
     var isRestoreSecretVisible by remember { mutableStateOf(false) }
 
     val emptyServicesMsg = stringResource(R.string.settings_export_services_empty)
     val servicesDeletedMsg = stringResource(R.string.settings_services_deleted_after_export)
     val keyCopiedMsg = stringResource(R.string.settings_drive_key_copied)
+    val wordsCopiedMsg = stringResource(R.string.settings_drive_words_copied)
 
     // Lanzador moderno para resolver el consentimiento de Google Identity
     val authLauncher = rememberLauncherForActivityResult(
@@ -573,8 +578,9 @@ fun SettingsScreen(
                         ) {
                             Button(
                                 onClick = {
-                                    syncPinText = ""
-                                    syncPinConfirmText = ""
+                                    generatedMnemonicWords = MnemonicManager.generate12WordPhrase()
+                                    masterPasswordText = ""
+                                    masterPasswordConfirmText = ""
                                     generated64Key = GoogleDriveManager.generate64DigitKey()
                                     if (driveAccessToken == null) {
                                         requestGoogleAuthorization {
@@ -604,7 +610,7 @@ fun SettingsScreen(
 
                             OutlinedButton(
                                 onClick = {
-                                    restoreKeyOrPinText = ""
+                                    restoreSecretText = ""
                                     if (driveAccessToken == null) {
                                         requestGoogleAuthorization {
                                             showDriveDecryptDialog = true
@@ -926,11 +932,15 @@ fun SettingsScreen(
         )
     }
 
-    // Modal: Protección E2EE al sincronizar en Google Drive (PIN numérico o Clave de 64 dígitos)
+    // Modal: Protección E2EE al sincronizar en Google Drive (12 Palabras BIP-39, Contraseña Maestra o Clave de 64 dígitos)
     if (showDriveProtectDialog) {
-        val isPinMethod = selectedProtectionTab == 0
-        val isPinValid = syncPinText.length >= 4 && syncPinText == syncPinConfirmText
-        val canConfirmSync = if (isPinMethod) isPinValid else generated64Key.isNotBlank()
+        val isPasswordValid = masterPasswordText.length >= 10 && masterPasswordText == masterPasswordConfirmText
+        val canConfirmSync = when (selectedProtectionTab) {
+            0 -> generatedMnemonicWords.size == 12
+            1 -> isPasswordValid
+            2 -> generated64Key.isNotBlank()
+            else -> false
+        }
 
         AlertDialog(
             onDismissRequest = { showDriveProtectDialog = false },
@@ -955,106 +965,216 @@ fun SettingsScreen(
                         Tab(
                             selected = selectedProtectionTab == 0,
                             onClick = { selectedProtectionTab = 0 },
-                            text = { Text(stringResource(R.string.settings_drive_method_pin), style = MaterialTheme.typography.labelMedium) },
-                            icon = { Icon(Icons.Filled.Pin, contentDescription = null) }
+                            text = { Text(stringResource(R.string.settings_drive_method_words), style = MaterialTheme.typography.labelSmall) },
+                            icon = { Icon(Icons.Filled.FormatListNumbered, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small)) }
                         )
                         Tab(
                             selected = selectedProtectionTab == 1,
                             onClick = { selectedProtectionTab = 1 },
-                            text = { Text(stringResource(R.string.settings_drive_method_key), style = MaterialTheme.typography.labelMedium) },
-                            icon = { Icon(Icons.Filled.Key, contentDescription = null) }
+                            text = { Text(stringResource(R.string.settings_drive_method_password), style = MaterialTheme.typography.labelSmall) },
+                            icon = { Icon(Icons.Filled.Password, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small)) }
+                        )
+                        Tab(
+                            selected = selectedProtectionTab == 2,
+                            onClick = { selectedProtectionTab = 2 },
+                            text = { Text(stringResource(R.string.settings_drive_method_key), style = MaterialTheme.typography.labelSmall) },
+                            icon = { Icon(Icons.Filled.Key, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small)) }
                         )
                     }
 
-                    if (isPinMethod) {
-                        // Opción 1: PIN Numérico
-                        Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
-                            OutlinedTextField(
-                                value = syncPinText,
-                                onValueChange = { if (it.length <= 6) syncPinText = it },
-                                label = { Text(stringResource(R.string.settings_drive_pin_label)) },
-                                visualTransformation = PasswordVisualTransformation(),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                    when (selectedProtectionTab) {
+                        0 -> {
+                            // Opción 1: Frase Mnemónica de 12 Palabras (BIP-39)
+                            Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                                    ) {
+                                        generatedMnemonicWords.take(6).forEachIndexed { index, word ->
+                                            Surface(
+                                                shape = RoundedCornerShape(Dimensions.CornerRadius.small),
+                                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Text(
+                                                    text = "${index + 1}. $word",
+                                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                                    modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs)
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                                    ) {
+                                        generatedMnemonicWords.drop(6).forEachIndexed { index, word ->
+                                            Surface(
+                                                shape = RoundedCornerShape(Dimensions.CornerRadius.small),
+                                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Text(
+                                                    text = "${index + 7}. $word",
+                                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                                    modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
 
-                            OutlinedTextField(
-                                value = syncPinConfirmText,
-                                onValueChange = { if (it.length <= 6) syncPinConfirmText = it },
-                                label = { Text(stringResource(R.string.settings_drive_pin_confirm_label)) },
-                                visualTransformation = PasswordVisualTransformation(),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                                singleLine = true,
-                                isError = syncPinConfirmText.isNotEmpty() && syncPinText != syncPinConfirmText,
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    TextButton(
+                                        onClick = {
+                                            appHaptics.copy()
+                                            val fullPhrase = generatedMnemonicWords.joinToString(" ")
+                                            secureClipboard.copyToClipboard(
+                                                label = "AppOPT-MnemonicWords",
+                                                text = fullPhrase,
+                                                autoClearSeconds = 60
+                                            )
+                                            scope.launch { snackbarHostState.showSnackbar(wordsCopiedMsg) }
+                                        }
+                                    ) {
+                                        Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
+                                        Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                                        Text(stringResource(R.string.action_copy), style = MaterialTheme.typography.labelMedium)
+                                    }
 
-                            if (syncPinConfirmText.isNotEmpty() && syncPinText != syncPinConfirmText) {
-                                Text(
-                                    text = stringResource(R.string.settings_drive_pin_mismatch),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        }
-                    } else {
-                        // Opción 2: Clave generada de 64 dígitos
-                        Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
-                            Surface(
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                color = MaterialTheme.colorScheme.surfaceVariant,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(Dimensions.Spacing.sm)) {
+                                    TextButton(
+                                        onClick = { generatedMnemonicWords = MnemonicManager.generate12WordPhrase() }
+                                    ) {
+                                        Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
+                                        Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                                        Text(stringResource(R.string.settings_drive_words_regenerate), style = MaterialTheme.typography.labelMedium)
+                                    }
+                                }
+
+                                Surface(
+                                    shape = RoundedCornerShape(Dimensions.CornerRadius.small),
+                                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+                                ) {
                                     Text(
-                                        text = generated64Key,
-                                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                                        modifier = Modifier.fillMaxWidth()
+                                        text = stringResource(R.string.settings_drive_words_warning),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                        modifier = Modifier.padding(Dimensions.Spacing.sm)
                                     )
                                 }
                             }
+                        }
+                        1 -> {
+                            // Opción 2: Contraseña Maestra Fuerte
+                            Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
+                                OutlinedTextField(
+                                    value = masterPasswordText,
+                                    onValueChange = { masterPasswordText = it },
+                                    label = { Text(stringResource(R.string.settings_drive_password_label)) },
+                                    visualTransformation = if (isMasterPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                    trailingIcon = {
+                                        IconButton(onClick = { isMasterPasswordVisible = !isMasterPasswordVisible }) {
+                                            Icon(
+                                                imageVector = if (isMasterPasswordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                                contentDescription = null
+                                            )
+                                        }
+                                    },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                TextButton(
-                                    onClick = {
-                                        appHaptics.copy()
-                                        secureClipboard.copyToClipboard(
-                                            label = "AppOPT-BackupKey",
-                                            text = generated64Key,
-                                            autoClearSeconds = 60
-                                        )
-                                        scope.launch { snackbarHostState.showSnackbar(keyCopiedMsg) }
-                                    }
-                                ) {
-                                    Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
-                                    Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                                    Text(stringResource(R.string.action_copy), style = MaterialTheme.typography.labelMedium)
-                                }
+                                OutlinedTextField(
+                                    value = masterPasswordConfirmText,
+                                    onValueChange = { masterPasswordConfirmText = it },
+                                    label = { Text(stringResource(R.string.settings_drive_password_confirm_label)) },
+                                    visualTransformation = if (isMasterPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                    singleLine = true,
+                                    isError = masterPasswordConfirmText.isNotEmpty() && masterPasswordText != masterPasswordConfirmText,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
 
-                                TextButton(
-                                    onClick = { generated64Key = GoogleDriveManager.generate64DigitKey() }
-                                ) {
-                                    Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
-                                    Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                                    Text(stringResource(R.string.settings_drive_key_regenerate), style = MaterialTheme.typography.labelMedium)
+                                if (masterPasswordText.isNotEmpty() && masterPasswordText.length < 10) {
+                                    Text(
+                                        text = stringResource(R.string.settings_drive_password_too_short),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                } else if (masterPasswordConfirmText.isNotEmpty() && masterPasswordText != masterPasswordConfirmText) {
+                                    Text(
+                                        text = stringResource(R.string.settings_drive_password_mismatch),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
                                 }
                             }
+                        }
+                        2 -> {
+                            // Opción 3: Clave generada de 64 dígitos
+                            Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
+                                Surface(
+                                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(Dimensions.Spacing.sm)) {
+                                        Text(
+                                            text = generated64Key,
+                                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }
+                                }
 
-                            Surface(
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.small),
-                                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.settings_drive_key_warning),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onErrorContainer,
-                                    modifier = Modifier.padding(Dimensions.Spacing.sm)
-                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    TextButton(
+                                        onClick = {
+                                            appHaptics.copy()
+                                            secureClipboard.copyToClipboard(
+                                                label = "AppOPT-BackupKey",
+                                                text = generated64Key,
+                                                autoClearSeconds = 60
+                                            )
+                                            scope.launch { snackbarHostState.showSnackbar(keyCopiedMsg) }
+                                        }
+                                    ) {
+                                        Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
+                                        Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                                        Text(stringResource(R.string.action_copy), style = MaterialTheme.typography.labelMedium)
+                                    }
+
+                                    TextButton(
+                                        onClick = { generated64Key = GoogleDriveManager.generate64DigitKey() }
+                                    ) {
+                                        Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
+                                        Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                                        Text(stringResource(R.string.settings_drive_key_regenerate), style = MaterialTheme.typography.labelMedium)
+                                    }
+                                }
+
+                                Surface(
+                                    shape = RoundedCornerShape(Dimensions.CornerRadius.small),
+                                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.settings_drive_key_warning),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                        modifier = Modifier.padding(Dimensions.Spacing.sm)
+                                    )
+                                }
                             }
                         }
                     }
@@ -1063,7 +1183,11 @@ fun SettingsScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        val passChars = if (isPinMethod) syncPinText.toCharArray() else generated64Key.toCharArray()
+                        val passChars = when (selectedProtectionTab) {
+                            0 -> MnemonicManager.normalizePhrase(generatedMnemonicWords.joinToString(" ")).toCharArray()
+                            1 -> masterPasswordText.toCharArray()
+                            else -> generated64Key.toCharArray()
+                        }
                         showDriveProtectDialog = false
                         scope.launch {
                             isDriveLoading = true
@@ -1126,8 +1250,8 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
 
                     OutlinedTextField(
-                        value = restoreKeyOrPinText,
-                        onValueChange = { restoreKeyOrPinText = it },
+                        value = restoreSecretText,
+                        onValueChange = { restoreSecretText = it },
                         label = { Text(stringResource(R.string.settings_drive_decrypt_input_label)) },
                         visualTransformation = if (isRestoreSecretVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         trailingIcon = {
@@ -1146,7 +1270,12 @@ fun SettingsScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        val passChars = restoreKeyOrPinText.toCharArray()
+                        val normalizedSecret = if (restoreSecretText.contains(" ")) {
+                            MnemonicManager.normalizePhrase(restoreSecretText)
+                        } else {
+                            restoreSecretText.trim()
+                        }
+                        val passChars = normalizedSecret.toCharArray()
                         showDriveDecryptDialog = false
                         scope.launch {
                             isDriveLoading = true
@@ -1174,7 +1303,7 @@ fun SettingsScreen(
                             }
                         }
                     },
-                    enabled = restoreKeyOrPinText.isNotBlank(),
+                    enabled = restoreSecretText.isNotBlank(),
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                 ) {
                     Text(stringResource(R.string.settings_drive_decrypt_and_restore), style = MaterialTheme.typography.labelLarge)

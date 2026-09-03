@@ -115,193 +115,200 @@ fun AccountDetailsDialog(
     val isFormValid = editedIssuer.isNotBlank() && hasChanges
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = {
+            if (showDeleteConfirm) {
+                showDeleteConfirm = false
+            } else {
+                onDismiss()
+            }
+        },
         title = {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
+            if (showDeleteConfirm) {
                 Text(
-                    text = if (isEditMode) stringResource(R.string.account_modal_edit_title) else stringResource(R.string.account_modal_title),
+                    text = stringResource(R.string.home_delete_dialog_title),
                     style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.error
                 )
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = if (isEditMode) stringResource(R.string.account_modal_edit_title) else stringResource(R.string.account_modal_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
 
-                // Iconos de acción arriba a la derecha: Lápiz y Basurero
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(
-                        onClick = { isEditMode = !isEditMode },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (isEditMode) Icons.Filled.Close else Icons.Filled.Edit,
-                            contentDescription = if (isEditMode) stringResource(R.string.action_cancel_edit) else stringResource(R.string.action_edit),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
+                    // Iconos de acción arriba a la derecha: Lápiz y Basurero
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = { isEditMode = !isEditMode },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isEditMode) Icons.Filled.Close else Icons.Filled.Edit,
+                                contentDescription = if (isEditMode) stringResource(R.string.action_cancel_edit) else stringResource(R.string.action_edit),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
 
-                    IconButton(
-                        onClick = { showDeleteConfirm = true },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.DeleteOutline,
-                            contentDescription = stringResource(R.string.action_delete),
-                            tint = UrgentRed
-                        )
+                        IconButton(
+                            onClick = { showDeleteConfirm = true },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.DeleteOutline,
+                                contentDescription = stringResource(R.string.action_delete),
+                                tint = UrgentRed
+                            )
+                        }
                     }
                 }
             }
         },
         text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.lg)
-            ) {
-                if (!isEditMode) {
-                    // --- MODO VISUALIZACIÓN: Tipografía limpia con Avatar de Marca ---
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = Dimensions.Spacing.xs),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        ServiceBrandAvatar(
-                            issuer = account.issuer,
-                            size = 50.dp
-                        )
-
-                        Spacer(modifier = Modifier.width(Dimensions.Spacing.md))
-
-                        Column {
-                            Text(
-                                text = account.issuer.ifEmpty { stringResource(R.string.home_default_issuer) },
-                                style = MaterialTheme.typography.headlineSmall,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-
-                            if (account.accountName.isNotBlank()) {
-                                Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
-                                Text(
-                                    text = account.accountName,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-
-                    // Dígitos grandes abajo con el contador circular integrado
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(Dimensions.CornerRadius.large))
-                            .clickable {
-                                onCopyCode(accountWithCode.code)
-                                copied = true
-                            },
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        ),
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.large)
-                    ) {
+            if (showDeleteConfirm) {
+                Text(
+                    text = stringResource(R.string.home_delete_dialog_message),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            } else {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.lg)
+                ) {
+                    if (!isEditMode) {
+                        // --- MODO VISUALIZACIÓN: Tipografía limpia con Avatar de Marca ---
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = Dimensions.Spacing.lg, horizontal = Dimensions.Spacing.lg),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                                .padding(vertical = Dimensions.Spacing.xs),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            ServiceBrandAvatar(
+                                issuer = account.issuer,
+                                size = 50.dp
+                            )
+
+                            Spacer(modifier = Modifier.width(Dimensions.Spacing.md))
+
+                            Column {
                                 Text(
-                                    text = formattedCode,
-                                    style = MaterialTheme.typography.displayMedium,
-                                    color = MaterialTheme.colorScheme.primary
+                                    text = account.issuer.ifEmpty { stringResource(R.string.home_default_issuer) },
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
 
-                                AnimatedVisibility(
-                                    visible = copied,
-                                    enter = fadeIn(animationSpec = Motion.Spec.quickFadeSpec()),
-                                    exit = fadeOut(animationSpec = Motion.Spec.quickFadeSpec())
-                                ) {
-                                    Row {
-                                        Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
-                                        Icon(
-                                            imageVector = Icons.Filled.Check,
-                                            contentDescription = stringResource(R.string.action_copied),
-                                            tint = SafeGreen,
-                                            modifier = Modifier.size(Dimensions.IconSize.large)
-                                        )
-                                    }
+                                if (account.accountName.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
+                                    Text(
+                                        text = account.accountName,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
                             }
+                        }
 
-                            if (account.type == OtpType.TOTP) {
-                                CircularTimeProgress(
-                                    remainingSeconds = accountWithCode.remainingSeconds,
-                                    progress = accountWithCode.progress
-                                )
+                        // Dígitos grandes abajo con el contador circular integrado
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(Dimensions.CornerRadius.large))
+                                .clickable {
+                                    onCopyCode(accountWithCode.code)
+                                    copied = true
+                                },
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            ),
+                            shape = RoundedCornerShape(Dimensions.CornerRadius.large)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = Dimensions.Spacing.lg, horizontal = Dimensions.Spacing.lg),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = formattedCode,
+                                        style = MaterialTheme.typography.displayMedium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+
+                                    AnimatedVisibility(
+                                        visible = copied,
+                                        enter = fadeIn(animationSpec = Motion.Spec.quickFadeSpec()),
+                                        exit = fadeOut(animationSpec = Motion.Spec.quickFadeSpec())
+                                    ) {
+                                        Row {
+                                            Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
+                                            Icon(
+                                                imageVector = Icons.Filled.Check,
+                                                contentDescription = stringResource(R.string.action_copied),
+                                                tint = SafeGreen,
+                                                modifier = Modifier.size(Dimensions.IconSize.large)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (account.type == OtpType.TOTP) {
+                                    CircularTimeProgress(
+                                        remainingSeconds = accountWithCode.remainingSeconds,
+                                        progress = accountWithCode.progress
+                                    )
+                                }
                             }
                         }
+                    } else {
+                        // --- MODO EDICIÓN: Campos de texto para modificar nombre del servicio y cuenta ---
+                        OutlinedTextField(
+                            value = editedIssuer,
+                            onValueChange = { editedIssuer = it },
+                            label = { Text(stringResource(R.string.account_modal_issuer_label), style = MaterialTheme.typography.bodyMedium) },
+                            singleLine = true,
+                            leadingIcon = {
+                                Icon(Icons.Filled.Business, contentDescription = null)
+                            },
+                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        OutlinedTextField(
+                            value = editedAccountName,
+                            onValueChange = { editedAccountName = it },
+                            label = { Text(stringResource(R.string.account_modal_name_label), style = MaterialTheme.typography.bodyMedium) },
+                            singleLine = true,
+                            leadingIcon = {
+                                Icon(Icons.Filled.PersonOutline, contentDescription = null)
+                            },
+                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        // Botón animado reutilizable de Guardar cambios
+                        AppAnimatedButton(
+                            text = stringResource(R.string.action_save_changes),
+                            enabled = isFormValid,
+                            onClick = {
+                                onUpdateAccount(account.id, editedIssuer.trim(), editedAccountName.trim())
+                                true
+                            },
+                            onActionConfirmed = {
+                                isEditMode = false
+                            }
+                        )
                     }
-                } else {
-                    // --- MODO EDICIÓN: Campos de texto para modificar nombre del servicio y cuenta ---
-                    OutlinedTextField(
-                        value = editedIssuer,
-                        onValueChange = { editedIssuer = it },
-                        label = { Text(stringResource(R.string.account_modal_issuer_label), style = MaterialTheme.typography.bodyMedium) },
-                        singleLine = true,
-                        leadingIcon = {
-                            Icon(Icons.Filled.Business, contentDescription = null)
-                        },
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = editedAccountName,
-                        onValueChange = { editedAccountName = it },
-                        label = { Text(stringResource(R.string.account_modal_name_label), style = MaterialTheme.typography.bodyMedium) },
-                        singleLine = true,
-                        leadingIcon = {
-                            Icon(Icons.Filled.PersonOutline, contentDescription = null)
-                        },
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    // Botón animado reutilizable de Guardar cambios
-                    AppAnimatedButton(
-                        text = stringResource(R.string.action_save_changes),
-                        enabled = isFormValid,
-                        onClick = {
-                            onUpdateAccount(account.id, editedIssuer.trim(), editedAccountName.trim())
-                            true
-                        },
-                        onActionConfirmed = {
-                            isEditMode = false
-                        }
-                    )
                 }
             }
         },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.account_modal_close_button), style = MaterialTheme.typography.labelLarge)
-            }
-        },
-        modifier = modifier
-    )
-
-    // Modal de confirmación para eliminar
-    if (showDeleteConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            title = { Text(stringResource(R.string.home_delete_dialog_title), style = MaterialTheme.typography.titleLarge) },
-            text = { Text(stringResource(R.string.home_delete_dialog_message), style = MaterialTheme.typography.bodyMedium) },
-            confirmButton = {
+        confirmButton = {
+            if (showDeleteConfirm) {
                 Button(
                     onClick = {
                         showDeleteConfirm = false
@@ -313,12 +320,19 @@ fun AccountDetailsDialog(
                 ) {
                     Text(stringResource(R.string.action_delete), style = MaterialTheme.typography.labelLarge)
                 }
-            },
-            dismissButton = {
+            }
+        },
+        dismissButton = {
+            if (showDeleteConfirm) {
                 TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(R.string.settings_drive_details_back), style = MaterialTheme.typography.labelLarge)
+                }
+            } else {
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.account_modal_close_button), style = MaterialTheme.typography.labelLarge)
                 }
             }
-        )
-    }
+        },
+        modifier = modifier
+    )
 }

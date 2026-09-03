@@ -123,13 +123,13 @@ fun SettingsScreen(
 
     val accounts by repository.getAccounts().collectAsStateWithLifecycle(initialValue = emptyList())
 
-    // Estados para el flujo de exportación por QR
-    var showSelectServicesDialog by remember { mutableStateOf(false) }
+    // Estados para el flujo de exportación por QR (unificado en un solo modal dinámico)
+    var showExportDialog by remember { mutableStateOf(false) }
+    var isShowingQrInExportDialog by remember { mutableStateOf(false) }
     val selectedServiceIds = remember { mutableStateListOf<String>() }
     var keepServicesOnDevice by remember { mutableStateOf(true) }
     var exportedServiceIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var transferQrBitmap by remember { mutableStateOf<Bitmap?>(null) }
-    var showExportQrDialog by remember { mutableStateOf(false) }
 
     // Estados para la sincronización persistente con Google Identity Services
     val authClient = remember { GoogleDriveManager.getAuthorizationClient(context) }
@@ -351,7 +351,8 @@ fun SettingsScreen(
                                     selectedServiceIds.clear()
                                     selectedServiceIds.addAll(accounts.map { it.id })
                                     keepServicesOnDevice = true
-                                    showSelectServicesDialog = true
+                                    isShowingQrInExportDialog = false
+                                    showExportDialog = true
                                 }
                             },
                             modifier = Modifier.weight(1f),
@@ -667,211 +668,209 @@ fun SettingsScreen(
         }
     }
 
-    // Modal: Selección de Servicios y Opción de Retención (Exportación QR)
-    if (showSelectServicesDialog) {
+    // Modal Unificado: Selección de Servicios y Visualización de Código QR para Transferencia
+    if (showExportDialog) {
         AlertDialog(
-            onDismissRequest = { showSelectServicesDialog = false },
+            onDismissRequest = {
+                showExportDialog = false
+                isShowingQrInExportDialog = false
+            },
             title = {
                 Text(
-                    text = stringResource(R.string.settings_export_services_dialog_title),
+                    text = if (isShowingQrInExportDialog) {
+                        stringResource(R.string.settings_export_qr_dialog_title)
+                    } else {
+                        stringResource(R.string.settings_export_services_dialog_title)
+                    },
                     style = MaterialTheme.typography.titleLarge
                 )
             },
             text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
-                ) {
-                    Text(
-                        text = stringResource(R.string.settings_export_services_dialog_description),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
-
+                if (!isShowingQrInExportDialog) {
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 240.dp)
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
                     ) {
-                        accounts.forEach { account ->
-                            val isSelected = account.id in selectedServiceIds
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        if (isSelected) {
-                                            selectedServiceIds.remove(account.id)
-                                        } else {
-                                            selectedServiceIds.add(account.id)
+                        Text(
+                            text = stringResource(R.string.settings_export_services_dialog_description),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 240.dp)
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                        ) {
+                            accounts.forEach { account ->
+                                val isSelected = account.id in selectedServiceIds
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            if (isSelected) {
+                                                selectedServiceIds.remove(account.id)
+                                            } else {
+                                                selectedServiceIds.add(account.id)
+                                            }
                                         }
-                                    }
-                                    .padding(vertical = Dimensions.Spacing.xs),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                ServiceBrandAvatar(
-                                    issuer = account.issuer,
-                                    size = 36.dp
-                                )
-                                Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = account.issuer,
-                                        style = MaterialTheme.typography.titleSmall
+                                        .padding(vertical = Dimensions.Spacing.xs),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    ServiceBrandAvatar(
+                                        issuer = account.issuer,
+                                        size = 36.dp
                                     )
-                                    if (account.accountName.isNotBlank()) {
+                                    Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
+                                    Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = account.accountName,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            text = account.issuer,
+                                            style = MaterialTheme.typography.titleSmall
                                         )
-                                    }
-                                }
-                                Checkbox(
-                                    checked = isSelected,
-                                    onCheckedChange = { checked ->
-                                        if (checked) {
-                                            selectedServiceIds.add(account.id)
-                                        } else {
-                                            selectedServiceIds.remove(account.id)
+                                        if (account.accountName.isNotBlank()) {
+                                            Text(
+                                                text = account.accountName,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
                                         }
                                     }
+                                    Checkbox(
+                                        checked = isSelected,
+                                        onCheckedChange = { checked ->
+                                            if (checked) {
+                                                selectedServiceIds.add(account.id)
+                                            } else {
+                                                selectedServiceIds.remove(account.id)
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = Dimensions.Spacing.xs))
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { keepServicesOnDevice = !keepServicesOnDevice }
+                                .padding(vertical = Dimensions.Spacing.xs),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f).padding(end = Dimensions.Spacing.sm)) {
+                                Text(
+                                    text = stringResource(R.string.settings_keep_services_label),
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                                Text(
+                                    text = stringResource(R.string.settings_keep_services_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = keepServicesOnDevice,
+                                onCheckedChange = { keepServicesOnDevice = it },
+                                colors = SwitchDefaults.colors(
+                                    uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    uncheckedBorderColor = MaterialTheme.colorScheme.outline
+                                )
+                            )
+                        }
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                    ) {
+                        transferQrBitmap?.let { bitmap ->
+                            Surface(
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                color = Color.White,
+                                modifier = Modifier.padding(Dimensions.Spacing.sm)
+                            ) {
+                                Image(
+                                    bitmap = bitmap.asImageBitmap(),
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .size(240.dp)
+                                        .padding(Dimensions.Spacing.sm)
                                 )
                             }
                         }
-                    }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = Dimensions.Spacing.xs))
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { keepServicesOnDevice = !keepServicesOnDevice }
-                            .padding(vertical = Dimensions.Spacing.xs),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = Dimensions.Spacing.sm)) {
-                            Text(
-                                text = stringResource(R.string.settings_keep_services_label),
-                                style = MaterialTheme.typography.labelLarge
-                            )
-                            Text(
-                                text = stringResource(R.string.settings_keep_services_description),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Switch(
-                            checked = keepServicesOnDevice,
-                            onCheckedChange = { keepServicesOnDevice = it },
-                            colors = SwitchDefaults.colors(
-                                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
-                                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
-                                uncheckedBorderColor = MaterialTheme.colorScheme.outline
-                            )
+                        Text(
+                            text = stringResource(R.string.settings_export_qr_dialog_hint),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        val idsToExport = selectedServiceIds.toSet()
-                        scope.launch {
-                            val payload = repository.exportAccountsForTransfer(idsToExport)
-                            transferQrBitmap = QrCodeGenerator.generateQrBitmap(payload, size = 600)
-                            exportedServiceIds = idsToExport
-                            showSelectServicesDialog = false
-                            showExportQrDialog = true
-                        }
-                    },
-                    enabled = selectedServiceIds.isNotEmpty(),
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                ) {
-                    Text(stringResource(R.string.settings_generate_qr_button), style = MaterialTheme.typography.labelLarge)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showSelectServicesDialog = false }) {
-                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
-                }
-            }
-        )
-    }
-
-    // Modal: Visualizar Código QR generado y Confirmar Transferencia
-    if (showExportQrDialog && transferQrBitmap != null) {
-        AlertDialog(
-            onDismissRequest = { showExportQrDialog = false },
-            title = {
-                Text(
-                    text = stringResource(R.string.settings_export_qr_dialog_title),
-                    style = MaterialTheme.typography.titleLarge
-                )
-            },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
-                ) {
-                    transferQrBitmap?.let { bitmap ->
-                        Surface(
-                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                            color = Color.White,
-                            modifier = Modifier.padding(Dimensions.Spacing.sm)
-                        ) {
-                            Image(
-                                bitmap = bitmap.asImageBitmap(),
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(240.dp)
-                                    .padding(Dimensions.Spacing.sm)
-                            )
-                        }
-                    }
-
-                    Text(
-                        text = stringResource(R.string.settings_export_qr_dialog_hint),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (!keepServicesOnDevice && exportedServiceIds.isNotEmpty()) {
+                if (!isShowingQrInExportDialog) {
+                    Button(
+                        onClick = {
+                            val idsToExport = selectedServiceIds.toSet()
                             scope.launch {
-                                exportedServiceIds.forEach { id ->
-                                    repository.deleteAccount(id)
-                                }
-                                snackbarHostState.showSnackbar(servicesDeletedMsg)
+                                val payload = repository.exportAccountsForTransfer(idsToExport)
+                                transferQrBitmap = QrCodeGenerator.generateQrBitmap(payload, size = 600)
+                                exportedServiceIds = idsToExport
+                                isShowingQrInExportDialog = true
                             }
-                        }
-                        showExportQrDialog = false
-                    },
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                ) {
-                    Text(
-                        text = if (!keepServicesOnDevice) {
-                            stringResource(R.string.settings_export_confirm_done)
-                        } else {
-                            stringResource(R.string.account_modal_close_button)
                         },
-                        style = MaterialTheme.typography.labelLarge
-                    )
+                        enabled = selectedServiceIds.isNotEmpty(),
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                    ) {
+                        Text(stringResource(R.string.settings_generate_qr_button), style = MaterialTheme.typography.labelLarge)
+                    }
+                } else {
+                    Button(
+                        onClick = {
+                            if (!keepServicesOnDevice && exportedServiceIds.isNotEmpty()) {
+                                scope.launch {
+                                    exportedServiceIds.forEach { id ->
+                                        repository.deleteAccount(id)
+                                    }
+                                    snackbarHostState.showSnackbar(servicesDeletedMsg)
+                                }
+                            }
+                            showExportDialog = false
+                            isShowingQrInExportDialog = false
+                        },
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                    ) {
+                        Text(
+                            text = if (!keepServicesOnDevice) {
+                                stringResource(R.string.settings_export_confirm_done)
+                            } else {
+                                stringResource(R.string.account_modal_close_button)
+                            },
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
                 }
             },
             dismissButton = {
-                if (!keepServicesOnDevice) {
-                    TextButton(onClick = { showExportQrDialog = false }) {
-                        Text(stringResource(R.string.account_modal_close_button), style = MaterialTheme.typography.labelLarge)
+                if (!isShowingQrInExportDialog) {
+                    TextButton(onClick = {
+                        showExportDialog = false
+                        isShowingQrInExportDialog = false
+                    }) {
+                        Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
+                    }
+                } else {
+                    TextButton(onClick = { isShowingQrInExportDialog = false }) {
+                        Text(stringResource(R.string.settings_drive_details_back), style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }

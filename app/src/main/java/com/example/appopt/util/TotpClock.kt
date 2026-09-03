@@ -2,6 +2,7 @@ package com.example.appopt.util
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,7 +27,7 @@ object TotpClock {
     val currentSecondEpoch: StateFlow<Long> = _currentSecondEpoch.asStateFlow()
 
     init {
-        CoroutineScope(Dispatchers.Default).launch {
+        CoroutineScope(Dispatchers.Default + SupervisorJob()).launch {
             while (true) {
                 val now = System.currentTimeMillis()
                 _currentSecondEpoch.value = now / 1000L

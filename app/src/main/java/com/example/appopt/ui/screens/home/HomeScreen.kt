@@ -441,16 +441,18 @@ fun HomeScreen(
                             onToggleFavorite = onToggleFavorite,
                             onNextHotpCode = onNextHotpCode,
                             onStartDrag = {
-                                localAccounts.clear()
-                                localAccounts.addAll(currentSuccessAccounts)
-                                draggingAccountId = item.account.id
-                                val layoutInfo = listState.layoutInfo
-                                val draggedItem = layoutInfo.visibleItemsInfo.find { it.key == item.account.id }
-                                val itemTop = draggedItem?.offset?.toFloat() ?: 0f
-                                val itemHeight = draggedItem?.size?.toFloat() ?: 120f
-                                touchOffsetYInCard = itemHeight / 2f
-                                pointerViewportY = itemTop + touchOffsetYInCard
-                                lastSwapTime = System.currentTimeMillis()
+                                if (searchQuery.isBlank()) {
+                                    localAccounts.clear()
+                                    localAccounts.addAll(currentSuccessAccounts)
+                                    draggingAccountId = item.account.id
+                                    val layoutInfo = listState.layoutInfo
+                                    val draggedItem = layoutInfo.visibleItemsInfo.find { it.key == item.account.id }
+                                    val itemTop = draggedItem?.offset?.toFloat() ?: 0f
+                                    val itemHeight = draggedItem?.size?.toFloat() ?: 120f
+                                    touchOffsetYInCard = itemHeight / 2f
+                                    pointerViewportY = itemTop + touchOffsetYInCard
+                                    lastSwapTime = System.currentTimeMillis()
+                                }
                             },
                             onDragDelta = { deltaY, _ ->
                                 if (draggingAccountId == item.account.id) {

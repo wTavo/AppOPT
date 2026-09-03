@@ -86,6 +86,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -171,7 +172,15 @@ fun SettingsScreen(
     var isConfirmingDeleteInDialog by remember { mutableStateOf(false) }
     val isFpsOverlayEnabled by prefsManager.isFpsOverlayEnabledFlow.collectAsStateWithLifecycle()
 
-    val formattedLastSync = remember(lastSyncTimestamp) {
+    var currentTick by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(15_000L) // Actualiza el tiempo relativo en pantalla cada 15 segundos
+            currentTick = System.currentTimeMillis()
+        }
+    }
+
+    val formattedLastSync = remember(lastSyncTimestamp, currentTick) {
         if (lastSyncTimestamp == 0L) {
             null
         } else {
@@ -199,7 +208,9 @@ fun SettingsScreen(
 
     LaunchedEffect(Unit) {
         if (prefsManager.isGoogleDriveConnected()) {
-            isCheckingDriveBackup = true
+            if (lastSyncTimestamp == 0L) {
+                isCheckingDriveBackup = true
+            }
             authClient.authorize(GoogleDriveManager.getAuthorizationRequest())
                 .addOnSuccessListener { result ->
                     if (!result.hasResolution() && result.accessToken != null) {

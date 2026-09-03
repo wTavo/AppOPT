@@ -129,7 +129,7 @@ fun HomeScreen(
     val listState = rememberLazyListState()
 
     // Motor de auto-scroll continuo cuando se arrastra una tarjeta cerca de los bordes superior/inferior
-    LaunchedEffect(draggingAccountId, dragOffsetY) {
+    LaunchedEffect(draggingAccountId) {
         if (draggingAccountId != null) {
             while (true) {
                 val layoutInfo = listState.layoutInfo

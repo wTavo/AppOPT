@@ -177,6 +177,18 @@ fun SettingsScreen(
         }
     }
 
+    val currentVaultHash = remember(accounts) {
+        if (accounts.isEmpty()) "" else CloudVaultSyncManager.computeAccountsSignature(accounts)
+    }
+    val hasUnsyncedChanges = remember(currentVaultHash, lastSyncTimestamp) {
+        if (accounts.isEmpty()) {
+            false
+        } else {
+            val lastHash = prefsManager.getLastSyncedVaultHash()
+            lastHash.isNullOrEmpty() || currentVaultHash != lastHash
+        }
+    }
+
     // Autorización silenciosa y comprobación de respaldo al abrir la pantalla si ya estaba configurada
     var driveBackupExists by remember { mutableStateOf(false) }
 
@@ -625,8 +637,8 @@ fun SettingsScreen(
                                 )
                             }
                         }
-                    } else if (lastSyncTimestamp > 0L) {
-                        // Estado: Ya sincronizado (Botón animado de "Sincronizar ahora")
+                    } else if (lastSyncTimestamp > 0L && hasUnsyncedChanges) {
+                        // Estado: Ya sincronizado previamente pero con cambios pendientes (Botón animado de "Sincronizar ahora")
                         val animatedSyncColor by animateColorAsState(
                             targetValue = when (syncButtonState) {
                                 SyncButtonState.SUCCESS -> SafeGreen
@@ -651,7 +663,7 @@ fun SettingsScreen(
                                                     val uploadResult = GoogleDriveManager.uploadBackup(token, payload, autoSyncKey)
                                                     uploadResult.onSuccess {
                                                         val now = System.currentTimeMillis()
-                                                        val currentHash = CloudVaultSyncManager.computeVaultHash(payload)
+                                                        val currentHash = CloudVaultSyncManager.computeAccountsSignature(accounts)
                                                         lastSyncTimestamp = now
                                                         prefsManager.setLastSyncTimestamp(now)
                                                         prefsManager.setLastSyncedVaultHash(currentHash)

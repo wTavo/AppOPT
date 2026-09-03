@@ -7,6 +7,7 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import com.example.appopt.domain.model.TotpAccount
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
@@ -53,6 +54,19 @@ object CloudVaultSyncManager {
         val digest = MessageDigest.getInstance("SHA-256")
         val hashBytes = digest.digest(payload.toByteArray(StandardCharsets.UTF_8))
         return hashBytes.joinToString("") { "%02x".format(it) }
+    }
+
+    /**
+     * Calcula la firma hash determinística de una lista de cuentas en memoria.
+     *
+     * @param accounts Lista de cuentas registradas en la bóveda.
+     * @return Huella SHA-256 representativa del conjunto de cuentas.
+     */
+    fun computeAccountsSignature(accounts: List<TotpAccount>): String {
+        val raw = accounts.sortedBy { it.id }.joinToString("|") {
+            "${it.id}:${it.accountName}:${it.issuer}:${it.period}:${it.digits}:${it.algorithm}:${it.updatedAt}:${it.orderIndex}"
+        }
+        return computeVaultHash(raw)
     }
 
     /**

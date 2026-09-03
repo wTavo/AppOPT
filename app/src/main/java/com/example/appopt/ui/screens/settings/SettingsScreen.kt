@@ -502,39 +502,20 @@ fun SettingsScreen(
                             )
                         }
 
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                        Surface(
+                            shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
+                            color = if (isDriveConnected) SafeGreen.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant
                         ) {
-                            Surface(
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
-                                color = if (isDriveConnected) SafeGreen.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant
-                            ) {
-                                Text(
-                                    text = if (isDriveConnected) {
-                                        stringResource(R.string.settings_drive_status_synced)
-                                    } else {
-                                        stringResource(R.string.settings_drive_status_not_synced)
-                                    },
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = if (isDriveConnected) SafeGreen else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs)
-                                )
-                            }
-
-                            if (isDriveConnected) {
-                                IconButton(
-                                    onClick = { showDisconnectConfirmDialog = true },
-                                    modifier = Modifier.size(Dimensions.IconSize.large)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.SyncDisabled,
-                                        contentDescription = stringResource(R.string.settings_drive_disconnect_button),
-                                        tint = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.size(Dimensions.IconSize.small)
-                                    )
-                                }
-                            }
+                            Text(
+                                text = if (isDriveConnected) {
+                                    stringResource(R.string.settings_drive_status_synced)
+                                } else {
+                                    stringResource(R.string.settings_drive_status_not_synced)
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (isDriveConnected) SafeGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs)
+                            )
                         }
                     }
 
@@ -565,14 +546,19 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.sm),
+                                modifier = Modifier.padding(
+                                    start = Dimensions.Spacing.md,
+                                    end = Dimensions.Spacing.xs,
+                                    top = Dimensions.Spacing.xs,
+                                    bottom = Dimensions.Spacing.xs
+                                ),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
-                                    modifier = Modifier.weight(1f, fill = false)
+                                    modifier = Modifier.weight(1f)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Filled.CloudDone,
@@ -591,11 +577,14 @@ fun SettingsScreen(
                                     )
                                 }
 
-                                if (hasBackupInfo) {
+                                IconButton(
+                                    onClick = { showDisconnectConfirmDialog = true },
+                                    modifier = Modifier.size(Dimensions.IconSize.large)
+                                ) {
                                     Icon(
-                                        imageVector = Icons.Filled.ChevronRight,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        imageVector = Icons.Filled.SyncDisabled,
+                                        contentDescription = stringResource(R.string.settings_drive_disconnect_button),
+                                        tint = MaterialTheme.colorScheme.error,
                                         modifier = Modifier.size(Dimensions.IconSize.small)
                                     )
                                 }

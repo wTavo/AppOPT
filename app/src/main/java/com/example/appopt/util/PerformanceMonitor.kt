@@ -75,36 +75,32 @@ object PerformanceMonitor {
                 val frameDurationNanos = frameTimeNanos - lastFrameNanos
                 val frameDurationMs = frameDurationNanos / 1_000_000f
 
-                accumulatedFrameDurationNanos += frameDurationNanos
-                framesInWindow++
+                // Pausas largas (> 64ms) corresponden a inactividad/idle entre toques, no a caídas de fotograma activas
+                if (frameDurationMs <= 64f) {
+                    accumulatedFrameDurationNanos += frameDurationNanos
+                    framesInWindow++
 
-                // Un fotograma de más de 17 ms indica caída por debajo de 60 FPS
-                if (frameDurationMs > 17f) {
-                    _jankCount.value++
-                    janksInWindow++
-                    Log.w(
-                        TAG,
-                        "⚠️ Jank detectado: Fotograma tomó ${String.format(Locale.US, "%.1f", frameDurationMs)} ms (límite: 16.6 ms)"
-                    )
+                    // Fotograma con retraso (> 17.5ms) durante renderizado activo
+                    if (frameDurationMs > 17.5f) {
+                        janksInWindow++
+                    }
                 }
 
                 // Ventana de muestreo de 1 segundo (1_000_000_000 ns)
                 if (windowStartNanos == 0L) {
                     windowStartNanos = frameTimeNanos
                 } else if (frameTimeNanos - windowStartNanos >= 1_000_000_000L) {
-                    val elapsedSeconds = (frameTimeNanos - windowStartNanos) / 1_000_000_000f
-                    val calculatedFps = (framesInWindow / elapsedSeconds).toInt()
                     val avgDurationMs = if (framesInWindow > 0) {
                         (accumulatedFrameDurationNanos / framesInWindow) / 1_000_000f
                     } else 0f
 
+                    val calculatedFps = if (avgDurationMs > 0f) {
+                        (1000f / avgDurationMs).toInt().coerceIn(0, 120)
+                    } else 0
+
                     _currentFps.value = calculatedFps
                     _averageFrameTimeMs.value = avgDurationMs
-
-                    Log.i(
-                        TAG,
-                        "📊 [FPS] $calculatedFps FPS | Frame Promedio: ${String.format(Locale.US, "%.1f", avgDurationMs)} ms | Tirones: $janksInWindow | Acumulados: ${_jankCount.value}"
-                    )
+                    _jankCount.value += janksInWindow
 
                     // Reiniciar ventana
                     windowStartNanos = frameTimeNanos

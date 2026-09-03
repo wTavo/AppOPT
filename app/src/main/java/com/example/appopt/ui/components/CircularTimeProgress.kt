@@ -6,11 +6,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.StrokeCap
@@ -20,18 +16,19 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.appopt.R
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.UrgentRed
 import com.example.appopt.ui.theme.WarningOrange
-import kotlinx.coroutines.delay
+import com.example.appopt.util.TotpClock
 
 /**
  * Indicador visual circular del tiempo restante en la ventana de rotación TOTP con renderizado directo en Canvas.
  *
  * Características de ultra alto rendimiento:
  * - Dibuja directamente los arcos mediante [Canvas] y [Stroke] evitando envoltorios pesados de Material.
- * - Sincronizado exactamente al segundo reloj (1 Hz) sin generar recomposiciones durante el scroll.
+ * - Sincronizado centralmente mediante [TotpClock] sin instanciar corrutinas independientes por cada tarjeta.
  * - Muestra los segundos restantes en el centro con tipografía semántica.
  * - Incluye descripción semántica para lectores de pantalla TalkBack.
  *
@@ -43,18 +40,8 @@ fun CircularTimeProgress(
     period: Int = 30,
     modifier: Modifier = Modifier
 ) {
-    var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
-
-    LaunchedEffect(Unit) {
-        while (true) {
-            val now = System.currentTimeMillis()
-            currentTime = now
-            val millisUntilNextSecond = 1000L - (now % 1000L)
-            delay(millisUntilNextSecond.coerceAtLeast(50L))
-        }
-    }
-
-    val remainingSeconds = (period - ((currentTime / 1000L) % period)).toInt().coerceIn(1, period)
+    val currentSecond by TotpClock.currentSecondEpoch.collectAsStateWithLifecycle()
+    val remainingSeconds = (period - (currentSecond % period)).toInt().coerceIn(1, period)
     val sweepAngle = (remainingSeconds.toFloat() / period.toFloat()) * 360f
 
     val color = when {

@@ -828,44 +828,6 @@ fun SettingsScreen(
                                         )
                                     }
                                 }
-
-                                // Fila: Eliminar copia de seguridad (si existe alguna registrada)
-                                if (formattedLastSync != null || driveBackupExists) {
-                                    HorizontalDivider(modifier = Modifier.padding(vertical = Dimensions.Spacing.xs))
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                isConfirmingDeleteInDialog = true
-                                                showBackupDetailsDialog = true
-                                            }
-                                            .padding(vertical = Dimensions.Spacing.xs),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Filled.DeleteOutline,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.error,
-                                                modifier = Modifier.size(Dimensions.IconSize.small)
-                                            )
-                                            Text(
-                                                text = stringResource(R.string.settings_drive_delete_button),
-                                                style = MaterialTheme.typography.titleSmall,
-                                                color = MaterialTheme.colorScheme.error
-                                            )
-                                        }
-                                        Icon(
-                                            imageVector = Icons.Filled.ChevronRight,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
-                                        )
-                                    }
-                                }
                             }
                         }
                     }

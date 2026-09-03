@@ -525,11 +525,12 @@ fun SettingsScreen(
 
                     // 3. Estado de última copia (Contenedor interactivo)
                     if (isDriveConnected) {
+                        val hasBackupInfo = formattedLastSync != null || driveBackupExists
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .then(
-                                    if (formattedLastSync != null) {
+                                    if (hasBackupInfo) {
                                         Modifier.clickable {
                                             isConfirmingDeleteInDialog = false
                                             showBackupDetailsDialog = true
@@ -554,21 +555,21 @@ fun SettingsScreen(
                                     Icon(
                                         imageVector = Icons.Filled.CloudDone,
                                         contentDescription = null,
-                                        tint = if (formattedLastSync != null) SafeGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        tint = if (hasBackupInfo) SafeGreen else MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(Dimensions.IconSize.small)
                                     )
                                     Text(
-                                        text = if (formattedLastSync != null) {
-                                            stringResource(R.string.settings_drive_last_sync, formattedLastSync)
-                                        } else {
-                                            stringResource(R.string.settings_drive_last_sync_never)
+                                        text = when {
+                                            formattedLastSync != null -> stringResource(R.string.settings_drive_last_sync, formattedLastSync)
+                                            driveBackupExists -> stringResource(R.string.settings_drive_backup_found)
+                                            else -> stringResource(R.string.settings_drive_last_sync_never)
                                         },
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
 
-                                if (formattedLastSync != null) {
+                                if (hasBackupInfo) {
                                     Icon(
                                         imageVector = Icons.Filled.ChevronRight,
                                         contentDescription = null,

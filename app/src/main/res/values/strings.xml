@@ -107,7 +107,8 @@
     <string name="settings_drive_status_not_synced">Sin conectar</string>
     <string name="settings_drive_status_synced">Conectado</string>
     <string name="settings_drive_last_sync">Última copia: %1$s</string>
-    <string name="settings_drive_last_sync_never">Última copia: ninguna</string>
+    <string name="settings_drive_last_sync_never">No hay copias de seguridad en Google Drive</string>
+    <string name="settings_drive_backup_found">Copia de seguridad disponible en Google Drive</string>
     <string name="settings_drive_connect_button">Conectar cuenta de Google</string>
     <string name="settings_drive_sync_button">Sincronizar ahora</string>
     <string name="settings_drive_restore_button">Restaurar de Google Drive</string>

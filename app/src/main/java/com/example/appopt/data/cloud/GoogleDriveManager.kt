@@ -219,7 +219,8 @@ object GoogleDriveManager {
      * Consulta la API de Drive para encontrar el identificador de [BackupFileName] en `appDataFolder`.
      */
     private fun findExistingBackupFileId(accessToken: String): String? {
-        val queryUrl = URL("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name='$BackupFileName'&fields=files(id,name,modifiedTime)&orderBy=modifiedTime+desc")
+        val encodedQuery = java.net.URLEncoder.encode("name = '$BackupFileName' and trashed = false", "UTF-8")
+        val queryUrl = URL("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=$encodedQuery&fields=files(id,name,modifiedTime,trashed)&orderBy=modifiedTime+desc")
         val connection = (queryUrl.openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             setRequestProperty("Authorization", "Bearer $accessToken")

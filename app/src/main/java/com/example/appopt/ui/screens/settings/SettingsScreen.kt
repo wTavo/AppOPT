@@ -508,7 +508,7 @@ fun SettingsScreen(
                         ) {
                             Surface(
                                 shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
-                                color = if (isDriveConnected) SafeGreen.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant
+                                color = if (isDriveConnected) SafeGreen.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
                             ) {
                                 Text(
                                     text = if (isDriveConnected) {
@@ -516,9 +516,9 @@ fun SettingsScreen(
                                     } else {
                                         stringResource(R.string.settings_drive_status_not_synced)
                                     },
-                                    style = MaterialTheme.typography.labelSmall,
+                                    style = MaterialTheme.typography.labelLarge,
                                     color = if (isDriveConnected) SafeGreen else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs)
+                                    modifier = Modifier.padding(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.xs)
                                 )
                             }
 

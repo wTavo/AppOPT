@@ -118,6 +118,20 @@ fun HomeScreen(
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
     var lastSwapTime by remember { mutableLongStateOf(0L) }
 
+    // Resuelve las cuentas de inmediato sin pausas ni pantallas en blanco
+    @Suppress("UNCHECKED_CAST")
+    val currentSuccessAccounts = (uiState as? UiState.Success<*>)?.data as? List<AccountWithCode>
+    val accountsToDisplay = if (localAccounts.isNotEmpty()) localAccounts else (currentSuccessAccounts ?: emptyList())
+
+    // Control de animación escalonada: se ejecuta una sola vez al cargar la lista, nunca durante el scroll
+    var hasAnimatedInitialCascade by remember { mutableStateOf(false) }
+    LaunchedEffect(accountsToDisplay.isNotEmpty()) {
+        if (accountsToDisplay.isNotEmpty() && !hasAnimatedInitialCascade) {
+            kotlinx.coroutines.delay((Motion.Duration.MaxStaggerIndex * Motion.Duration.StaggerStep + Motion.Duration.StaggerItem).toLong())
+            hasAnimatedInitialCascade = true
+        }
+    }
+
     // Sincronización continua de datos en vivo desde UiState (previene parpadeos de carga)
     LaunchedEffect(uiState) {
         when (val state = uiState) {
@@ -158,9 +172,9 @@ fun HomeScreen(
         }
     }
 
-    // Cuenta actualmente seleccionada para el popup modal (reactiva a los ticks en vivo de localAccounts)
+    // Cuenta actualmente seleccionada para el popup modal (reactiva a los ticks en vivo de accountsToDisplay)
     val selectedAccountWithCode = selectedAccountId?.let { id ->
-        localAccounts.find { it.account.id == id }
+        accountsToDisplay.find { it.account.id == id }
     }
 
     Scaffold(
@@ -323,14 +337,14 @@ fun HomeScreen(
                 .padding(paddingValues)
         ) {
             when {
-                localAccounts.isNotEmpty() -> {
+                accountsToDisplay.isNotEmpty() -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(Dimensions.Spacing.lg),
                         verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                     ) {
                     itemsIndexed(
-                        items = localAccounts,
+                        items = accountsToDisplay,
                         key = { _, item -> item.account.id }
                     ) { index, item ->
                         val isDragging = draggingAccountId == item.account.id
@@ -340,13 +354,17 @@ fun HomeScreen(
                             with(density) { Dimensions.Offset.staggerSlideDistance.toPx() }
                         }
 
-                        val staggerAnim = remember { Animatable(0f) }
-                        LaunchedEffect(item.account.id) {
-                            val delayMs = (index.coerceAtMost(Motion.Duration.MaxStaggerIndex) * Motion.Duration.StaggerStep)
-                            staggerAnim.animateTo(
-                                targetValue = 1f,
-                                animationSpec = Motion.Spec.staggerItemSpec(delayMillis = delayMs)
-                            )
+                        val shouldAnimate = !hasAnimatedInitialCascade && index <= Motion.Duration.MaxStaggerIndex
+                        val staggerAnim = remember { Animatable(if (shouldAnimate) 0f else 1f) }
+
+                        if (shouldAnimate) {
+                            LaunchedEffect(item.account.id) {
+                                val delayMs = index * Motion.Duration.StaggerStep
+                                staggerAnim.animateTo(
+                                    targetValue = 1f,
+                                    animationSpec = Motion.Spec.staggerItemSpec(delayMillis = delayMs)
+                                )
+                            }
                         }
 
                         val cardModifier = Modifier

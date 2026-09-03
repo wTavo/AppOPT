@@ -2,6 +2,9 @@ package com.example.appopt.data.local
 
 import android.content.Context
 import android.content.SharedPreferences
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Gestor de preferencias de usuario persistentes (modo de privacidad, etc.).
@@ -121,18 +124,30 @@ class PreferencesManager(context: Context) {
             .apply()
     }
 
+    private val _isFpsOverlayEnabled = kotlinx.coroutines.flow.MutableStateFlow(
+        sharedPreferences.getBoolean(KEY_FPS_OVERLAY, true)
+    )
+    /** Flujo reactivo del estado de visualización de FPS y rendimiento. */
+    val isFpsOverlayEnabledFlow: kotlinx.coroutines.flow.StateFlow<Boolean> = _isFpsOverlayEnabled.asStateFlow()
+
     /**
      * Retorna si la superposición visual de FPS y registros de rendimiento está habilitada.
      */
     fun isFpsOverlayEnabled(): Boolean {
-        return sharedPreferences.getBoolean(KEY_FPS_OVERLAY, true)
+        return _isFpsOverlayEnabled.value
     }
 
     /**
-     * Guarda el estado de la superposición visual de FPS.
+     * Guarda el estado de la superposición visual de FPS y activa/detiene el monitor.
      */
     fun setFpsOverlayEnabled(enabled: Boolean) {
+        _isFpsOverlayEnabled.value = enabled
         sharedPreferences.edit().putBoolean(KEY_FPS_OVERLAY, enabled).apply()
+        if (enabled) {
+            com.example.appopt.util.PerformanceMonitor.start()
+        } else {
+            com.example.appopt.util.PerformanceMonitor.stop()
+        }
     }
 
     companion object {

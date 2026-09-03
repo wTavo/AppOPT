@@ -90,7 +90,7 @@ fun AppNavigation() {
         }
 
         val prefs = remember { AuthenticatorApp.instance.preferencesManager }
-        val isFpsOverlayEnabled by remember { mutableStateOf(prefs.isFpsOverlayEnabled()) }
+        val isFpsOverlayEnabled by prefs.isFpsOverlayEnabledFlow.collectAsStateWithLifecycle()
 
         if (isUnlocked && isFpsOverlayEnabled) {
             PerformanceFpsOverlay(

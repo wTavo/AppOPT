@@ -31,15 +31,17 @@ import com.example.appopt.R
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.SafeGreen
+import com.example.appopt.ui.theme.rememberAppHaptics
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * Botón interactivo reutilizable con animación de confirmación exitosa.
+ * Botón interactivo reutilizable con animación de confirmación exitosa y respuesta háptica.
  *
  * Comportamiento:
  * - En estado normal muestra el texto descriptivo de la acción.
- * - Al pulsar, si la acción se confirma, realiza una transición fluida hacia el color verde de seguridad ([SafeGreen]),
+ * - Al pulsar, si la acción se confirma, emite respuesta háptica de éxito ([AppHaptics.success]),
+ *   realiza una transición fluida hacia el color verde de seguridad ([SafeGreen]),
  *   reemplaza el texto con una palomita ([Icons.Filled.Check]) durante [Motion.Duration.SuccessAction] ms, y
  *   finalmente ejecuta el callback [onActionConfirmed].
  *
@@ -58,6 +60,7 @@ fun AppAnimatedButton(
     enabled: Boolean = true
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val appHaptics = rememberAppHaptics()
     var isSuccess by remember { mutableStateOf(false) }
 
     val animatedContainerColor by animateColorAsState(
@@ -72,6 +75,7 @@ fun AppAnimatedButton(
                 coroutineScope.launch {
                     val success = onClick()
                     if (success) {
+                        appHaptics.success()
                         isSuccess = true
                         delay(Motion.Duration.SuccessAction.toLong())
                         onActionConfirmed()

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Fingerprint
@@ -29,12 +30,17 @@ import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
+import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.rememberAppHaptics
 
 /**
- * Pantalla de bloqueo de seguridad con escala tipográfica estandarizada.
+ * Pantalla de bloqueo de seguridad con escala tipográfica estandarizada, respuesta háptica y dimensiones del sistema.
  *
  * Se presenta al iniciar la aplicación o cuando el usuario / timeout del ciclo de vida
  * bloquea la bóveda criptográfica. Exige autenticación biométrica o PIN.
+ *
+ * @param onUnlocked Callback invocado al autenticar exitosamente la bóveda.
+ * @param modifier Modificador de layout.
  */
 @Composable
 fun LockScreen(
@@ -42,6 +48,7 @@ fun LockScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val appHaptics = rememberAppHaptics()
     val biometricAuthManager = AuthenticatorApp.instance.biometricAuthManager
     val appLockManager = AuthenticatorApp.instance.appLockManager
 
@@ -55,11 +62,16 @@ fun LockScreen(
             title = promptTitle,
             subtitle = promptSubtitle,
             onSuccess = {
+                appHaptics.success()
                 appLockManager.unlock()
                 onUnlocked()
             },
-            onError = { _, _ -> },
-            onFailed = { }
+            onError = { _, _ ->
+                appHaptics.error()
+            },
+            onFailed = {
+                appHaptics.error()
+            }
         )
     }
 
@@ -74,26 +86,26 @@ fun LockScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(32.dp),
+                .padding(Dimensions.Spacing.xxl),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Surface(
-                shape = RoundedCornerShape(28.dp),
+                shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
                 color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.size(96.dp)
+                modifier = Modifier.size(Dimensions.IconSize.illustration)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Filled.Lock,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier.size(Dimensions.IconSize.hero)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(Dimensions.Spacing.xl))
 
             Text(
                 text = stringResource(R.string.lock_title),
@@ -101,7 +113,7 @@ fun LockScreen(
                 color = MaterialTheme.colorScheme.onBackground
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(Dimensions.Spacing.sm))
 
             Text(
                 text = stringResource(R.string.lock_description),
@@ -110,19 +122,24 @@ fun LockScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(modifier = Modifier.height(36.dp))
+            Spacer(modifier = Modifier.height(Dimensions.Spacing.xxl))
 
             Button(
-                onClick = { triggerAuth() },
-                modifier = Modifier.fillMaxWidth(0.8f),
-                shape = RoundedCornerShape(14.dp)
+                onClick = {
+                    appHaptics.click()
+                    triggerAuth()
+                },
+                modifier = Modifier
+                    .fillMaxWidth(0.85f)
+                    .height(Dimensions.ComponentHeight.buttonDefault),
+                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
             ) {
                 Icon(
                     imageVector = Icons.Filled.Fingerprint,
                     contentDescription = null,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(Dimensions.IconSize.large)
                 )
-                Spacer(modifier = Modifier.size(8.dp))
+                Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
                 Text(
                     text = stringResource(R.string.action_unlock),
                     style = MaterialTheme.typography.labelLarge

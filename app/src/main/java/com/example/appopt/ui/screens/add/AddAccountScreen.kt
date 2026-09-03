@@ -53,10 +53,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.appopt.R
 import com.example.appopt.domain.model.OtpAlgorithm
 import com.example.appopt.ui.components.AppAnimatedButton
+import com.example.appopt.ui.components.ServiceBrandAvatar
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.SafeGreen
 import com.example.appopt.ui.theme.UrgentRed
+import com.example.appopt.ui.theme.rememberAppHaptics
 
 /**
  * Pantalla de registro manual de una cuenta TOTP con escala tipográfica estandarizada y animaciones centralizadas.
@@ -70,6 +72,7 @@ import com.example.appopt.ui.theme.UrgentRed
  *
  * @param viewModel ViewModel encargado de la lógica y validación criptográfica del formulario.
  * @param onNavigateBack Callback para regresar a la pantalla anterior.
+ * @param modifier Modificador de layout.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,6 +82,7 @@ fun AddAccountScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val appHaptics = rememberAppHaptics()
     var showAdvancedOptions by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -104,7 +108,7 @@ fun AddAccountScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = Dimensions.Spacing.lg)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.lg)
         ) {
@@ -186,9 +190,9 @@ fun AddAccountScreen(
                             modifier = Modifier.weight(1f),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            com.example.appopt.ui.components.ServiceBrandAvatar(
+                            ServiceBrandAvatar(
                                 issuer = uiState.issuer,
-                                size = 42.dp
+                                size = Dimensions.IconSize.hero
                             )
 
                             Spacer(modifier = Modifier.width(Dimensions.Spacing.md))
@@ -222,12 +226,15 @@ fun AddAccountScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(Dimensions.CornerRadius.medium))
-                    .clickable { showAdvancedOptions = !showAdvancedOptions },
+                    .clickable {
+                        appHaptics.click()
+                        showAdvancedOptions = !showAdvancedOptions
+                    },
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
             ) {
-                Column(modifier = Modifier.padding(14.dp)) {
+                Column(modifier = Modifier.padding(Dimensions.Spacing.md)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,

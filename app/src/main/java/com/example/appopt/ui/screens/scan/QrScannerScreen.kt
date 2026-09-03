@@ -63,6 +63,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
 import com.example.appopt.domain.totp.OtpUriParser
+import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.rememberAppHaptics
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
@@ -75,6 +77,11 @@ import java.util.concurrent.Executors
  * Principio de privacidad y seguridad:
  * - El procesamiento de la imagen del código QR se realiza exclusivamente en el hardware local.
  * - No se guardan fotografías ni se envían datos a ningún servidor externo.
+ *
+ * @param onScanSuccess Callback invocado al escanear e importar exitosamente una cuenta.
+ * @param onNavigateToManual Callback para navegar a la pantalla de adición manual.
+ * @param onNavigateBack Callback para regresar a la pantalla anterior.
+ * @param modifier Modificador de layout.
  */
 @OptIn(ExperimentalGetImage::class)
 @kotlin.OptIn(ExperimentalMaterial3Api::class)
@@ -86,6 +93,7 @@ fun QrScannerScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val appHaptics = rememberAppHaptics()
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -194,8 +202,10 @@ fun QrScannerScreen(
                                                         scope.launch {
                                                             val importResult = repository.importAccountsFromTransfer(trimmed)
                                                             importResult.onSuccess {
+                                                                appHaptics.success()
                                                                 onScanSuccess()
                                                             }.onFailure { error ->
+                                                                appHaptics.error()
                                                                 isProcessingQr = false
                                                                 snackbarHostState.showSnackbar(context.getString(R.string.scan_error_invalid_qr, error.localizedMessage ?: ""))
                                                             }
@@ -235,31 +245,31 @@ fun QrScannerScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(24.dp),
+                        .padding(Dimensions.Spacing.xl),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
                     Box(
                         modifier = Modifier
                             .size(260.dp)
-                            .clip(RoundedCornerShape(20.dp))
-                            .border(3.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(20.dp))
+                            .clip(RoundedCornerShape(Dimensions.CornerRadius.large))
+                            .border(3.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(Dimensions.CornerRadius.large))
                     )
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(Dimensions.Spacing.xl))
 
                     Card(
                         colors = CardDefaults.cardColors(
                             containerColor = Color.Black.copy(alpha = 0.7f)
                         ),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                     ) {
                         Text(
                             text = stringResource(R.string.scan_hint),
                             color = Color.White,
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            modifier = Modifier.padding(horizontal = Dimensions.Spacing.lg, vertical = Dimensions.Spacing.sm)
                         )
                     }
                 }
@@ -268,7 +278,7 @@ fun QrScannerScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(32.dp),
+                        .padding(Dimensions.Spacing.xxl),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
@@ -276,10 +286,10 @@ fun QrScannerScreen(
                         imageVector = Icons.Filled.CameraAlt,
                         contentDescription = null,
                         tint = Color.White,
-                        modifier = Modifier.size(64.dp)
+                        modifier = Modifier.size(Dimensions.IconSize.hero)
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(Dimensions.Spacing.lg))
 
                     Text(
                         text = stringResource(R.string.scan_permission_required_title),
@@ -287,7 +297,7 @@ fun QrScannerScreen(
                         style = MaterialTheme.typography.titleLarge
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(Dimensions.Spacing.sm))
 
                     Text(
                         text = stringResource(R.string.scan_permission_required_description),
@@ -296,15 +306,27 @@ fun QrScannerScreen(
                         textAlign = TextAlign.Center
                     )
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(Dimensions.Spacing.xl))
 
-                    Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
+                    Button(
+                        onClick = {
+                            appHaptics.click()
+                            permissionLauncher.launch(Manifest.permission.CAMERA)
+                        },
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                    ) {
                         Text(stringResource(R.string.action_grant_permission), style = MaterialTheme.typography.labelLarge)
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(Dimensions.Spacing.md))
 
-                    OutlinedButton(onClick = onNavigateToManual) {
+                    OutlinedButton(
+                        onClick = {
+                            appHaptics.click()
+                            onNavigateToManual()
+                        },
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                    ) {
                         Text(stringResource(R.string.home_add_manual_option), color = Color.White, style = MaterialTheme.typography.labelLarge)
                     }
                 }

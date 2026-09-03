@@ -35,7 +35,7 @@ import com.example.appopt.ui.theme.Dimensions
 fun ServiceBrandAvatar(
     issuer: String,
     modifier: Modifier = Modifier,
-    size: Dp = 42.dp
+    size: Dp = Dimensions.IconSize.hero
 ) {
     val brandInfo = remember(issuer) {
         ServiceBrandProvider.getBrandInfo(issuer)

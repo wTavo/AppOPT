@@ -145,6 +145,7 @@ fun SettingsScreen(
     var showFrequencyDialog by remember { mutableStateOf(false) }
     var showBackupDetailsDialog by remember { mutableStateOf(false) }
     var isConfirmingDeleteInDialog by remember { mutableStateOf(false) }
+    var isFpsOverlayEnabled by remember { mutableStateOf(prefsManager.isFpsOverlayEnabled()) }
 
     val formattedLastSync = remember(lastSyncTimestamp) {
         if (lastSyncTimestamp == 0L) {
@@ -302,6 +303,56 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+            }
+
+            // 1.1 Tarjeta de Rendimiento y Diagnósticos (FPS)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                shape = RoundedCornerShape(Dimensions.CornerRadius.large)
+            ) {
+                Column(modifier = Modifier.padding(Dimensions.Spacing.md)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Refresh,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(Dimensions.IconSize.medium)
+                            )
+                            Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
+                            Column {
+                                Text(
+                                    text = stringResource(R.string.settings_perf_title),
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
+                                Text(
+                                    text = stringResource(R.string.settings_perf_fps_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Switch(
+                            checked = isFpsOverlayEnabled,
+                            onCheckedChange = { enabled ->
+                                isFpsOverlayEnabled = enabled
+                                prefsManager.setFpsOverlayEnabled(enabled)
+                            }
+                        )
+                    }
                 }
             }
 

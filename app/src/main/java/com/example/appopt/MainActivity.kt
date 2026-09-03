@@ -10,13 +10,16 @@ import androidx.fragment.app.FragmentActivity
 import com.example.appopt.ui.navigation.AppNavigation
 import com.example.appopt.ui.theme.AppTheme
 
+import com.example.appopt.util.PerformanceMonitor
+
 /**
  * Actividad principal y único punto de entrada visual de la aplicación.
  *
- * Medidas de seguridad implementadas:
+ * Medidas de seguridad y monitoreo implementadas:
  * - Extiende de [FragmentActivity] para la integración nativa con AndroidX BiometricPrompt.
  * - Habilita [WindowManager.LayoutParams.FLAG_SECURE] en la ventana para evitar capturas de pantalla,
  *   grabaciones y previsualizaciones no deseadas en el menú de aplicaciones recientes.
+ * - Inicia el [PerformanceMonitor] para el registro de FPS y latencias de renderizado en tiempo real.
  */
 class MainActivity : FragmentActivity() {
 
@@ -39,5 +42,15 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        PerformanceMonitor.start()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        PerformanceMonitor.stop()
     }
 }

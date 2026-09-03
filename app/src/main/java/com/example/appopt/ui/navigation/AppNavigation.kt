@@ -19,6 +19,14 @@ import com.example.appopt.ui.screens.lock.LockScreen
 import com.example.appopt.ui.screens.scan.QrScannerScreen
 import com.example.appopt.ui.screens.settings.SettingsScreen
 
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.zIndex
+import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.util.PerformanceFpsOverlay
+
 /**
  * Grafo principal de navegación y control de acceso de la aplicación.
  *
@@ -26,6 +34,7 @@ import com.example.appopt.ui.screens.settings.SettingsScreen
  * - Mantiene el grafo [NavHost] pre-renderizado en segundo plano para respuesta en 0ms.
  * - [LockScreen] se sitúa como una capa opaca superior (*Z-Index Overlay*) cuando la bóveda está bloqueada.
  * - Al autenticar exitosamente, la capa de bloqueo se retira de inmediato mostrando los servicios sin pausas ni pantallas vacías.
+ * - Incorpora la superposición de diagnóstico [PerformanceFpsOverlay] en la capa superior si está activada.
  */
 @Composable
 fun AppNavigation() {
@@ -78,6 +87,18 @@ fun AppNavigation() {
                     onNavigateToScanQr = { navController.navigate(Screen.ScanQr.route) }
                 )
             }
+        }
+
+        val prefs = remember { AuthenticatorApp.instance.preferencesManager }
+        val isFpsOverlayEnabled by remember { mutableStateOf(prefs.isFpsOverlayEnabled()) }
+
+        if (isUnlocked && isFpsOverlayEnabled) {
+            PerformanceFpsOverlay(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = Dimensions.Spacing.xxl + Dimensions.Spacing.md, end = Dimensions.Spacing.md)
+                    .zIndex(99f)
+            )
         }
 
         if (!isUnlocked) {

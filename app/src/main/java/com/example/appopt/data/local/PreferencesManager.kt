@@ -121,6 +121,20 @@ class PreferencesManager(context: Context) {
             .apply()
     }
 
+    /**
+     * Retorna si la superposición visual de FPS y registros de rendimiento está habilitada.
+     */
+    fun isFpsOverlayEnabled(): Boolean {
+        return sharedPreferences.getBoolean(KEY_FPS_OVERLAY, true)
+    }
+
+    /**
+     * Guarda el estado de la superposición visual de FPS.
+     */
+    fun setFpsOverlayEnabled(enabled: Boolean) {
+        sharedPreferences.edit().putBoolean(KEY_FPS_OVERLAY, enabled).apply()
+    }
+
     companion object {
         private const val PREFS_NAME = "authenticator_user_preferences"
         private const val KEY_HIDE_CODES = "key_hide_codes"
@@ -130,5 +144,6 @@ class PreferencesManager(context: Context) {
         private const val KEY_SYNC_MOBILE_DATA = "key_sync_mobile_data"
         private const val KEY_LAST_VAULT_HASH = "key_last_vault_hash"
         private const val KEY_SYNC_FREQUENCY = "key_sync_frequency"
+        private const val KEY_FPS_OVERLAY = "key_fps_overlay"
     }
 }

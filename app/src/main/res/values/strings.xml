@@ -170,4 +170,11 @@
     <string name="time_today_at">hoy a las %1$s</string>
     <string name="time_yesterday_at">ayer a las %1$s</string>
     <string name="card_seconds_abbrev">segundos restantes</string>
+    <!-- Performance Monitor -->
+    <string name="settings_perf_title">Rendimiento y diagnósticos</string>
+    <string name="settings_perf_fps_overlay">Superposición visual de FPS</string>
+    <string name="settings_perf_fps_description">Muestra los fotogramas por segundo (FPS) en tiempo real y registra métricas en Logcat.</string>
+    <string name="perf_fps_format">%1$d FPS</string>
+    <string name="perf_frame_time_format">%1$.1f ms</string>
+    <string name="perf_janks_format">%1$d tirones</string>
 </resources>

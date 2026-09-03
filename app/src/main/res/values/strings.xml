@@ -139,6 +139,8 @@
     <string name="settings_drive_details_date">Fecha del respaldo: %1$s</string>
     <string name="settings_drive_details_encryption">Cifrado: AES-256-GCM de extremo a extremo</string>
     <string name="settings_drive_details_back">Volver</string>
+    <string name="settings_drive_connected_success">Google Drive conectado correctamente</string>
+    <string name="settings_drive_create_button">Crear copia de seguridad</string>
 
     <!-- E2EE Cloud Protection (Dual-Recovery: Primary Method + Mandatory Emergency BIP-39) -->
     <string name="settings_drive_protect_title">Proteger copia en la nube</string>

@@ -1028,6 +1028,18 @@ fun SettingsScreen(
                                         color = MaterialTheme.colorScheme.error
                                     )
                                 }
+
+                                Surface(
+                                    shape = RoundedCornerShape(Dimensions.CornerRadius.small),
+                                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.settings_drive_password_warning),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                        modifier = Modifier.padding(Dimensions.Spacing.sm)
+                                    )
+                                }
                             }
                         } else {
                             // Opción 2: Clave generada de 64 dígitos
@@ -1064,7 +1076,7 @@ fun SettingsScreen(
                                     ) {
                                         Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
                                         Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                                        Text(stringResource(R.string.action_copy), style = MaterialTheme.typography.labelMedium)
+                                        Text(stringResource(R.string.settings_drive_copy_60s), style = MaterialTheme.typography.labelMedium)
                                     }
 
                                     TextButton(
@@ -1159,7 +1171,7 @@ fun SettingsScreen(
                                 ) {
                                     Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
                                     Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                                    Text(stringResource(R.string.action_copy), style = MaterialTheme.typography.labelMedium)
+                                    Text(stringResource(R.string.settings_drive_copy_60s), style = MaterialTheme.typography.labelMedium)
                                 }
 
                                 TextButton(

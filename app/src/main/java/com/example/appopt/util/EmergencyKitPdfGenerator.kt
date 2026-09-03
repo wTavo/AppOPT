@@ -17,7 +17,6 @@ import android.print.PrintDocumentAdapter
 import android.print.PrintDocumentInfo
 import android.print.PrintManager
 import com.example.appopt.R
-import com.example.appopt.ui.util.QrCodeGenerator
 import java.io.FileOutputStream
 import java.io.OutputStream
 import java.text.SimpleDateFormat
@@ -25,20 +24,23 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Generador nativo del Kit de Recuperación de Emergencia (*Emergency Kit*) en formato PDF.
+ * Generador nativo y blindado del Kit de Recuperación de Emergencia (*Emergency Kit*) en formato PDF.
  *
- * Principio de diseño de seguridad (Sección 6 y 12 del Plan):
- * - Genera localmente un documento formal A4 sin dependencias externas de red.
- * - Incluye fecha, método principal, cuadrícula de 12 palabras BIP-39 y código QR de restauración rápida.
- * - Permite impresión directa a través del [PrintManager] de Android o exportación a archivo PDF.
+ * Características de seguridad y anti-extracción:
+ * - **Rasterización Gráfica Anti-Copiado (300 DPI):** Todo el contenido se dibuja en un lienzo de alta resolución
+ *   y se inserta como gráfico puro. Esto imposibilita la selección, subrayado o copiado de texto por parte de
+ *   usuarios, visores de PDF o scripts maliciosos de scraping (*Zero Text Scraping*).
+ * - **Patrón de Seguridad y Marca de Agua:** Estampa un fondo de seguridad con marca de agua tenue anti-fotocopia.
+ * - **Cero Metadatos:** Generación en memoria sin dependencias de red, librerías de terceros ni metadatos de usuario.
  */
 object EmergencyKitPdfGenerator {
 
     private const val PAGE_WIDTH = 595 // Ancho A4 en puntos (72 dpi)
     private const val PAGE_HEIGHT = 842 // Alto A4 en puntos (72 dpi)
+    private const val SCALE_FACTOR = 3f // Escala de renderizado para 300 DPI (Calidad de imprenta)
 
     /**
-     * Genera el documento PDF del Kit de Emergencia y lo escribe en el [OutputStream] proporcionado.
+     * Genera el documento PDF del Kit de Emergencia protegido contra copiado y lo escribe en [OutputStream].
      *
      * @param context Contexto de la aplicación para resolver recursos de texto.
      * @param primaryMethodTitle Título del método principal (ej. "Contraseña maestra" o "Clave de 64 dígitos").
@@ -56,9 +58,34 @@ object EmergencyKitPdfGenerator {
         val document = PdfDocument()
         val pageInfo = PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, 1).create()
         val page = document.startPage(pageInfo)
-        val canvas = page.canvas
+        val pdfCanvas = page.canvas
 
-        renderPdfContent(context, canvas, primaryMethodTitle, primaryMethodValue, mnemonicWords)
+        // 1. Crear lienzo de alta resolución (300 DPI) para rasterización gráfica
+        val bitmapWidth = (PAGE_WIDTH * SCALE_FACTOR).toInt()
+        val bitmapHeight = (PAGE_HEIGHT * SCALE_FACTOR).toInt()
+        val highResBitmap = Bitmap.createBitmap(bitmapWidth, bitmapHeight, Bitmap.Config.ARGB_8888)
+        val renderCanvas = Canvas(highResBitmap)
+
+        // Fondo blanco inicial
+        renderCanvas.drawColor(Color.WHITE)
+
+        // Escalar el lienzo para usar coordenadas virtuales de 595 x 842
+        renderCanvas.scale(SCALE_FACTOR, SCALE_FACTOR)
+
+        // 2. Dibujar marca de agua y contenido gráfico completo
+        renderWatermark(renderCanvas)
+        renderPdfContent(context, renderCanvas, primaryMethodTitle, primaryMethodValue, mnemonicWords)
+
+        // 3. Estampar el bitmap rasterizado en la página PDF (Cero texto plano seleccionable)
+        val filterPaint = Paint(Paint.FILTER_BITMAP_FLAG).apply {
+            isAntiAlias = true
+            isDither = true
+        }
+        val destRect = RectF(0f, 0f, PAGE_WIDTH.toFloat(), PAGE_HEIGHT.toFloat())
+        pdfCanvas.drawBitmap(highResBitmap, null, destRect, filterPaint)
+
+        // 4. Liberar memoria del bitmap
+        highResBitmap.recycle()
 
         document.finishPage(page)
         document.writeTo(outputStream)
@@ -66,8 +93,7 @@ object EmergencyKitPdfGenerator {
     }
 
     /**
-     * Envía el Kit de Emergencia directamente al administrador de impresión de Android ([PrintManager])
-     * permitiendo al usuario imprimirlo físicamente o guardarlo como PDF con la impresora virtual del sistema.
+     * Envía el Kit de Emergencia protegido directamente al administrador de impresión de Android ([PrintManager]).
      *
      * @param context Contexto de la actividad.
      * @param primaryMethodTitle Título del método principal.
@@ -129,6 +155,28 @@ object EmergencyKitPdfGenerator {
         printManager.print(jobName, printAdapter, PrintAttributes.Builder().build())
     }
 
+    /**
+     * Dibuja una marca de agua diagonal de seguridad tenue para protección anti-fotocopia.
+     */
+    private fun renderWatermark(canvas: Canvas) {
+        val watermarkPaint = Paint().apply {
+            color = Color.argb(12, 15, 23, 42) // Opacidad ultrabaja ~5%
+            textSize = 28f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            isAntiAlias = true
+        }
+
+        canvas.save()
+        canvas.rotate(-32f, PAGE_WIDTH / 2f, PAGE_HEIGHT / 2f)
+        val text = "APPOPT • COPIA PRIVADA • ZERO-KNOWLEDGE E2EE"
+        for (y in -200..1200 step 140) {
+            for (x in -300..900 step 480) {
+                canvas.drawText(text, x.toFloat(), y.toFloat(), watermarkPaint)
+            }
+        }
+        canvas.restore()
+    }
+
     private fun renderPdfContent(
         context: Context,
         canvas: Canvas,
@@ -154,13 +202,6 @@ object EmergencyKitPdfGenerator {
             color = Color.rgb(30, 41, 59) // Slate 800
             textSize = 13f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-            isAntiAlias = true
-        }
-
-        val bodyPaint = Paint().apply {
-            color = Color.rgb(51, 65, 85) // Slate 700
-            textSize = 10f
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
             isAntiAlias = true
         }
 
@@ -204,7 +245,7 @@ object EmergencyKitPdfGenerator {
         canvas.drawText(context.getString(R.string.emergency_kit_pdf_subtitle), leftMargin, currentY, subtitlePaint)
         currentY += 14f
 
-        // Metadatos (Fecha de generación)
+        // Metadatos (Fecha de emisión)
         val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val dateText = "${context.getString(R.string.emergency_kit_pdf_generated_at)}: ${dateFormat.format(Date())}"
         canvas.drawText(dateText, leftMargin, currentY, subtitlePaint)

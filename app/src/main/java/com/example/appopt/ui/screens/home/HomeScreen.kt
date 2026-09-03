@@ -1,6 +1,7 @@
 package com.example.appopt.ui.screens.home
 
 import android.widget.Toast
+import kotlin.math.pow
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -76,6 +77,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.appopt.R
@@ -146,25 +148,32 @@ fun HomeScreen(
     val onNextHotpCode = remember(viewModel) { viewModel::nextHotpCode }
     val onCommitReorder = remember(viewModel) { viewModel::commitReorder }
 
-    // Motor de auto-scroll continuo proporcional basado en la posición absoluta del dedo
+    val density = LocalDensity.current
+
+    // Motor de auto-scroll continuo con aceleración dinámica exponencial según proximidad al borde
     LaunchedEffect(draggingAccountId) {
         if (draggingAccountId != null) {
+            val minScrollStepPx = with(density) { 3.dp.toPx() }
+            val maxScrollStepPx = with(density) { 45.dp.toPx() }
+
             while (true) {
                 val layoutInfo = listState.layoutInfo
                 val viewportStart = layoutInfo.viewportStartOffset.toFloat()
                 val viewportEnd = layoutInfo.viewportEndOffset.toFloat()
                 val totalHeight = (viewportEnd - viewportStart).coerceAtLeast(1f)
 
-                // Zonas superior e inferior (30% del área de pantalla)
-                val topZoneLimit = viewportStart + (totalHeight * 0.30f)
-                val bottomZoneLimit = viewportEnd - (totalHeight * 0.30f)
+                // Zonas de auto-scroll amplio (35% superior e inferior del viewport)
+                val topZoneLimit = viewportStart + (totalHeight * 0.35f)
+                val bottomZoneLimit = viewportEnd - (totalHeight * 0.35f)
 
-                // Auto-scroll hacia arriba
+                // Auto-scroll hacia arriba dinámico
                 if (pointerViewportY < topZoneLimit && listState.canScrollBackward) {
-                    val overscroll = topZoneLimit - pointerViewportY
-                    val factor = (overscroll / (topZoneLimit - viewportStart).coerceAtLeast(1f)).coerceIn(0.1f, 3.0f)
-                    val scrollAmount = (factor * 20f).coerceIn(6f, 60f)
-                    listState.scrollBy(-scrollAmount)
+                    val distanceInside = topZoneLimit - pointerViewportY
+                    val normalizedProgress = (distanceInside / (topZoneLimit - viewportStart).coerceAtLeast(1f)).coerceIn(0f, 2.5f)
+                    val dynamicFactor = normalizedProgress.toDouble().pow(1.8).toFloat()
+                    val scrollStep = (minScrollStepPx + dynamicFactor * (maxScrollStepPx - minScrollStepPx)).coerceIn(minScrollStepPx, maxScrollStepPx * 1.5f)
+
+                    listState.scrollBy(-scrollStep)
 
                     // Verificar swap continuo mientras sube
                     val currentIndex = localAccounts.indexOfFirst { it.account.id == draggingAccountId }
@@ -183,12 +192,14 @@ fun HomeScreen(
                         }
                     }
                 }
-                // Auto-scroll hacia abajo
+                // Auto-scroll hacia abajo dinámico
                 else if (pointerViewportY > bottomZoneLimit && listState.canScrollForward) {
-                    val overscroll = pointerViewportY - bottomZoneLimit
-                    val factor = (overscroll / (viewportEnd - bottomZoneLimit).coerceAtLeast(1f)).coerceIn(0.1f, 3.0f)
-                    val scrollAmount = (factor * 20f).coerceIn(6f, 60f)
-                    listState.scrollBy(scrollAmount)
+                    val distanceInside = pointerViewportY - bottomZoneLimit
+                    val normalizedProgress = (distanceInside / (viewportEnd - bottomZoneLimit).coerceAtLeast(1f)).coerceIn(0f, 2.5f)
+                    val dynamicFactor = normalizedProgress.toDouble().pow(1.8).toFloat()
+                    val scrollStep = (minScrollStepPx + dynamicFactor * (maxScrollStepPx - minScrollStepPx)).coerceIn(minScrollStepPx, maxScrollStepPx * 1.5f)
+
+                    listState.scrollBy(scrollStep)
 
                     // Verificar swap continuo mientras baja
                     val currentIndex = localAccounts.indexOfFirst { it.account.id == draggingAccountId }

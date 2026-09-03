@@ -312,40 +312,7 @@ fun SettingsScreen(
         ) {
             Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
 
-            // 1. Tarjeta de Estado y Diagnóstico de Seguridad
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                shape = RoundedCornerShape(Dimensions.CornerRadius.large)
-            ) {
-                Column(modifier = Modifier.padding(Dimensions.Spacing.md)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Filled.Shield,
-                            contentDescription = null,
-                            tint = SafeGreen,
-                            modifier = Modifier.size(Dimensions.IconSize.medium)
-                        )
-                        Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
-                        Text(
-                            text = stringResource(R.string.settings_vault_status_title),
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(Dimensions.Spacing.sm))
-
-                    Text(
-                        text = stringResource(R.string.settings_vault_status_details),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            // 1.1 Tarjeta de Rendimiento y Diagnósticos (FPS)
+            // 1. Tarjeta de Rendimiento y Diagnósticos (FPS)
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(

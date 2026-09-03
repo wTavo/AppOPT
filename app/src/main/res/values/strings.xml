@@ -81,7 +81,7 @@
     <string name="scan_error_invalid_qr">QR no válido: %1$s</string>
 
     <!-- Settings Screen -->
-    <string name="settings_title">Seguridad y respaldo</string>
+    <string name="settings_title">Configuraciones</string>
     <string name="settings_vault_status_title">Bóveda local cifrada</string>
     <string name="settings_vault_status_details">• Cifrado AES-256-GCM autenticado\n• Clave maestra en Android Keystore (TEE)\n• Memoria RAM con limpieza de buffers\n• Protección activa contra capturas de pantalla</string>
     <!-- Transfer Services (QR Code) -->

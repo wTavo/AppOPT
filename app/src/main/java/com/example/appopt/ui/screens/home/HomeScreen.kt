@@ -572,7 +572,7 @@ fun HomeScreen(
                             }
                         }
 
-                        // 2. Título Central con Diseño Estilizado (Píldora con Tipografía de Alto Impacto)
+                        // 2. Título Central con Diseño Estilizado (Píldora Amplia con Tipografía de Alto Impacto)
                         Surface(
                             shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
                             color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
@@ -587,7 +587,10 @@ fun HomeScreen(
                                     fontWeight = FontWeight.ExtraBold
                                 ),
                                 color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(horizontal = Dimensions.Spacing.lg, vertical = Dimensions.Spacing.xs)
+                                modifier = Modifier.padding(
+                                    horizontal = Dimensions.Spacing.xl,
+                                    vertical = Dimensions.Spacing.sm
+                                )
                             )
                         }
 

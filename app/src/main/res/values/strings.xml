@@ -134,6 +134,10 @@
     <string name="settings_drive_delete_confirm_btn">Eliminar copia</string>
     <string name="settings_drive_delete_success">Copia de seguridad eliminada de Google Drive</string>
     <string name="settings_drive_deleting">Eliminando copia de Google Drive…</string>
+    <string name="settings_drive_details_title">Detalles de la copia en la nube</string>
+    <string name="settings_drive_details_date">Fecha del respaldo: %1$s</string>
+    <string name="settings_drive_details_encryption">Cifrado: AES-256-GCM de extremo a extremo</string>
+    <string name="settings_drive_details_location">Ubicación: Espacio privado de Google Drive</string>
 
     <!-- Dual E2EE Cloud Protection (PIN or 64-digit key) -->
     <string name="settings_drive_protect_title">Proteger copia en la nube</string>

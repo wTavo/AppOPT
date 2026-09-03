@@ -58,6 +58,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -140,6 +141,7 @@ fun SettingsScreen(
     var isDriveLoading by remember { mutableStateOf(false) }
     var showFrequencyDialog by remember { mutableStateOf(false) }
     var showDeleteDriveBackupDialog by remember { mutableStateOf(false) }
+    var showBackupDetailsDialog by remember { mutableStateOf(false) }
 
     val formattedLastSync = remember(lastSyncTimestamp) {
         if (lastSyncTimestamp == 0L) {
@@ -427,33 +429,56 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    // 3. Estado de última copia (Contenedor informativo suave)
+                    // 3. Estado de última copia (Contenedor interactivo)
                     if (isDriveConnected) {
                         Surface(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(
+                                    if (formattedLastSync != null) {
+                                        Modifier.clickable { showBackupDetailsDialog = true }
+                                    } else {
+                                        Modifier
+                                    }
+                                ),
                             shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.sm),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Icon(
-                                    imageVector = Icons.Filled.CloudDone,
-                                    contentDescription = null,
-                                    tint = if (formattedLastSync != null) SafeGreen else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(Dimensions.IconSize.small)
-                                )
-                                Text(
-                                    text = if (formattedLastSync != null) {
-                                        stringResource(R.string.settings_drive_last_sync, formattedLastSync)
-                                    } else {
-                                        stringResource(R.string.settings_drive_last_sync_never)
-                                    },
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
+                                    modifier = Modifier.weight(1f, fill = false)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.CloudDone,
+                                        contentDescription = null,
+                                        tint = if (formattedLastSync != null) SafeGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(Dimensions.IconSize.small)
+                                    )
+                                    Text(
+                                        text = if (formattedLastSync != null) {
+                                            stringResource(R.string.settings_drive_last_sync, formattedLastSync)
+                                        } else {
+                                            stringResource(R.string.settings_drive_last_sync_never)
+                                        },
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+
+                                if (formattedLastSync != null) {
+                                    Icon(
+                                        imageVector = Icons.Filled.ChevronRight,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(Dimensions.IconSize.small)
+                                    )
+                                }
                             }
                         }
                     }
@@ -622,34 +647,15 @@ fun SettingsScreen(
                                                 isSyncMobileDataAllowed = it
                                                 prefsManager.setSyncMobileDataAllowed(it)
                                                 CloudVaultSyncManager.schedulePeriodicSync(context, syncFrequency, it)
-                                            }
+                                            },
+                                            colors = SwitchDefaults.colors(
+                                                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                                                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                                uncheckedBorderColor = MaterialTheme.colorScheme.outline
+                                            )
                                         )
                                     }
                                 }
-                            }
-                        }
-
-                        // 6. Botón de eliminar copia de seguridad (Zona destructiva limpia)
-                        if (lastSyncTimestamp > 0L) {
-                            TextButton(
-                                onClick = { showDeleteDriveBackupDialog = true },
-                                enabled = !isDriveLoading,
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                colors = ButtonDefaults.textButtonColors(
-                                    contentColor = MaterialTheme.colorScheme.error
-                                )
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.DeleteOutline,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(Dimensions.IconSize.small)
-                                )
-                                Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                                Text(
-                                    text = stringResource(R.string.settings_drive_delete_button),
-                                    style = MaterialTheme.typography.labelLarge
-                                )
                             }
                         }
                     }
@@ -758,7 +764,12 @@ fun SettingsScreen(
                         }
                         Switch(
                             checked = keepServicesOnDevice,
-                            onCheckedChange = { keepServicesOnDevice = it }
+                            onCheckedChange = { keepServicesOnDevice = it },
+                            colors = SwitchDefaults.colors(
+                                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                uncheckedBorderColor = MaterialTheme.colorScheme.outline
+                            )
                         )
                     }
                 }
@@ -1245,6 +1256,73 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDriveBackupDialog = false }) {
+                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
+                }
+            }
+        )
+    }
+
+    // Modal: Detalles de la Copia de Seguridad en la Nube
+    if (showBackupDetailsDialog) {
+        AlertDialog(
+            onDismissRequest = { showBackupDetailsDialog = false },
+            title = {
+                Text(
+                    text = stringResource(R.string.settings_drive_details_title),
+                    style = MaterialTheme.typography.titleLarge
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_drive_details_date, formattedLastSync ?: ""),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_drive_details_encryption),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_drive_details_location),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(Dimensions.Spacing.sm))
+
+                    OutlinedButton(
+                        onClick = {
+                            showBackupDetailsDialog = false
+                            showDeleteDriveBackupDialog = true
+                        },
+                        enabled = !isDriveLoading,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        ),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.DeleteOutline,
+                            contentDescription = null,
+                            modifier = Modifier.size(Dimensions.IconSize.small)
+                        )
+                        Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                        Text(
+                            text = stringResource(R.string.settings_drive_delete_button),
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showBackupDetailsDialog = false }) {
                     Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
                 }
             }

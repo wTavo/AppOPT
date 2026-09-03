@@ -660,129 +660,132 @@ fun SettingsScreen(
                                 )
                             }
                         }
-                    } else if (lastSyncTimestamp > 0L && hasUnsyncedChanges) {
-                        // Estado: Ya sincronizado previamente pero con cambios pendientes (Botón animado de "Sincronizar ahora")
-                        val animatedSyncColor by animateColorAsState(
-                            targetValue = when (syncButtonState) {
-                                SyncButtonState.SUCCESS -> SafeGreen
-                                SyncButtonState.ERROR -> MaterialTheme.colorScheme.error
-                                else -> MaterialTheme.colorScheme.primary
-                            },
-                            animationSpec = Motion.Spec.buttonColorSpec(),
-                            label = "animatedSyncButtonColor"
-                        )
+                    } else if (lastSyncTimestamp > 0L) {
+                        // Estado: Ya sincronizado previamente
+                        if (hasUnsyncedChanges) {
+                            // Con cambios pendientes: Botón animado de "Sincronizar ahora"
+                            val animatedSyncColor by animateColorAsState(
+                                targetValue = when (syncButtonState) {
+                                    SyncButtonState.SUCCESS -> SafeGreen
+                                    SyncButtonState.ERROR -> MaterialTheme.colorScheme.error
+                                    else -> MaterialTheme.colorScheme.primary
+                                },
+                                animationSpec = Motion.Spec.buttonColorSpec(),
+                                label = "animatedSyncButtonColor"
+                            )
 
-                        Button(
-                            onClick = {
-                                if (syncButtonState != SyncButtonState.LOADING) {
-                                    val performSync: (String) -> Unit = { token ->
-                                        scope.launch {
-                                            isDriveLoading = true
-                                            syncButtonState = SyncButtonState.LOADING
-                                            try {
-                                                val payload = repository.exportAccountsForTransfer()
-                                                val autoSyncKey = "AppOPT_AutoSync_Vault_E2EE_v1".toCharArray()
+                            Button(
+                                onClick = {
+                                    if (syncButtonState != SyncButtonState.LOADING) {
+                                        val performSync: (String) -> Unit = { token ->
+                                            scope.launch {
+                                                isDriveLoading = true
+                                                syncButtonState = SyncButtonState.LOADING
                                                 try {
-                                                    val uploadResult = GoogleDriveManager.uploadBackup(token, payload, autoSyncKey)
-                                                    uploadResult.onSuccess {
-                                                        val now = System.currentTimeMillis()
-                                                        val currentHash = CloudVaultSyncManager.computeAccountsSignature(accounts)
-                                                        lastSyncTimestamp = now
-                                                        prefsManager.setLastSyncTimestamp(now)
-                                                        prefsManager.setLastSyncedVaultHash(currentHash)
-                                                        driveBackupExists = true
-                                                        appHaptics.success()
-                                                        syncButtonState = SyncButtonState.SUCCESS
-                                                        delay(1800L)
-                                                        syncButtonState = SyncButtonState.IDLE
-                                                    }.onFailure { error ->
-                                                        appHaptics.error()
-                                                        syncButtonState = SyncButtonState.ERROR
-                                                        snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error, error.localizedMessage ?: ""))
-                                                        delay(1800L)
-                                                        syncButtonState = SyncButtonState.IDLE
+                                                    val payload = repository.exportAccountsForTransfer()
+                                                    val autoSyncKey = "AppOPT_AutoSync_Vault_E2EE_v1".toCharArray()
+                                                    try {
+                                                        val uploadResult = GoogleDriveManager.uploadBackup(token, payload, autoSyncKey)
+                                                        uploadResult.onSuccess {
+                                                            val now = System.currentTimeMillis()
+                                                            val currentHash = CloudVaultSyncManager.computeAccountsSignature(accounts)
+                                                            lastSyncTimestamp = now
+                                                            prefsManager.setLastSyncTimestamp(now)
+                                                            prefsManager.setLastSyncedVaultHash(currentHash)
+                                                            driveBackupExists = true
+                                                            appHaptics.success()
+                                                            syncButtonState = SyncButtonState.SUCCESS
+                                                            delay(1800L)
+                                                            syncButtonState = SyncButtonState.IDLE
+                                                        }.onFailure { error ->
+                                                            appHaptics.error()
+                                                            syncButtonState = SyncButtonState.ERROR
+                                                            snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error, error.localizedMessage ?: ""))
+                                                            delay(1800L)
+                                                            syncButtonState = SyncButtonState.IDLE
+                                                        }
+                                                    } finally {
+                                                        autoSyncKey.fill('0')
                                                     }
                                                 } finally {
-                                                    autoSyncKey.fill('0')
+                                                    isDriveLoading = false
                                                 }
-                                            } finally {
-                                                isDriveLoading = false
                                             }
                                         }
-                                    }
 
-                                    if (driveAccessToken == null) {
-                                        requestGoogleAuthorization { token ->
-                                            performSync(token)
+                                        if (driveAccessToken == null) {
+                                            requestGoogleAuthorization { token ->
+                                                performSync(token)
+                                            }
+                                        } else {
+                                            performSync(driveAccessToken!!)
                                         }
-                                    } else {
-                                        performSync(driveAccessToken!!)
                                     }
-                                }
-                            },
-                            enabled = syncButtonState != SyncButtonState.LOADING,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = animatedSyncColor,
-                                contentColor = androidx.compose.ui.graphics.Color.White
-                            ),
-                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                        ) {
-                            AnimatedContent(
-                                targetState = syncButtonState,
-                                transitionSpec = {
-                                    fadeIn(animationSpec = Motion.Spec.quickFadeSpec()) togetherWith
-                                            fadeOut(animationSpec = Motion.Spec.quickFadeSpec())
                                 },
-                                label = "animatedSyncButtonContent"
-                            ) { state ->
-                                when (state) {
-                                    SyncButtonState.LOADING -> {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(Dimensions.IconSize.small),
-                                            color = MaterialTheme.colorScheme.onPrimary,
-                                            strokeWidth = Dimensions.Stroke.regular
-                                        )
-                                    }
-                                    SyncButtonState.SUCCESS -> {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Filled.Check,
-                                                contentDescription = null,
-                                                tint = androidx.compose.ui.graphics.Color.White,
-                                                modifier = Modifier.size(Dimensions.IconSize.small)
+                                enabled = syncButtonState != SyncButtonState.LOADING,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = animatedSyncColor,
+                                    contentColor = androidx.compose.ui.graphics.Color.White
+                                ),
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                            ) {
+                                AnimatedContent(
+                                    targetState = syncButtonState,
+                                    transitionSpec = {
+                                        fadeIn(animationSpec = Motion.Spec.quickFadeSpec()) togetherWith
+                                                fadeOut(animationSpec = Motion.Spec.quickFadeSpec())
+                                    },
+                                    label = "animatedSyncButtonContent"
+                                ) { state ->
+                                    when (state) {
+                                        SyncButtonState.LOADING -> {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(Dimensions.IconSize.small),
+                                                color = MaterialTheme.colorScheme.onPrimary,
+                                                strokeWidth = Dimensions.Stroke.regular
                                             )
+                                        }
+                                        SyncButtonState.SUCCESS -> {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.Check,
+                                                    contentDescription = null,
+                                                    tint = androidx.compose.ui.graphics.Color.White,
+                                                    modifier = Modifier.size(Dimensions.IconSize.small)
+                                                )
+                                                Text(
+                                                    text = stringResource(R.string.settings_drive_sync_success_btn),
+                                                    style = MaterialTheme.typography.labelLarge
+                                                )
+                                            }
+                                        }
+                                        SyncButtonState.ERROR -> {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.Close,
+                                                    contentDescription = null,
+                                                    tint = androidx.compose.ui.graphics.Color.White,
+                                                    modifier = Modifier.size(Dimensions.IconSize.small)
+                                                )
+                                                Text(
+                                                    text = stringResource(R.string.settings_drive_sync_error_btn),
+                                                    style = MaterialTheme.typography.labelLarge
+                                                )
+                                            }
+                                        }
+                                        SyncButtonState.IDLE -> {
                                             Text(
-                                                text = stringResource(R.string.settings_drive_sync_success_btn),
+                                                text = stringResource(R.string.settings_drive_sync_button),
                                                 style = MaterialTheme.typography.labelLarge
                                             )
                                         }
-                                    }
-                                    SyncButtonState.ERROR -> {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Filled.Close,
-                                                contentDescription = null,
-                                                tint = androidx.compose.ui.graphics.Color.White,
-                                                modifier = Modifier.size(Dimensions.IconSize.small)
-                                            )
-                                            Text(
-                                                text = stringResource(R.string.settings_drive_sync_error_btn),
-                                                style = MaterialTheme.typography.labelLarge
-                                            )
-                                        }
-                                    }
-                                    SyncButtonState.IDLE -> {
-                                        Text(
-                                            text = stringResource(R.string.settings_drive_sync_button),
-                                            style = MaterialTheme.typography.labelLarge
-                                        )
                                     }
                                 }
                             }

@@ -62,6 +62,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -123,10 +124,27 @@ fun HomeScreen(
 
     // Resuelve las cuentas directamente desde el UiState inmutable para máxima velocidad de renderizado
     @Suppress("UNCHECKED_CAST")
-    val currentSuccessAccounts = (uiState as? UiState.Success<*>)?.data as? List<AccountWithCode> ?: emptyList()
-    val accountsToDisplay = if (draggingAccountId != null && localAccounts.isNotEmpty()) localAccounts else currentSuccessAccounts
+    val currentSuccessAccounts by remember(uiState) {
+        derivedStateOf {
+            (uiState as? UiState.Success<*>)?.data as? List<AccountWithCode> ?: emptyList()
+        }
+    }
+
+    // Durante el arrastre se usa la lista local (mutable); fuera de él, la lista del ViewModel
+    val accountsToDisplay by remember(draggingAccountId) {
+        derivedStateOf {
+            if (draggingAccountId != null && localAccounts.isNotEmpty()) localAccounts
+            else currentSuccessAccounts
+        }
+    }
 
     val listState = rememberLazyListState()
+
+    // Lambdas estabilizadas: se fijan en la primera composición y no cambian mientras el ViewModel sea el mismo
+    val onCopyCode = remember(viewModel) { { code: String, issuer: String -> viewModel.copyCode(code, issuer) } }
+    val onToggleFavorite = remember(viewModel) { viewModel::toggleFavorite }
+    val onNextHotpCode = remember(viewModel) { viewModel::nextHotpCode }
+    val onCommitReorder = remember(viewModel) { viewModel::commitReorder }
 
     // Motor de auto-scroll continuo cuando se arrastra una tarjeta cerca de los bordes superior/inferior
     LaunchedEffect(draggingAccountId) {
@@ -359,9 +377,9 @@ fun HomeScreen(
                             isDragging = isDragging,
                             modifier = cardModifier,
                             onCardClick = { selectedAccountId = item.account.id },
-                            onCopyCode = { code -> viewModel.copyCode(code, item.account.issuer) },
-                            onToggleFavorite = viewModel::toggleFavorite,
-                            onNextHotpCode = viewModel::nextHotpCode,
+                            onCopyCode = { code -> onCopyCode(code, item.account.issuer) },
+                            onToggleFavorite = onToggleFavorite,
+                            onNextHotpCode = onNextHotpCode,
                             onStartDrag = {
                                 localAccounts.clear()
                                 localAccounts.addAll(currentSuccessAccounts)
@@ -408,7 +426,7 @@ fun HomeScreen(
                             },
                             onEndDrag = {
                                 if (draggingAccountId != null) {
-                                    viewModel.commitReorder(localAccounts.map { it.account.id })
+                                    onCommitReorder(localAccounts.map { it.account.id })
                                     draggingAccountId = null
                                     dragOffsetY = 0f
                                     localAccounts.clear()

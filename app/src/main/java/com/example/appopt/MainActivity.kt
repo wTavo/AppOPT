@@ -46,7 +46,10 @@ class MainActivity : FragmentActivity() {
 
     override fun onStart() {
         super.onStart()
-        PerformanceMonitor.start()
+        val prefs = AuthenticatorApp.instance.preferencesManager
+        if (prefs.isFpsOverlayEnabled()) {
+            PerformanceMonitor.start()
+        }
     }
 
     override fun onStop() {

@@ -299,96 +299,6 @@ fun HomeScreen(
                 )
             )
         },
-        bottomBar = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(bottom = Dimensions.Spacing.lg),
-                contentAlignment = Alignment.Center
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
-                    color = MaterialTheme.colorScheme.surface,
-                    tonalElevation = Dimensions.Elevation.modal,
-                    shadowElevation = Dimensions.Elevation.cardDragging,
-                    border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
-                    modifier = Modifier.wrapContentWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = Dimensions.Spacing.lg, vertical = Dimensions.Spacing.sm),
-                        horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xl),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // 1. Bloquear bóveda manualmente
-                        IconButton(
-                            onClick = {
-                                appHaptics.click()
-                                viewModel.lockVault()
-                            }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Lock,
-                                contentDescription = stringResource(R.string.home_lock_vault),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-                        // 2. Gestor de Contraseñas (Módulo Próximamente)
-                        IconButton(
-                            onClick = {
-                                appHaptics.click()
-                                Toast.makeText(
-                                    context,
-                                    context.getString(R.string.passwords_coming_soon),
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_key),
-                                contentDescription = stringResource(R.string.passwords_nav_title),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-                        // 3. Hero (+) FAB para agregar cuentas
-                        FloatingActionButton(
-                            onClick = {
-                                appHaptics.click()
-                                showAddOptionsDialog = true
-                            },
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary,
-                            shape = CircleShape,
-                            elevation = FloatingActionButtonDefaults.elevation(
-                                defaultElevation = Dimensions.Elevation.cardDefault,
-                                pressedElevation = Dimensions.Elevation.cardDragging
-                            ),
-                            modifier = Modifier.size(Dimensions.ComponentSize.heroFab)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Add,
-                                contentDescription = stringResource(R.string.home_add_account),
-                                modifier = Modifier.size(Dimensions.IconSize.large)
-                            )
-                        }
-
-                        // 4. Ajustes y Configuración
-                        IconButton(onClick = {
-                            appHaptics.click()
-                            onNavigateToSettings()
-                        }) {
-                            Icon(
-                                imageVector = Icons.Filled.Settings,
-                                contentDescription = stringResource(R.string.settings_title),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
-        },
         modifier = modifier
     ) { paddingValues ->
         Box(
@@ -405,7 +315,7 @@ fun HomeScreen(
                             start = Dimensions.Spacing.lg,
                             end = Dimensions.Spacing.lg,
                             top = Dimensions.Spacing.lg,
-                            bottom = Dimensions.Spacing.xxl + Dimensions.ComponentSize.heroFab
+                            bottom = Dimensions.Spacing.xxl * 3
                         ),
                         verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                     ) {
@@ -524,8 +434,95 @@ fun HomeScreen(
                 // Estado de carga inicial (UiState.Loading): No renderiza nada prematuramente evitando parpadeos
             }
         }
+
+        // Dock Flotante Inferior Ergonómico (Overlay moderno con elevación)
+        Surface(
+            shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = Dimensions.Elevation.modal,
+            shadowElevation = Dimensions.Elevation.cardDragging,
+            border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = Dimensions.Spacing.lg)
+                .zIndex(20f)
+                .wrapContentWidth()
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = Dimensions.Spacing.lg, vertical = Dimensions.Spacing.sm),
+                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xl),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // 1. Bloquear bóveda manualmente
+                IconButton(
+                    onClick = {
+                        appHaptics.click()
+                        viewModel.lockVault()
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Lock,
+                        contentDescription = stringResource(R.string.home_lock_vault),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // 2. Gestor de Contraseñas (Módulo Próximamente)
+                IconButton(
+                    onClick = {
+                        appHaptics.click()
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.passwords_coming_soon),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_key),
+                        contentDescription = stringResource(R.string.passwords_nav_title),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // 3. Hero (+) FAB para agregar cuentas
+                FloatingActionButton(
+                    onClick = {
+                        appHaptics.click()
+                        showAddOptionsDialog = true
+                    },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    shape = CircleShape,
+                    elevation = FloatingActionButtonDefaults.elevation(
+                        defaultElevation = Dimensions.Elevation.cardDefault,
+                        pressedElevation = Dimensions.Elevation.cardDragging
+                    ),
+                    modifier = Modifier.size(Dimensions.ComponentSize.heroFab)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Add,
+                        contentDescription = stringResource(R.string.home_add_account),
+                        modifier = Modifier.size(Dimensions.IconSize.large)
+                    )
+                }
+
+                // 4. Ajustes y Configuración
+                IconButton(onClick = {
+                    appHaptics.click()
+                    onNavigateToSettings()
+                }) {
+                    Icon(
+                        imageVector = Icons.Filled.Settings,
+                        contentDescription = stringResource(R.string.settings_title),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
     }
+}
 
     // Modal / Popup de Edición y Detalles de la Cuenta seleccionada
     selectedAccountWithCode?.let { item ->

@@ -12,9 +12,15 @@ import com.example.appopt.domain.totp.OtpUriParser
 import com.example.appopt.domain.totp.TotpEngine
 import com.example.appopt.security.BackupCrypto
 import com.example.appopt.security.CryptoManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
@@ -32,6 +38,16 @@ class AccountRepositoryImpl(
     private val cryptoManager: CryptoManager
 ) : AccountRepository {
 
+    private val repositoryScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    private val accountsFlow: SharedFlow<List<TotpAccount>> = accountDao.getAllAccounts()
+        .map { list -> list.map { it.toDomain() } }
+        .shareIn(
+            scope = repositoryScope,
+            started = SharingStarted.Eagerly,
+            replay = 1
+        )
+
     private data class CachedOtp(
         val step: Long,
         val counter: Long,
@@ -48,13 +64,9 @@ class AccountRepositoryImpl(
     }
 
     /**
-     * Obtiene la lista de cuentas como modelos de dominio sin exponer secretos.
+     * Obtiene la lista de cuentas como modelos de dominio sin exponer secretos (pre-cargada con replay=1).
      */
-    override fun getAccounts(): Flow<List<TotpAccount>> {
-        return accountDao.getAllAccounts().map { list ->
-            list.map { it.toDomain() }
-        }
-    }
+    override fun getAccounts(): Flow<List<TotpAccount>> = accountsFlow
 
     /**
      * Calcula sincrónicamente los códigos OTP para una lista de cuentas en memoria en el instante [currentTimeMillis],

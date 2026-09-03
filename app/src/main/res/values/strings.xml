@@ -164,6 +164,7 @@
     <string name="settings_drive_copy_60s">Copiar (60 s)</string>
     <string name="settings_drive_next_step">Continuar a frase de emergencia</string>
     <string name="settings_drive_print_pdf">Imprimir / Guardar PDF</string>
+    <string name="settings_drive_print_pdf_hint">Recomendado: imprime en papel físico o guarda en una memoria USB externa.</string>
     <string name="settings_drive_to_quiz_step">Verificar frase de emergencia</string>
     <string name="settings_drive_quiz_title">Paso 3: Verificación de respaldo</string>
     <string name="settings_drive_quiz_description">Para garantizar que anotaste tu frase de 12 palabras, selecciona la palabra correcta para cada posición solicitada.</string>
@@ -183,8 +184,8 @@
     <string name="emergency_kit_pdf_generated_at">Fecha de emisión</string>
     <string name="emergency_kit_pdf_words_section_title">Frase de recuperación de emergencia (12 palabras BIP-39)</string>
     <string name="emergency_kit_pdf_words_instruction">Anota o guarda estas palabras en su orden numérico exacto (del 1 al 12).</string>
-    <string name="emergency_kit_pdf_warning_1">ADVERTENCIA DE SEGURIDAD: Cualquier persona con acceso a esta hoja podrá acceder a tus cuentas.</string>
-    <string name="emergency_kit_pdf_warning_2">Guarda este documento impreso en un lugar físico seguro (como una caja fuerte) y nunca lo envíes por internet sin cifrar.</string>
+    <string name="emergency_kit_pdf_warning_1">ADVERTENCIA: Imprime este documento en papel físico o guárdalo en una memoria externa fuera de este teléfono.</string>
+    <string name="emergency_kit_pdf_warning_2">No dejes este archivo PDF guardado en la memoria de tu teléfono sin protección ni lo envíes por internet sin cifrar.</string>
 
     <!-- Password Manager (Future Module) -->
     <string name="passwords_nav_title">Gestor de contraseñas</string>

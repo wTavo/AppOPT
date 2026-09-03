@@ -1227,6 +1227,12 @@ fun SettingsScreen(
                                     Text(stringResource(R.string.settings_drive_print_pdf), style = MaterialTheme.typography.labelMedium)
                                 }
 
+                                Text(
+                                    text = stringResource(R.string.settings_drive_print_pdf_hint),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+
                                 Surface(
                                     shape = RoundedCornerShape(Dimensions.CornerRadius.small),
                                     color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)

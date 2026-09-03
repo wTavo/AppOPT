@@ -206,6 +206,16 @@ object GoogleDriveManager {
     }
 
     /**
+     * Verifica si ya existe un archivo de copia de seguridad en la carpeta privada de Google Drive.
+     *
+     * @param accessToken Token de acceso OAuth2 emitido por Google Identity Services.
+     * @return `true` si existe un archivo de respaldo previo, `false` en caso contrario.
+     */
+    suspend fun hasExistingBackup(accessToken: String): Boolean = withContext(Dispatchers.IO) {
+        findExistingBackupFileId(accessToken) != null
+    }
+
+    /**
      * Consulta la API de Drive para encontrar el identificador de [BackupFileName] en `appDataFolder`.
      */
     private fun findExistingBackupFileId(accessToken: String): String? {

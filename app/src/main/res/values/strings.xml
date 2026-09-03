@@ -158,10 +158,10 @@
     <string name="settings_drive_password_confirm_label">Confirmar contraseña</string>
     <string name="settings_drive_password_mismatch">Las contraseñas no coinciden</string>
     <string name="settings_drive_password_too_short">La contraseña debe tener al menos 10 caracteres</string>
-    <string name="settings_drive_password_warning">Guarda esta contraseña en un lugar seguro. Es el acceso principal a tu copia de seguridad; si la pierdes, no podrás recuperar tus datos.</string>
+    <string name="settings_drive_password_warning">Guarda esta contraseña en un lugar seguro. Es el acceso principal a tu copia de seguridad.</string>
     <string name="settings_drive_key_label">Clave criptográfica de 64 dígitos</string>
     <string name="settings_drive_key_copied">Clave copiada. Se borrará del portapapeles en 60 segundos.</string>
-    <string name="settings_drive_key_warning">Guarda esta clave en un lugar seguro. Es el acceso principal a tu copia de seguridad; si la pierdes, no podrás recuperar tus datos.</string>
+    <string name="settings_drive_key_warning">Guarda esta clave en un lugar seguro. Es el acceso principal a tu copia de seguridad.</string>
     <string name="settings_drive_key_regenerate">Generar nueva clave</string>
     <string name="settings_drive_copy_60s">Copiar (60 s)</string>
     <string name="settings_drive_next_step">Continuar a kit de recuperación</string>

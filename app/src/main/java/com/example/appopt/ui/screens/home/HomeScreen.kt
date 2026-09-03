@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.gestures.scrollBy
@@ -76,6 +78,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -237,88 +240,25 @@ fun HomeScreen(
         accountsToDisplay.find { it.account.id == id }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    if (isSearchActive) {
-                        TextField(
-                            value = searchQuery,
-                            onValueChange = viewModel::onSearchQueryChanged,
-                            placeholder = { Text(stringResource(R.string.home_search_placeholder), style = MaterialTheme.typography.bodyMedium) },
-                            singleLine = true,
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                disabledContainerColor = Color.Transparent,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent
-                            ),
-                            textStyle = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    } else {
-                        Text(
-                            text = stringResource(R.string.home_title),
-                            style = MaterialTheme.typography.headlineSmall
-                        )
-                    }
-                },
-                actions = {
-                    if (isSearchActive) {
-                        IconButton(onClick = {
-                            isSearchActive = false
-                            viewModel.onSearchQueryChanged("")
-                        }) {
-                            Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_close_search))
-                        }
-                    } else {
-                        IconButton(onClick = { isSearchActive = true }) {
-                            Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.action_search))
-                        }
-
-                        IconButton(onClick = { viewModel.toggleHideCodes() }) {
-                            AnimatedContent(
-                                targetState = isHideCodesEnabled,
-                                transitionSpec = {
-                                    fadeIn(animationSpec = Motion.Spec.quickFadeSpec()) togetherWith
-                                            fadeOut(animationSpec = Motion.Spec.quickFadeSpec())
-                                },
-                                label = "hideCodesIconAnimation"
-                            ) { hideEnabled ->
-                                Icon(
-                                    imageVector = if (hideEnabled) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                                    contentDescription = if (hideEnabled) stringResource(R.string.action_show_codes) else stringResource(R.string.action_hide_codes)
-                                )
-                            }
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
-        },
+    Box(
         modifier = modifier
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            when {
-                accountsToDisplay.isNotEmpty() -> {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(
-                            start = Dimensions.Spacing.lg,
-                            end = Dimensions.Spacing.lg,
-                            top = Dimensions.Spacing.lg,
-                            bottom = Dimensions.Spacing.xxl * 3
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
-                    ) {
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        // 1. Capa de Contenido Principal (LazyColumn de Cuentas)
+        when {
+            accountsToDisplay.isNotEmpty() -> {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = Dimensions.Spacing.lg,
+                        end = Dimensions.Spacing.lg,
+                        top = Dimensions.Spacing.xxl * 2 + Dimensions.Spacing.md,
+                        bottom = Dimensions.Spacing.xxl * 3
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                ) {
                     items(
                         items = accountsToDisplay,
                         key = { it.account.id },
@@ -521,8 +461,183 @@ fun HomeScreen(
                 }
             }
         }
+
+        // 3. Header Flotante Superior (Overlay Moderno con Título Centrado y Lupa a la Izquierda)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(horizontal = Dimensions.Spacing.lg, vertical = Dimensions.Spacing.sm)
+                .zIndex(20f)
+        ) {
+            AnimatedContent(
+                targetState = isSearchActive,
+                transitionSpec = {
+                    fadeIn(animationSpec = Motion.Spec.quickFadeSpec()) togetherWith
+                            fadeOut(animationSpec = Motion.Spec.quickFadeSpec())
+                },
+                label = "headerSearchOverlayAnimation"
+            ) { searchOpen ->
+                if (searchOpen) {
+                    // Barra de búsqueda flotante en píldora
+                    Surface(
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
+                        color = MaterialTheme.colorScheme.surface,
+                        tonalElevation = Dimensions.Elevation.cardDefault,
+                        shadowElevation = Dimensions.Elevation.cardDefault,
+                        border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(Dimensions.ComponentHeight.buttonDefault)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = Dimensions.Spacing.md),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Search,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(Dimensions.IconSize.medium)
+                            )
+
+                            TextField(
+                                value = searchQuery,
+                                onValueChange = viewModel::onSearchQueryChanged,
+                                placeholder = {
+                                    Text(
+                                        stringResource(R.string.home_search_placeholder),
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                },
+                                singleLine = true,
+                                colors = TextFieldDefaults.colors(
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent,
+                                    disabledContainerColor = Color.Transparent,
+                                    focusedIndicatorColor = Color.Transparent,
+                                    unfocusedIndicatorColor = Color.Transparent
+                                ),
+                                textStyle = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            IconButton(
+                                onClick = {
+                                    appHaptics.click()
+                                    isSearchActive = false
+                                    viewModel.onSearchQueryChanged("")
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Close,
+                                    contentDescription = stringResource(R.string.action_close_search),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    // Header Overlay: Lupa Izquierda, Título Estilizado Central, Privacidad Derecha
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(Dimensions.ComponentHeight.buttonDefault),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        // 1. Botón Lupa Flotante a la Izquierda
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surface,
+                            tonalElevation = Dimensions.Elevation.cardDefault,
+                            shadowElevation = Dimensions.Elevation.cardDefault,
+                            border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+                            modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton + Dimensions.Spacing.sm)
+                        ) {
+                            IconButton(
+                                onClick = {
+                                    appHaptics.click()
+                                    isSearchActive = true
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Search,
+                                    contentDescription = stringResource(R.string.action_search),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        // 2. Título Central con Diseño Estilizado (Píldora con Icono y Tipografía de Alto Impacto)
+                        Surface(
+                            shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+                            tonalElevation = Dimensions.Elevation.cardDefault,
+                            shadowElevation = Dimensions.Elevation.cardDefault,
+                            border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
+                            modifier = Modifier.wrapContentWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = Dimensions.Spacing.lg, vertical = Dimensions.Spacing.xs),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Lock,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(Dimensions.IconSize.small)
+                                )
+                                Text(
+                                    text = stringResource(R.string.home_title),
+                                    style = MaterialTheme.typography.titleLarge.copy(
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+
+                        // 3. Botón Privacidad (Ojo) Flotante a la Derecha
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surface,
+                            tonalElevation = Dimensions.Elevation.cardDefault,
+                            shadowElevation = Dimensions.Elevation.cardDefault,
+                            border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+                            modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton + Dimensions.Spacing.sm)
+                        ) {
+                            IconButton(
+                                onClick = {
+                                    appHaptics.click()
+                                    viewModel.toggleHideCodes()
+                                }
+                            ) {
+                                AnimatedContent(
+                                    targetState = isHideCodesEnabled,
+                                    transitionSpec = {
+                                        fadeIn(animationSpec = Motion.Spec.quickFadeSpec()) togetherWith
+                                                fadeOut(animationSpec = Motion.Spec.quickFadeSpec())
+                                    },
+                                    label = "hideCodesIconAnimation"
+                                ) { hideEnabled ->
+                                    Icon(
+                                        imageVector = if (hideEnabled) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                        contentDescription = if (hideEnabled) stringResource(R.string.action_show_codes) else stringResource(R.string.action_hide_codes),
+                                        tint = if (hideEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
-}
 
     // Modal / Popup de Edición y Detalles de la Cuenta seleccionada
     selectedAccountWithCode?.let { item ->

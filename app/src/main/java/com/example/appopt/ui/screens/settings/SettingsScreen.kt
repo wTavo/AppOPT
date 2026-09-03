@@ -15,6 +15,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -526,66 +527,87 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    // 3. Estado de última copia (Contenedor interactivo)
+                    // 3. Fila con Contenedor de Estado de Copia y Contenedor Independiente de Desvinculación
                     if (isDriveConnected) {
                         val hasBackupInfo = formattedLastSync != null || driveBackupExists
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .then(
-                                    if (hasBackupInfo) {
-                                        Modifier.clickable {
-                                            isConfirmingDeleteInDialog = false
-                                            showBackupDetailsDialog = true
-                                        }
-                                    } else {
-                                        Modifier
-                                    }
-                                ),
-                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier.padding(
-                                    start = Dimensions.Spacing.md,
-                                    end = Dimensions.Spacing.xs,
-                                    top = Dimensions.Spacing.xs,
-                                    bottom = Dimensions.Spacing.xs
-                                ),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                            // Contenedor 1: Estado de la copia de seguridad
+                            Surface(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .then(
+                                        if (hasBackupInfo) {
+                                            Modifier.clickable {
+                                                isConfirmingDeleteInDialog = false
+                                                showBackupDetailsDialog = true
+                                            }
+                                        } else {
+                                            Modifier
+                                        }
+                                    ),
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
                             ) {
                                 Row(
+                                    modifier = Modifier.padding(
+                                        horizontal = Dimensions.Spacing.md,
+                                        vertical = Dimensions.Spacing.sm
+                                    ),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
-                                    modifier = Modifier.weight(1f)
+                                    horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.CloudDone,
-                                        contentDescription = null,
-                                        tint = if (hasBackupInfo) SafeGreen else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(Dimensions.IconSize.small)
-                                    )
-                                    Text(
-                                        text = when {
-                                            formattedLastSync != null -> stringResource(R.string.settings_drive_last_sync, formattedLastSync)
-                                            driveBackupExists -> stringResource(R.string.settings_drive_backup_found)
-                                            else -> stringResource(R.string.settings_drive_last_sync_never)
-                                        },
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
+                                        modifier = Modifier.weight(1f, fill = false)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.CloudDone,
+                                            contentDescription = null,
+                                            tint = if (hasBackupInfo) SafeGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(Dimensions.IconSize.small)
+                                        )
+                                        Text(
+                                            text = when {
+                                                formattedLastSync != null -> stringResource(R.string.settings_drive_last_sync, formattedLastSync)
+                                                driveBackupExists -> stringResource(R.string.settings_drive_backup_found)
+                                                else -> stringResource(R.string.settings_drive_last_sync_never)
+                                            },
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
 
-                                IconButton(
-                                    onClick = { showDisconnectConfirmDialog = true },
-                                    modifier = Modifier.size(Dimensions.IconSize.large)
+                                    if (hasBackupInfo) {
+                                        Icon(
+                                            imageVector = Icons.Filled.ChevronRight,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(Dimensions.IconSize.small)
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Contenedor 2: Botón independiente para desvincular cuenta
+                            Surface(
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f),
+                                modifier = Modifier.clickable { showDisconnectConfirmDialog = true }
+                            ) {
+                                Box(
+                                    modifier = Modifier.padding(Dimensions.Spacing.sm),
+                                    contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Filled.SyncDisabled,
                                         contentDescription = stringResource(R.string.settings_drive_disconnect_button),
                                         tint = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.size(Dimensions.IconSize.small)
+                                        modifier = Modifier.size(Dimensions.IconSize.medium)
                                     )
                                 }
                             }

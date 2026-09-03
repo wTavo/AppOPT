@@ -2,7 +2,7 @@ package com.example.appopt.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -122,7 +122,6 @@ fun OtpCodeCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(Dimensions.CornerRadius.large))
             .clickable(
                 interactionSource = interactionSource,
                 indication = ripple(),
@@ -210,7 +209,7 @@ fun OtpCodeCard(
                             .size(Dimensions.ComponentSize.actionIconButton)
                             .clip(RoundedCornerShape(Dimensions.CornerRadius.small))
                             .pointerInput(account.id) {
-                                detectDragGestures(
+                                detectDragGesturesAfterLongPress(
                                     onDragStart = {
                                         appHaptics.dragTick()
                                         onStartDrag()

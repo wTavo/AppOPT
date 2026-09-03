@@ -162,4 +162,11 @@
     <!-- Password Manager (Future Module) -->
     <string name="passwords_nav_title">Gestor de contraseñas</string>
     <string name="passwords_coming_soon">Gestor de contraseñas disponible próximamente</string>
+
+    <!-- Time Formatting & Accessibility -->
+    <string name="time_just_now">hace unos momentos</string>
+    <string name="time_minutes_ago">hace %1$d min</string>
+    <string name="time_today_at">hoy a las %1$s</string>
+    <string name="time_yesterday_at">ayer a las %1$s</string>
+    <string name="card_seconds_abbrev">segundos restantes</string>
 </resources>

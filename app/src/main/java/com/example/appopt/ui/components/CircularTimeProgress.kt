@@ -12,7 +12,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.example.appopt.R
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.UrgentRed
@@ -21,8 +25,9 @@ import com.example.appopt.ui.theme.WarningOrange
 /**
  * Indicador visual circular del tiempo restante en la ventana de rotación TOTP con animaciones centralizadas.
  *
- * Características visuales:
+ * Características visuales y de accesibilidad:
  * - Muestra los segundos restantes en el centro con tipografía semántica.
+ * - Incluye descripción semántica para lectores de pantalla TalkBack.
  * - Cambia dinámicamente de color (Azul Primario -> Naranja de Advertencia -> Rojo de Urgencia)
  *   conforme se agota la validez del código utilizando [Motion.Spec.progressColorSpec].
  *
@@ -46,9 +51,15 @@ fun CircularTimeProgress(
         label = "progressColor"
     )
 
+    val secondsLabel = stringResource(R.string.card_seconds_abbrev)
+
     Box(
         contentAlignment = Alignment.Center,
-        modifier = modifier.size(Dimensions.ComponentHeight.progressIndicator)
+        modifier = modifier
+            .size(Dimensions.ComponentHeight.progressIndicator)
+            .semantics {
+                contentDescription = "$remainingSeconds $secondsLabel"
+            }
     ) {
         CircularProgressIndicator(
             progress = { progress },

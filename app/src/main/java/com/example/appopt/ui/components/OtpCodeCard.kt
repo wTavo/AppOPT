@@ -47,9 +47,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.example.appopt.R
 import com.example.appopt.domain.model.OtpType
@@ -58,6 +60,8 @@ import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.SafeGreen
 import com.example.appopt.ui.theme.WarningOrange
+import com.example.appopt.ui.theme.rememberAppHaptics
+import com.example.appopt.util.AccessibilityUtils
 import kotlinx.coroutines.delay
 
 /**
@@ -95,7 +99,8 @@ fun OtpCodeCard(
     onEndDrag: () -> Unit = {}
 ) {
     val account = accountWithCode.account
-    val haptic = LocalHapticFeedback.current
+    val appHaptics = rememberAppHaptics()
+    val context = LocalContext.current
     val density = LocalDensity.current
     val interactionSource = remember { MutableInteractionSource() }
 
@@ -124,6 +129,16 @@ fun OtpCodeCard(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(Dimensions.CornerRadius.large))
+            .semantics {
+                contentDescription = AccessibilityUtils.buildAccountCardContentDescription(
+                    context = context,
+                    issuer = account.issuer,
+                    accountName = account.accountName,
+                    code = accountWithCode.code,
+                    remainingSeconds = accountWithCode.remainingSeconds,
+                    isFavorite = account.isFavorite
+                )
+            }
             .onGloballyPositioned { coordinates ->
                 cardHeightPx = coordinates.size.height.toFloat() + spacingPx
             }
@@ -131,7 +146,7 @@ fun OtpCodeCard(
             .pointerInput(account.id) {
                 detectDragGesturesAfterLongPress(
                     onDragStart = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        appHaptics.dragTick()
                         onStartDrag()
                     },
                     onDrag = { change, dragAmount ->
@@ -151,6 +166,7 @@ fun OtpCodeCard(
                         interactionSource.emit(PressInteraction.Release(press))
                     },
                     onTap = {
+                        appHaptics.click()
                         onCardClick()
                     }
                 )
@@ -158,28 +174,23 @@ fun OtpCodeCard(
         colors = CardDefaults.cardColors(
             containerColor = if (isDragging) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isDragging) Dimensions.Elevation.cardDragging else Dimensions.Elevation.cardDefault
-        ),
-        border = BorderStroke(
-            width = if (isDragging) 2.dp else 1.dp,
-            color = if (isDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
-        )
+        shape = RoundedCornerShape(Dimensions.CornerRadius.large),
+        border = if (isDragging) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(Dimensions.Spacing.lg)
         ) {
-            // Encabezado: Avatar de Marca, Emisor y Favorito
+            // Cabecera: Avatar de Marca, Nombres y Botón de Favorito
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
                 ) {
                     ServiceBrandAvatar(
                         issuer = account.issuer,
@@ -196,6 +207,7 @@ fun OtpCodeCard(
                             maxLines = 1
                         )
                         if (account.accountName.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = account.accountName,
                                 style = MaterialTheme.typography.bodySmall,
@@ -207,7 +219,10 @@ fun OtpCodeCard(
                 }
 
                 IconButton(
-                    onClick = { onToggleFavorite(account.id) },
+                    onClick = {
+                        appHaptics.click()
+                        onToggleFavorite(account.id)
+                    },
                     modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
@@ -240,6 +255,7 @@ fun OtpCodeCard(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(Dimensions.CornerRadius.small))
                                 .clickable {
+                                    appHaptics.copy()
                                     onCopyCode(accountWithCode.code)
                                     copied = true
                                 }
@@ -249,7 +265,10 @@ fun OtpCodeCard(
                             Text(
                                 text = formattedCode,
                                 style = MaterialTheme.typography.displayMedium,
-                                color = MaterialTheme.colorScheme.primary
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.semantics {
+                                    contentDescription = AccessibilityUtils.toAccessibleSpokenOtp(accountWithCode.code)
+                                }
                             )
 
                             AnimatedVisibility(
@@ -276,7 +295,10 @@ fun OtpCodeCard(
                             )
                         } else {
                             IconButton(
-                                onClick = { onNextHotpCode(account.id) }
+                                onClick = {
+                                    appHaptics.click()
+                                    onNextHotpCode(account.id)
+                                }
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Refresh,

@@ -97,7 +97,9 @@ import com.example.appopt.security.CryptoManager
 import com.example.appopt.ui.components.ServiceBrandAvatar
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.SafeGreen
+import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.ui.util.QrCodeGenerator
+import com.example.appopt.util.DateTimeFormatter
 import com.google.android.gms.common.api.ApiException
 import kotlinx.coroutines.launch
 
@@ -115,6 +117,7 @@ fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val appHaptics = rememberAppHaptics()
     val scope = rememberCoroutineScope()
     val secureClipboard = remember { AuthenticatorApp.instance.secureClipboardManager }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -147,9 +150,7 @@ fun SettingsScreen(
         if (lastSyncTimestamp == 0L) {
             null
         } else {
-            val date = java.util.Date(lastSyncTimestamp)
-            val format = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault())
-            format.format(date)
+            DateTimeFormatter.formatRelativeSyncTime(context, lastSyncTimestamp)
         }
     }
 
@@ -973,8 +974,9 @@ fun SettingsScreen(
                             ) {
                                 TextButton(
                                     onClick = {
+                                        appHaptics.copy()
                                         secureClipboard.copyToClipboard(
-                                            label = context.getString(R.string.settings_drive_key_label),
+                                            label = "AppOPT-BackupKey",
                                             text = generated64Key,
                                             autoClearSeconds = 60
                                         )

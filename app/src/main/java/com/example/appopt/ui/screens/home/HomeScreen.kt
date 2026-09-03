@@ -66,9 +66,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -81,6 +79,7 @@ import com.example.appopt.ui.components.AccountDetailsDialog
 import com.example.appopt.ui.components.OtpCodeCard
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
+import com.example.appopt.ui.theme.rememberAppHaptics
 import java.util.Collections
 
 /**
@@ -88,9 +87,8 @@ import java.util.Collections
  *
  * Características de seguridad, diseño e interacción:
  * - Barra superior: Búsqueda interactiva y alternador de modo de privacidad con animaciones fluidas.
- * - Dock inferior flotante (*Floating Pill*): Cápsula estilizada con esquinas redondeadas, sombra sutil y el hero FAB (+) central para agregar cuentas, acompañado del candado de bloqueo y botón de configuración.
- * - Reordenamiento por pulsación prolongada (*Long Press*) e intercambio in-place mediante [Collections.swap].
- * - Sincronización continua de contadores y dígitos en vivo.
+ * - Lista reactiva: Cuentas 2FA con arrastre, favoritos, filtrado y actualización en tiempo real de códigos OTP.
+ * - Dock flotante: Acciones rápidas ergonómicas inferiores accesibles con una sola mano.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,7 +107,7 @@ fun HomeScreen(
     var selectedAccountId by remember { mutableStateOf<String?>(null) }
     var showAddOptionsDialog by remember { mutableStateOf(false) }
 
-    val haptic = LocalHapticFeedback.current
+    val appHaptics = rememberAppHaptics()
     val context = LocalContext.current
 
     // Lista de renderizado local para swaps instantáneos sin animaciones residuales de reacomodo
@@ -235,7 +233,7 @@ fun HomeScreen(
                         // 1. Bloquear bóveda manualmente
                         IconButton(
                             onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                appHaptics.click()
                                 viewModel.lockVault()
                             }
                         ) {
@@ -362,7 +360,7 @@ fun HomeScreen(
                                                     Collections.swap(localAccounts, currentIndex, currentIndex + 1)
                                                     dragOffsetY -= cardHeightPx
                                                     lastSwapTime = now
-                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                    appHaptics.dragTick()
                                                 }
                                             }
                                             // Arrastre hacia arriba con intercambio in-place
@@ -373,7 +371,7 @@ fun HomeScreen(
                                                     Collections.swap(localAccounts, currentIndex, currentIndex - 1)
                                                     dragOffsetY += cardHeightPx
                                                     lastSwapTime = now
-                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                    appHaptics.dragTick()
                                                 }
                                             }
                                         }

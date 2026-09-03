@@ -508,7 +508,7 @@ fun SettingsScreen(
                         ) {
                             Surface(
                                 shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
-                                color = if (isDriveConnected) SafeGreen.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
+                                color = if (isDriveConnected) SafeGreen.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant
                             ) {
                                 Text(
                                     text = if (isDriveConnected) {
@@ -516,22 +516,22 @@ fun SettingsScreen(
                                     } else {
                                         stringResource(R.string.settings_drive_status_not_synced)
                                     },
-                                    style = MaterialTheme.typography.labelLarge,
+                                    style = MaterialTheme.typography.labelSmall,
                                     color = if (isDriveConnected) SafeGreen else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.xs)
+                                    modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs)
                                 )
                             }
 
                             if (isDriveConnected) {
                                 IconButton(
                                     onClick = { showDisconnectConfirmDialog = true },
-                                    modifier = Modifier.size(Dimensions.IconSize.hero)
+                                    modifier = Modifier.size(Dimensions.IconSize.large)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Filled.SyncDisabled,
                                         contentDescription = stringResource(R.string.settings_drive_disconnect_button),
                                         tint = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.size(Dimensions.IconSize.large)
+                                        modifier = Modifier.size(Dimensions.IconSize.small)
                                     )
                                 }
                             }

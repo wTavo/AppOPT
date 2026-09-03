@@ -1,11 +1,10 @@
 package com.example.appopt.ui.navigation
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
@@ -23,67 +22,68 @@ import com.example.appopt.ui.screens.settings.SettingsScreen
 /**
  * Grafo principal de navegación y control de acceso de la aplicación.
  *
- * Principio de compuerta de seguridad (*Security Gate*):
- * - Evalúa reactivamente el estado de [AppLockManager.isUnlocked].
- * - Si la app está bloqueada, interrumpe cualquier flujo y muestra exclusivamente [LockScreen].
- * - Al desbloquearse, restaura la navegación entre las pantallas de la aplicación.
+ * Principio de compuerta de seguridad (*Security Gate Layer*):
+ * - Mantiene el grafo [NavHost] pre-renderizado en segundo plano para respuesta en 0ms.
+ * - [LockScreen] se sitúa como una capa opaca superior (*Z-Index Overlay*) cuando la bóveda está bloqueada.
+ * - Al autenticar exitosamente, la capa de bloqueo se retira de inmediato mostrando los servicios sin pausas ni pantallas vacías.
  */
 @Composable
 fun AppNavigation() {
     val appLockManager = AuthenticatorApp.instance.appLockManager
     val isUnlocked by appLockManager.isUnlocked.collectAsStateWithLifecycle()
+    val navController = rememberNavController()
 
-    if (!isUnlocked) {
-        LockScreen(
-            onUnlocked = { appLockManager.unlock() }
-        )
-    } else {
-        val navController = rememberNavController()
-
+    Box(modifier = Modifier.fillMaxSize()) {
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route
         ) {
-                composable(Screen.Home.route) {
-                    val homeViewModel: HomeViewModel = viewModel()
-                    HomeScreen(
-                        viewModel = homeViewModel,
-                        onNavigateToScanQr = { navController.navigate(Screen.ScanQr.route) },
-                        onNavigateToAddManual = { navController.navigate(Screen.AddManual.route) },
-                        onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
-                    )
-                }
+            composable(Screen.Home.route) {
+                val homeViewModel: HomeViewModel = viewModel()
+                HomeScreen(
+                    viewModel = homeViewModel,
+                    onNavigateToScanQr = { navController.navigate(Screen.ScanQr.route) },
+                    onNavigateToAddManual = { navController.navigate(Screen.AddManual.route) },
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
+                )
+            }
 
-                composable(Screen.ScanQr.route) {
-                    QrScannerScreen(
-                        onScanSuccess = {
-                            navController.popBackStack(Screen.Home.route, false)
-                        },
-                        onNavigateToManual = {
-                            navController.navigate(Screen.AddManual.route) {
-                                popUpTo(Screen.ScanQr.route) { inclusive = true }
-                            }
-                        },
-                        onNavigateBack = {
-                            navController.popBackStack()
+            composable(Screen.ScanQr.route) {
+                QrScannerScreen(
+                    onScanSuccess = {
+                        navController.popBackStack(Screen.Home.route, false)
+                    },
+                    onNavigateToManual = {
+                        navController.navigate(Screen.AddManual.route) {
+                            popUpTo(Screen.ScanQr.route) { inclusive = true }
                         }
-                    )
-                }
+                    },
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    }
+                )
+            }
 
-                composable(Screen.AddManual.route) {
-                    val addViewModel: AddAccountViewModel = viewModel()
-                    AddAccountScreen(
-                        viewModel = addViewModel,
-                        onNavigateBack = { navController.popBackStack() }
-                    )
-                }
+            composable(Screen.AddManual.route) {
+                val addViewModel: AddAccountViewModel = viewModel()
+                AddAccountScreen(
+                    viewModel = addViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
 
-                composable(Screen.Settings.route) {
-                    SettingsScreen(
-                        onNavigateBack = { navController.popBackStack() },
-                        onNavigateToScanQr = { navController.navigate(Screen.ScanQr.route) }
-                    )
-                }
+            composable(Screen.Settings.route) {
+                SettingsScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToScanQr = { navController.navigate(Screen.ScanQr.route) }
+                )
             }
         }
+
+        if (!isUnlocked) {
+            LockScreen(
+                onUnlocked = { appLockManager.unlock() }
+            )
+        }
+    }
 }

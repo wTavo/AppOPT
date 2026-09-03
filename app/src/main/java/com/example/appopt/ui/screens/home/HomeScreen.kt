@@ -119,9 +119,7 @@ fun HomeScreen(
     // Lista de renderizado local activa exclusivamente durante sesiones de arrastre
     val localAccounts = remember { mutableStateListOf<AccountWithCode>() }
     var draggingAccountId by remember { mutableStateOf<String?>(null) }
-    var dragStartOffset by remember { mutableFloatStateOf(0f) }
-    var dragFingerDeltaY by remember { mutableFloatStateOf(0f) }
-    var dragScrollOffset by remember { mutableFloatStateOf(0f) }
+    var draggedDistance by remember { mutableFloatStateOf(0f) }
 
     // Resuelve las cuentas directamente desde el UiState inmutable para máxima velocidad de renderizado
     @Suppress("UNCHECKED_CAST")
@@ -147,66 +145,72 @@ fun HomeScreen(
     val onNextHotpCode = remember(viewModel) { viewModel::nextHotpCode }
     val onCommitReorder = remember(viewModel) { viewModel::commitReorder }
 
-    // Motor de auto-scroll continuo proporcional y bidireccional al arrastrar cerca de los bordes
+    // Motor de auto-scroll continuo proporcional y profesional al arrastrar cerca de los bordes
     LaunchedEffect(draggingAccountId) {
         if (draggingAccountId != null) {
             while (true) {
                 val layoutInfo = listState.layoutInfo
-                val currentVisualTop = dragStartOffset + dragFingerDeltaY + dragScrollOffset
-                val draggedItem = layoutInfo.visibleItemsInfo.find { it.key == draggingAccountId }
-                val itemHeight = draggedItem?.size?.toFloat() ?: 120f
-                val floatingCenterY = currentVisualTop + (itemHeight / 2f)
+                val currentItem = layoutInfo.visibleItemsInfo.find { it.key == draggingAccountId }
+                if (currentItem != null) {
+                    val cardTopInViewport = currentItem.offset + draggedDistance
+                    val cardBottomInViewport = cardTopInViewport + currentItem.size
 
-                val viewportStart = layoutInfo.viewportStartOffset.toFloat()
-                val viewportEnd = layoutInfo.viewportEndOffset.toFloat()
-                val totalViewportHeight = (viewportEnd - viewportStart).coerceAtLeast(1f)
+                    val viewportStart = layoutInfo.viewportStartOffset.toFloat()
+                    val viewportEnd = layoutInfo.viewportEndOffset.toFloat()
+                    val totalHeight = (viewportEnd - viewportStart).coerceAtLeast(1f)
 
-                // Zonas de activación superior e inferior (32% del viewport visible)
-                val topZoneLimit = viewportStart + (totalViewportHeight * 0.32f)
-                val bottomZoneLimit = viewportEnd - (totalViewportHeight * 0.32f)
+                    val topThreshold = viewportStart + (totalHeight * 0.25f)
+                    val bottomThreshold = viewportEnd - (totalHeight * 0.25f)
 
-                if (floatingCenterY < topZoneLimit && listState.canScrollBackward) {
-                    val distanceInsideZone = topZoneLimit - floatingCenterY
-                    val progress = (distanceInsideZone / (topZoneLimit - viewportStart).coerceAtLeast(1f)).coerceIn(0.1f, 3.0f)
-                    val scrollSpeed = (8f + progress * 24f).coerceIn(8f, 70f)
-                    listState.scrollBy(-scrollSpeed)
-                    dragScrollOffset -= scrollSpeed
+                    // Auto-scroll hacia arriba
+                    if (cardTopInViewport < topThreshold && listState.canScrollBackward) {
+                        val overscroll = topThreshold - cardTopInViewport
+                        val factor = (overscroll / (topThreshold - viewportStart).coerceAtLeast(1f)).coerceIn(0.1f, 2.5f)
+                        val scrollAmount = (factor * 16f).coerceIn(4f, 45f)
+                        listState.scrollBy(-scrollAmount)
+                        draggedDistance += scrollAmount
 
-                    // Intercambio dinámico continuo mientras sube
-                    val currentIndex = localAccounts.indexOfFirst { it.account.id == draggingAccountId }
-                    if (currentIndex > 0) {
-                        val currentAccount = localAccounts[currentIndex]
-                        val prevAccount = localAccounts[currentIndex - 1]
-                        if (currentAccount.account.isFavorite == prevAccount.account.isFavorite) {
-                            val prevItem = layoutInfo.visibleItemsInfo.find { it.key == prevAccount.account.id }
-                            if (prevItem != null && floatingCenterY < prevItem.offset + (prevItem.size / 2f)) {
-                                Collections.swap(localAccounts, currentIndex, currentIndex - 1)
-                                appHaptics.dragTick()
+                        // Verificar swap hacia arriba
+                        val currentIndex = localAccounts.indexOfFirst { it.account.id == draggingAccountId }
+                        if (currentIndex > 0) {
+                            val currentAccount = localAccounts[currentIndex]
+                            val prevAccount = localAccounts[currentIndex - 1]
+                            if (currentAccount.account.isFavorite == prevAccount.account.isFavorite) {
+                                val prevItem = layoutInfo.visibleItemsInfo.find { it.key == prevAccount.account.id }
+                                val itemHeight = prevItem?.size?.toFloat() ?: currentItem.size.toFloat()
+                                if (draggedDistance < -itemHeight * 0.5f) {
+                                    Collections.swap(localAccounts, currentIndex, currentIndex - 1)
+                                    draggedDistance += itemHeight
+                                    appHaptics.dragTick()
+                                }
                             }
                         }
                     }
-                } else if (floatingCenterY > bottomZoneLimit && listState.canScrollForward) {
-                    val distanceInsideZone = floatingCenterY - bottomZoneLimit
-                    val progress = (distanceInsideZone / (viewportEnd - bottomZoneLimit).coerceAtLeast(1f)).coerceIn(0.1f, 3.0f)
-                    val scrollSpeed = (8f + progress * 24f).coerceIn(8f, 70f)
-                    listState.scrollBy(scrollSpeed)
-                    dragScrollOffset += scrollSpeed
+                    // Auto-scroll hacia abajo
+                    else if (cardBottomInViewport > bottomThreshold && listState.canScrollForward) {
+                        val overscroll = cardBottomInViewport - bottomThreshold
+                        val factor = (overscroll / (viewportEnd - bottomThreshold).coerceAtLeast(1f)).coerceIn(0.1f, 2.5f)
+                        val scrollAmount = (factor * 16f).coerceIn(4f, 45f)
+                        listState.scrollBy(scrollAmount)
+                        draggedDistance -= scrollAmount
 
-                    // Intercambio dinámico continuo mientras baja
-                    val currentIndex = localAccounts.indexOfFirst { it.account.id == draggingAccountId }
-                    if (currentIndex != -1 && currentIndex < localAccounts.lastIndex) {
-                        val currentAccount = localAccounts[currentIndex]
-                        val nextAccount = localAccounts[currentIndex + 1]
-                        if (currentAccount.account.isFavorite == nextAccount.account.isFavorite) {
-                            val nextItem = layoutInfo.visibleItemsInfo.find { it.key == nextAccount.account.id }
-                            if (nextItem != null && floatingCenterY > nextItem.offset + (nextItem.size / 2f)) {
-                                Collections.swap(localAccounts, currentIndex, currentIndex + 1)
-                                appHaptics.dragTick()
+                        // Verificar swap hacia abajo
+                        val currentIndex = localAccounts.indexOfFirst { it.account.id == draggingAccountId }
+                        if (currentIndex != -1 && currentIndex < localAccounts.lastIndex) {
+                            val currentAccount = localAccounts[currentIndex]
+                            val nextAccount = localAccounts[currentIndex + 1]
+                            if (currentAccount.account.isFavorite == nextAccount.account.isFavorite) {
+                                val nextItem = layoutInfo.visibleItemsInfo.find { it.key == nextAccount.account.id }
+                                val itemHeight = nextItem?.size?.toFloat() ?: currentItem.size.toFloat()
+                                if (draggedDistance > itemHeight * 0.5f) {
+                                    Collections.swap(localAccounts, currentIndex, currentIndex + 1)
+                                    draggedDistance -= itemHeight
+                                    appHaptics.dragTick()
+                                }
                             }
                         }
                     }
                 }
-
                 kotlinx.coroutines.delay(16L)
             }
         }
@@ -397,16 +401,10 @@ fun HomeScreen(
                         val isDragging = draggingAccountId == item.account.id
 
                         val cardModifier = if (isDragging) {
-                            val layoutInfo = listState.layoutInfo
-                            val currentRenderedItem = layoutInfo.visibleItemsInfo.find { it.key == item.account.id }
-                            val currentRenderedTop = currentRenderedItem?.offset?.toFloat() ?: dragStartOffset
-                            val targetVisualTop = dragStartOffset + dragFingerDeltaY + dragScrollOffset
-                            val exactTranslationY = targetVisualTop - currentRenderedTop
-
                             Modifier
                                 .zIndex(10f)
                                 .graphicsLayer {
-                                    translationY = exactTranslationY
+                                    translationY = draggedDistance
                                     scaleX = 1.03f
                                     scaleY = 1.03f
                                     shadowElevation = 16f
@@ -428,42 +426,41 @@ fun HomeScreen(
                                 localAccounts.clear()
                                 localAccounts.addAll(currentSuccessAccounts)
                                 draggingAccountId = item.account.id
-                                val layoutInfo = listState.layoutInfo
-                                val draggedItem = layoutInfo.visibleItemsInfo.find { it.key == item.account.id }
-                                dragStartOffset = draggedItem?.offset?.toFloat() ?: 0f
-                                dragFingerDeltaY = 0f
-                                dragScrollOffset = 0f
+                                draggedDistance = 0f
                             },
                             onDragDelta = { deltaY, _ ->
                                 if (draggingAccountId == item.account.id) {
-                                    dragFingerDeltaY += deltaY
-
-                                    val currentVisualTop = dragStartOffset + dragFingerDeltaY + dragScrollOffset
-                                    val layoutInfo = listState.layoutInfo
-                                    val draggedItem = layoutInfo.visibleItemsInfo.find { it.key == item.account.id }
-                                    val itemHeight = draggedItem?.size?.toFloat() ?: 120f
-                                    val floatingCenterY = currentVisualTop + (itemHeight / 2f)
+                                    draggedDistance += deltaY
 
                                     val currentIndex = localAccounts.indexOfFirst { it.account.id == item.account.id }
                                     if (currentIndex != -1) {
                                         val currentAccount = localAccounts[currentIndex]
-                                        for (visibleItem in layoutInfo.visibleItemsInfo) {
-                                            if (visibleItem.key != item.account.id) {
-                                                val targetIndex = localAccounts.indexOfFirst { it.account.id == visibleItem.key }
-                                                if (targetIndex != -1) {
-                                                    val targetAccount = localAccounts[targetIndex]
-                                                    if (currentAccount.account.isFavorite == targetAccount.account.isFavorite) {
-                                                        val targetCenterY = visibleItem.offset + (visibleItem.size / 2f)
-                                                        if (currentIndex < targetIndex && floatingCenterY > targetCenterY) {
-                                                            Collections.swap(localAccounts, currentIndex, targetIndex)
-                                                            appHaptics.dragTick()
-                                                            break
-                                                        } else if (currentIndex > targetIndex && floatingCenterY < targetCenterY) {
-                                                            Collections.swap(localAccounts, currentIndex, targetIndex)
-                                                            appHaptics.dragTick()
-                                                            break
-                                                        }
-                                                    }
+                                        val layoutInfo = listState.layoutInfo
+                                        val currentItemInfo = layoutInfo.visibleItemsInfo.find { it.key == item.account.id }
+
+                                        // Swap hacia abajo
+                                        if (draggedDistance > 0f && currentIndex < localAccounts.lastIndex) {
+                                            val nextAccount = localAccounts[currentIndex + 1]
+                                            if (currentAccount.account.isFavorite == nextAccount.account.isFavorite) {
+                                                val nextItemInfo = layoutInfo.visibleItemsInfo.find { it.key == nextAccount.account.id }
+                                                val threshold = nextItemInfo?.size?.toFloat() ?: (currentItemInfo?.size?.toFloat() ?: 120f)
+                                                if (draggedDistance > threshold * 0.5f) {
+                                                    Collections.swap(localAccounts, currentIndex, currentIndex + 1)
+                                                    draggedDistance -= threshold
+                                                    appHaptics.dragTick()
+                                                }
+                                            }
+                                        }
+                                        // Swap hacia arriba
+                                        else if (draggedDistance < 0f && currentIndex > 0) {
+                                            val prevAccount = localAccounts[currentIndex - 1]
+                                            if (currentAccount.account.isFavorite == prevAccount.account.isFavorite) {
+                                                val prevItemInfo = layoutInfo.visibleItemsInfo.find { it.key == prevAccount.account.id }
+                                                val threshold = prevItemInfo?.size?.toFloat() ?: (currentItemInfo?.size?.toFloat() ?: 120f)
+                                                if (draggedDistance < -threshold * 0.5f) {
+                                                    Collections.swap(localAccounts, currentIndex, currentIndex - 1)
+                                                    draggedDistance += threshold
+                                                    appHaptics.dragTick()
                                                 }
                                             }
                                         }
@@ -474,9 +471,7 @@ fun HomeScreen(
                                 if (draggingAccountId != null) {
                                     onCommitReorder(localAccounts.map { it.account.id })
                                     draggingAccountId = null
-                                    dragStartOffset = 0f
-                                    dragFingerDeltaY = 0f
-                                    dragScrollOffset = 0f
+                                    draggedDistance = 0f
                                     localAccounts.clear()
                                 }
                             }

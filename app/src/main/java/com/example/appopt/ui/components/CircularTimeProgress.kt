@@ -1,42 +1,39 @@
 package com.example.appopt.ui.components
 
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
-import com.example.appopt.R
-import com.example.appopt.ui.theme.Dimensions
-import com.example.appopt.ui.theme.Motion
-import com.example.appopt.ui.theme.UrgentRed
-import com.example.appopt.ui.theme.WarningOrange
-
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import com.example.appopt.R
+import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.UrgentRed
+import com.example.appopt.ui.theme.WarningOrange
 import kotlinx.coroutines.delay
 
 /**
- * Indicador visual circular del tiempo restante en la ventana de rotación TOTP con animaciones centralizadas.
+ * Indicador visual circular del tiempo restante en la ventana de rotación TOTP con renderizado directo en Canvas.
  *
- * Características de alto rendimiento:
- * - Aísla las actualizaciones del temporizador a 4 Hz dentro de su propio canvas sin provocar recomposiciones en la lista ni tarjetas.
+ * Características de ultra alto rendimiento:
+ * - Dibuja directamente los arcos mediante [Canvas] y [Stroke] evitando envoltorios pesados de Material.
+ * - Sincronizado exactamente al segundo reloj (1 Hz) sin generar recomposiciones durante el scroll.
  * - Muestra los segundos restantes en el centro con tipografía semántica.
  * - Incluye descripción semántica para lectores de pantalla TalkBack.
- * - Cambia dinámicamente de color (Azul Primario -> Naranja de Advertencia -> Rojo de Urgencia)
- *   conforme se agota la validez del código utilizando [Motion.Spec.progressColorSpec].
  *
  * @param period Período en segundos de la ventana de rotación TOTP (por defecto 30).
  * @param modifier Modificador de layout.
@@ -58,18 +55,16 @@ fun CircularTimeProgress(
     }
 
     val remainingSeconds = (period - ((currentTime / 1000L) % period)).toInt().coerceIn(1, period)
-    val progress = remainingSeconds.toFloat() / period.toFloat()
+    val sweepAngle = (remainingSeconds.toFloat() / period.toFloat()) * 360f
 
-    val indicatorColor by animateColorAsState(
-        targetValue = when {
-            remainingSeconds <= 5 -> UrgentRed
-            remainingSeconds <= 10 -> WarningOrange
-            else -> MaterialTheme.colorScheme.primary
-        },
-        animationSpec = Motion.Spec.progressColorSpec(),
-        label = "progressColor"
-    )
+    val color = when {
+        remainingSeconds <= 5 -> UrgentRed
+        remainingSeconds <= 10 -> WarningOrange
+        else -> MaterialTheme.colorScheme.primary
+    }
 
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant
+    val strokeWidthPx = with(LocalDensity.current) { Dimensions.Stroke.progressArc.toPx() }
     val secondsLabel = stringResource(R.string.card_seconds_abbrev)
 
     Box(
@@ -80,19 +75,29 @@ fun CircularTimeProgress(
                 contentDescription = "$remainingSeconds $secondsLabel"
             }
     ) {
-        CircularProgressIndicator(
-            progress = { progress },
-            modifier = Modifier.size(Dimensions.ComponentHeight.progressIndicator),
-            color = indicatorColor,
-            strokeWidth = Dimensions.Stroke.progressArc,
-            trackColor = MaterialTheme.colorScheme.surfaceVariant,
-            strokeCap = StrokeCap.Round
-        )
+        Canvas(modifier = Modifier.size(Dimensions.ComponentHeight.progressIndicator)) {
+            // Pista de fondo
+            drawArc(
+                color = trackColor,
+                startAngle = 0f,
+                sweepAngle = 360f,
+                useCenter = false,
+                style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round)
+            )
+            // Arco de progreso
+            drawArc(
+                color = color,
+                startAngle = -90f,
+                sweepAngle = sweepAngle,
+                useCenter = false,
+                style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round)
+            )
+        }
 
         Text(
             text = "$remainingSeconds",
             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-            color = indicatorColor
+            color = color
         )
     }
 }

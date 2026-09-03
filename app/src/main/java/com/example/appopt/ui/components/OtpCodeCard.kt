@@ -1,10 +1,5 @@
 package com.example.appopt.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -241,14 +236,8 @@ fun OtpCodeCard(
                 }
             }
 
-            // Animación fluida de colapso y despliegue del modo de privacidad
-            AnimatedVisibility(
-                visible = !hideCodes,
-                enter = fadeIn(animationSpec = Motion.Spec.privacyCollapseSpec()) +
-                        expandVertically(animationSpec = Motion.Spec.privacyCollapseSpec()),
-                exit = fadeOut(animationSpec = Motion.Spec.privacyCollapseSpec()) +
-                        shrinkVertically(animationSpec = Motion.Spec.privacyCollapseSpec())
-            ) {
+            // Modo de privacidad: despliegue de dígitos y temporizador
+            if (!hideCodes) {
                 Column {
                     Spacer(modifier = Modifier.height(Dimensions.Spacing.md))
 
@@ -279,11 +268,7 @@ fun OtpCodeCard(
                                 }
                             )
 
-                            AnimatedVisibility(
-                                visible = copied,
-                                enter = fadeIn(animationSpec = Motion.Spec.quickFadeSpec()),
-                                exit = fadeOut(animationSpec = Motion.Spec.quickFadeSpec())
-                            ) {
+                            if (copied) {
                                 Row {
                                     Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
                                     Icon(

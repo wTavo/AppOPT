@@ -27,6 +27,12 @@ interface AccountDao {
     fun getAllAccounts(): Flow<List<AccountEntity>>
 
     /**
+     * Obtiene sincrónicamente todas las entidades en una sola consulta por lotes para descifrado de alto rendimiento.
+     */
+    @Query("SELECT * FROM totp_accounts")
+    suspend fun getAllAccountsSync(): List<AccountEntity>
+
+    /**
      * Obtiene una cuenta específica por su identificador único UUID.
      */
     @Query("SELECT * FROM totp_accounts WHERE id = :id")

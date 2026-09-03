@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.shareIn
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
@@ -70,20 +71,36 @@ class AccountRepositoryImpl(
 
     /**
      * Calcula sincrónicamente los códigos OTP para una lista de cuentas en memoria en el instante [currentTimeMillis],
-     * utilizando una caché de pasos de tiempo (RFC 6238) para evitar descifrados de hardware redundantes en cada tick.
+     * utilizando una caché de pasos de tiempo (RFC 6238) y ejecución en segundo plano para evitar bloqueos en el hilo UI.
      */
     override suspend fun computeAccountsWithCodes(
         accounts: List<TotpAccount>,
         currentTimeMillis: Long
-    ): List<AccountWithCode> {
-        return accounts.map { domainAccount ->
+    ): List<AccountWithCode> = withContext(Dispatchers.Default) {
+        val needsDecryption = accounts.any { domainAccount ->
+            if (domainAccount.type == OtpType.TOTP) {
+                val step = currentTimeMillis / 1000L / domainAccount.period
+                val cached = otpCodeCache[domainAccount.id]
+                cached == null || cached.step != step
+            } else {
+                otpCodeCache[domainAccount.id] == null
+            }
+        }
+
+        val entitiesMap = if (needsDecryption) {
+            accountDao.getAllAccountsSync().associateBy { it.id }
+        } else {
+            emptyMap()
+        }
+
+        accounts.map { domainAccount ->
             val code = if (domainAccount.type == OtpType.TOTP) {
                 val step = currentTimeMillis / 1000L / domainAccount.period
                 val cached = otpCodeCache[domainAccount.id]
                 if (cached != null && cached.step == step) {
                     cached.code
                 } else {
-                    val entity = accountDao.getAccountById(domainAccount.id)
+                    val entity = entitiesMap[domainAccount.id]
                     if (entity != null) {
                         var secretBytes: ByteArray? = null
                         try {
@@ -111,7 +128,7 @@ class AccountRepositoryImpl(
                 if (cached != null && cached.counter == domainAccount.counter) {
                     cached.code
                 } else {
-                    val entity = accountDao.getAccountById(domainAccount.id)
+                    val entity = entitiesMap[domainAccount.id]
                     if (entity != null) {
                         var secretBytes: ByteArray? = null
                         try {

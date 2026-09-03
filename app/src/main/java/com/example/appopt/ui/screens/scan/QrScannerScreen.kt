@@ -65,6 +65,7 @@ import com.example.appopt.R
 import com.example.appopt.domain.totp.OtpUriParser
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
+import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
@@ -159,7 +160,12 @@ fun QrScannerScreen(
         ) {
             if (hasCameraPermission) {
                 val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
-                val barcodeScanner = remember { BarcodeScanning.getClient() }
+                val barcodeScannerOptions = remember {
+                    BarcodeScannerOptions.Builder()
+                        .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                        .build()
+                }
+                val barcodeScanner = remember { BarcodeScanning.getClient(barcodeScannerOptions) }
 
                 DisposableEffect(Unit) {
                     onDispose {

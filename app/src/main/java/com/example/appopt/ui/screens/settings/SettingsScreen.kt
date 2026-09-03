@@ -167,17 +167,21 @@ fun SettingsScreen(
         }
     }
 
-    // Autorización silenciosa al abrir la pantalla si ya existía consentimiento
+    // Autorización silenciosa al abrir la pantalla si la cuenta ya estaba configurada previamente
     LaunchedEffect(Unit) {
-        authClient.authorize(GoogleDriveManager.getAuthorizationRequest())
-            .addOnSuccessListener { result ->
-                if (!result.hasResolution() && result.accessToken != null) {
-                    driveAccessToken = result.accessToken
-                    isDriveConnected = true
-                    prefsManager.setGoogleDriveConnected(true)
+        if (prefsManager.isGoogleDriveConnected()) {
+            authClient.authorize(GoogleDriveManager.getAuthorizationRequest())
+                .addOnSuccessListener { result ->
+                    if (!result.hasResolution() && result.accessToken != null) {
+                        driveAccessToken = result.accessToken
+                        isDriveConnected = true
+                    }
                 }
-            }
+        }
     }
+
+    // Callback pendiente para ejecutar tras resolver el Intent de Google Identity
+    var pendingAuthAction by remember { mutableStateOf<((String) -> Unit)?>(null) }
 
     // Estados para el diálogo de protección E2EE al sincronizar (Flujo de 3 pasos: Método Ppal -> 12 Palabras -> Cuestionario)
     var showDriveProtectDialog by remember { mutableStateOf(false) }
@@ -212,21 +216,26 @@ fun SettingsScreen(
                 val token = authResult.accessToken
                 if (token != null) {
                     driveAccessToken = token
-                    isDriveConnected = true
-                    prefsManager.setGoogleDriveConnected(true)
-                    scope.launch {
-                        snackbarHostState.showSnackbar(
-                            context.getString(R.string.settings_drive_sync_success)
-                        )
+                    val action = pendingAuthAction
+                    pendingAuthAction = null
+                    if (action != null) {
+                        action(token)
+                    } else {
+                        isDriveConnected = true
+                        prefsManager.setGoogleDriveConnected(true)
                     }
                 }
             } catch (e: ApiException) {
+                pendingAuthAction = null
                 scope.launch {
                     snackbarHostState.showSnackbar(
                         context.getString(R.string.settings_drive_error, e.localizedMessage ?: "Código (${e.statusCode})")
                     )
                 }
             }
+        } else {
+            pendingAuthAction = null
+            isDriveLoading = false
         }
     }
 
@@ -234,6 +243,7 @@ fun SettingsScreen(
      * Solicita autorización a Google Identity Services de forma moderna y reactiva.
      */
     fun requestGoogleAuthorization(onAuthorized: (String) -> Unit) {
+        pendingAuthAction = onAuthorized
         authClient.authorize(GoogleDriveManager.getAuthorizationRequest())
             .addOnSuccessListener { result ->
                 if (result.hasResolution()) {
@@ -247,13 +257,15 @@ fun SettingsScreen(
                     val token = result.accessToken
                     if (token != null) {
                         driveAccessToken = token
-                        isDriveConnected = true
-                        prefsManager.setGoogleDriveConnected(true)
-                        onAuthorized(token)
+                        val action = pendingAuthAction
+                        pendingAuthAction = null
+                        action?.invoke(token)
                     }
                 }
             }
             .addOnFailureListener { error ->
+                pendingAuthAction = null
+                isDriveLoading = false
                 scope.launch {
                     snackbarHostState.showSnackbar(
                         context.getString(R.string.settings_drive_error, error.localizedMessage ?: "")

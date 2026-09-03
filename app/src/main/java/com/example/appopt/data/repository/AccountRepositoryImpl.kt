@@ -32,12 +32,111 @@ class AccountRepositoryImpl(
     private val cryptoManager: CryptoManager
 ) : AccountRepository {
 
+    private data class CachedOtp(
+        val step: Long,
+        val counter: Long,
+        val code: String
+    )
+
+    private val otpCodeCache = java.util.concurrent.ConcurrentHashMap<String, CachedOtp>()
+
+    /**
+     * Limpia de forma segura la caché de códigos OTP en memoria RAM al bloquear la bóveda.
+     */
+    override fun clearMemoryCache() {
+        otpCodeCache.clear()
+    }
+
     /**
      * Obtiene la lista de cuentas como modelos de dominio sin exponer secretos.
      */
     override fun getAccounts(): Flow<List<TotpAccount>> {
         return accountDao.getAllAccounts().map { list ->
             list.map { it.toDomain() }
+        }
+    }
+
+    /**
+     * Calcula sincrónicamente los códigos OTP para una lista de cuentas en memoria en el instante [currentTimeMillis],
+     * utilizando una caché de pasos de tiempo (RFC 6238) para evitar descifrados de hardware redundantes en cada tick.
+     */
+    override suspend fun computeAccountsWithCodes(
+        accounts: List<TotpAccount>,
+        currentTimeMillis: Long
+    ): List<AccountWithCode> {
+        return accounts.map { domainAccount ->
+            val code = if (domainAccount.type == OtpType.TOTP) {
+                val step = currentTimeMillis / 1000L / domainAccount.period
+                val cached = otpCodeCache[domainAccount.id]
+                if (cached != null && cached.step == step) {
+                    cached.code
+                } else {
+                    val entity = accountDao.getAccountById(domainAccount.id)
+                    if (entity != null) {
+                        var secretBytes: ByteArray? = null
+                        try {
+                            secretBytes = cryptoManager.decrypt(entity.encryptedSecret, entity.iv)
+                            val computed = TotpEngine.generateTotp(
+                                secretBytes = secretBytes,
+                                timeMillis = currentTimeMillis,
+                                periodSeconds = domainAccount.period,
+                                digits = domainAccount.digits,
+                                algorithm = domainAccount.algorithm
+                            )
+                            otpCodeCache[domainAccount.id] = CachedOtp(step, 0L, computed)
+                            computed
+                        } catch (e: Exception) {
+                            "------"
+                        } finally {
+                            secretBytes?.let { CryptoManager.zeroize(it) }
+                        }
+                    } else {
+                        "------"
+                    }
+                }
+            } else {
+                val cached = otpCodeCache[domainAccount.id]
+                if (cached != null && cached.counter == domainAccount.counter) {
+                    cached.code
+                } else {
+                    val entity = accountDao.getAccountById(domainAccount.id)
+                    if (entity != null) {
+                        var secretBytes: ByteArray? = null
+                        try {
+                            secretBytes = cryptoManager.decrypt(entity.encryptedSecret, entity.iv)
+                            val computed = TotpEngine.generateHotp(
+                                secretBytes = secretBytes,
+                                counter = domainAccount.counter,
+                                digits = domainAccount.digits,
+                                algorithm = domainAccount.algorithm
+                            )
+                            otpCodeCache[domainAccount.id] = CachedOtp(0L, domainAccount.counter, computed)
+                            computed
+                        } catch (e: Exception) {
+                            "------"
+                        } finally {
+                            secretBytes?.let { CryptoManager.zeroize(it) }
+                        }
+                    } else {
+                        "------"
+                    }
+                }
+            }
+
+            val remainingSeconds = if (domainAccount.type == OtpType.TOTP) {
+                TotpEngine.getRemainingSeconds(currentTimeMillis, domainAccount.period)
+            } else 0
+
+            val progress = if (domainAccount.type == OtpType.TOTP) {
+                TotpEngine.getProgress(currentTimeMillis, domainAccount.period)
+            } else 1.0f
+
+            AccountWithCode(
+                account = domainAccount,
+                code = code,
+                remainingSeconds = remainingSeconds,
+                progress = progress
+            )
         }
     }
 
@@ -49,48 +148,7 @@ class AccountRepositoryImpl(
      */
     override fun getAccountsWithCodes(currentTimeMillis: Long): Flow<List<AccountWithCode>> {
         return accountDao.getAllAccounts().map { list ->
-            list.map { entity ->
-                val domainAccount = entity.toDomain()
-                var secretBytes: ByteArray? = null
-                val code = try {
-                    secretBytes = cryptoManager.decrypt(entity.encryptedSecret, entity.iv)
-                    if (domainAccount.type == OtpType.TOTP) {
-                        TotpEngine.generateTotp(
-                            secretBytes = secretBytes,
-                            timeMillis = currentTimeMillis,
-                            periodSeconds = domainAccount.period,
-                            digits = domainAccount.digits,
-                            algorithm = domainAccount.algorithm
-                        )
-                    } else {
-                        TotpEngine.generateHotp(
-                            secretBytes = secretBytes,
-                            counter = domainAccount.counter,
-                            digits = domainAccount.digits,
-                            algorithm = domainAccount.algorithm
-                        )
-                    }
-                } catch (e: Exception) {
-                    "------"
-                } finally {
-                    secretBytes?.let { CryptoManager.zeroize(it) }
-                }
-
-                val remainingSeconds = if (domainAccount.type == OtpType.TOTP) {
-                    TotpEngine.getRemainingSeconds(currentTimeMillis, domainAccount.period)
-                } else 0
-
-                val progress = if (domainAccount.type == OtpType.TOTP) {
-                    TotpEngine.getProgress(currentTimeMillis, domainAccount.period)
-                } else 1.0f
-
-                AccountWithCode(
-                    account = domainAccount,
-                    code = code,
-                    remainingSeconds = remainingSeconds,
-                    progress = progress
-                )
-            }
+            computeAccountsWithCodes(list.map { it.toDomain() }, currentTimeMillis)
         }
     }
 
@@ -143,6 +201,7 @@ class AccountRepositoryImpl(
      * Actualiza el nombre del emisor/servicio y cuenta/usuario de una cuenta existente.
      */
     override suspend fun updateAccount(id: String, issuer: String, accountName: String) {
+        otpCodeCache.remove(id)
         accountDao.updateMetadata(
             id = id,
             issuer = issuer.trim(),
@@ -175,6 +234,7 @@ class AccountRepositoryImpl(
      * Elimina permanentemente una cuenta de la base de datos.
      */
     override suspend fun deleteAccount(id: String) {
+        otpCodeCache.remove(id)
         accountDao.deleteAccountById(id)
     }
 
@@ -182,6 +242,7 @@ class AccountRepositoryImpl(
      * Incrementa el contador de un token HOTP.
      */
     override suspend fun incrementHotpCounter(id: String) {
+        otpCodeCache.remove(id)
         val account = accountDao.getAccountById(id) ?: return
         accountDao.updateAccount(
             account.copy(

@@ -183,9 +183,18 @@ fun QrScannerScreen(
                                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                                 .build()
 
+                            var lastAnalysisTimestamp = 0L
+
                             imageAnalysis.setAnalyzer(cameraExecutor) { imageProxy ->
+                                val now = System.currentTimeMillis()
+                                if (isProcessingQr || (now - lastAnalysisTimestamp < 200L)) {
+                                    imageProxy.close()
+                                    return@setAnalyzer
+                                }
+                                lastAnalysisTimestamp = now
+
                                 val mediaImage = imageProxy.image
-                                if (mediaImage != null && !isProcessingQr) {
+                                if (mediaImage != null) {
                                     val image = InputImage.fromMediaImage(
                                         mediaImage,
                                         imageProxy.imageInfo.rotationDegrees

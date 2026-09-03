@@ -35,6 +35,17 @@ interface AccountRepository {
     fun getAccountsWithCodes(currentTimeMillis: Long): Flow<List<AccountWithCode>>
 
     /**
+     * Calcula sincrónicamente los códigos OTP para una lista de cuentas en memoria en el instante [currentTimeMillis],
+     * utilizando una caché de pasos de tiempo para evitar descifrados de hardware redundantes.
+     */
+    suspend fun computeAccountsWithCodes(accounts: List<TotpAccount>, currentTimeMillis: Long): List<AccountWithCode>
+
+    /**
+     * Limpia de forma segura cualquier caché volátil de códigos OTP en memoria RAM.
+     */
+    fun clearMemoryCache()
+
+    /**
      * Busca una cuenta por su ID.
      */
     suspend fun getAccountById(id: String): TotpAccount?

@@ -39,10 +39,15 @@ class AppLockManager : DefaultLifecycleObserver {
     }
 
     /**
-     * Bloquea inmediatamente la bóveda y limpia el estado de acceso.
+     * Bloquea inmediatamente la bóveda y limpia el estado de acceso y memoria volátil.
      */
     fun lock() {
         _isUnlocked.value = false
+        try {
+            com.example.appopt.AuthenticatorApp.instance.accountRepository.clearMemoryCache()
+        } catch (_: Exception) {
+            // Repositorio aún no inicializado
+        }
     }
 
     override fun onStop(owner: LifecycleOwner) {

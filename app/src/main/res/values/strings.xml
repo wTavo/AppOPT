@@ -140,14 +140,16 @@
     <string name="settings_drive_details_encryption">Cifrado: AES-256-GCM de extremo a extremo</string>
     <string name="settings_drive_details_back">Volver</string>
 
-    <!-- E2EE Cloud Protection (12-Word Phrase BIP-39, Master Password, 64-Digit Key) -->
+    <!-- E2EE Cloud Protection (Dual-Recovery: Primary Method + Mandatory Emergency BIP-39) -->
     <string name="settings_drive_protect_title">Proteger copia en la nube</string>
-    <string name="settings_drive_protect_description">Elige cómo deseas cifrar tu respaldo de extremo a extremo antes de subirlo a Google Drive.</string>
-    <string name="settings_drive_method_words">12 palabras (BIP-39)</string>
+    <string name="settings_drive_protect_step1_title">Paso 1: Elige tu método principal</string>
+    <string name="settings_drive_protect_step2_title">Paso 2: Frase de emergencia (BIP-39)</string>
+    <string name="settings_drive_protect_description">Elige tu método principal de protección. En el siguiente paso recibirás una frase de 12 palabras de respaldo de emergencia.</string>
+    <string name="settings_drive_emergency_description">Esta frase de 12 palabras es obligatoria y actúa como tu salvavidas de emergencia si olvidas tu contraseña o pierdes tu clave.</string>
     <string name="settings_drive_method_password">Contraseña maestra</string>
     <string name="settings_drive_method_key">Clave de 64 dígitos</string>
-    <string name="settings_drive_words_label">Frase de recuperación (12 palabras)</string>
-    <string name="settings_drive_words_warning">Anota estas 12 palabras en un lugar seguro. Si pierdes tu teléfono, las necesitarás para restaurar tu bóveda.</string>
+    <string name="settings_drive_words_label">Frase de recuperación de emergencia</string>
+    <string name="settings_drive_words_warning">Anota estas 12 palabras en un lugar seguro. Si pierdes tu teléfono y olvidas tu contraseña, esta frase recuperará tu bóveda.</string>
     <string name="settings_drive_words_copied">Frase de 12 palabras copiada al portapapeles</string>
     <string name="settings_drive_words_regenerate">Generar nueva frase</string>
     <string name="settings_drive_password_label">Contraseña maestra</string>
@@ -156,12 +158,13 @@
     <string name="settings_drive_password_too_short">La contraseña debe tener al menos 10 caracteres</string>
     <string name="settings_drive_key_label">Clave criptográfica de 64 dígitos</string>
     <string name="settings_drive_key_copied">Clave copiada al portapapeles</string>
-    <string name="settings_drive_key_warning">Guarda esta clave en un lugar seguro. Si la pierdes, nadie podrá recuperar tu copia de seguridad.</string>
+    <string name="settings_drive_key_warning">Guarda esta clave en un lugar seguro. También tendrás tu frase de 12 palabras como respaldo.</string>
     <string name="settings_drive_key_regenerate">Generar nueva clave</string>
+    <string name="settings_drive_next_step">Continuar a frase de emergencia</string>
     <string name="settings_drive_decrypt_title">Descifrar copia de seguridad</string>
-    <string name="settings_drive_decrypt_hint">Ingresa la frase de 12 palabras, la contraseña maestra o la clave de 64 dígitos con la que protegiste tu respaldo.</string>
-    <string name="settings_drive_decrypt_input_label">Frase, contraseña o clave de 64 dígitos</string>
-    <string name="settings_drive_decrypt_error">Clave, frase o contraseña incorrecta. No se pudo descifrar la copia de seguridad.</string>
+    <string name="settings_drive_decrypt_hint">Ingresa tu contraseña maestra, tu clave de 64 dígitos o tu frase de 12 palabras de emergencia para descifrar tu respaldo.</string>
+    <string name="settings_drive_decrypt_input_label">Contraseña, clave de 64 dígitos o 12 palabras</string>
+    <string name="settings_drive_decrypt_error">Credenciales incorrectas. No se pudo descifrar la copia de seguridad.</string>
     <string name="settings_drive_encrypt_and_sync">Cifrar y sincronizar</string>
     <string name="settings_drive_decrypt_and_restore">Descifrar y restaurar</string>
 

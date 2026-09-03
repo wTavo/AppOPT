@@ -38,6 +38,33 @@ class BackupCryptoTest {
     }
 
     /**
+     * Valida que un respaldo cifrado con esquema Dual-Slot (v2) pueda ser descifrado tanto
+     * con la contraseña principal como con la frase mnemónica de 12 palabras de emergencia.
+     */
+    @Test
+    fun testEncryptDualBackupDecryptsWithBothSlots() {
+        val mnemonicWords = MnemonicManager.generate12WordPhrase()
+        val mnemonicPhrase = MnemonicManager.normalizePhrase(mnemonicWords.joinToString(" ")).toCharArray()
+
+        val encryptedBytes = BackupCrypto.encryptDualBackup(sampleJson, correctPassword, mnemonicPhrase)
+        assertTrue(encryptedBytes.isNotEmpty())
+
+        // 1. Descifrar con la contraseña principal
+        val decryptMainResult = BackupCrypto.decryptBackup(encryptedBytes, correctPassword)
+        assertTrue(decryptMainResult.isSuccess)
+        assertEquals(sampleJson, decryptMainResult.getOrThrow())
+
+        // 2. Descifrar con la frase de emergencia de 12 palabras
+        val decryptEmergencyResult = BackupCrypto.decryptBackup(encryptedBytes, mnemonicPhrase)
+        assertTrue(decryptEmergencyResult.isSuccess)
+        assertEquals(sampleJson, decryptEmergencyResult.getOrThrow())
+
+        // 3. Descifrar con credencial incorrecta debe fallar
+        val decryptWrongResult = BackupCrypto.decryptBackup(encryptedBytes, wrongPassword)
+        assertTrue(decryptWrongResult.isFailure)
+    }
+
+    /**
      * Valida que un archivo de respaldo con el ciphertext manipulado sea rechazado por fallo de integridad.
      */
     @Test

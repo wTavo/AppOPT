@@ -62,21 +62,27 @@ object GoogleDriveManager {
 
     /**
      * Sube o actualiza la copia de seguridad de la bóveda en el espacio privado de Google Drive.
-     * Los datos son cifrados previamente de forma local con **AES-256-GCM** para garantizar Cero Conocimiento.
+     * Los datos son cifrados previamente de forma local con **AES-256-GCM** y esquema Dual-Slot para garantizar Cero Conocimiento.
      *
      * @param accessToken Token de acceso OAuth2 emitido por Google Identity Services.
      * @param rawBackupJson Cadena con la estructura de cuentas a cifrar.
-     * @param secretKeyPass Contraseña o PIN de cifrado en [CharArray].
+     * @param secretKeyPass Contraseña o clave de 64 dígitos en [CharArray].
+     * @param emergencyMnemonic Frase mnemónica de 12 palabras de emergencia opcional en [CharArray].
      * @return [Result] exitoso si la petición concluyó con código HTTP 200/201.
      */
     suspend fun uploadBackup(
         accessToken: String,
         rawBackupJson: String,
-        secretKeyPass: CharArray
+        secretKeyPass: CharArray,
+        emergencyMnemonic: CharArray? = null
     ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
-            // Cifrado local con AES-256-GCM antes de transmitir a la nube
-            val encryptedBytes = BackupCrypto.encryptBackup(rawBackupJson, secretKeyPass)
+            // Cifrado local con AES-256-GCM (Dual-Slot o simple) antes de transmitir a la nube
+            val encryptedBytes = if (emergencyMnemonic != null) {
+                BackupCrypto.encryptDualBackup(rawBackupJson, secretKeyPass, emergencyMnemonic)
+            } else {
+                BackupCrypto.encryptBackup(rawBackupJson, secretKeyPass)
+            }
             val encryptedEnvelopeString = String(encryptedBytes, StandardCharsets.UTF_8)
 
             val existingFileId = findExistingBackupFileId(accessToken)

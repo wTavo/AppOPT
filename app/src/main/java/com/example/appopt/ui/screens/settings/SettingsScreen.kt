@@ -170,9 +170,10 @@ fun SettingsScreen(
             }
     }
 
-    // Estados para el diálogo de protección E2EE al sincronizar
+    // Estados para el diálogo de protección E2EE al sincronizar (Flujo de 2 pasos)
     var showDriveProtectDialog by remember { mutableStateOf(false) }
-    var selectedProtectionTab by remember { mutableIntStateOf(0) } // 0: 12 palabras (BIP-39), 1: Contraseña maestra, 2: Clave 64 dígitos
+    var driveProtectStep by remember { mutableIntStateOf(1) } // 1: Método Principal, 2: Frase de Emergencia Obligatoria
+    var selectedProtectionTab by remember { mutableIntStateOf(0) } // 0: Contraseña maestra, 1: Clave 64 dígitos
     var generatedMnemonicWords by remember { mutableStateOf(MnemonicManager.generate12WordPhrase()) }
     var masterPasswordText by remember { mutableStateOf("") }
     var masterPasswordConfirmText by remember { mutableStateOf("") }
@@ -578,6 +579,7 @@ fun SettingsScreen(
                         ) {
                             Button(
                                 onClick = {
+                                    driveProtectStep = 1
                                     generatedMnemonicWords = MnemonicManager.generate12WordPhrase()
                                     masterPasswordText = ""
                                     masterPasswordConfirmText = ""
@@ -932,21 +934,26 @@ fun SettingsScreen(
         )
     }
 
-    // Modal: Protección E2EE al sincronizar en Google Drive (12 Palabras BIP-39, Contraseña Maestra o Clave de 64 dígitos)
+    // Modal: Protección E2EE al sincronizar en Google Drive (Máquina de 2 Pasos: Método Principal + Frase BIP-39 Obligatoria)
     if (showDriveProtectDialog) {
         val isPasswordValid = masterPasswordText.length >= 10 && masterPasswordText == masterPasswordConfirmText
-        val canConfirmSync = when (selectedProtectionTab) {
-            0 -> generatedMnemonicWords.size == 12
-            1 -> isPasswordValid
-            2 -> generated64Key.isNotBlank()
-            else -> false
-        }
+        val isStep1Valid = if (selectedProtectionTab == 0) isPasswordValid else generated64Key.isNotBlank()
 
         AlertDialog(
-            onDismissRequest = { showDriveProtectDialog = false },
+            onDismissRequest = {
+                if (driveProtectStep == 2) {
+                    driveProtectStep = 1 // Navegación defensiva hacia atrás antes de cerrar
+                } else {
+                    showDriveProtectDialog = false
+                }
+            },
             title = {
                 Text(
-                    text = stringResource(R.string.settings_drive_protect_title),
+                    text = if (driveProtectStep == 1) {
+                        stringResource(R.string.settings_drive_protect_step1_title)
+                    } else {
+                        stringResource(R.string.settings_drive_protect_step2_title)
+                    },
                     style = MaterialTheme.typography.titleLarge
                 )
             },
@@ -955,125 +962,31 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                 ) {
-                    Text(
-                        text = stringResource(R.string.settings_drive_protect_description),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    PrimaryTabRow(selectedTabIndex = selectedProtectionTab) {
-                        Tab(
-                            selected = selectedProtectionTab == 0,
-                            onClick = { selectedProtectionTab = 0 },
-                            text = { Text(stringResource(R.string.settings_drive_method_words), style = MaterialTheme.typography.labelSmall) },
-                            icon = { Icon(Icons.Filled.FormatListNumbered, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small)) }
+                    if (driveProtectStep == 1) {
+                        // PASO 1: Selección y configuración del Método Principal
+                        Text(
+                            text = stringResource(R.string.settings_drive_protect_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Tab(
-                            selected = selectedProtectionTab == 1,
-                            onClick = { selectedProtectionTab = 1 },
-                            text = { Text(stringResource(R.string.settings_drive_method_password), style = MaterialTheme.typography.labelSmall) },
-                            icon = { Icon(Icons.Filled.Password, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small)) }
-                        )
-                        Tab(
-                            selected = selectedProtectionTab == 2,
-                            onClick = { selectedProtectionTab = 2 },
-                            text = { Text(stringResource(R.string.settings_drive_method_key), style = MaterialTheme.typography.labelSmall) },
-                            icon = { Icon(Icons.Filled.Key, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small)) }
-                        )
-                    }
 
-                    when (selectedProtectionTab) {
-                        0 -> {
-                            // Opción 1: Frase Mnemónica de 12 Palabras (BIP-39)
-                            Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
-                                ) {
-                                    Column(
-                                        modifier = Modifier.weight(1f),
-                                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
-                                    ) {
-                                        generatedMnemonicWords.take(6).forEachIndexed { index, word ->
-                                            Surface(
-                                                shape = RoundedCornerShape(Dimensions.CornerRadius.small),
-                                                color = MaterialTheme.colorScheme.surfaceVariant,
-                                                modifier = Modifier.fillMaxWidth()
-                                            ) {
-                                                Text(
-                                                    text = "${index + 1}. $word",
-                                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                                                    modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs)
-                                                )
-                                            }
-                                        }
-                                    }
-                                    Column(
-                                        modifier = Modifier.weight(1f),
-                                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
-                                    ) {
-                                        generatedMnemonicWords.drop(6).forEachIndexed { index, word ->
-                                            Surface(
-                                                shape = RoundedCornerShape(Dimensions.CornerRadius.small),
-                                                color = MaterialTheme.colorScheme.surfaceVariant,
-                                                modifier = Modifier.fillMaxWidth()
-                                            ) {
-                                                Text(
-                                                    text = "${index + 7}. $word",
-                                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                                                    modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs)
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    TextButton(
-                                        onClick = {
-                                            appHaptics.copy()
-                                            val fullPhrase = generatedMnemonicWords.joinToString(" ")
-                                            secureClipboard.copyToClipboard(
-                                                label = "AppOPT-MnemonicWords",
-                                                text = fullPhrase,
-                                                autoClearSeconds = 60
-                                            )
-                                            scope.launch { snackbarHostState.showSnackbar(wordsCopiedMsg) }
-                                        }
-                                    ) {
-                                        Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
-                                        Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                                        Text(stringResource(R.string.action_copy), style = MaterialTheme.typography.labelMedium)
-                                    }
-
-                                    TextButton(
-                                        onClick = { generatedMnemonicWords = MnemonicManager.generate12WordPhrase() }
-                                    ) {
-                                        Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
-                                        Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                                        Text(stringResource(R.string.settings_drive_words_regenerate), style = MaterialTheme.typography.labelMedium)
-                                    }
-                                }
-
-                                Surface(
-                                    shape = RoundedCornerShape(Dimensions.CornerRadius.small),
-                                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.settings_drive_words_warning),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onErrorContainer,
-                                        modifier = Modifier.padding(Dimensions.Spacing.sm)
-                                    )
-                                }
-                            }
+                        PrimaryTabRow(selectedTabIndex = selectedProtectionTab) {
+                            Tab(
+                                selected = selectedProtectionTab == 0,
+                                onClick = { selectedProtectionTab = 0 },
+                                text = { Text(stringResource(R.string.settings_drive_method_password), style = MaterialTheme.typography.labelSmall) },
+                                icon = { Icon(Icons.Filled.Password, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small)) }
+                            )
+                            Tab(
+                                selected = selectedProtectionTab == 1,
+                                onClick = { selectedProtectionTab = 1 },
+                                text = { Text(stringResource(R.string.settings_drive_method_key), style = MaterialTheme.typography.labelSmall) },
+                                icon = { Icon(Icons.Filled.Key, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small)) }
+                            )
                         }
-                        1 -> {
-                            // Opción 2: Contraseña Maestra Fuerte
+
+                        if (selectedProtectionTab == 0) {
+                            // Opción 1: Contraseña Maestra Fuerte
                             Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
                                 OutlinedTextField(
                                     value = masterPasswordText,
@@ -1116,9 +1029,8 @@ fun SettingsScreen(
                                     )
                                 }
                             }
-                        }
-                        2 -> {
-                            // Opción 3: Clave generada de 64 dígitos
+                        } else {
+                            // Opción 2: Clave generada de 64 dígitos
                             Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
                                 Surface(
                                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
@@ -1177,50 +1089,179 @@ fun SettingsScreen(
                                 }
                             }
                         }
+                    } else {
+                        // PASO 2: Frase de Emergencia Obligatoria (12 Palabras BIP-39)
+                        Text(
+                            text = stringResource(R.string.settings_drive_emergency_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                            ) {
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                                ) {
+                                    generatedMnemonicWords.take(6).forEachIndexed { index, word ->
+                                        Surface(
+                                            shape = RoundedCornerShape(Dimensions.CornerRadius.small),
+                                            color = MaterialTheme.colorScheme.surfaceVariant,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Text(
+                                                text = "${index + 1}. $word",
+                                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                                modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs)
+                                            )
+                                        }
+                                    }
+                                }
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                                ) {
+                                    generatedMnemonicWords.drop(6).forEachIndexed { index, word ->
+                                        Surface(
+                                            shape = RoundedCornerShape(Dimensions.CornerRadius.small),
+                                            color = MaterialTheme.colorScheme.surfaceVariant,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Text(
+                                                text = "${index + 7}. $word",
+                                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                                modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                TextButton(
+                                    onClick = {
+                                        appHaptics.copy()
+                                        val fullPhrase = generatedMnemonicWords.joinToString(" ")
+                                        secureClipboard.copyToClipboard(
+                                            label = "AppOPT-MnemonicWords",
+                                            text = fullPhrase,
+                                            autoClearSeconds = 60
+                                        )
+                                        scope.launch { snackbarHostState.showSnackbar(wordsCopiedMsg) }
+                                    }
+                                ) {
+                                    Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
+                                    Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                                    Text(stringResource(R.string.action_copy), style = MaterialTheme.typography.labelMedium)
+                                }
+
+                                TextButton(
+                                    onClick = { generatedMnemonicWords = MnemonicManager.generate12WordPhrase() }
+                                ) {
+                                    Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
+                                    Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                                    Text(stringResource(R.string.settings_drive_words_regenerate), style = MaterialTheme.typography.labelMedium)
+                                }
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.small),
+                                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.settings_drive_words_warning),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    modifier = Modifier.padding(Dimensions.Spacing.sm)
+                                )
+                            }
+                        }
                     }
                 }
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        val passChars = when (selectedProtectionTab) {
-                            0 -> MnemonicManager.normalizePhrase(generatedMnemonicWords.joinToString(" ")).toCharArray()
-                            1 -> masterPasswordText.toCharArray()
-                            else -> generated64Key.toCharArray()
-                        }
-                        showDriveProtectDialog = false
-                        scope.launch {
-                            isDriveLoading = true
-                            try {
-                                val payload = repository.exportAccountsForTransfer()
-                                val uploadResult = GoogleDriveManager.uploadBackup(driveAccessToken!!, payload, passChars)
-                                uploadResult.onSuccess {
-                                    val now = System.currentTimeMillis()
-                                    val currentHash = CloudVaultSyncManager.computeVaultHash(payload)
-                                    isDriveConnected = true
-                                    prefsManager.setGoogleDriveConnected(true)
-                                    prefsManager.setLastSyncTimestamp(now)
-                                    prefsManager.setLastSyncedVaultHash(currentHash)
-                                    CloudVaultSyncManager.schedulePeriodicSync(context, syncFrequency, isSyncMobileDataAllowed)
-                                    snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_sync_success))
-                                }.onFailure { error ->
-                                    snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error, error.localizedMessage ?: ""))
-                                }
-                            } finally {
-                                passChars.fill('0')
-                                isDriveLoading = false
+                if (driveProtectStep == 1) {
+                    Button(
+                        onClick = { driveProtectStep = 2 },
+                        enabled = isStep1Valid,
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                    ) {
+                        Text(stringResource(R.string.settings_drive_next_step), style = MaterialTheme.typography.labelLarge)
+                    }
+                } else {
+                    Button(
+                        onClick = {
+                            val primaryPassChars = if (selectedProtectionTab == 0) {
+                                masterPasswordText.toCharArray()
+                            } else {
+                                generated64Key.toCharArray()
                             }
-                        }
-                    },
-                    enabled = canConfirmSync,
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                ) {
-                    Text(stringResource(R.string.settings_drive_encrypt_and_sync), style = MaterialTheme.typography.labelLarge)
+                            val emergencyMnemonicChars = MnemonicManager.normalizePhrase(
+                                generatedMnemonicWords.joinToString(" ")
+                            ).toCharArray()
+
+                            showDriveProtectDialog = false
+                            scope.launch {
+                                isDriveLoading = true
+                                try {
+                                    val payload = repository.exportAccountsForTransfer()
+                                    val uploadResult = GoogleDriveManager.uploadBackup(
+                                        accessToken = driveAccessToken!!,
+                                        rawBackupJson = payload,
+                                        secretKeyPass = primaryPassChars,
+                                        emergencyMnemonic = emergencyMnemonicChars
+                                    )
+                                    uploadResult.onSuccess {
+                                        val now = System.currentTimeMillis()
+                                        val currentHash = CloudVaultSyncManager.computeVaultHash(payload)
+                                        isDriveConnected = true
+                                        prefsManager.setGoogleDriveConnected(true)
+                                        prefsManager.setLastSyncTimestamp(now)
+                                        prefsManager.setLastSyncedVaultHash(currentHash)
+                                        CloudVaultSyncManager.schedulePeriodicSync(context, syncFrequency, isSyncMobileDataAllowed)
+                                        snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_sync_success))
+                                    }.onFailure { error ->
+                                        snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error, error.localizedMessage ?: ""))
+                                    }
+                                } finally {
+                                    primaryPassChars.fill('0')
+                                    emergencyMnemonicChars.fill('0')
+                                    isDriveLoading = false
+                                }
+                            }
+                        },
+                        enabled = generatedMnemonicWords.size == 12,
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                    ) {
+                        Text(stringResource(R.string.settings_drive_encrypt_and_sync), style = MaterialTheme.typography.labelLarge)
+                    }
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDriveProtectDialog = false }) {
-                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
+                TextButton(
+                    onClick = {
+                        if (driveProtectStep == 2) {
+                            driveProtectStep = 1
+                        } else {
+                            showDriveProtectDialog = false
+                        }
+                    }
+                ) {
+                    Text(
+                        text = if (driveProtectStep == 2) {
+                            stringResource(R.string.settings_drive_details_back)
+                        } else {
+                            stringResource(R.string.action_cancel)
+                        },
+                        style = MaterialTheme.typography.labelLarge
+                    )
                 }
             }
         )

@@ -65,7 +65,7 @@ fun CircularTimeProgress(
             progress = { progress },
             modifier = Modifier.size(Dimensions.ComponentHeight.progressIndicator),
             color = indicatorColor,
-            strokeWidth = 3.5.dp,
+            strokeWidth = Dimensions.Stroke.progressArc,
             trackColor = MaterialTheme.colorScheme.surfaceVariant,
             strokeCap = StrokeCap.Round
         )

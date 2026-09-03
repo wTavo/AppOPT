@@ -50,6 +50,7 @@ import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.SafeGreen
 import com.example.appopt.ui.theme.UrgentRed
+import com.example.appopt.ui.theme.rememberAppHaptics
 import kotlinx.coroutines.delay
 
 /**
@@ -58,38 +59,32 @@ import kotlinx.coroutines.delay
  * Características de diseño:
  * - En modo visualización muestra limpiamente el nombre del servicio y la cuenta usando la escala tipográfica de la app.
  * - Los dígitos aparecen abajo junto con el contador/temporizador circular de rotación TOTP.
- * - Con un simple toque sobre los dígitos se copia el código al portapapeles.
- * - Iconos en la esquina superior derecha: Lápiz para alternar al modo edición y Basurero para eliminar.
- * - En modo edición permite modificar el nombre del servicio y la cuenta/usuario.
- * - El botón "Guardar cambios" reutiliza [AppAnimatedButton] con animación a verde y palomita al confirmar.
+ * - En modo edición permite modificar el nombre del servicio y el nombre de la cuenta con validación instantánea.
+ * - Incluye confirmación de eliminación unificada dentro del mismo modal sin superponer ventanas secundarias.
  *
- * @param accountWithCode Cuenta seleccionada con su código activo.
- * @param onDismiss Callback para cerrar el modal.
- * @param onCopyCode Callback para copiar el código al portapapeles.
- * @param onUpdateAccount Callback para guardar cambios en el nombre del servicio o cuenta.
- * @param onDeleteAccount Callback para eliminar la cuenta de la bóveda.
+ * @param accountWithCode Contenedor con la entidad de cuenta, código activo y progreso temporal.
+ * @param onDismiss Callback para cerrar el diálogo modal.
+ * @param onUpdateAccount Callback para persistir los cambios de emisor y nombre de cuenta.
+ * @param onDeleteAccount Callback para eliminar permanentemente la cuenta de la bóveda.
+ * @param onCopyCode Callback invocado al pulsar sobre el código para copiarlo al portapapeles.
+ * @param modifier Modificador de layout.
  */
 @Composable
 fun AccountDetailsDialog(
     accountWithCode: AccountWithCode,
     onDismiss: () -> Unit,
-    onCopyCode: (String) -> Unit,
-    onUpdateAccount: (id: String, issuer: String, accountName: String) -> Unit,
+    onUpdateAccount: (String, String, String) -> Unit,
     onDeleteAccount: (String) -> Unit,
+    onCopyCode: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val account = accountWithCode.account
-
+    val appHaptics = rememberAppHaptics()
     var isEditMode by remember { mutableStateOf(false) }
-    var editedIssuer by remember(account.id) { mutableStateOf(account.issuer) }
-    var editedAccountName by remember(account.id) { mutableStateOf(account.accountName) }
+    var editedIssuer by remember { mutableStateOf(account.issuer) }
+    var editedAccountName by remember { mutableStateOf(account.accountName) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var copied by remember { mutableStateOf(false) }
-
-    LaunchedEffect(account.issuer, account.accountName) {
-        editedIssuer = account.issuer
-        editedAccountName = account.accountName
-    }
 
     LaunchedEffect(copied) {
         if (copied) {
@@ -144,8 +139,11 @@ fun AccountDetailsDialog(
                     // Iconos de acción arriba a la derecha: Lápiz y Basurero
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(
-                            onClick = { isEditMode = !isEditMode },
-                            modifier = Modifier.size(36.dp)
+                            onClick = {
+                                appHaptics.click()
+                                isEditMode = !isEditMode
+                            },
+                            modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
                         ) {
                             Icon(
                                 imageVector = if (isEditMode) Icons.Filled.Close else Icons.Filled.Edit,
@@ -155,8 +153,11 @@ fun AccountDetailsDialog(
                         }
 
                         IconButton(
-                            onClick = { showDeleteConfirm = true },
-                            modifier = Modifier.size(36.dp)
+                            onClick = {
+                                appHaptics.click()
+                                showDeleteConfirm = true
+                            },
+                            modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.DeleteOutline,
@@ -189,7 +190,7 @@ fun AccountDetailsDialog(
                         ) {
                             ServiceBrandAvatar(
                                 issuer = account.issuer,
-                                size = 50.dp
+                                size = Dimensions.IconSize.hero
                             )
 
                             Spacer(modifier = Modifier.width(Dimensions.Spacing.md))
@@ -218,6 +219,7 @@ fun AccountDetailsDialog(
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(Dimensions.CornerRadius.large))
                                 .clickable {
+                                    appHaptics.copy()
                                     onCopyCode(accountWithCode.code)
                                     copied = true
                                 },

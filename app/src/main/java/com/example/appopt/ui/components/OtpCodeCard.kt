@@ -175,7 +175,7 @@ fun OtpCodeCard(
             containerColor = if (isDragging) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
         ),
         shape = RoundedCornerShape(Dimensions.CornerRadius.large),
-        border = if (isDragging) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null
+        border = if (isDragging) BorderStroke(Dimensions.Stroke.regular, MaterialTheme.colorScheme.primary) else null
     ) {
         Column(
             modifier = Modifier
@@ -194,7 +194,7 @@ fun OtpCodeCard(
                 ) {
                     ServiceBrandAvatar(
                         issuer = account.issuer,
-                        size = 40.dp
+                        size = Dimensions.IconSize.hero
                     )
 
                     Spacer(modifier = Modifier.width(Dimensions.Spacing.md))
@@ -207,7 +207,7 @@ fun OtpCodeCard(
                             maxLines = 1
                         )
                         if (account.accountName.isNotBlank()) {
-                            Spacer(modifier = Modifier.height(2.dp))
+                            Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
                             Text(
                                 text = account.accountName,
                                 style = MaterialTheme.typography.bodySmall,
@@ -223,7 +223,7 @@ fun OtpCodeCard(
                         appHaptics.click()
                         onToggleFavorite(account.id)
                     },
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
                 ) {
                     Icon(
                         imageVector = if (account.isFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
@@ -259,7 +259,7 @@ fun OtpCodeCard(
                                     onCopyCode(accountWithCode.code)
                                     copied = true
                                 }
-                                .padding(vertical = Dimensions.Spacing.xs, horizontal = 2.dp),
+                                .padding(Dimensions.Spacing.xs),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(

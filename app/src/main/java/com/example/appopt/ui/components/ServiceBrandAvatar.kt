@@ -58,7 +58,7 @@ fun ServiceBrandAvatar(
             Text(
                 text = brandInfo.shortInitials,
                 color = brandInfo.textColor,
-                style = if (size >= 48.dp) {
+                style = if (size >= Dimensions.IconSize.hero) {
                     MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                 } else {
                     MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)

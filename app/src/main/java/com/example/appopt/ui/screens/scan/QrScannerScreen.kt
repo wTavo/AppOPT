@@ -251,9 +251,9 @@ fun QrScannerScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(260.dp)
+                            .size(Dimensions.ComponentSize.qrScannerBox)
                             .clip(RoundedCornerShape(Dimensions.CornerRadius.large))
-                            .border(3.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(Dimensions.CornerRadius.large))
+                            .border(Dimensions.Stroke.thick, MaterialTheme.colorScheme.primary, RoundedCornerShape(Dimensions.CornerRadius.large))
                     )
 
                     Spacer(modifier = Modifier.height(Dimensions.Spacing.xl))

@@ -539,7 +539,7 @@ fun SettingsScreen(
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(Dimensions.IconSize.small),
                                         color = MaterialTheme.colorScheme.onPrimary,
-                                        strokeWidth = 2.dp
+                                        strokeWidth = Dimensions.Stroke.regular
                                     )
                                 } else {
                                     Text(
@@ -703,7 +703,7 @@ fun SettingsScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(max = 240.dp)
+                                .heightIn(max = Dimensions.ComponentSize.modalListMaxHeight)
                                 .verticalScroll(rememberScrollState()),
                             verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
                         ) {
@@ -724,7 +724,7 @@ fun SettingsScreen(
                                 ) {
                                     ServiceBrandAvatar(
                                         issuer = account.issuer,
-                                        size = 36.dp
+                                        size = Dimensions.ComponentSize.actionIconButton
                                     )
                                     Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
                                     Column(modifier = Modifier.weight(1f)) {
@@ -802,7 +802,7 @@ fun SettingsScreen(
                                     bitmap = bitmap.asImageBitmap(),
                                     contentDescription = null,
                                     modifier = Modifier
-                                        .size(240.dp)
+                                        .size(Dimensions.ComponentSize.qrCodeDisplay)
                                         .padding(Dimensions.Spacing.sm)
                                 )
                             }
@@ -1246,7 +1246,7 @@ fun SettingsScreen(
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = MaterialTheme.colorScheme.error
                             ),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
+                            border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.DeleteOutline,

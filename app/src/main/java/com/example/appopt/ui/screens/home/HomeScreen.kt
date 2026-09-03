@@ -221,8 +221,8 @@ fun HomeScreen(
                     shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
                     color = MaterialTheme.colorScheme.surface,
                     tonalElevation = Dimensions.Elevation.modal,
-                    shadowElevation = 8.dp,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+                    shadowElevation = Dimensions.Elevation.cardDragging,
+                    border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
                     modifier = Modifier.wrapContentWidth()
                 ) {
                     Row(
@@ -247,6 +247,7 @@ fun HomeScreen(
                         // 2. Gestor de Contraseñas (Módulo Próximamente)
                         IconButton(
                             onClick = {
+                                appHaptics.click()
                                 Toast.makeText(
                                     context,
                                     context.getString(R.string.passwords_coming_soon),
@@ -261,9 +262,12 @@ fun HomeScreen(
                             )
                         }
 
-                        // 2. Hero (+) FAB para agregar cuentas
+                        // 3. Hero (+) FAB para agregar cuentas
                         FloatingActionButton(
-                            onClick = { showAddOptionsDialog = true },
+                            onClick = {
+                                appHaptics.click()
+                                showAddOptionsDialog = true
+                            },
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary,
                             shape = CircleShape,
@@ -271,7 +275,7 @@ fun HomeScreen(
                                 defaultElevation = Dimensions.Elevation.cardDefault,
                                 pressedElevation = Dimensions.Elevation.cardDragging
                             ),
-                            modifier = Modifier.size(54.dp)
+                            modifier = Modifier.size(Dimensions.ComponentSize.heroFab)
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Add,
@@ -280,8 +284,11 @@ fun HomeScreen(
                             )
                         }
 
-                        // 3. Ajustes y Configuración
-                        IconButton(onClick = onNavigateToSettings) {
+                        // 4. Ajustes y Configuración
+                        IconButton(onClick = {
+                            appHaptics.click()
+                            onNavigateToSettings()
+                        }) {
                             Icon(
                                 imageVector = Icons.Filled.Settings,
                                 contentDescription = stringResource(R.string.settings_title),

@@ -99,4 +99,41 @@ object Dimensions {
         /** Tamaño del indicador circular de progreso TOTP (44.dp). */
         val progressIndicator: Dp = 44.dp
     }
+
+    /**
+     * Tamaños y dimensiones especiales de componentes de interfaz.
+     */
+    object ComponentSize {
+        /** Tamaño de visualización de código QR (240.dp). */
+        val qrCodeDisplay: Dp = 240.dp
+
+        /** Tamaño del marco visor de escaneo de cámara (260.dp). */
+        val qrScannerBox: Dp = 260.dp
+
+        /** Tamaño del botón de acción flotante hero central (56.dp). */
+        val heroFab: Dp = 56.dp
+
+        /** Tamaño estándar de botones de acción en tarjetas o modales (36.dp). */
+        val actionIconButton: Dp = 36.dp
+
+        /** Altura máxima para listas scrolleables dentro de modales (240.dp). */
+        val modalListMaxHeight: Dp = 240.dp
+    }
+
+    /**
+     * Grosor estandarizado de trazos y bordes (*Stroke / Border Widths*).
+     */
+    object Stroke {
+        /** Borde fino para contornos sutiles (1.dp). */
+        val thin: Dp = 1.dp
+
+        /** Borde regular para tarjetas en arrastre (1.5.dp). */
+        val regular: Dp = 1.5.dp
+
+        /** Borde grueso para marco de cámara o indicadores (3.dp). */
+        val thick: Dp = 3.dp
+
+        /** Grosor del arco circular de progreso TOTP (3.5.dp). */
+        val progressArc: Dp = 3.5.dp
+    }
 }

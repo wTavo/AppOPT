@@ -658,7 +658,6 @@ fun SettingsScreen(
                                                         driveBackupExists = true
                                                         appHaptics.success()
                                                         syncButtonState = SyncButtonState.SUCCESS
-                                                        snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_sync_success))
                                                         delay(1800L)
                                                         syncButtonState = SyncButtonState.IDLE
                                                     }.onFailure { error ->

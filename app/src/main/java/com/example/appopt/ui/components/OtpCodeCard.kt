@@ -60,13 +60,14 @@ import kotlinx.coroutines.delay
  *
  * Características de diseño e interacción:
  * - Pulsar sobre la tarjeta genera el efecto ripple visual y abre el modal de detalle/edición.
- * - Manija de arrastre dedicada ([Icons.Filled.DragHandle]) para reordenamiento sin interferir con el scroll a 120 FPS.
+ * - Reordenamiento por pulsación prolongada (*Long press*) configurable mediante [isReorderEnabled].
  * - Pulsar directamente sobre los dígitos copia inmediatamente el código al portapapeles.
  * - Modo de privacidad (`hideCodes`): anima suavemente el colapso y despliegue de los números y contador mediante [Motion.Spec.privacyCollapseSpec].
  *
  * @param accountWithCode Contenedor con la información de la cuenta, código activo y progreso temporal.
  * @param hideCodes Si es verdadero, oculta por completo la sección de códigos y temporizadores con animación fluida.
  * @param isDragging Si es verdadero, resalta visualmente la tarjeta mientras se arrastra para reordenar.
+ * @param isReorderEnabled Si es verdadero, habilita la detección de pulsación prolongada para reordenar la tarjeta.
  * @param onCardClick Callback al pulsar en la tarjeta para abrir el popup modal.
  * @param onCopyCode Callback invocado al pulsar sobre los dígitos para copiar el código al portapapeles.
  * @param onToggleFavorite Callback para marcar o desmarcar como favorita.
@@ -81,6 +82,7 @@ fun OtpCodeCard(
     hideCodes: Boolean,
     modifier: Modifier = Modifier,
     isDragging: Boolean = false,
+    isReorderEnabled: Boolean = true,
     onCardClick: () -> Unit,
     onCopyCode: (String) -> Unit,
     onToggleFavorite: (String) -> Unit,
@@ -118,23 +120,29 @@ fun OtpCodeCard(
         with(density) { 112.dp.toPx() + Dimensions.Spacing.md.toPx() }
     }
 
+    val dragModifier = if (isReorderEnabled) {
+        Modifier.pointerInput(account.id) {
+            detectDragGesturesAfterLongPress(
+                onDragStart = {
+                    appHaptics.dragTick()
+                    onStartDrag()
+                },
+                onDrag = { change, dragAmount ->
+                    change.consume()
+                    onDragDelta(dragAmount.y, cardHeightPx)
+                },
+                onDragEnd = { onEndDrag() },
+                onDragCancel = { onEndDrag() }
+            )
+        }
+    } else {
+        Modifier
+    }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .pointerInput(account.id) {
-                detectDragGesturesAfterLongPress(
-                    onDragStart = {
-                        appHaptics.dragTick()
-                        onStartDrag()
-                    },
-                    onDrag = { change, dragAmount ->
-                        change.consume()
-                        onDragDelta(dragAmount.y, cardHeightPx)
-                    },
-                    onDragEnd = { onEndDrag() },
-                    onDragCancel = { onEndDrag() }
-                )
-            }
+            .then(dragModifier)
             .clickable(
                 interactionSource = interactionSource,
                 indication = ripple(),

@@ -435,6 +435,7 @@ fun HomeScreen(
                             accountWithCode = item,
                             hideCodes = isHideCodesEnabled,
                             isDragging = isDragging,
+                            isReorderEnabled = !isSearchActive && searchQuery.isBlank(),
                             modifier = cardModifier,
                             onCardClick = { selectedAccountId = item.account.id },
                             onCopyCode = { code -> onCopyCode(code, item.account.issuer) },

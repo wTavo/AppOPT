@@ -92,6 +92,7 @@ object DateTimeFormatter {
             }
             format.parse(dateStr)?.time ?: System.currentTimeMillis()
         } catch (_: Exception) {
+            // Fallback defensivo: ante una cadena ISO no válida o nula, devuelve la marca de tiempo actual del sistema.
             System.currentTimeMillis()
         }
     }

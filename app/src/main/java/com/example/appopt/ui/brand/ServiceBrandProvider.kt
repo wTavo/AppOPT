@@ -135,7 +135,7 @@ object ServiceBrandProvider {
                     try {
                         ContextCompat.getDrawable(appContext, resId)
                     } catch (_: Exception) {
-                        // Ignorar fallos de pre-carga individual
+                        // Degradación elegante intencional: si la pre-carga del Drawable falla, el avatar dibuja automáticamente las iniciales vectoriales como fallback visual.
                     }
                 }
             }

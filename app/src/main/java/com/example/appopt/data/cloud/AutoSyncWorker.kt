@@ -7,6 +7,7 @@ import com.example.appopt.AuthenticatorApp
 import com.example.appopt.data.local.PreferencesManager
 import com.google.android.gms.tasks.Tasks
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
 /**
@@ -33,18 +34,23 @@ class AutoSyncWorker(
         val repository = AuthenticatorApp.instance.accountRepository
 
         try {
-            // 2. Extraer los datos actuales de la bóveda
-            val payload = repository.exportAccountsForTransfer()
-            if (payload.isBlank()) {
+            // 2. Extraer las cuentas actuales de la bóveda
+            val accounts = repository.getAccounts().first()
+            if (accounts.isEmpty()) {
                 return@withContext Result.success()
             }
 
             // 3. Comparar huella digital SHA-256 para evitar subidas innecesarias
-            val currentVaultHash = CloudVaultSyncManager.computeVaultHash(payload)
+            val currentVaultHash = CloudVaultSyncManager.computeAccountsSignature(accounts)
             val lastSyncedVaultHash = prefsManager.getLastSyncedVaultHash()
 
             if (currentVaultHash == lastSyncedVaultHash) {
-                // El contenido es idéntico: 0 peticiones a Google Drive
+                // El contenido de las credenciales es idéntico: 0 peticiones a Google Drive
+                return@withContext Result.success()
+            }
+
+            val payload = repository.exportAccountsForTransfer()
+            if (payload.isBlank()) {
                 return@withContext Result.success()
             }
 

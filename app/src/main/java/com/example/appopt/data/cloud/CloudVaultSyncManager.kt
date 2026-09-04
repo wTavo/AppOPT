@@ -59,12 +59,17 @@ object CloudVaultSyncManager {
     /**
      * Calcula la firma hash determinística de una lista de cuentas en memoria.
      *
+     * Evalúa exclusivamente los datos sustanciales de las credenciales 2FA
+     * (identificador, emisor, nombre de cuenta, algoritmo, dígitos, periodo, tipo y contador),
+     * omitiendo metadatos volátiles o de presentación local como [TotpAccount.orderIndex],
+     * [TotpAccount.updatedAt] o [TotpAccount.isFavorite] para evitar falsos positivos de sincronización al reordenar tarjetas.
+     *
      * @param accounts Lista de cuentas registradas en la bóveda.
-     * @return Huella SHA-256 representativa del conjunto de cuentas.
+     * @return Huella SHA-256 representativa del conjunto de credenciales.
      */
     fun computeAccountsSignature(accounts: List<TotpAccount>): String {
         val raw = accounts.sortedBy { it.id }.joinToString("|") {
-            "${it.id}:${it.accountName}:${it.issuer}:${it.period}:${it.digits}:${it.algorithm}:${it.updatedAt}:${it.orderIndex}"
+            "${it.id}:${it.accountName}:${it.issuer}:${it.period}:${it.digits}:${it.algorithm.name}:${it.type.name}:${it.counter}"
         }
         return computeVaultHash(raw)
     }

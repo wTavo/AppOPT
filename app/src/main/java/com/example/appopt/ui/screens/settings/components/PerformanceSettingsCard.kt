@@ -3,12 +3,9 @@ package com.example.appopt.ui.screens.settings.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
@@ -54,27 +51,32 @@ fun PerformanceSettingsCard(
             verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
         ) {
             Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Refresh,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(Dimensions.IconSize.medium)
+                )
+                Text(
+                    text = stringResource(R.string.settings_perf_title),
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+
+            Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
-                    modifier = Modifier.weight(1f, fill = false)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Refresh,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(Dimensions.IconSize.medium)
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_perf_title),
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                }
-
+                Text(
+                    text = stringResource(R.string.settings_perf_fps_description),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f)
+                )
                 Switch(
                     checked = isFpsOverlayEnabled,
                     onCheckedChange = { enabled ->
@@ -84,12 +86,6 @@ fun PerformanceSettingsCard(
                     colors = appSwitchColors()
                 )
             }
-
-            Text(
-                text = stringResource(R.string.settings_perf_fps_description),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }

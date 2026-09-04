@@ -38,7 +38,7 @@ import com.example.appopt.util.TotpClock
 @Composable
 fun CircularTimeProgress(
     modifier: Modifier = Modifier,
-    period: Int = 30
+    period: Int = com.example.appopt.security.SecurityConfig.DEFAULT_TOTP_PERIOD_SECONDS
 ) {
     val currentSecond by TotpClock.currentSecondEpoch.collectAsStateWithLifecycle()
     val remainingSeconds = (period - (currentSecond % period)).toInt().coerceIn(1, period)

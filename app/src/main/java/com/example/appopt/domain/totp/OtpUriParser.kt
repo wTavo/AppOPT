@@ -135,10 +135,10 @@ object OtpUriParser {
             val algorithmParam = queryParams["algorithm"]
             val algorithm = OtpAlgorithm.fromString(algorithmParam)
 
-            val digitsParam = queryParams["digits"]?.toIntOrNull() ?: 6
+            val digitsParam = queryParams["digits"]?.toIntOrNull() ?: com.example.appopt.security.SecurityConfig.DEFAULT_OTP_DIGITS
             require(digitsParam in 6..8) { "La cantidad de dígitos debe ser 6, 7 u 8 (recibido: $digitsParam)" }
 
-            val periodParam = queryParams["period"]?.toIntOrNull() ?: 30
+            val periodParam = queryParams["period"]?.toIntOrNull() ?: com.example.appopt.security.SecurityConfig.DEFAULT_TOTP_PERIOD_SECONDS
             require(periodParam > 0) { "El periodo debe ser mayor a 0 segundos" }
 
             val counterParam = queryParams["counter"]?.toLongOrNull() ?: 0L

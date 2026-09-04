@@ -107,6 +107,7 @@ class CryptoManager(
      * @throws javax.crypto.AEADBadTagException si los datos han sido manipulados o la clave es incorrecta.
      */
     fun decrypt(ciphertext: ByteArray, iv: ByteArray): ByteArray {
+        require(iv.size == SecurityConfig.AES_GCM_IV_SIZE_BYTES) { "El vector IV de GCM debe tener ${SecurityConfig.AES_GCM_IV_SIZE_BYTES} bytes" }
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         val spec = GCMParameterSpec(SecurityConfig.AES_GCM_TAG_LENGTH_BITS, iv)
         cipher.init(Cipher.DECRYPT_MODE, getOrCreateSecretKey(), spec)

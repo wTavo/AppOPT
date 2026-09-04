@@ -45,8 +45,8 @@ object TotpEngine {
     fun generateTotp(
         secretBytes: ByteArray,
         timeMillis: Long,
-        periodSeconds: Int = 30,
-        digits: Int = 6,
+        periodSeconds: Int = com.example.appopt.security.SecurityConfig.DEFAULT_TOTP_PERIOD_SECONDS,
+        digits: Int = com.example.appopt.security.SecurityConfig.DEFAULT_OTP_DIGITS,
         algorithm: OtpAlgorithm = OtpAlgorithm.SHA1
     ): String {
         require(periodSeconds > 0) { "El periodo debe ser mayor a 0 segundos" }
@@ -68,7 +68,7 @@ object TotpEngine {
     fun generateHotp(
         secretBytes: ByteArray,
         counter: Long,
-        digits: Int = 6,
+        digits: Int = com.example.appopt.security.SecurityConfig.DEFAULT_OTP_DIGITS,
         algorithm: OtpAlgorithm = OtpAlgorithm.SHA1
     ): String {
         require(secretBytes.isNotEmpty()) { "El material secreto no puede estar vacío" }
@@ -105,7 +105,10 @@ object TotpEngine {
      * @param periodSeconds Periodo de rotación del código.
      * @return Número de segundos restantes (entre 1 y periodSeconds).
      */
-    fun getRemainingSeconds(timeMillis: Long, periodSeconds: Int = 30): Int {
+    fun getRemainingSeconds(
+        timeMillis: Long,
+        periodSeconds: Int = com.example.appopt.security.SecurityConfig.DEFAULT_TOTP_PERIOD_SECONDS
+    ): Int {
         if (periodSeconds <= 0) return 0
         val currentSecondInWindow = ((timeMillis / 1000L) % periodSeconds).toInt()
         return periodSeconds - currentSecondInWindow
@@ -118,7 +121,10 @@ object TotpEngine {
      * @param periodSeconds Periodo de rotación del código.
      * @return Valor flotante entre 0.0 y 1.0.
      */
-    fun getProgress(timeMillis: Long, periodSeconds: Int = 30): Float {
+    fun getProgress(
+        timeMillis: Long,
+        periodSeconds: Int = com.example.appopt.security.SecurityConfig.DEFAULT_TOTP_PERIOD_SECONDS
+    ): Float {
         if (periodSeconds <= 0) return 0f
         val remainingMillisInWindow = (periodSeconds * 1000L) - (timeMillis % (periodSeconds * 1000L))
         return remainingMillisInWindow.toFloat() / (periodSeconds * 1000L).toFloat()

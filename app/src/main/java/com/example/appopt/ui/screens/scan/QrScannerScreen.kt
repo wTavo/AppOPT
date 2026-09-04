@@ -344,7 +344,7 @@ fun QrScannerScreen(
                         },
                         shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                     ) {
-                        Text(stringResource(R.string.home_add_manual_option), color = Color.White, style = MaterialTheme.typography.labelLarge)
+                        Text(stringResource(R.string.home_add_manual_option), style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }

@@ -319,7 +319,10 @@ fun AccountDetailsDialog(
                         onDismiss()
                     },
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                    colors = ButtonDefaults.buttonColors(containerColor = UrgentRed)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    )
                 ) {
                     Text(stringResource(R.string.action_delete), style = MaterialTheme.typography.labelLarge)
                 }

@@ -25,7 +25,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import com.example.appopt.R
 import com.example.appopt.ui.theme.Dimensions
@@ -87,7 +86,7 @@ fun AppAnimatedButton(
         enabled = enabled && !isSuccess,
         colors = ButtonDefaults.buttonColors(
             containerColor = animatedContainerColor,
-            contentColor = Color.White
+            contentColor = MaterialTheme.colorScheme.onPrimary
         ),
         shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
         modifier = modifier
@@ -107,7 +106,7 @@ fun AppAnimatedButton(
                     Icon(
                         imageVector = Icons.Filled.Check,
                         contentDescription = stringResource(R.string.action_copied),
-                        tint = Color.White,
+                        tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(Dimensions.IconSize.large)
                     )
                 }

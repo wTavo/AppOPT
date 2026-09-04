@@ -49,7 +49,7 @@ fun PerformanceSettingsCard(
         ),
         shape = RoundedCornerShape(Dimensions.CornerRadius.large)
     ) {
-        Column(modifier = Modifier.padding(Dimensions.Spacing.md)) {
+        Column(modifier = Modifier.padding(Dimensions.Spacing.lg)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,

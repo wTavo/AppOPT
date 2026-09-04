@@ -49,7 +49,7 @@ fun TransferSettingsCard(
         ),
         shape = RoundedCornerShape(Dimensions.CornerRadius.large)
     ) {
-        Column(modifier = Modifier.padding(Dimensions.Spacing.md)) {
+        Column(modifier = Modifier.padding(Dimensions.Spacing.lg)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Filled.QrCodeScanner,

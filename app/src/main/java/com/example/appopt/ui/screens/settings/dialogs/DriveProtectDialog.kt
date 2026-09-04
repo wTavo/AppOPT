@@ -236,7 +236,7 @@ fun DriveProtectDialog(
                                     ) {
                                         Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
                                         Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                                        Text(stringResource(R.string.settings_drive_copy_60s), style = MaterialTheme.typography.labelMedium)
+                                        Text(stringResource(R.string.settings_drive_copy_60s), style = MaterialTheme.typography.labelLarge)
                                     }
 
                                     TextButton(
@@ -244,7 +244,7 @@ fun DriveProtectDialog(
                                     ) {
                                         Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
                                         Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                                        Text(stringResource(R.string.settings_drive_key_regenerate), style = MaterialTheme.typography.labelMedium)
+                                        Text(stringResource(R.string.settings_drive_key_regenerate), style = MaterialTheme.typography.labelLarge)
                                     }
                                 }
 
@@ -370,7 +370,7 @@ fun DriveProtectDialog(
                                 ) {
                                     Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
                                     Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                                    Text(stringResource(R.string.settings_drive_copy_60s), style = MaterialTheme.typography.labelMedium)
+                                    Text(stringResource(R.string.settings_drive_copy_60s), style = MaterialTheme.typography.labelLarge)
                                 }
 
                                 TextButton(
@@ -378,7 +378,7 @@ fun DriveProtectDialog(
                                 ) {
                                     Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
                                     Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                                    Text(stringResource(R.string.settings_drive_words_regenerate), style = MaterialTheme.typography.labelMedium)
+                                    Text(stringResource(R.string.settings_drive_words_regenerate), style = MaterialTheme.typography.labelLarge)
                                 }
                             }
 

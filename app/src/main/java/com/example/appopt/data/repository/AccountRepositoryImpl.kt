@@ -32,7 +32,7 @@ import java.util.UUID
  * Principio central de seguridad:
  * - Orquesta el descifrado bajo demanda: el secreto TOTP se descifra únicamente en el instante del cálculo del código.
  * - Una vez generado el código numérico, el arreglo de bytes descifrado se limpia de inmediato de la memoria RAM con ceros ([CryptoManager.zeroize]).
- * - En la base de datos sólo se almacenan bytes cifrados con AES-256-GCM y su respectivo vector de inicialización (IV).
+ * - En la base de datos solo se almacenan bytes cifrados con AES-256-GCM y su respectivo vector de inicialización (IV).
  */
 class AccountRepositoryImpl(
     private val accountDao: AccountDao,
@@ -273,7 +273,7 @@ class AccountRepositoryImpl(
     /**
      * Exporta las cuentas de la bóveda para migración y transferencia por código QR.
      *
-     * Si sólo hay 1 cuenta, genera el URI estándar otpauth://
+     * Si solo hay 1 cuenta, genera el URI estándar otpauth://
      * Si hay múltiples cuentas, genera un payload JSON estructurado con el prefijo "appopt-migration:"
      * que asegura compatibilidad y decodificación eficiente en el código QR.
      */

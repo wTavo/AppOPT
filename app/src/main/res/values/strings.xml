@@ -118,8 +118,6 @@
     <string name="settings_drive_syncing">Sincronizando con Google Drive…</string>
     <string name="settings_drive_restoring">Descargando respaldo de Google Drive…</string>
     <string name="settings_drive_sync_success">Copia de seguridad sincronizada exitosamente en Google Drive</string>
-    <string name="settings_drive_sync_success_btn">Sincronizado</string>
-    <string name="settings_drive_sync_error_btn">Error al sincronizar</string>
     <string name="settings_drive_restore_success">Se restauraron %1$d servicios desde Google Drive</string>
     <string name="settings_drive_error_not_signed_in">Debes conectar tu cuenta de Google para sincronizar</string>
     <string name="settings_drive_error">Error en Google Drive: %1$s</string>

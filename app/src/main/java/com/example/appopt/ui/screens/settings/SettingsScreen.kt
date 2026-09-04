@@ -172,7 +172,6 @@ fun SettingsScreen(
     var lastSyncTimestamp by remember { mutableStateOf(prefsManager.getLastSyncTimestamp()) }
     var driveAccessToken by remember { mutableStateOf<String?>(null) }
     var isDriveLoading by remember { mutableStateOf(false) }
-    var syncButtonState by remember { mutableStateOf(SyncButtonState.IDLE) }
     var showFrequencyDialog by remember { mutableStateOf(false) }
     var showBackupDetailsDialog by remember { mutableStateOf(false) }
     var isConfirmingDeleteInDialog by remember { mutableStateOf(false) }
@@ -512,7 +511,7 @@ fun SettingsScreen(
                     modifier = Modifier.padding(Dimensions.Spacing.lg),
                     verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                 ) {
-                    val isSyncingActive = (syncButtonState == SyncButtonState.LOADING) || (isDriveLoading && isDriveConnected)
+                    val isSyncingActive = isDriveLoading && isDriveConnected
 
                     // 1. Cabecera con icono, título, badge de estado y acción de desvincular
                     Row(
@@ -657,7 +656,7 @@ fun SettingsScreen(
                             }
 
                             // Contenedor 2: Botón independiente para desvincular cuenta (oculto durante búsqueda o sincronización activa)
-                            val isDisconnectAllowed = !isCheckingDriveBackup && !isDriveLoading && syncButtonState != SyncButtonState.LOADING
+                            val isDisconnectAllowed = !isCheckingDriveBackup && !isDriveLoading
                             AnimatedVisibility(
                                 visible = isDisconnectAllowed,
                                 enter = fadeIn() + expandVertically(),
@@ -737,139 +736,62 @@ fun SettingsScreen(
                     } else if (!isCheckingDriveBackup) {
                         if (lastSyncTimestamp > 0L) {
                             // Estado: Ya sincronizado previamente
-                            if (hasUnsyncedChanges) {
-                                // Con cambios pendientes: Botón animado de "Sincronizar ahora"
-                                val animatedSyncColor by animateColorAsState(
-                                    targetValue = when (syncButtonState) {
-                                        SyncButtonState.SUCCESS -> SafeGreen
-                                        SyncButtonState.ERROR -> MaterialTheme.colorScheme.error
-                                        else -> MaterialTheme.colorScheme.primary
-                                    },
-                                    animationSpec = Motion.Spec.buttonColorSpec(),
-                                    label = "animatedSyncButtonColor"
-                                )
-
+                            if (hasUnsyncedChanges && !isDriveLoading) {
+                                // Con cambios pendientes: Botón de "Sincronizar ahora"
                                 Button(
                                     onClick = {
-                                        if (syncButtonState != SyncButtonState.LOADING) {
-                                            val performSync: (String) -> Unit = { token ->
-                                                isDriveLoading = true
-                                                syncButtonState = SyncButtonState.LOADING
-                                                AuthenticatorApp.instance.applicationScope.launch {
+                                        val performSync: (String) -> Unit = { token ->
+                                            isDriveLoading = true
+                                            AuthenticatorApp.instance.applicationScope.launch {
+                                                try {
+                                                    val payload = repository.exportAccountsForTransfer()
+                                                    val autoSyncKey = "AppOPT_AutoSync_Vault_E2EE_v1".toCharArray()
                                                     try {
-                                                        val payload = repository.exportAccountsForTransfer()
-                                                        val autoSyncKey = "AppOPT_AutoSync_Vault_E2EE_v1".toCharArray()
-                                                        try {
-                                                            val uploadResult = GoogleDriveManager.uploadBackup(token, payload, autoSyncKey)
-                                                            uploadResult.onSuccess {
-                                                                val now = System.currentTimeMillis()
-                                                                val currentHash = CloudVaultSyncManager.computeAccountsSignature(accounts)
-                                                                prefsManager.setLastSyncTimestamp(now)
-                                                                prefsManager.setLastSyncedVaultHash(currentHash)
-                                                                withContext(Dispatchers.Main) {
-                                                                    lastSyncTimestamp = now
-                                                                    lastSyncedHash = currentHash
-                                                                    driveBackupExists = true
-                                                                    appHaptics.success()
-                                                                    syncButtonState = SyncButtonState.SUCCESS
-                                                                    delay(1800L)
-                                                                    syncButtonState = SyncButtonState.IDLE
-                                                                }
-                                                            }.onFailure { error ->
-                                                                withContext(Dispatchers.Main) {
-                                                                    appHaptics.error()
-                                                                    syncButtonState = SyncButtonState.ERROR
-                                                                    snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error, error.localizedMessage ?: ""))
-                                                                    delay(1800L)
-                                                                    syncButtonState = SyncButtonState.IDLE
-                                                                }
+                                                        val uploadResult = GoogleDriveManager.uploadBackup(token, payload, autoSyncKey)
+                                                        uploadResult.onSuccess {
+                                                            val now = System.currentTimeMillis()
+                                                            val currentHash = CloudVaultSyncManager.computeAccountsSignature(accounts)
+                                                            prefsManager.setLastSyncTimestamp(now)
+                                                            prefsManager.setLastSyncedVaultHash(currentHash)
+                                                            withContext(Dispatchers.Main) {
+                                                                lastSyncTimestamp = now
+                                                                lastSyncedHash = currentHash
+                                                                driveBackupExists = true
+                                                                appHaptics.success()
                                                             }
-                                                        } finally {
-                                                            autoSyncKey.fill('0')
+                                                        }.onFailure { error ->
+                                                            withContext(Dispatchers.Main) {
+                                                                appHaptics.error()
+                                                                snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error, error.localizedMessage ?: ""))
+                                                            }
                                                         }
                                                     } finally {
-                                                        withContext(Dispatchers.Main) {
-                                                            isDriveLoading = false
-                                                        }
+                                                        autoSyncKey.fill('0')
+                                                    }
+                                                } finally {
+                                                    withContext(Dispatchers.Main) {
+                                                        isDriveLoading = false
                                                     }
                                                 }
                                             }
+                                        }
 
-                                            if (driveAccessToken == null) {
-                                                requestGoogleAuthorization { token ->
-                                                    performSync(token)
-                                                }
-                                            } else {
-                                                performSync(driveAccessToken!!)
+                                        if (driveAccessToken == null) {
+                                            requestGoogleAuthorization { token ->
+                                                performSync(token)
                                             }
+                                        } else {
+                                            performSync(driveAccessToken!!)
                                         }
                                     },
-                                    enabled = syncButtonState != SyncButtonState.LOADING,
+                                    enabled = !isDriveLoading,
                                     modifier = Modifier.fillMaxWidth(),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = animatedSyncColor,
-                                        contentColor = androidx.compose.ui.graphics.Color.White
-                                    ),
                                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                                 ) {
-                                    AnimatedContent(
-                                        targetState = syncButtonState,
-                                        transitionSpec = {
-                                            fadeIn(animationSpec = Motion.Spec.quickFadeSpec()) togetherWith
-                                                    fadeOut(animationSpec = Motion.Spec.quickFadeSpec())
-                                        },
-                                        label = "animatedSyncButtonContent"
-                                    ) { state ->
-                                        when (state) {
-                                            SyncButtonState.LOADING -> {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.size(Dimensions.IconSize.small),
-                                                    color = MaterialTheme.colorScheme.onPrimary,
-                                                    strokeWidth = Dimensions.Stroke.regular
-                                                )
-                                            }
-                                            SyncButtonState.SUCCESS -> {
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Filled.Check,
-                                                        contentDescription = null,
-                                                        tint = androidx.compose.ui.graphics.Color.White,
-                                                        modifier = Modifier.size(Dimensions.IconSize.small)
-                                                    )
-                                                    Text(
-                                                        text = stringResource(R.string.settings_drive_sync_success_btn),
-                                                        style = MaterialTheme.typography.labelLarge
-                                                    )
-                                                }
-                                            }
-                                            SyncButtonState.ERROR -> {
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Filled.Close,
-                                                        contentDescription = null,
-                                                        tint = androidx.compose.ui.graphics.Color.White,
-                                                        modifier = Modifier.size(Dimensions.IconSize.small)
-                                                    )
-                                                    Text(
-                                                        text = stringResource(R.string.settings_drive_sync_error_btn),
-                                                        style = MaterialTheme.typography.labelLarge
-                                                    )
-                                                }
-                                            }
-                                            SyncButtonState.IDLE -> {
-                                                Text(
-                                                    text = stringResource(R.string.settings_drive_sync_button),
-                                                    style = MaterialTheme.typography.labelLarge
-                                                )
-                                            }
-                                        }
-                                    }
+                                    Text(
+                                        text = stringResource(R.string.settings_drive_sync_button),
+                                        style = MaterialTheme.typography.labelLarge
+                                    )
                                 }
                             }
                         } else if (driveBackupExists) {
@@ -2216,14 +2138,4 @@ fun SettingsScreen(
             }
         )
     }
-}
-
-/**
- * Estados visuales para el botón animado de sincronización en Google Drive.
- */
-private enum class SyncButtonState {
-    IDLE,
-    LOADING,
-    SUCCESS,
-    ERROR
 }

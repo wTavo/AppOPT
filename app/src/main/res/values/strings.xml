@@ -68,6 +68,7 @@
     <string name="scan_permission_required_title">Se requiere permiso de cámara</string>
     <string name="scan_permission_required_description">La app necesita acceso a la cámara para leer el código QR de configuración localmente.</string>
     <string name="scan_error_invalid_qr">El código QR escaneado no contiene un formato OTP válido.</string>
+    <string name="scan_error_camera_init">No se pudo iniciar la cámara. Comprueba que ninguna otra aplicación la esté usando e inténtalo de nuevo.</string>
 
     <!-- Settings Screen -->
     <string name="settings_title">Configuraciones</string>
@@ -201,5 +202,7 @@
     <string name="drive_default_device_name">Dispositivo Android</string>
     <string name="emergency_kit_watermark_text">APPOPT • CONFIDENCIAL</string>
     <string name="emergency_kit_pdf_filename">AppOPT_Emergency_Kit.pdf</string>
+    <string name="emergency_kit_print_error">No se pudo generar el documento para impresión. Comprueba el almacenamiento disponible e inténtalo de nuevo.</string>
+    <string name="emergency_kit_descriptor_error">El servicio de impresión del sistema no devolvió un destino válido.</string>
 
 </resources>

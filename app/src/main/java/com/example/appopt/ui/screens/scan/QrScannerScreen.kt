@@ -97,6 +97,7 @@ fun QrScannerScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val repository = AuthenticatorApp.instance.accountRepository
     val invalidQrErrorText = stringResource(R.string.scan_error_invalid_qr)
+    val cameraInitErrorText = stringResource(R.string.scan_error_camera_init)
 
     var hasCameraPermission by remember {
         mutableStateOf(
@@ -245,7 +246,10 @@ fun QrScannerScreen(
                                     imageAnalysis
                                 )
                             } catch (_: Exception) {
-                                // Fallo controlado de inicialización de cámara
+                                appHaptics.error()
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(cameraInitErrorText)
+                                }
                             }
                         }, ContextCompat.getMainExecutor(ctx))
 

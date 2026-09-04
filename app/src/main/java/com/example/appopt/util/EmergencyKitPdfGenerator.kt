@@ -134,7 +134,7 @@ object EmergencyKitPdfGenerator {
                 callback: WriteResultCallback?
             ) {
                 if (destination == null) {
-                    callback?.onWriteFailed(null)
+                    callback?.onWriteFailed(context.getString(R.string.emergency_kit_descriptor_error))
                     return
                 }
 
@@ -144,7 +144,7 @@ object EmergencyKitPdfGenerator {
                     }
                     callback?.onWriteFinished(arrayOf(PageRange.ALL_PAGES))
                 } catch (_: Exception) {
-                    callback?.onWriteFailed(null)
+                    callback?.onWriteFailed(context.getString(R.string.emergency_kit_print_error))
                 }
             }
         }

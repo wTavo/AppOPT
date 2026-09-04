@@ -131,7 +131,7 @@ class AddAccountViewModel : ViewModel() {
                     type = state.type
                 )
                 _uiState.value = _uiState.value.copy(isSavedSuccessfully = true)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _uiState.value = _uiState.value.copy(errorMessageResId = R.string.add_account_error_save_failed)
             }
         }

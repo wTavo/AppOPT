@@ -125,7 +125,9 @@ object GoogleDriveManager {
                     }.toString()
                     metaConn.outputStream.use { it.write(updateMetaJson.toByteArray(StandardCharsets.UTF_8)) }
                     metaConn.responseCode
-                } catch (_: Exception) { }
+                } catch (_: Exception) {
+                    // Degradación elegante intencional: la carga del archivo principal fue exitosa; el fallo en actualizar metadatos secundarios no invalida el respaldo.
+                }
             } else {
                 // Creación de nuevo archivo multipart en appDataFolder
                 val boundary = "=====AppOPTBoundary${System.currentTimeMillis()}====="

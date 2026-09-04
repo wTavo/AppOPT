@@ -102,9 +102,10 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 
 ---
 
-## 15. Manejo Seguro de Excepciones y Cero Fuga de Información (*Zero-Leakage Error Handling*)
-- **PROHIBIDO** exponer mensajes técnicos internos de excepciones criptográficas o de red (`e.message`, `e.printStackTrace()`, cadenas nativas de OpenSSL) en la interfaz de usuario o diálogos.
-- **OBLIGATORIO** capturar excepciones técnicas de bajo nivel y presentar al usuario mensajes amigables, genéricos y seguros centralizados en `res/values/strings.xml` para prevenir ataques de canal lateral (*side-channel attacks*) o inferencia de vectores criptográficos.
+## 15. Manejo Seguro, Descriptivo y Accionable de Excepciones (*Zero-Leakage & Actionable Error Handling*)
+- **PROHIBIDO** exponer mensajes técnicos internos de excepciones criptográficas, de red o de sistema (`e.message`, `e.printStackTrace()`, nombres de clases Java/C++, OpenSSL o rutas de archivos) en la interfaz de usuario, diálogos o callbacks del sistema.
+- **PROHIBIDO el "antipatrón mudo" (*Swallowing Errors*):** Dejar bloques `catch` o callbacks de error con `null`, cadenas vacías o sin retroalimentación cuando el usuario requiere conocer el resultado de una acción.
+- **OBLIGATORIO** capturar excepciones técnicas de bajo nivel y presentar al usuario mensajes **amigables, descriptivos y accionables** centralizados en `res/values/strings.xml` (explicando en lenguaje cotidiano qué falló y qué paso correctivo puede tomar).
 
 ---
 

@@ -195,20 +195,19 @@ fun ExportServicesDialog(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                 ) {
-                    transferQrBitmap?.let { bitmap ->
-                        Surface(
-                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                            color = Color.White,
-                            modifier = Modifier.padding(Dimensions.Spacing.sm)
-                        ) {
-                            Image(
-                                bitmap = bitmap.asImageBitmap(),
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(Dimensions.ComponentSize.qrCodeDisplay)
-                                    .padding(Dimensions.Spacing.sm)
-                            )
-                        }
+                if (transferQrBitmap != null) {
+                    Surface(
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                        color = Color.White,
+                        modifier = Modifier.padding(Dimensions.Spacing.sm)
+                    ) {
+                        Image(
+                            bitmap = transferQrBitmap!!.asImageBitmap(),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(Dimensions.ComponentSize.qrCodeDisplay)
+                                .padding(Dimensions.Spacing.sm)
+                        )
                     }
 
                     Text(
@@ -217,10 +216,19 @@ fun ExportServicesDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
+                } else {
+                    Text(
+                        text = stringResource(R.string.settings_export_qr_error),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(vertical = Dimensions.Spacing.md)
+                    )
                 }
             }
-        },
-        confirmButton = {
+        }
+    },
+    confirmButton = {
             if (!isShowingQr) {
                 Button(
                     onClick = {
@@ -242,6 +250,7 @@ fun ExportServicesDialog(
                     onClick = {
                         onCompleteExport(exportedServiceIds, keepServicesOnDevice)
                     },
+                    enabled = transferQrBitmap != null || keepServicesOnDevice,
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                 ) {
                     Text(

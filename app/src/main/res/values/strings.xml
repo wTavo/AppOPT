@@ -1,7 +1,9 @@
 <resources>
+    <!-- ================================================================= -->
+    <!-- 1. IDENTIDAD Y ACCIONES GLOBALES (General & Actions)             -->
+    <!-- ================================================================= -->
     <string name="app_name">Authenticator</string>
 
-    <!-- General & Actions -->
     <string name="action_cancel">Cancelar</string>
     <string name="action_delete">Eliminar</string>
     <string name="action_edit">Editar</string>
@@ -18,7 +20,11 @@
     <string name="action_hide_codes">Ocultar códigos</string>
     <string name="action_show_codes">Mostrar códigos</string>
 
-    <!-- Home Screen -->
+    <!-- ================================================================= -->
+    <!-- 2. PANTALLAS PRINCIPALES (Screens & Navigation)                   -->
+    <!-- ================================================================= -->
+
+    <!-- Pantalla Principal (Home Screen) -->
     <string name="home_title">Authenticator</string>
     <string name="home_search_placeholder">Buscar servicio o cuenta…</string>
     <string name="home_lock_vault">Bloquear bóveda</string>
@@ -33,20 +39,20 @@
     <string name="home_next_hotp_code">Generar siguiente código HOTP</string>
     <string name="home_default_issuer">Servicio</string>
 
-    <!-- Account Modal / Popup -->
+    <!-- Modal Detalle de Cuenta (Account Modal) -->
     <string name="account_modal_title">Detalle de cuenta</string>
     <string name="account_modal_edit_title">Editar cuenta</string>
     <string name="account_modal_issuer_label">Servicio / Emisor</string>
     <string name="account_modal_name_label">Cuenta / Usuario (opcional)</string>
     <string name="account_modal_close_button">Cerrar</string>
 
-    <!-- Lock Screen -->
+    <!-- Pantalla de Bloqueo (Lock Screen) -->
     <string name="lock_title">Bóveda bloqueada</string>
     <string name="lock_description">Tus secretos criptográficos están cifrados con hardware seguro. Autentícate para continuar.</string>
     <string name="lock_biometric_prompt_title">Desbloquear Authenticator</string>
     <string name="lock_biometric_prompt_subtitle">Confirma tu identidad para acceder a tus códigos</string>
 
-    <!-- Add Account Screen -->
+    <!-- Pantalla Agregar Cuenta Manual (Add Account Screen) -->
     <string name="add_account_title">Ingresar clave manual</string>
     <string name="add_account_issuer_label">Servicio / Emisor *</string>
     <string name="add_account_name_label">Cuenta / Usuario (opcional)</string>
@@ -56,23 +62,19 @@
     <string name="add_account_algorithm_label">Algoritmo HMAC</string>
     <string name="add_account_digits_label">Dígitos</string>
     <string name="add_account_digits_format">%1$d dígitos</string>
-    <string name="add_account_error_issuer_required">El nombre del servicio es obligatorio</string>
-    <string name="add_account_error_secret_invalid">La clave secreta Base32 no es válida</string>
-    <string name="add_account_error_save_failed">No se pudo guardar la cuenta. Verifica los datos e inténtalo de nuevo.</string>
     <string name="add_account_valid_indicator">Válido</string>
     <string name="add_account_invalid_indicator">Inválido</string>
 
-    <!-- QR Scanner Screen -->
+    <!-- Pantalla Escáner QR (QR Scanner Screen) -->
     <string name="scan_title">Escanear código QR</string>
     <string name="scan_hint">Apunta la cámara al código QR 2FA</string>
     <string name="scan_permission_required_title">Se requiere permiso de cámara</string>
     <string name="scan_permission_required_description">La app necesita acceso a la cámara para leer el código QR de configuración localmente.</string>
-    <string name="scan_error_invalid_qr">El código QR escaneado no contiene un formato OTP válido.</string>
-    <string name="scan_error_camera_init">No se pudo iniciar la cámara. Comprueba que ninguna otra aplicación la esté usando e inténtalo de nuevo.</string>
 
-    <!-- Settings Screen -->
+    <!-- Pantalla de Configuraciones (Settings Screen) -->
     <string name="settings_title">Configuraciones</string>
-    <!-- Transfer Services (QR Code) -->
+
+    <!-- Transferencia Offline por QR -->
     <string name="settings_transfer_title">Transferir servicios</string>
     <string name="settings_transfer_description">Transfiere tus servicios directamente a otro teléfono mediante un código QR sin pasar por ningún servidor.</string>
     <string name="settings_export_services_button">Exportar servicios</string>
@@ -87,7 +89,7 @@
     <string name="settings_export_confirm_done">Listo, servicios transferidos</string>
     <string name="settings_services_deleted_after_export">Los servicios seleccionados fueron eliminados de este dispositivo.</string>
 
-    <!-- Cloud Backup (Google Drive) -->
+    <!-- Copia de Seguridad en Google Drive -->
     <string name="settings_drive_title">Copia de seguridad en Google Drive</string>
     <string name="settings_drive_description">Guarda una copia cifrada de tu bóveda en tu espacio privado de Google Drive para restaurarla si pierdes tu teléfono.</string>
     <string name="settings_drive_status_not_synced">Sin conectar</string>
@@ -103,7 +105,6 @@
     <string name="settings_drive_syncing">Sincronizando con Google Drive…</string>
     <string name="settings_drive_sync_success">Copia de seguridad sincronizada exitosamente en Google Drive</string>
     <string name="settings_drive_restore_success">Se restauraron %1$d servicios desde Google Drive</string>
-    <string name="settings_drive_error">No se pudo completar la operación en Google Drive. Verifica tu conexión e inténtalo de nuevo.</string>
     <string name="settings_drive_frequency_title">Frecuencia de la copia</string>
     <string name="settings_drive_frequency_daily">Diariamente</string>
     <string name="settings_drive_frequency_weekly">Semanalmente</string>
@@ -132,8 +133,9 @@
     <string name="settings_drive_disconnect_confirm_title">Desvincular Google Drive</string>
     <string name="settings_drive_disconnect_confirm_msg">¿Deseas desvincular tu cuenta de Google? Tus servicios en este dispositivo y la copia guardada en tu nube se mantendrán intactos.</string>
     <string name="settings_drive_disconnected_success">Cuenta de Google Drive desvinculada</string>
+    <string name="drive_default_device_name">Dispositivo Android</string>
 
-    <!-- E2EE Cloud Protection (Dual-Recovery: Primary Method + Mandatory Emergency BIP-39) -->
+    <!-- Protección de Copia E2EE y Asistente de Recuperación -->
     <string name="settings_drive_protect_step1_title">Paso 1: Elige tu método principal</string>
     <string name="settings_drive_protect_step2_title">Paso 2: Tu kit de recuperación</string>
     <string name="settings_drive_protect_description">Configura tu método principal de acceso a tu copia de seguridad.</string>
@@ -147,8 +149,6 @@
     <string name="settings_drive_words_regenerate">Generar nueva frase</string>
     <string name="settings_drive_password_label">Contraseña maestra</string>
     <string name="settings_drive_password_confirm_label">Confirmar contraseña</string>
-    <string name="settings_drive_password_mismatch">Las contraseñas no coinciden</string>
-    <string name="settings_drive_password_too_short">La contraseña debe tener al menos 10 caracteres</string>
     <string name="settings_drive_password_warning">Guarda esta contraseña en un lugar seguro. Es el acceso principal a tu copia de seguridad.</string>
     <string name="settings_drive_key_label">Clave criptográfica de 64 dígitos</string>
     <string name="settings_drive_key_copied">Clave copiada. Se borrará del portapapeles en 60 segundos.</string>
@@ -163,15 +163,13 @@
     <string name="settings_drive_quiz_description">Para garantizar que anotaste tu frase de 12 palabras, selecciona la palabra correcta para cada posición solicitada.</string>
     <string name="settings_drive_quiz_question_label">¿Cuál es tu palabra #%1$d?</string>
     <string name="settings_drive_quiz_review_words">Revisar 12 palabras</string>
-    <string name="settings_drive_quiz_error">Una o más palabras seleccionadas no coinciden. Por favor revisa tus 12 palabras.</string>
     <string name="settings_drive_decrypt_title">Descifrar copia de seguridad</string>
     <string name="settings_drive_decrypt_hint">Ingresa tu contraseña maestra, tu clave de 64 dígitos o tu frase de 12 palabras de emergencia para descifrar tu respaldo.</string>
     <string name="settings_drive_decrypt_input_label">Contraseña, clave de 64 dígitos o 12 palabras</string>
-    <string name="settings_drive_decrypt_error">Credenciales incorrectas. No se pudo descifrar la copia de seguridad.</string>
     <string name="settings_drive_encrypt_and_sync">Cifrar y sincronizar</string>
     <string name="settings_drive_decrypt_and_restore">Descifrar y restaurar</string>
 
-    <!-- Emergency Kit PDF Strings -->
+    <!-- Kit de Emergencia PDF -->
     <string name="emergency_kit_pdf_title">AppOPT Authenticator</string>
     <string name="emergency_kit_pdf_subtitle">Kit de recuperación de emergencia (Cifrado E2EE)</string>
     <string name="emergency_kit_pdf_generated_at">Fecha de emisión</string>
@@ -179,29 +177,50 @@
     <string name="emergency_kit_pdf_words_instruction">Anota o guarda estas palabras en su orden numérico exacto (del 1 al 12).</string>
     <string name="emergency_kit_pdf_warning_1">ADVERTENCIA: Imprime este documento en papel físico o guárdalo en una memoria externa fuera de este teléfono.</string>
     <string name="emergency_kit_pdf_warning_2">No dejes este archivo PDF guardado en la memoria de tu teléfono sin protección ni lo envíes por internet sin cifrar.</string>
+    <string name="emergency_kit_watermark_text">APPOPT • CONFIDENCIAL</string>
+    <string name="emergency_kit_pdf_filename">AppOPT_Emergency_Kit.pdf</string>
 
-    <!-- Password Manager (Future Module) -->
+    <!-- Gestor de Contraseñas (Módulo Futuro) -->
     <string name="passwords_nav_title">Gestor de contraseñas</string>
     <string name="passwords_coming_soon">Gestor de contraseñas disponible próximamente</string>
 
-    <!-- Time Formatting & Accessibility -->
-    <string name="time_just_now">hace unos momentos</string>
-    <string name="time_minutes_ago">hace %1$d min</string>
-    <string name="time_today_at">hoy a las %1$s</string>
-    <string name="time_yesterday_at">ayer a las %1$s</string>
-    <string name="card_seconds_abbrev">segundos restantes</string>
-
-    <!-- Performance Monitor -->
+    <!-- Monitor de Rendimiento y Diagnósticos -->
     <string name="settings_perf_title">Rendimiento y diagnósticos</string>
     <string name="settings_perf_fps_description">Muestra los fotogramas por segundo (FPS) en tiempo real y registra métricas en Logcat.</string>
     <string name="perf_fps_format">%1$d FPS</string>
     <string name="perf_frame_time_format">%1$.1f ms</string>
     <string name="perf_janks_format">%1$d tirones</string>
 
-    <!-- Emergency Kit PDF & Drive Defaults -->
-    <string name="drive_default_device_name">Dispositivo Android</string>
-    <string name="emergency_kit_watermark_text">APPOPT • CONFIDENCIAL</string>
-    <string name="emergency_kit_pdf_filename">AppOPT_Emergency_Kit.pdf</string>
+    <!-- Formato de Tiempo y Accesibilidad -->
+    <string name="time_just_now">hace unos momentos</string>
+    <string name="time_minutes_ago">hace %1$d min</string>
+    <string name="time_today_at">hoy a las %1$s</string>
+    <string name="time_yesterday_at">ayer a las %1$s</string>
+    <string name="card_seconds_abbrev">segundos restantes</string>
+
+    <!-- ================================================================= -->
+    <!-- 3. ERRORES, VALIDACIONES Y RETROALIMENTACIÓN ACCIONABLE          -->
+    <!--    (Directiva 15: Zero-Leakage & Actionable Error Handling)       -->
+    <!-- ================================================================= -->
+
+    <!-- Formulario y Validación de Cuentas (Add / Edit Account) -->
+    <string name="add_account_error_issuer_required">El nombre del servicio es obligatorio</string>
+    <string name="add_account_error_secret_invalid">La clave secreta Base32 no es válida</string>
+    <string name="add_account_error_save_failed">No se pudo guardar la cuenta. Verifica los datos e inténtalo de nuevo.</string>
+
+    <!-- Escáner QR y Cámara (QR Scanner) -->
+    <string name="scan_error_invalid_qr">El código QR escaneado no contiene un formato OTP válido.</string>
+    <string name="scan_error_camera_init">No se pudo iniciar la cámara. Comprueba que ninguna otra aplicación la esté usando e inténtalo de nuevo.</string>
+    <string name="settings_export_qr_error">No se pudo generar el código QR con los servicios seleccionados. Intenta exportar menos servicios a la vez.</string>
+
+    <!-- Sincronización y Respaldo en la Nube (Google Drive E2EE) -->
+    <string name="settings_drive_error">No se pudo completar la operación en Google Drive. Verifica tu conexión e inténtalo de nuevo.</string>
+    <string name="settings_drive_password_mismatch">Las contraseñas no coinciden</string>
+    <string name="settings_drive_password_too_short">La contraseña debe tener al menos 10 caracteres</string>
+    <string name="settings_drive_quiz_error">Una o más palabras seleccionadas no coinciden. Por favor revisa tus 12 palabras.</string>
+    <string name="settings_drive_decrypt_error">Credenciales incorrectas. No se pudo descifrar la copia de seguridad.</string>
+
+    <!-- Generación e Impresión del Kit de Emergencia PDF -->
     <string name="emergency_kit_print_error">No se pudo generar el documento para impresión. Comprueba el almacenamiento disponible e inténtalo de nuevo.</string>
     <string name="emergency_kit_descriptor_error">El servicio de impresión del sistema no devolvió un destino válido.</string>
 

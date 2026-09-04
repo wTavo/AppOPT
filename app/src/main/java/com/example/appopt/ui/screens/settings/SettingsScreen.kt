@@ -740,8 +740,9 @@ fun SettingsScreen(
                                 // Con cambios pendientes: Botón de "Sincronizar ahora"
                                 Button(
                                     onClick = {
+                                        if (isDriveLoading) return@Button
+                                        isDriveLoading = true
                                         val performSync: (String) -> Unit = { token ->
-                                            isDriveLoading = true
                                             AuthenticatorApp.instance.applicationScope.launch {
                                                 try {
                                                     val payload = repository.exportAccountsForTransfer()

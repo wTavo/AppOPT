@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.QrCodeScanner
@@ -49,30 +48,33 @@ fun TransferSettingsCard(
         ),
         shape = RoundedCornerShape(Dimensions.CornerRadius.large)
     ) {
-        Column(modifier = Modifier.padding(Dimensions.Spacing.lg)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(
+            modifier = Modifier.padding(Dimensions.Spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+            ) {
                 Icon(
                     imageVector = Icons.Filled.QrCodeScanner,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(Dimensions.IconSize.medium)
                 )
-                Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
                 Text(
                     text = stringResource(R.string.settings_transfer_title),
                     style = MaterialTheme.typography.titleMedium
                 )
             }
 
-            Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
-
             Text(
                 text = stringResource(R.string.settings_transfer_description),
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(modifier = Modifier.height(Dimensions.Spacing.md))
+            Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
 
             if (accounts.isNotEmpty()) {
                 Row(

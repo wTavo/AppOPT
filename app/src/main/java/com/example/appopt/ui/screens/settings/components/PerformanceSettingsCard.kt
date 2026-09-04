@@ -49,7 +49,10 @@ fun PerformanceSettingsCard(
         ),
         shape = RoundedCornerShape(Dimensions.CornerRadius.large)
     ) {
-        Column(modifier = Modifier.padding(Dimensions.Spacing.lg)) {
+        Column(
+            modifier = Modifier.padding(Dimensions.Spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -57,7 +60,8 @@ fun PerformanceSettingsCard(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
+                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
+                    modifier = Modifier.weight(1f, fill = false)
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Refresh,
@@ -65,19 +69,10 @@ fun PerformanceSettingsCard(
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(Dimensions.IconSize.medium)
                     )
-                    Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
-                    Column {
-                        Text(
-                            text = stringResource(R.string.settings_perf_title),
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
-                        Text(
-                            text = stringResource(R.string.settings_perf_fps_description),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    Text(
+                        text = stringResource(R.string.settings_perf_title),
+                        style = MaterialTheme.typography.titleMedium
+                    )
                 }
 
                 Switch(
@@ -89,6 +84,12 @@ fun PerformanceSettingsCard(
                     colors = appSwitchColors()
                 )
             }
+
+            Text(
+                text = stringResource(R.string.settings_perf_fps_description),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

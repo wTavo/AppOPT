@@ -168,8 +168,8 @@ fun HomeScreen(
     // Motor de auto-scroll continuo con aceleración dinámica exponencial según proximidad al borde
     LaunchedEffect(draggingAccountId) {
         if (draggingAccountId != null) {
-            val minScrollStepPx = with(density) { 3.dp.toPx() }
-            val maxScrollStepPx = with(density) { 45.dp.toPx() }
+            val minScrollStepPx = with(density) { Dimensions.Spacing.xs.toPx() }
+            val maxScrollStepPx = with(density) { (Dimensions.Spacing.xxl + Dimensions.Spacing.md).toPx() }
 
             while (true) {
                 val layoutInfo = listState.layoutInfo

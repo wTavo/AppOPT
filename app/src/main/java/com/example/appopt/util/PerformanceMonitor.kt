@@ -189,7 +189,7 @@ fun PerformanceFpsOverlay(
         ) {
             Box(
                 modifier = Modifier
-                    .size(8.dp)
+                    .size(Dimensions.Spacing.sm)
                     .clip(CircleShape)
                     .background(statusColor)
             )

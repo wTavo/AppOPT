@@ -106,6 +106,7 @@
     <string name="settings_drive_description">Guarda una copia cifrada de tu bóveda en tu espacio privado de Google Drive para restaurarla si pierdes tu teléfono.</string>
     <string name="settings_drive_status_not_synced">Sin conectar</string>
     <string name="settings_drive_status_synced">Conectado</string>
+    <string name="settings_drive_status_syncing">Sincronizando</string>
     <string name="settings_drive_last_sync">Última copia: %1$s</string>
     <string name="settings_drive_last_sync_never">No hay copias de seguridad en Google Drive</string>
     <string name="settings_drive_backup_found">Copia de seguridad disponible en Google Drive</string>

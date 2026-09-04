@@ -35,7 +35,11 @@ class SecureClipboardManager(
      * @param text Contenido sensible (código OTP o clave de recuperación).
      * @param autoClearSeconds Tiempo en segundos tras el cual se limpiará el portapapeles.
      */
-    fun copyToClipboard(label: String, text: String, autoClearSeconds: Int = 30) {
+    fun copyToClipboard(
+        label: String,
+        text: String,
+        autoClearSeconds: Int = SecurityConfig.CLIPBOARD_OTP_AUTO_CLEAR_SECONDS
+    ) {
         if (clipboard == null) return
 
         val clip = ClipData.newPlainText(label, text)

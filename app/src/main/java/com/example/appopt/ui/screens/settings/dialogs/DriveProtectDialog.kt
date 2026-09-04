@@ -52,6 +52,7 @@ import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
 import com.example.appopt.data.cloud.GoogleDriveManager
 import com.example.appopt.security.MnemonicManager
+import com.example.appopt.security.SecurityConfig
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.util.EmergencyKitPdfGenerator
@@ -228,7 +229,7 @@ fun DriveProtectDialog(
                                             secureClipboard.copyToClipboard(
                                                 label = "AppOPT-BackupKey",
                                                 text = generated64Key,
-                                                autoClearSeconds = 60
+                                                autoClearSeconds = SecurityConfig.CLIPBOARD_RECOVERY_KEY_AUTO_CLEAR_SECONDS
                                             )
                                             Toast.makeText(context, keyCopiedMsg, Toast.LENGTH_LONG).show()
                                         }
@@ -362,7 +363,7 @@ fun DriveProtectDialog(
                                         secureClipboard.copyToClipboard(
                                             label = "AppOPT-MnemonicWords",
                                             text = fullPhrase,
-                                            autoClearSeconds = 60
+                                            autoClearSeconds = SecurityConfig.CLIPBOARD_RECOVERY_KEY_AUTO_CLEAR_SECONDS
                                         )
                                         Toast.makeText(context, wordsCopiedMsg, Toast.LENGTH_LONG).show()
                                     }

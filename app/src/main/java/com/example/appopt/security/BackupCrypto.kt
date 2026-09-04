@@ -14,13 +14,11 @@ import javax.crypto.spec.SecretKeySpec
  * Principio de diseño de seguridad (Sección 6 y 12 del Plan):
  * - Deriva una clave simétrica AES-256 a partir de la contraseña del usuario mediante **PBKDF2 con HMAC-SHA256** (100.000 iteraciones + Salt CSPRNG de 16 bytes).
  * - Cifra el contenido con **AES-256-GCM** garantizando confidencialidad e integridad del archivo de respaldo.
- * - Toda contraseña y arreglo de clave intermedia se sobreescribe con ceros tras la operación.
- * - Implementación pura en Kotlin sin dependencias de stubs de plataforma para permitir portabilidad y tests.
  */
 object BackupCrypto {
 
-    private const val PBKDF2_ITERATIONS = 100_000
-    private const val KEY_LENGTH_BITS = 256
+    private const val PBKDF2_ITERATIONS = SecurityConfig.PBKDF2_BACKUP_ITERATIONS
+    private const val KEY_LENGTH_BITS = SecurityConfig.BACKUP_KEY_SIZE_BITS
     private const val SALT_LENGTH_BYTES = 16
     private const val BACKUP_VERSION_V1 = 1
     private const val CURRENT_BACKUP_VERSION = 2

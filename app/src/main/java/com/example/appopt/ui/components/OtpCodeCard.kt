@@ -220,8 +220,14 @@ fun OtpCodeCard(
                 }
             }
 
-            // Modo de privacidad: despliegue de dígitos y temporizador
-            if (!hideCodes) {
+            // Modo de privacidad: despliegue animado de dígitos y temporizador
+            androidx.compose.animation.AnimatedVisibility(
+                visible = !hideCodes,
+                enter = androidx.compose.animation.expandVertically(animationSpec = Motion.Spec.privacyCollapseSpec()) +
+                        androidx.compose.animation.fadeIn(animationSpec = Motion.Spec.quickFadeSpec()),
+                exit = androidx.compose.animation.shrinkVertically(animationSpec = Motion.Spec.privacyCollapseSpec()) +
+                        androidx.compose.animation.fadeOut(animationSpec = Motion.Spec.quickFadeSpec())
+            ) {
                 Column {
                     Spacer(modifier = Modifier.height(Dimensions.Spacing.md))
 

@@ -44,11 +44,16 @@ fun CircularTimeProgress(
     val remainingSeconds = (period - (currentSecond % period)).toInt().coerceIn(1, period)
     val sweepAngle = (remainingSeconds.toFloat() / period.toFloat()) * 360f
 
-    val color = when {
+    val targetColor = when {
         remainingSeconds <= 5 -> UrgentRed
         remainingSeconds <= 10 -> WarningOrange
         else -> MaterialTheme.colorScheme.primary
     }
+    val animatedColor by androidx.compose.animation.animateColorAsState(
+        targetValue = targetColor,
+        animationSpec = com.example.appopt.ui.theme.Motion.Spec.progressColorSpec(),
+        label = "progressColor"
+    )
 
     val trackColor = MaterialTheme.colorScheme.surfaceVariant
     val strokeWidthPx = with(LocalDensity.current) { Dimensions.Stroke.progressArc.toPx() }
@@ -73,7 +78,7 @@ fun CircularTimeProgress(
             )
             // Arco de progreso
             drawArc(
-                color = color,
+                color = animatedColor,
                 startAngle = -90f,
                 sweepAngle = sweepAngle,
                 useCenter = false,
@@ -84,7 +89,7 @@ fun CircularTimeProgress(
         Text(
             text = "$remainingSeconds",
             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-            color = color
+            color = animatedColor
         )
     }
 }

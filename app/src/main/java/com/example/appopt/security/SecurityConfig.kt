@@ -32,7 +32,7 @@ object SecurityConfig {
     /**
      * Número de iteraciones para la función de derivación de claves PBKDF2-HMAC-SHA256 en respaldos cifrados.
      */
-    const val PBKDF2_BACKUP_ITERATIONS = 120_000
+    const val PBKDF2_BACKUP_ITERATIONS = 100_000
 
     /**
      * Longitud en bits de la clave de respaldo derivada con PBKDF2 (AES-256).

@@ -240,7 +240,10 @@ fun HomeScreen(
                                     shadowElevation = 16f
                                 }
                         } else {
-                            Modifier.animateItem()
+                            Modifier.animateItem(
+                                fadeInSpec = Motion.Spec.staggerItemSpec(),
+                                placementSpec = Motion.Spec.springFeedbackSpec()
+                            )
                         }
 
                         OtpCodeCard(

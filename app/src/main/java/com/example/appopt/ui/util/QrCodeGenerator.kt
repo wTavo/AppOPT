@@ -6,6 +6,7 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.MultiFormatWriter
 import java.util.EnumMap
+import androidx.core.graphics.createBitmap
 
 /**
  * Utilidad pura para la generación local de mapas de bits ([Bitmap]) de códigos QR.
@@ -39,7 +40,7 @@ object QrCodeGenerator {
                     pixels[offset + x] = if (bitMatrix[x, y]) Color.BLACK else Color.WHITE
                 }
             }
-            Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565).apply {
+            createBitmap(width, height, Bitmap.Config.RGB_565).apply {
                 setPixels(pixels, 0, width, 0, 0, width, height)
             }
         } catch (_: Exception) {

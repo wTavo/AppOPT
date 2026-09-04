@@ -55,5 +55,6 @@ class MainActivity : FragmentActivity() {
     override fun onStop() {
         super.onStop()
         PerformanceMonitor.stop()
+        AuthenticatorApp.instance.accountRepository.clearMemoryCache()
     }
 }

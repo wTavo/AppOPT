@@ -301,7 +301,7 @@ fun SettingsScreen(
                 pendingAuthAction = null
                 scope.launch {
                     snackbarHostState.showSnackbar(
-                        context.getString(R.string.settings_drive_error, e.localizedMessage ?: "Código (${e.statusCode})")
+                        context.getString(R.string.settings_drive_error)
                     )
                 }
             }
@@ -340,7 +340,7 @@ fun SettingsScreen(
                 isDriveLoading = false
                 scope.launch {
                     snackbarHostState.showSnackbar(
-                        context.getString(R.string.settings_drive_error, error.localizedMessage ?: "")
+                        context.getString(R.string.settings_drive_error)
                     )
                 }
             }
@@ -763,7 +763,7 @@ fun SettingsScreen(
                                                         }.onFailure { error ->
                                                             withContext(Dispatchers.Main) {
                                                                 appHaptics.error()
-                                                                snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error, error.localizedMessage ?: ""))
+                                                                snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error))
                                                             }
                                                         }
                                                     } finally {
@@ -1703,8 +1703,8 @@ fun SettingsScreen(
                                             lastSyncedHash = currentHash
                                             CloudVaultSyncManager.schedulePeriodicSync(context, syncFrequency, isSyncMobileDataAllowed)
                                             snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_sync_success))
-                                        }.onFailure { error ->
-                                            snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error, error.localizedMessage ?: ""))
+                                        }.onFailure { _ ->
+                                            snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error))
                                         }
                                     } finally {
                                         primaryPassChars.fill('0')
@@ -1814,9 +1814,9 @@ fun SettingsScreen(
                                         snackbarHostState.showSnackbar(
                                             context.getString(R.string.settings_drive_restore_success, count)
                                         )
-                                    }.onFailure { error ->
+                                    }.onFailure { _ ->
                                         snackbarHostState.showSnackbar(
-                                            context.getString(R.string.settings_drive_error, error.localizedMessage ?: "")
+                                            context.getString(R.string.settings_drive_error)
                                         )
                                     }
                                 }.onFailure {
@@ -1992,8 +1992,8 @@ fun SettingsScreen(
                                             lastSyncTimestamp = 0L
                                             driveBackupExists = false
                                             snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_delete_success))
-                                        }.onFailure { error ->
-                                            snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error, error.localizedMessage ?: ""))
+                                        }.onFailure { _ ->
+                                            snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error))
                                         }
                                     } finally {
                                         isDriveLoading = false

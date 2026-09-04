@@ -222,7 +222,7 @@ fun QrScannerScreen(
                                                             }.onFailure { error ->
                                                                 appHaptics.error()
                                                                 isProcessingQr = false
-                                                                snackbarHostState.showSnackbar(context.getString(R.string.scan_error_invalid_qr, error.localizedMessage ?: ""))
+                                                                snackbarHostState.showSnackbar(context.getString(R.string.scan_error_invalid_qr))
                                                             }
                                                         }
                                                     }

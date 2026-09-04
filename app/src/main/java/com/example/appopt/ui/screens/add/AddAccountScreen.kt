@@ -260,9 +260,9 @@ fun AddAccountScreen(
             }
 
             // Mensaje de error si la validación falla
-            if (uiState.errorMessage != null) {
+            if (uiState.errorMessageResId != null) {
                 Text(
-                    text = uiState.errorMessage ?: "",
+                    text = stringResource(uiState.errorMessageResId!!),
                     color = UrgentRed,
                     style = MaterialTheme.typography.bodySmall
                 )

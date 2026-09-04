@@ -33,7 +33,7 @@ data class AddAccountUiState(
     val period: Int = 30,
     val type: OtpType = OtpType.TOTP,
     val isSecretValid: Boolean = false,
-    val errorMessage: String? = null,
+    val errorMessageResId: Int? = null,
     val isSavedSuccessfully: Boolean = false
 )
 
@@ -58,62 +58,74 @@ class AddAccountViewModel : ViewModel() {
      * Actualiza el nombre del servicio o emisor.
      */
     fun onIssuerChanged(value: String) {
-        _uiState.value = _uiState.value.copy(issuer = value, errorMessage = null)
-    }
-
-    /**
-     * Actualiza el nombre de la cuenta o usuario (campo opcional).
-     */
-    fun onAccountNameChanged(value: String) {
-        _uiState.value = _uiState.value.copy(accountName = value, errorMessage = null)
-    }
-
-    /**
-     * Actualiza y sanea la clave secreta Base32 verificando su validez de formato.
-     */
-    fun onSecretChanged(value: String) {
-        val sanitized = Base32.sanitize(value)
-        val isValid = Base32.isValid(sanitized)
-
         _uiState.value = _uiState.value.copy(
-            secret = value,
-            isSecretValid = isValid,
-            errorMessage = null
+            issuer = value,
+            errorMessageResId = null
         )
     }
 
     /**
-     * Cambia el algoritmo HMAC configurado.
+     * Actualiza el identificador de la cuenta o usuario.
      */
-    fun onAlgorithmChanged(algo: OtpAlgorithm) {
-        _uiState.value = _uiState.value.copy(algorithm = algo)
+    fun onAccountNameChanged(value: String) {
+        _uiState.value = _uiState.value.copy(
+            accountName = value,
+            errorMessageResId = null
+        )
     }
 
     /**
-     * Cambia la cantidad de dígitos configurada.
+     * Actualiza la clave secreta y valida su formato Base32 canónico.
      */
-    fun onDigitsChanged(digits: Int) {
-        _uiState.value = _uiState.value.copy(digits = digits)
+    fun onSecretChanged(value: String) {
+        val sanitized = Base32.sanitize(value)
+        val isValid = Base32.isValid(sanitized)
+        _uiState.value = _uiState.value.copy(
+            secret = value,
+            isSecretValid = isValid,
+            errorMessageResId = null
+        )
     }
 
     /**
-     * Cambia el periodo en segundos.
+     * Actualiza el algoritmo criptográfico HMAC.
      */
-    fun onPeriodChanged(period: Int) {
-        _uiState.value = _uiState.value.copy(period = period)
+    fun onAlgorithmChanged(value: OtpAlgorithm) {
+        _uiState.value = _uiState.value.copy(algorithm = value)
     }
 
     /**
-     * Valida la presencia de emisor y clave Base32 válida, cifra el secreto y guarda la cuenta en Room.
+     * Actualiza el número de dígitos generados.
+     */
+    fun onDigitsChanged(value: Int) {
+        _uiState.value = _uiState.value.copy(digits = value)
+    }
+
+    /**
+     * Actualiza el período de rotación del código.
+     */
+    fun onPeriodChanged(value: Int) {
+        _uiState.value = _uiState.value.copy(period = value)
+    }
+
+    /**
+     * Actualiza el tipo de código (TOTP o HOTP).
+     */
+    fun onTypeChanged(value: OtpType) {
+        _uiState.value = _uiState.value.copy(type = value)
+    }
+
+    /**
+     * Valida, cifra y guarda la nueva cuenta en la base de datos segura.
      */
     fun saveAccount() {
         val state = _uiState.value
         if (state.issuer.isBlank()) {
-            _uiState.value = state.copy(errorMessage = "El nombre del servicio es obligatorio")
+            _uiState.value = state.copy(errorMessageResId = com.example.appopt.R.string.add_account_error_issuer_required)
             return
         }
         if (!state.isSecretValid) {
-            _uiState.value = state.copy(errorMessage = "La clave secreta Base32 no es válida")
+            _uiState.value = state.copy(errorMessageResId = com.example.appopt.R.string.add_account_error_secret_invalid)
             return
         }
 
@@ -131,7 +143,7 @@ class AddAccountViewModel : ViewModel() {
                 )
                 _uiState.value = _uiState.value.copy(isSavedSuccessfully = true)
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(errorMessage = "Error al cifrar y guardar: ${e.localizedMessage}")
+                _uiState.value = _uiState.value.copy(errorMessageResId = com.example.appopt.R.string.add_account_error_save_failed)
             }
         }
     }

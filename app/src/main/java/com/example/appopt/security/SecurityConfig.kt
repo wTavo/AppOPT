@@ -48,4 +48,14 @@ object SecurityConfig {
      * Longitud en bits del tag de autenticación para AES-GCM.
      */
     const val AES_GCM_TAG_LENGTH_BITS = 128
+
+    /**
+     * Alias de la clave maestra custodial en el hardware seguro Android Keystore.
+     */
+    const val KEYSTORE_MASTER_KEY_ALIAS = "AppOPT_Vault_Master_Key"
+
+    /**
+     * Proveedor del almacén seguro de claves en el sistema Android.
+     */
+    const val ANDROID_KEYSTORE_PROVIDER = "AndroidKeyStore"
 }

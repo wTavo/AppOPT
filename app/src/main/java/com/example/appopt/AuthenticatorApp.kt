@@ -80,6 +80,16 @@ class AuthenticatorApp : Application() {
         com.example.appopt.ui.brand.ServiceBrandProvider.preloadBrandIcons(this)
     }
 
+    /**
+     * Purga y sobreescribe inmediatamente cachés volátiles de descifrado ante eventos de advertencia de memoria.
+     */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (::accountRepository.isInitialized) {
+            accountRepository.clearMemoryCache()
+        }
+    }
+
     companion object {
         /**
          * Instancia singleton accesible de la aplicación.

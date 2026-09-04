@@ -47,9 +47,9 @@ data class EncryptedPayload(
  * - Proporciona utilidades para sobreescribir memoria con ceros (*zeroing*).
  */
 class CryptoManager(
-    private val keyAlias: String = "AppOPT_Vault_Master_Key"
+    private val keyAlias: String = SecurityConfig.KEYSTORE_MASTER_KEY_ALIAS
 ) {
-    private val keyStore = KeyStore.getInstance("AndroidKeyStore").apply {
+    private val keyStore = KeyStore.getInstance(SecurityConfig.ANDROID_KEYSTORE_PROVIDER).apply {
         load(null)
     }
 

@@ -124,3 +124,28 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 - **PROHIBIDO** introducir nuevos motores de cálculo, algoritmos de derivación, parsers de URI o funciones de firma sin su correspondiente suite de pruebas unitarias automatizadas.
 - **OBLIGATORIO** incluir pruebas en `app/src/test/` con 100% de cobertura en escenarios límite (*edge cases*): cadenas vacías, entradas nulas, formatos Base32 con/sin padding, alteraciones de orden y marcas de tiempo extremas.
 
+---
+
+## 19. Blindaje de Superficie y Prevención de Capturas (*FLAG_SECURE & App Switcher Masking*)
+- **PROHIBIDO** permitir capturas de pantalla, grabaciones de video o miniaturas legibles de secretos en la vista de aplicaciones recientes (*App Switcher*).
+- **OBLIGATORIO** mantener activa la bandera `WindowManager.LayoutParams.FLAG_SECURE` en la ventana principal de la aplicación para proteger la visibilidad de códigos 2FA y claves criptográficas.
+
+---
+
+## 20. Aislamiento de Hilos para Operaciones Criptográficas y de E/S (*Thread Confinement / Coroutine Dispatchers*)
+- **PROHIBIDO** ejecutar derivación de claves PBKDF2, cifrado/descifrado AES-256-GCM o consultas a base de datos en el hilo principal (`Dispatchers.Main`).
+- **OBLIGATORIO** confinar las operaciones intensivas de CPU criptográfica en `Dispatchers.Default` y las operaciones de base de datos/red en `Dispatchers.IO`, garantizando 60/120 FPS fluidos sin caídas de cuadros.
+
+---
+
+## 21. Inmutabilidad Estricta y Estabilidad de Parámetros en Compose (*Compose Stability & UDF*)
+- **PROHIBIDO** exponer modelos mutables o clases inestables en los estados de vista que provoquen recomposiciones innecesarias durante el scroll o la actualización de códigos.
+- **OBLIGATORIO** marcar las jerarquías de estado con `@Immutable` o `@Stable` y estructurar el flujo de eventos según el patrón unidireccional de datos (*UDF / MVI*).
+
+---
+
+## 22. Versionado de Esquemas y Compatibilidad Hacia Adelante (*Schema Versioning & Compatibility*)
+- **PROHIBIDO** generar respaldos en la nube o formatos de exportación sin declarar explícitamente su versión de esquema de datos.
+- **OBLIGATORIO** incluir una cabecera de versión (`version` / `schemaVersion`) en los formatos JSON de transferencia y sobre criptográfico (`CURRENT_BACKUP_VERSION`), garantizando compatibilidad hacia atrás y hacia adelante.
+
+

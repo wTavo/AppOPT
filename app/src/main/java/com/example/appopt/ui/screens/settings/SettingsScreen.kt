@@ -65,6 +65,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Pantalla principal de configuración y preferencias del usuario.
@@ -98,7 +99,7 @@ fun SettingsScreen(
     var isDriveConnected by remember { mutableStateOf(prefsManager.isGoogleDriveConnected()) }
     var syncFrequency by remember { mutableStateOf(prefsManager.getSyncFrequency()) }
     var isSyncMobileDataAllowed by remember { mutableStateOf(prefsManager.isSyncMobileDataAllowed()) }
-    var lastSyncTimestamp by remember { mutableStateOf(prefsManager.getLastSyncTimestamp()) }
+    var lastSyncTimestamp by remember { mutableLongStateOf(prefsManager.getLastSyncTimestamp()) }
     var driveAccessToken by remember { mutableStateOf<String?>(null) }
     var isDriveLoading by remember { mutableStateOf(false) }
     var isCheckingDriveBackup by remember { mutableStateOf(false) }
@@ -123,7 +124,7 @@ fun SettingsScreen(
                 val now = System.currentTimeMillis()
                 currentTick = now
                 val millisUntilNextMinute = 60_000L - (now % 60_000L)
-                delay(millisUntilNextMinute.coerceAtLeast(1_000L))
+                delay(millisUntilNextMinute.coerceAtLeast(1_000L).milliseconds)
             }
         }
     }

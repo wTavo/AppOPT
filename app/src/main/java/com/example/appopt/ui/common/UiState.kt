@@ -1,5 +1,7 @@
 package com.example.appopt.ui.common
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Jerarquía sellada inmutable para el modelado determinístico de estados de pantalla (*UiState Pattern*).
  *
@@ -10,6 +12,7 @@ package com.example.appopt.ui.common
  *
  * @param T Tipo de dato que contiene el estado exitoso.
  */
+@Immutable
 sealed interface UiState<out T> {
 
     /** Estado inicial en reposo sin operaciones activas. */

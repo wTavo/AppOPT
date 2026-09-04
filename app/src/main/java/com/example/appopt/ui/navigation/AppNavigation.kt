@@ -18,10 +18,8 @@ import com.example.appopt.ui.screens.home.HomeViewModel
 import com.example.appopt.ui.screens.lock.LockScreen
 import com.example.appopt.ui.screens.scan.QrScannerScreen
 import com.example.appopt.ui.screens.settings.SettingsScreen
-
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.zIndex
 import com.example.appopt.ui.theme.Dimensions

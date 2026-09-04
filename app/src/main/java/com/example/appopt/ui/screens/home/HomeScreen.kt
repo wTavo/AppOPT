@@ -44,6 +44,7 @@ import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.rememberAppHaptics
 import java.util.Collections
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Pantalla principal que visualiza las cuentas 2FA registradas con dock de control flotante ergonómico (Floating Pill Bar).
@@ -111,7 +112,7 @@ fun HomeScreen(
         }
     }
 
-    val accountsToDisplay = if (localAccounts.isNotEmpty()) localAccounts else currentSuccessAccounts
+    val accountsToDisplay = localAccounts.ifEmpty { currentSuccessAccounts }
     val listState = rememberLazyListState()
 
     // Lambdas estabilizadas: se fijan en la primera composición y no cambian mientras el ViewModel sea el mismo
@@ -192,7 +193,7 @@ fun HomeScreen(
                     }
                 }
 
-                delay(16L)
+                delay(16L.milliseconds)
             }
         }
     }

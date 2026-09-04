@@ -82,12 +82,13 @@ fun HomeFloatingDock(
             }
 
             // 2. Gestor de Contraseñas (Próximamente)
+            val passwordsComingSoonText = stringResource(R.string.passwords_coming_soon)
             IconButton(
                 onClick = {
                     appHaptics.click()
                     Toast.makeText(
                         context,
-                        context.getString(R.string.passwords_coming_soon),
+                        passwordsComingSoonText,
                         Toast.LENGTH_SHORT
                     ).show()
                 }

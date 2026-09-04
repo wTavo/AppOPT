@@ -67,11 +67,7 @@ class SecureClipboardManager(
     fun clearIfMatches(expectedText: String) {
         val current = clipboard?.primaryClip?.getItemAt(0)?.text?.toString()
         if (current == expectedText || expectedText == lastCopiedText) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                clipboard?.clearPrimaryClip()
-            } else {
-                clipboard?.setPrimaryClip(ClipData.newPlainText("", ""))
-            }
+            clipboard?.clearPrimaryClip()
             lastCopiedText = null
         }
     }

@@ -92,6 +92,9 @@ fun DriveProtectDialog(
 
     val keyCopiedMsg = stringResource(R.string.settings_drive_key_copied)
     val wordsCopiedMsg = stringResource(R.string.settings_drive_words_copied)
+    val passwordLabel = stringResource(R.string.settings_drive_password_label)
+    val keyLabel = stringResource(R.string.settings_drive_key_label)
+    val quizErrorMsg = stringResource(R.string.settings_drive_quiz_error)
 
     val isPasswordValid = masterPasswordText.length >= 10 && masterPasswordText == masterPasswordConfirmText
     val isStep1Valid = if (selectedProtectionTab == 0) isPasswordValid else generated64Key.isNotBlank()
@@ -382,9 +385,9 @@ fun DriveProtectDialog(
                                 onClick = {
                                     appHaptics.click()
                                     val methodTitle = if (selectedProtectionTab == 0) {
-                                        context.getString(R.string.settings_drive_password_label)
+                                        passwordLabel
                                     } else {
-                                        context.getString(R.string.settings_drive_key_label)
+                                        keyLabel
                                     }
                                     val methodValue = if (selectedProtectionTab == 0) {
                                         "•••••••••••• (${masterPasswordText.length} caracteres)"
@@ -536,7 +539,7 @@ fun DriveProtectDialog(
                             if (!isAllCorrect) {
                                 appHaptics.error()
                                 isQuizError = true
-                                Toast.makeText(context, context.getString(R.string.settings_drive_quiz_error), Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, quizErrorMsg, Toast.LENGTH_LONG).show()
                                 return@Button
                             }
 

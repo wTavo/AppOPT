@@ -2,28 +2,21 @@
     <string name="app_name">Authenticator</string>
 
     <!-- General & Actions -->
-    <string name="action_copy">Copiar</string>
     <string name="action_cancel">Cancelar</string>
     <string name="action_delete">Eliminar</string>
     <string name="action_edit">Editar</string>
     <string name="action_cancel_edit">Cancelar edición</string>
     <string name="action_save">Guardar en bóveda</string>
     <string name="action_save_changes">Guardar cambios</string>
-    <string name="action_generate">Generar</string>
     <string name="action_unlock">Desbloquear</string>
     <string name="action_grant_permission">Conceder permiso</string>
     <string name="action_back">Regresar</string>
     <string name="action_search">Buscar</string>
     <string name="action_close_search">Cerrar búsqueda</string>
     <string name="action_favorite">Favorito</string>
-    <string name="action_copy_code">Copiar código</string>
     <string name="action_copied">Copiado al portapapeles (30s)</string>
-    <string name="action_copied_recovery">Copiado al portapapeles (60s)</string>
-    <string name="action_copy_key">Copiar clave</string>
     <string name="action_hide_codes">Ocultar códigos</string>
     <string name="action_show_codes">Mostrar códigos</string>
-    <string name="action_long_press_to_copy">Mantén presionado para copiar</string>
-    <string name="action_reorder">Reordenar servicio</string>
 
     <!-- Home Screen -->
     <string name="home_title">Authenticator</string>
@@ -38,7 +31,6 @@
     <string name="home_delete_dialog_title">¿Eliminar cuenta?</string>
     <string name="home_delete_dialog_message">Esta acción eliminará el secreto de tu bóveda de forma permanente. Asegúrate de tener otro método de acceso o backup antes de continuar.</string>
     <string name="home_next_hotp_code">Generar siguiente código HOTP</string>
-    <string name="home_default_account_name">Principal</string>
     <string name="home_default_issuer">Servicio</string>
 
     <!-- Account Modal / Popup -->
@@ -50,7 +42,6 @@
 
     <!-- Lock Screen -->
     <string name="lock_title">Bóveda bloqueada</string>
-    <string name="lock_subtitle">Confirma tu identidad para acceder a tus códigos 2FA</string>
     <string name="lock_description">Tus secretos criptográficos están cifrados con hardware seguro. Autentícate para continuar.</string>
     <string name="lock_biometric_prompt_title">Desbloquear Authenticator</string>
     <string name="lock_biometric_prompt_subtitle">Confirma tu identidad para acceder a tus códigos</string>
@@ -60,7 +51,6 @@
     <string name="add_account_issuer_label">Servicio / Emisor *</string>
     <string name="add_account_name_label">Cuenta / Usuario (opcional)</string>
     <string name="add_account_secret_label">Clave secreta (Base32) *</string>
-    <string name="add_account_preview_title">Código de prueba generado:</string>
     <string name="add_account_advanced_options">Opciones avanzadas</string>
     <string name="add_account_advanced_description">La mayoría de los servicios usan SHA1 y 6 dígitos por defecto.</string>
     <string name="add_account_algorithm_label">Algoritmo HMAC</string>
@@ -77,13 +67,10 @@
     <string name="scan_hint">Apunta la cámara al código QR 2FA</string>
     <string name="scan_permission_required_title">Se requiere permiso de cámara</string>
     <string name="scan_permission_required_description">La app necesita acceso a la cámara para leer el código QR de configuración localmente.</string>
-    <string name="scan_error_save">No se pudo guardar el servicio escaneado.</string>
     <string name="scan_error_invalid_qr">El código QR escaneado no contiene un formato OTP válido.</string>
 
     <!-- Settings Screen -->
     <string name="settings_title">Configuraciones</string>
-    <string name="settings_vault_status_title">Bóveda local cifrada</string>
-    <string name="settings_vault_status_details">• Cifrado AES-256-GCM autenticado\n• Clave maestra en Android Keystore (TEE)\n• Memoria RAM con limpieza de buffers\n• Protección activa contra capturas de pantalla</string>
     <!-- Transfer Services (QR Code) -->
     <string name="settings_transfer_title">Transferir servicios</string>
     <string name="settings_transfer_description">Transfiere tus servicios directamente a otro teléfono mediante un código QR sin pasar por ningún servidor.</string>
@@ -97,9 +84,7 @@
     <string name="settings_export_qr_dialog_title">Escanear para transferir</string>
     <string name="settings_export_qr_dialog_hint">En tu nuevo teléfono, abre el escáner QR de la app y apunta a este código.</string>
     <string name="settings_export_confirm_done">Listo, servicios transferidos</string>
-    <string name="settings_export_services_empty">No tienes servicios guardados para transferir</string>
     <string name="settings_services_deleted_after_export">Los servicios seleccionados fueron eliminados de este dispositivo.</string>
-    <string name="settings_transfer_success">Se importaron %1$d servicios exitosamente</string>
 
     <!-- Cloud Backup (Google Drive) -->
     <string name="settings_drive_title">Copia de seguridad en Google Drive</string>
@@ -114,17 +99,10 @@
     <string name="settings_drive_connect_button">Conectar cuenta de Google</string>
     <string name="settings_drive_sync_button">Sincronizar ahora</string>
     <string name="settings_drive_restore_button">Restaurar de Google Drive</string>
-    <string name="settings_drive_connected_as">Conectado como: %1$s</string>
     <string name="settings_drive_syncing">Sincronizando con Google Drive…</string>
-    <string name="settings_drive_restoring">Descargando respaldo de Google Drive…</string>
     <string name="settings_drive_sync_success">Copia de seguridad sincronizada exitosamente en Google Drive</string>
     <string name="settings_drive_restore_success">Se restauraron %1$d servicios desde Google Drive</string>
-    <string name="settings_drive_error_not_signed_in">Debes conectar tu cuenta de Google para sincronizar</string>
     <string name="settings_drive_error">No se pudo completar la operación en Google Drive. Verifica tu conexión e inténtalo de nuevo.</string>
-    <string name="settings_drive_restore_confirm_title">Restaurar de Google Drive</string>
-    <string name="settings_drive_restore_confirm_msg">¿Deseas descargar e importar los servicios respaldados en tu cuenta de Google?</string>
-    <string name="settings_drive_auto_sync_label">Copia de seguridad automática</string>
-    <string name="settings_drive_auto_sync_description">Respalda tus servicios periódicamente si se detectan cambios.</string>
     <string name="settings_drive_frequency_title">Frecuencia de la copia</string>
     <string name="settings_drive_frequency_daily">Diariamente</string>
     <string name="settings_drive_frequency_weekly">Semanalmente</string>
@@ -137,7 +115,6 @@
     <string name="settings_drive_delete_confirm_msg">¿Deseas eliminar permanentemente tu copia de seguridad de Google Drive? Esta acción no se puede deshacer y no podrás restaurar tus servicios desde la nube.</string>
     <string name="settings_drive_delete_confirm_btn">Eliminar copia</string>
     <string name="settings_drive_delete_success">Copia de seguridad eliminada de Google Drive</string>
-    <string name="settings_drive_deleting">Eliminando copia de Google Drive…</string>
     <string name="settings_drive_details_title">Detalles de la copia en la nube</string>
     <string name="settings_drive_details_date">Fecha del respaldo: %1$s</string>
     <string name="settings_drive_details_encryption">Cifrado: AES-256-GCM de extremo a extremo</string>
@@ -156,7 +133,6 @@
     <string name="settings_drive_disconnected_success">Cuenta de Google Drive desvinculada</string>
 
     <!-- E2EE Cloud Protection (Dual-Recovery: Primary Method + Mandatory Emergency BIP-39) -->
-    <string name="settings_drive_protect_title">Proteger copia en la nube</string>
     <string name="settings_drive_protect_step1_title">Paso 1: Elige tu método principal</string>
     <string name="settings_drive_protect_step2_title">Paso 2: Tu kit de recuperación</string>
     <string name="settings_drive_protect_description">Configura tu método principal de acceso a tu copia de seguridad.</string>
@@ -165,7 +141,6 @@
     <string name="settings_drive_summary_emergency_title">2. Frase de emergencia (12 palabras BIP-39):</string>
     <string name="settings_drive_method_password">Contraseña maestra</string>
     <string name="settings_drive_method_key">Clave de 64 dígitos</string>
-    <string name="settings_drive_words_label">Frase de recuperación de emergencia</string>
     <string name="settings_drive_words_warning">Guarda este kit en un lugar seguro. Si pierdes ambos métodos de recuperación, tu bóveda no se podrá recuperar bajo ninguna circunstancia.</string>
     <string name="settings_drive_words_copied">Frase de 12 palabras copiada. Se borrará del portapapeles en 60 segundos.</string>
     <string name="settings_drive_words_regenerate">Generar nueva frase</string>
@@ -187,7 +162,8 @@
     <string name="settings_drive_quiz_description">Para garantizar que anotaste tu frase de 12 palabras, selecciona la palabra correcta para cada posición solicitada.</string>
     <string name="settings_drive_quiz_question_label">¿Cuál es tu palabra #%1$d?</string>
     <string name="settings_drive_quiz_review_words">Revisar 12 palabras</string>
-    <string name="settings_drive_quiz_error">Una o más palabras seleccionadas no coinciden. Por favor revisa tus 12 palabras.</string>    <string name="settings_drive_decrypt_title">Descifrar copia de seguridad</string>
+    <string name="settings_drive_quiz_error">Una o más palabras seleccionadas no coinciden. Por favor revisa tus 12 palabras.</string>
+    <string name="settings_drive_decrypt_title">Descifrar copia de seguridad</string>
     <string name="settings_drive_decrypt_hint">Ingresa tu contraseña maestra, tu clave de 64 dígitos o tu frase de 12 palabras de emergencia para descifrar tu respaldo.</string>
     <string name="settings_drive_decrypt_input_label">Contraseña, clave de 64 dígitos o 12 palabras</string>
     <string name="settings_drive_decrypt_error">Credenciales incorrectas. No se pudo descifrar la copia de seguridad.</string>
@@ -213,9 +189,9 @@
     <string name="time_today_at">hoy a las %1$s</string>
     <string name="time_yesterday_at">ayer a las %1$s</string>
     <string name="card_seconds_abbrev">segundos restantes</string>
+
     <!-- Performance Monitor -->
     <string name="settings_perf_title">Rendimiento y diagnósticos</string>
-    <string name="settings_perf_fps_overlay">Superposición visual de FPS</string>
     <string name="settings_perf_fps_description">Muestra los fotogramas por segundo (FPS) en tiempo real y registra métricas en Logcat.</string>
     <string name="perf_fps_format">%1$d FPS</string>
     <string name="perf_frame_time_format">%1$.1f ms</string>

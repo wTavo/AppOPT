@@ -98,6 +98,7 @@ fun QrScannerScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val repository = AuthenticatorApp.instance.accountRepository
+    val invalidQrErrorText = stringResource(R.string.scan_error_invalid_qr)
 
     var hasCameraPermission by remember {
         mutableStateOf(
@@ -221,7 +222,7 @@ fun QrScannerScreen(
                                                             }.onFailure { error ->
                                                                 appHaptics.error()
                                                                 isProcessingQr = false
-                                                                snackbarHostState.showSnackbar(context.getString(R.string.scan_error_invalid_qr))
+                                                                snackbarHostState.showSnackbar(invalidQrErrorText)
                                                             }
                                                         }
                                                     }

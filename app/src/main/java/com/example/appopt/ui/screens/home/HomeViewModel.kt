@@ -5,18 +5,16 @@ import androidx.lifecycle.viewModelScope
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.domain.repository.AccountWithCode
 import com.example.appopt.ui.common.UiState
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * ViewModel de la pantalla principal que sincroniza en tiempo real las cuentas registradas con el reloj del sistema.
@@ -61,7 +59,7 @@ class HomeViewModel : ViewModel() {
             }
             // Sincronizar al borde del próximo segundo para no desperdiciar CPU
             val msUntilNextSecond = 1000L - (now % 1000L)
-            delay(msUntilNextSecond.coerceAtLeast(50L))
+            delay(msUntilNextSecond.coerceAtLeast(50L).milliseconds)
         }
     }
 

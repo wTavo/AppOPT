@@ -115,6 +115,15 @@ fun SettingsScreen(
     var showDriveDecryptDialog by remember { mutableStateOf(false) }
     var showOverwriteWarningDialog by remember { mutableStateOf(false) }
 
+    // Mensajes de retroalimentación centralizados
+    val driveErrorText = stringResource(R.string.settings_drive_error)
+    val driveConnectedSuccessText = stringResource(R.string.settings_drive_connected_success)
+    val driveDisconnectedSuccessText = stringResource(R.string.settings_drive_disconnected_success)
+    val servicesDeletedAfterExportText = stringResource(R.string.settings_services_deleted_after_export)
+    val driveSyncSuccessText = stringResource(R.string.settings_drive_sync_success)
+    val driveDecryptErrorText = stringResource(R.string.settings_drive_decrypt_error)
+    val driveDeleteSuccessText = stringResource(R.string.settings_drive_delete_success)
+
     val lifecycleOwner = LocalLifecycleOwner.current
     var currentTick by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(lifecycleOwner) {
@@ -202,9 +211,7 @@ fun SettingsScreen(
             } catch (e: ApiException) {
                 pendingAuthAction = null
                 scope.launch {
-                    snackbarHostState.showSnackbar(
-                        context.getString(R.string.settings_drive_error)
-                    )
+                    snackbarHostState.showSnackbar(driveErrorText)
                 }
             }
         } else {
@@ -238,9 +245,7 @@ fun SettingsScreen(
                 pendingAuthAction = null
                 isDriveLoading = false
                 scope.launch {
-                    snackbarHostState.showSnackbar(
-                        context.getString(R.string.settings_drive_error)
-                    )
+                    snackbarHostState.showSnackbar(driveErrorText)
                 }
             }
     }
@@ -266,7 +271,7 @@ fun SettingsScreen(
                     }.onFailure { _ ->
                         withContext(Dispatchers.Main) {
                             appHaptics.error()
-                            snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error))
+                            snackbarHostState.showSnackbar(driveErrorText)
                         }
                     }
                 } finally {
@@ -351,7 +356,7 @@ fun SettingsScreen(
                                     prefsManager.setLastSyncedVaultHash(currentVaultHash)
                                     lastSyncedHash = currentVaultHash
                                 }
-                                snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_connected_success))
+                                 snackbarHostState.showSnackbar(driveConnectedSuccessText)
                             } finally {
                                 isCheckingDriveBackup = false
                             }
@@ -408,7 +413,7 @@ fun SettingsScreen(
                 lastSyncedHash = ""
                 CloudVaultSyncManager.schedulePeriodicSync(context, SyncFrequency.OFF, false)
                 scope.launch {
-                    snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_disconnected_success))
+                    snackbarHostState.showSnackbar(driveDisconnectedSuccessText)
                 }
             },
             onDismiss = { showDisconnectConfirmDialog = false }
@@ -424,7 +429,7 @@ fun SettingsScreen(
                 if (!keepOnDevice && exportedIds.isNotEmpty()) {
                     scope.launch {
                         exportedIds.forEach { id -> repository.deleteAccount(id) }
-                        snackbarHostState.showSnackbar(context.getString(R.string.settings_services_deleted_after_export))
+                        snackbarHostState.showSnackbar(servicesDeletedAfterExportText)
                     }
                 }
                 showExportDialog = false
@@ -459,9 +464,9 @@ fun SettingsScreen(
                             prefsManager.setLastSyncedVaultHash(currentHash)
                             lastSyncedHash = currentHash
                             CloudVaultSyncManager.schedulePeriodicSync(context, syncFrequency, isSyncMobileDataAllowed)
-                            snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_sync_success))
+                            snackbarHostState.showSnackbar(driveSyncSuccessText)
                         }.onFailure { _ ->
-                            snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error))
+                            snackbarHostState.showSnackbar(driveErrorText)
                         }
                     } finally {
                         isDriveLoading = false
@@ -494,17 +499,13 @@ fun SettingsScreen(
                                 lastSyncedHash = currentHash
                                 CloudVaultSyncManager.schedulePeriodicSync(context, syncFrequency, isSyncMobileDataAllowed)
                                 snackbarHostState.showSnackbar(
-                                    context.getString(R.string.settings_drive_restore_success, count)
+                                    context.applicationContext.getString(R.string.settings_drive_restore_success, count)
                                 )
                             }.onFailure { _ ->
-                                snackbarHostState.showSnackbar(
-                                    context.getString(R.string.settings_drive_error)
-                                )
+                                snackbarHostState.showSnackbar(driveErrorText)
                             }
                         }.onFailure {
-                            snackbarHostState.showSnackbar(
-                                context.getString(R.string.settings_drive_decrypt_error)
-                            )
+                            snackbarHostState.showSnackbar(driveDecryptErrorText)
                         }
                     } finally {
                         isDriveLoading = false
@@ -547,9 +548,9 @@ fun SettingsScreen(
                                 lastSyncedHash = ""
                                 lastSyncTimestamp = 0L
                                 driveBackupExists = false
-                                snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_delete_success))
+                                snackbarHostState.showSnackbar(driveDeleteSuccessText)
                             }.onFailure { _ ->
-                                snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_error))
+                                snackbarHostState.showSnackbar(driveErrorText)
                             }
                         } finally {
                             isDriveLoading = false

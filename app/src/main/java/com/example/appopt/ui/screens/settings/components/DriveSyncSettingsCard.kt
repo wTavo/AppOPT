@@ -161,9 +161,7 @@ fun DriveSyncSettingsCard(
 
             // 3. Fila con Contenedor de Estado de Copia y Desvinculación
             if (isDriveConnected) {
-                val isChecking = isCheckingDriveBackup
-                val isSyncing = isSyncingActive
-                val hasBackupInfo = !isChecking && !isSyncing && (formattedLastSync != null || driveBackupExists)
+                val hasBackupInfo = !isCheckingDriveBackup && !isSyncingActive && (formattedLastSync != null || driveBackupExists)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
@@ -181,8 +179,8 @@ fun DriveSyncSettingsCard(
                             ),
                         shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                         color = when {
-                            isChecking -> WarningOrange.copy(alpha = 0.12f)
-                            isSyncing -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                            isCheckingDriveBackup -> WarningOrange.copy(alpha = 0.12f)
+                            isSyncingActive -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                             else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
                         }
                     ) {
@@ -200,11 +198,11 @@ fun DriveSyncSettingsCard(
                                 modifier = Modifier.weight(1f, fill = false)
                             ) {
                                 Icon(
-                                    imageVector = if (isChecking || isSyncing) Icons.Filled.Sync else Icons.Filled.CloudDone,
+                                    imageVector = if (isCheckingDriveBackup || isSyncingActive) Icons.Filled.Sync else Icons.Filled.CloudDone,
                                     contentDescription = null,
                                     tint = when {
-                                        isChecking -> WarningOrange
-                                        isSyncing -> MaterialTheme.colorScheme.primary
+                                        isCheckingDriveBackup -> WarningOrange
+                                        isSyncingActive -> MaterialTheme.colorScheme.primary
                                         hasBackupInfo -> SafeGreen
                                         else -> MaterialTheme.colorScheme.onSurfaceVariant
                                     },
@@ -212,16 +210,16 @@ fun DriveSyncSettingsCard(
                                 )
                                 Text(
                                     text = when {
-                                        isChecking -> stringResource(R.string.settings_drive_checking_backup)
-                                        isSyncing -> stringResource(R.string.settings_drive_syncing)
+                                        isCheckingDriveBackup -> stringResource(R.string.settings_drive_checking_backup)
+                                        isSyncingActive -> stringResource(R.string.settings_drive_syncing)
                                         formattedLastSync != null -> stringResource(R.string.settings_drive_last_sync, formattedLastSync)
                                         driveBackupExists -> stringResource(R.string.settings_drive_backup_found)
                                         else -> stringResource(R.string.settings_drive_last_sync_never)
                                     },
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = when {
-                                        isChecking -> WarningOrange
-                                        isSyncing -> MaterialTheme.colorScheme.primary
+                                        isCheckingDriveBackup -> WarningOrange
+                                        isSyncingActive -> MaterialTheme.colorScheme.primary
                                         else -> MaterialTheme.colorScheme.onSurface
                                     }
                                 )
@@ -297,7 +295,7 @@ fun DriveSyncSettingsCard(
                     if (hasUnsyncedChanges && !isDriveLoading) {
                         Button(
                             onClick = onManualSyncClick,
-                            enabled = !isDriveLoading,
+                            enabled = true,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                         ) {

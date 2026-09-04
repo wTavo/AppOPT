@@ -32,13 +32,13 @@ import com.example.appopt.util.TotpClock
  * - Muestra los segundos restantes en el centro con tipografía semántica.
  * - Incluye descripción semántica para lectores de pantalla TalkBack.
  *
- * @param period Período en segundos de la ventana de rotación TOTP (por defecto 30).
  * @param modifier Modificador de layout.
+ * @param period Período en segundos de la ventana de rotación TOTP (por defecto 30).
  */
 @Composable
 fun CircularTimeProgress(
-    period: Int = 30,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    period: Int = 30
 ) {
     val currentSecond by TotpClock.currentSecondEpoch.collectAsStateWithLifecycle()
     val remainingSeconds = (period - (currentSecond % period)).toInt().coerceIn(1, period)

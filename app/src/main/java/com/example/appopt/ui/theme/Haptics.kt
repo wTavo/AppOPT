@@ -39,7 +39,7 @@ class AppHaptics(
      * Toque de confirmación al copiar un código OTP al portapapeles.
      */
     fun copy() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && vibrator?.hasVibrator() == true) {
+        if (vibrator?.hasVibrator() == true) {
             vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK))
         } else {
             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -57,7 +57,7 @@ class AppHaptics(
                     .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 1.0f, 80)
                     .compose()
             )
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && vibrator?.hasVibrator() == true) {
+        } else if (vibrator?.hasVibrator() == true) {
             val timings = longArrayOf(0, 40, 60, 40)
             val amplitudes = intArrayOf(0, 150, 0, 200)
             vibrator.vibrate(VibrationEffect.createWaveform(timings, amplitudes, -1))
@@ -70,10 +70,8 @@ class AppHaptics(
      * Alerta táctil en acciones destructivas (ej. eliminar servicio, eliminar copia de seguridad) o errores de validación.
      */
     fun error() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && vibrator?.hasVibrator() == true) {
+        if (vibrator?.hasVibrator() == true) {
             vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK))
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && vibrator?.hasVibrator() == true) {
-            vibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
         } else {
             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
         }

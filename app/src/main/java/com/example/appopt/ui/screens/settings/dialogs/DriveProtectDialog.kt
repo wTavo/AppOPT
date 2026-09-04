@@ -195,7 +195,7 @@ fun DriveProtectDialog(
 
                                 Surface(
                                     shape = RoundedCornerShape(Dimensions.CornerRadius.small),
-                                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+                                    color = MaterialTheme.colorScheme.errorContainer
                                 ) {
                                     Text(
                                         text = stringResource(R.string.settings_drive_password_warning),
@@ -253,7 +253,7 @@ fun DriveProtectDialog(
 
                                 Surface(
                                     shape = RoundedCornerShape(Dimensions.CornerRadius.small),
-                                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+                                    color = MaterialTheme.colorScheme.errorContainer
                                 ) {
                                     Text(
                                         text = stringResource(R.string.settings_drive_key_warning),
@@ -421,7 +421,7 @@ fun DriveProtectDialog(
 
                             Surface(
                                 shape = RoundedCornerShape(Dimensions.CornerRadius.small),
-                                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+                                color = MaterialTheme.colorScheme.errorContainer
                             ) {
                                 Text(
                                     text = stringResource(R.string.settings_drive_words_warning),

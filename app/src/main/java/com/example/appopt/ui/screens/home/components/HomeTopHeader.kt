@@ -169,7 +169,7 @@ fun HomeTopHeader(
                     // 2. Título Central con Diseño Estilizado
                     Surface(
                         shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+                        color = MaterialTheme.colorScheme.surface,
                         tonalElevation = Dimensions.Elevation.cardDefault,
                         shadowElevation = Dimensions.Elevation.cardDefault,
                         border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),

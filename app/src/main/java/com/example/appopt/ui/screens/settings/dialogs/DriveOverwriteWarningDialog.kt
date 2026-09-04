@@ -82,7 +82,7 @@ fun DriveOverwriteWarningDialog(
                 )
 
                 Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                     modifier = Modifier.fillMaxWidth()
                 ) {

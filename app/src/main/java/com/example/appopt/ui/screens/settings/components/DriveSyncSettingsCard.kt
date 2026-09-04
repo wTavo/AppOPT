@@ -181,7 +181,7 @@ fun DriveSyncSettingsCard(
                         color = when {
                             isCheckingDriveBackup -> WarningOrange.copy(alpha = 0.12f)
                             isSyncingActive -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                            else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                            else -> MaterialTheme.colorScheme.surfaceVariant
                         }
                     ) {
                         Row(
@@ -244,7 +244,7 @@ fun DriveSyncSettingsCard(
                     ) {
                         Surface(
                             shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
+                            color = MaterialTheme.colorScheme.errorContainer,
                             modifier = Modifier.clickable { onDisconnectClick() }
                         ) {
                             Box(
@@ -354,7 +354,7 @@ fun DriveSyncSettingsCard(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                    color = MaterialTheme.colorScheme.surfaceVariant
                 ) {
                     Column(
                         modifier = Modifier.padding(Dimensions.Spacing.md),

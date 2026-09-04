@@ -17,14 +17,14 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = PrimaryBlue,
+    primary = PrimaryBlueLight,
     secondary = AccentCyan,
     background = BackgroundDark,
     surface = SurfaceDark,
     surfaceVariant = SurfaceVariantDark,
     outline = OutlineDark,
     outlineVariant = OutlineDark,
-    onPrimary = Color.White,
+    onPrimary = BackgroundDark,
     onBackground = TextPrimaryDark,
     onSurface = TextPrimaryDark,
     onSurfaceVariant = TextSecondaryDark,

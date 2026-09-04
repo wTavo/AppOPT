@@ -38,7 +38,7 @@ data class BrandInfo(
  */
 object ServiceBrandProvider {
 
-    private val KnownBrands = listOf(
+    private val knownBrands = listOf(
         BrandInfo("Google", "G", Color(0xFFFFFFFF), R.drawable.ic_brand_google, Color.Black),
         BrandInfo("GitHub", "GH", Color(0xFF24292E), R.drawable.ic_brand_github),
         BrandInfo("Microsoft", "MS", Color(0xFFFFFFFF), R.drawable.ic_brand_microsoft, Color.Black),
@@ -69,7 +69,7 @@ object ServiceBrandProvider {
         BrandInfo("Slack", "SL", Color(0xFF4A154B))
     )
 
-    private val FallbackPalette = listOf(
+    private val fallbackPalette = listOf(
         Color(0xFF3F51B5), // Indigo
         Color(0xFF009688), // Teal
         Color(0xFF00BCD4), // Cyan
@@ -103,15 +103,15 @@ object ServiceBrandProvider {
         }
 
         return brandCache.getOrPut(trimmed) {
-            val matched = KnownBrands.firstOrNull { brand ->
+            val matched = knownBrands.firstOrNull { brand ->
                 trimmed.contains(brand.brandName, ignoreCase = true)
             }
             if (matched != null) {
                 matched
             } else {
                 val initials = extractInitials(trimmed)
-                val paletteIndex = abs(trimmed.lowercase().hashCode()) % FallbackPalette.size
-                val color = FallbackPalette[paletteIndex]
+                val paletteIndex = abs(trimmed.lowercase().hashCode()) % fallbackPalette.size
+                val color = fallbackPalette[paletteIndex]
                 BrandInfo(
                     brandName = trimmed,
                     shortInitials = initials,
@@ -130,7 +130,7 @@ object ServiceBrandProvider {
     fun preloadBrandIcons(context: Context) {
         val appContext = context.applicationContext
         CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
-            KnownBrands.forEach { brand ->
+            knownBrands.forEach { brand ->
                 brand.iconResId?.let { resId ->
                     try {
                         ContextCompat.getDrawable(appContext, resId)

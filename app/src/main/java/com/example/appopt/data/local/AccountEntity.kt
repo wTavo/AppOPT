@@ -2,6 +2,7 @@ package com.example.appopt.data.local
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.example.appopt.security.SecurityConfig
 
 /**
  * Entidad de persistencia en base de datos SQLite / Room para una cuenta OTP.
@@ -12,7 +13,7 @@ import androidx.room.PrimaryKey
  * - [iv] almacena el vector de inicialización único de 12 bytes requerido para descifrar y verificar autenticidad.
  * - Metadatos no sensibles ([issuer], [accountName]) se conservan en texto plano para búsquedas y listados eficientes.
  */
-@Entity(tableName = "totp_accounts")
+@Entity(tableName = SecurityConfig.TABLE_ACCOUNTS_NAME)
 data class AccountEntity(
     @PrimaryKey
     val id: String,

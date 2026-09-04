@@ -20,7 +20,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import com.example.appopt.R
 import com.example.appopt.data.cloud.DriveBackupInfo
@@ -108,7 +107,7 @@ fun DriveOverwriteWarningDialog(
                 onClick = onConfirmOverwrite,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = Color.White
+                    contentColor = MaterialTheme.colorScheme.onError
                 ),
                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
             ) {

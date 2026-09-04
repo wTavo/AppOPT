@@ -147,7 +147,7 @@ fun HomeScreen(
 
                     listState.scrollBy(-scrollStep)
 
-                    if (now - lastSwapTime >= Motion.Duration.DragDebounce.toLong()) {
+                    if (now - lastSwapTime >= Motion.Duration.DRAG_DEBOUNCE.toLong()) {
                         val currentIndex = localAccounts.indexOfFirst { it.account.id == draggingAccountId }
                         if (currentIndex > 0) {
                             val currentAccount = localAccounts[currentIndex]
@@ -173,7 +173,7 @@ fun HomeScreen(
 
                     listState.scrollBy(scrollStep)
 
-                    if (now - lastSwapTime >= Motion.Duration.DragDebounce.toLong()) {
+                    if (now - lastSwapTime >= Motion.Duration.DRAG_DEBOUNCE.toLong()) {
                         val currentIndex = localAccounts.indexOfFirst { it.account.id == draggingAccountId }
                         if (currentIndex != -1 && currentIndex < localAccounts.lastIndex) {
                             val currentAccount = localAccounts[currentIndex]
@@ -273,7 +273,7 @@ fun HomeScreen(
                                     pointerViewportY += deltaY
 
                                     val now = System.currentTimeMillis()
-                                    if (now - lastSwapTime >= Motion.Duration.DragDebounce.toLong()) {
+                                    if (now - lastSwapTime >= Motion.Duration.DRAG_DEBOUNCE.toLong()) {
                                         val floatingCenterY = pointerViewportY
                                         val currentIndex = localAccounts.indexOfFirst { it.account.id == item.account.id }
                                         if (currentIndex != -1) {

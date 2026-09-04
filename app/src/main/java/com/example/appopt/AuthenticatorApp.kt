@@ -71,7 +71,7 @@ class AuthenticatorApp : Application() {
         cryptoManager = CryptoManager()
         val database = AppDatabase.getInstance(this)
         accountRepository = AccountRepositoryImpl(database.accountDao(), cryptoManager)
-        biometricAuthManager = BiometricAuthManager(this)
+        biometricAuthManager = BiometricAuthManager()
         appLockManager = AppLockManager()
         secureClipboardManager = SecureClipboardManager(this)
         preferencesManager = PreferencesManager(this)

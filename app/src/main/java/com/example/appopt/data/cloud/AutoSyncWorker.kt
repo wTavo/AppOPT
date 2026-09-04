@@ -5,6 +5,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.data.local.PreferencesManager
+import com.example.appopt.security.SecurityConfig
 import com.google.android.gms.tasks.Tasks
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -63,7 +64,7 @@ class AutoSyncWorker(
             }
 
             val token = authResult.accessToken!!
-            val autoSyncKey = com.example.appopt.security.SecurityConfig.AUTO_SYNC_VAULT_KEY.toCharArray()
+            val autoSyncKey = SecurityConfig.AUTO_SYNC_VAULT_KEY.toCharArray()
 
             try {
                 // 5. Cifrado y subida a Google Drive con AES-256-GCM
@@ -80,7 +81,7 @@ class AutoSyncWorker(
             } finally {
                 autoSyncKey.fill('0')
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             Result.retry()
         }
     }

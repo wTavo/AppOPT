@@ -61,7 +61,6 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
-import com.example.appopt.domain.totp.OtpUriParser
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
@@ -246,8 +245,8 @@ fun QrScannerScreen(
                                     preview,
                                     imageAnalysis
                                 )
-                            } catch (e: Exception) {
-                                e.printStackTrace()
+                            } catch (_: Exception) {
+                                // Fallo controlado de inicialización de cámara
                             }
                         }, ContextCompat.getMainExecutor(ctx))
 

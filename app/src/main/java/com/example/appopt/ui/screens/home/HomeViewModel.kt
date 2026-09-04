@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.domain.repository.AccountWithCode
+import com.example.appopt.security.SecurityConfig
 import com.example.appopt.ui.common.UiState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -123,7 +124,7 @@ class HomeViewModel : ViewModel() {
         clipboardManager.copyToClipboard(
             label = label,
             text = code,
-            autoClearSeconds = com.example.appopt.security.SecurityConfig.CLIPBOARD_OTP_AUTO_CLEAR_SECONDS
+            autoClearSeconds = SecurityConfig.CLIPBOARD_OTP_AUTO_CLEAR_SECONDS
         )
     }
 

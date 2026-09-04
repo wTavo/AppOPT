@@ -3,7 +3,6 @@ package com.example.appopt.security
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import java.security.KeyStore
-import java.security.SecureRandom
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -52,8 +51,6 @@ class CryptoManager(
     private val keyStore = KeyStore.getInstance(SecurityConfig.ANDROID_KEYSTORE_PROVIDER).apply {
         load(null)
     }
-
-    private val secureRandom = SecureRandom()
 
     /**
      * Obtiene la clave maestra existente en el hardware seguro o genera una nueva de 256 bits si no existe.
@@ -114,18 +111,6 @@ class CryptoManager(
         val spec = GCMParameterSpec(SecurityConfig.AES_GCM_TAG_LENGTH_BITS, iv)
         cipher.init(Cipher.DECRYPT_MODE, getOrCreateSecretKey(), spec)
         return cipher.doFinal(ciphertext)
-    }
-
-    /**
-     * Genera una clave de recuperación (Recovery Key) independiente con 256 bits de entropía CSPRNG.
-     *
-     * @return Cadena formateada en grupos de 4 caracteres (ej. `XXXX-XXXX-XXXX-...`).
-     */
-    fun generateRecoveryKey(): String {
-        val randomBytes = ByteArray(32)
-        secureRandom.nextBytes(randomBytes)
-        val base32 = com.example.appopt.domain.totp.Base32.encode(randomBytes)
-        return base32.chunked(4).joinToString("-")
     }
 
     companion object {

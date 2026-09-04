@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.appopt.AuthenticatorApp
+import com.example.appopt.R
 import com.example.appopt.domain.model.OtpAlgorithm
 import com.example.appopt.domain.model.OtpType
 import com.example.appopt.domain.totp.Base32
@@ -22,7 +23,7 @@ import kotlinx.coroutines.launch
  * @property period Periodo de rotación en segundos (por defecto 30).
  * @property type Tipo de OTP (TOTP por defecto).
  * @property isSecretValid Indica si la clave Base32 tiene formato canónico válido.
- * @property errorMessage Mensaje de error descriptivo si la validación falla.
+ * @property errorMessageResId Identificador de recurso del mensaje de error descriptivo si la validación falla.
  * @property isSavedSuccessfully Bandera para indicar navegación tras guardar con éxito.
  */
 @Immutable
@@ -104,30 +105,16 @@ class AddAccountViewModel : ViewModel() {
     }
 
     /**
-     * Actualiza el período de rotación del código.
-     */
-    fun onPeriodChanged(value: Int) {
-        _uiState.value = _uiState.value.copy(period = value)
-    }
-
-    /**
-     * Actualiza el tipo de código (TOTP o HOTP).
-     */
-    fun onTypeChanged(value: OtpType) {
-        _uiState.value = _uiState.value.copy(type = value)
-    }
-
-    /**
      * Valida, cifra y guarda la nueva cuenta en la base de datos segura.
      */
     fun saveAccount() {
         val state = _uiState.value
         if (state.issuer.isBlank()) {
-            _uiState.value = state.copy(errorMessageResId = com.example.appopt.R.string.add_account_error_issuer_required)
+            _uiState.value = state.copy(errorMessageResId = R.string.add_account_error_issuer_required)
             return
         }
         if (!state.isSecretValid) {
-            _uiState.value = state.copy(errorMessageResId = com.example.appopt.R.string.add_account_error_secret_invalid)
+            _uiState.value = state.copy(errorMessageResId = R.string.add_account_error_secret_invalid)
             return
         }
 
@@ -145,7 +132,7 @@ class AddAccountViewModel : ViewModel() {
                 )
                 _uiState.value = _uiState.value.copy(isSavedSuccessfully = true)
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(errorMessageResId = com.example.appopt.R.string.add_account_error_save_failed)
+                _uiState.value = _uiState.value.copy(errorMessageResId = R.string.add_account_error_save_failed)
             }
         }
     }

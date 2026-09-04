@@ -42,7 +42,7 @@ enum class SyncFrequency(val intervalDays: Long) {
  */
 object CloudVaultSyncManager {
 
-    const val PeriodicWorkName = "appopt_cloud_vault_periodic_sync"
+    const val PERIODIC_WORK_NAME = "appopt_cloud_vault_periodic_sync"
 
     /**
      * Calcula la huella digital SHA-256 matemática del contenido de la bóveda.
@@ -89,7 +89,7 @@ object CloudVaultSyncManager {
         val workManager = WorkManager.getInstance(context)
 
         if (frequency == SyncFrequency.OFF) {
-            workManager.cancelUniqueWork(PeriodicWorkName)
+            workManager.cancelUniqueWork(PERIODIC_WORK_NAME)
             return
         }
 
@@ -110,7 +110,7 @@ object CloudVaultSyncManager {
             .build()
 
         workManager.enqueueUniquePeriodicWork(
-            PeriodicWorkName,
+            PERIODIC_WORK_NAME,
             ExistingPeriodicWorkPolicy.UPDATE,
             syncRequest
         )

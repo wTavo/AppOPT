@@ -1,7 +1,5 @@
 package com.example.appopt.security
 
-import android.content.Context
-import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
 import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
@@ -10,40 +8,13 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 
 /**
- * Estados posibles del hardware biométrico en el dispositivo.
- */
-enum class BiometricStatus {
-    AVAILABLE,
-    NOT_ENROLLED,
-    UNSUPPORTED,
-    HARDWARE_UNAVAILABLE
-}
-
-/**
  * Gestor de autenticación biométrica y credenciales del dispositivo mediante AndroidX Biometric.
  *
  * Características:
  * - Soporta sensores de huella digital y reconocimiento facial seguros.
  * - Permite fallback a PIN, patrón o contraseña del dispositivo si la biometría no está disponible.
  */
-class BiometricAuthManager(private val context: Context) {
-
-    private val biometricManager = BiometricManager.from(context)
-
-    /**
-     * Consulta la disponibilidad y estado del hardware biométrico.
-     *
-     * @return [BiometricStatus] indicando si se puede autenticar inmediatamente.
-     */
-    fun canAuthenticate(): BiometricStatus {
-        val authenticators = BIOMETRIC_STRONG or BIOMETRIC_WEAK or DEVICE_CREDENTIAL
-        return when (biometricManager.canAuthenticate(authenticators)) {
-            BiometricManager.BIOMETRIC_SUCCESS -> BiometricStatus.AVAILABLE
-            BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> BiometricStatus.NOT_ENROLLED
-            BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> BiometricStatus.UNSUPPORTED
-            else -> BiometricStatus.HARDWARE_UNAVAILABLE
-        }
-    }
+class BiometricAuthManager {
 
     /**
      * Muestra el diálogo del sistema de autenticación biométrica o PIN.
@@ -57,8 +28,8 @@ class BiometricAuthManager(private val context: Context) {
      */
     fun authenticate(
         activity: FragmentActivity,
-        title: String = "Desbloquear Authenticator",
-        subtitle: String = "Confirma tu identidad para acceder a tus códigos",
+        title: String,
+        subtitle: String,
         onSuccess: () -> Unit,
         onError: (errorCode: Int, errString: String) -> Unit,
         onFailed: () -> Unit

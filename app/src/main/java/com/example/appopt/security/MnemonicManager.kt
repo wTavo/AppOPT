@@ -26,7 +26,7 @@ object MnemonicManager {
         secureRandom.nextBytes(entropy)
 
         // Cada palabra se selecciona a partir de 11 bits de entropía (2^11 = 2048 palabras)
-        for (i in 0 until 12) {
+        (0 until 12).forEach { _ ->
             val randomIndex = secureRandom.nextInt(BIP39_WORDLIST.size)
             words.add(BIP39_WORDLIST[randomIndex])
         }

@@ -19,9 +19,6 @@ import android.print.PrintManager
 import com.example.appopt.R
 import java.io.FileOutputStream
 import java.io.OutputStream
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /**
  * Generador nativo y blindado del Kit de Recuperación de Emergencia (*Emergency Kit*) en formato PDF.
@@ -246,8 +243,8 @@ object EmergencyKitPdfGenerator {
         currentY += 14f
 
         // Metadatos (Fecha de emisión)
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-        val dateText = "${context.getString(R.string.emergency_kit_pdf_generated_at)}: ${dateFormat.format(Date())}"
+        val formattedDate = DateTimeFormatter.formatAbsoluteDateTime(System.currentTimeMillis())
+        val dateText = "${context.getString(R.string.emergency_kit_pdf_generated_at)}: $formattedDate"
         canvas.drawText(dateText, leftMargin, currentY, subtitlePaint)
         currentY += 24f
 

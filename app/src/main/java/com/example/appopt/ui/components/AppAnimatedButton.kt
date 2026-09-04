@@ -43,7 +43,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * - En estado normal muestra el texto descriptivo de la acción.
  * - Al pulsar, si la acción se confirma, emite respuesta háptica de éxito ([AppHaptics.success]),
  *   realiza una transición fluida hacia el color verde de seguridad ([SafeGreen]),
- *   reemplaza el texto con una palomita ([Icons.Filled.Check]) durante [Motion.Duration.SuccessAction] ms, y
+ *   reemplaza el texto con una palomita ([Icons.Filled.Check]) durante [Motion.Duration.SUCCESS_ACTION] ms, y
  *   finalmente ejecuta el callback [onActionConfirmed].
  *
  * @param text Texto descriptivo del botón en Sentence case.
@@ -78,7 +78,7 @@ fun AppAnimatedButton(
                     if (success) {
                         appHaptics.success()
                         isSuccess = true
-                        delay(Motion.Duration.SuccessAction.toLong().milliseconds)
+                        delay(Motion.Duration.SUCCESS_ACTION.toLong().milliseconds)
                         onActionConfirmed()
                     }
                 }

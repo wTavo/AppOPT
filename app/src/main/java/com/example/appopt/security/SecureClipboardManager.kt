@@ -21,7 +21,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * - Inicia una tarea en segundo plano que elimina el código copiado tras el tiempo configurado (30 segundos).
  */
 class SecureClipboardManager(
-    private val context: Context,
+    context: Context,
     private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.Main)
 ) {
     private val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager

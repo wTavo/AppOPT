@@ -10,7 +10,6 @@ import com.example.appopt.domain.repository.AccountWithCode
 import com.example.appopt.domain.totp.Base32
 import com.example.appopt.domain.totp.OtpUriParser
 import com.example.appopt.domain.totp.TotpEngine
-import com.example.appopt.security.BackupCrypto
 import com.example.appopt.security.CryptoManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -126,7 +125,7 @@ class AccountRepositoryImpl(
                             )
                             otpCodeCache[domainAccount.id] = CachedOtp(step, 0L, computed)
                             computed
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             "------"
                         } finally {
                             secretBytes?.let { CryptoManager.zeroize(it) }
@@ -153,7 +152,7 @@ class AccountRepositoryImpl(
                             )
                             otpCodeCache[domainAccount.id] = CachedOtp(0L, domainAccount.counter, computed)
                             computed
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             "------"
                         } finally {
                             secretBytes?.let { CryptoManager.zeroize(it) }
@@ -168,18 +167,6 @@ class AccountRepositoryImpl(
                 account = domainAccount,
                 code = code
             )
-        }
-    }
-
-    /**
-     * Emite la lista de cuentas acompañadas de sus códigos OTP calculados en tiempo real para el timestamp dado.
-     *
-     * @param currentTimeMillis Instante temporal del reloj del sistema.
-     * @return Flujo reactivo de [AccountWithCode].
-     */
-    override fun getAccountsWithCodes(currentTimeMillis: Long): Flow<List<AccountWithCode>> {
-        return accountDao.getAllAccounts().map { list ->
-            computeAccountsWithCodes(list.map { it.toDomain() }, currentTimeMillis)
         }
     }
 
@@ -281,129 +268,6 @@ class AccountRepositoryImpl(
                 updatedAt = System.currentTimeMillis()
             )
         )
-    }
-
-    /**
-     * Genera un código OTP individual para una cuenta específica.
-     */
-    override suspend fun generateOtpForAccount(id: String, currentTimeMillis: Long): String? {
-        val entity = accountDao.getAccountById(id) ?: return null
-        var secretBytes: ByteArray? = null
-        return try {
-            secretBytes = cryptoManager.decrypt(entity.encryptedSecret, entity.iv)
-            val algorithm = OtpAlgorithm.fromString(entity.algorithm)
-            if (entity.type == OtpType.HOTP.name) {
-                TotpEngine.generateHotp(
-                    secretBytes = secretBytes,
-                    counter = entity.counter,
-                    digits = entity.digits,
-                    algorithm = algorithm
-                )
-            } else {
-                TotpEngine.generateTotp(
-                    secretBytes = secretBytes,
-                    timeMillis = currentTimeMillis,
-                    periodSeconds = entity.period,
-                    digits = entity.digits,
-                    algorithm = algorithm
-                )
-            }
-        } catch (e: Exception) {
-            null
-        } finally {
-            secretBytes?.let { CryptoManager.zeroize(it) }
-        }
-    }
-
-    /**
-     * Exporta todas las cuentas en un archivo cifrado con contraseña mediante PBKDF2 y AES-256-GCM.
-     */
-    override suspend fun exportVault(password: CharArray): ByteArray {
-        val entities = accountDao.getAllAccounts().first()
-        val jsonArray = JSONArray()
-
-        for (entity in entities) {
-            var secretBytes: ByteArray? = null
-            try {
-                secretBytes = cryptoManager.decrypt(entity.encryptedSecret, entity.iv)
-                val secretBase32 = Base32.encode(secretBytes)
-                val item = JSONObject().apply {
-                    put("id", entity.id)
-                    put("issuer", entity.issuer)
-                    put("accountName", entity.accountName)
-                    put("secret", secretBase32)
-                    put("algorithm", entity.algorithm)
-                    put("digits", entity.digits)
-                    put("period", entity.period)
-                    put("type", entity.type)
-                    put("counter", entity.counter)
-                    put("isFavorite", entity.isFavorite)
-                    put("orderIndex", entity.orderIndex)
-                    put("createdAt", entity.createdAt)
-                    put("updatedAt", entity.updatedAt)
-                }
-                jsonArray.put(item)
-            } finally {
-                secretBytes?.let { CryptoManager.zeroize(it) }
-            }
-        }
-
-        val rootObject = JSONObject().apply {
-            put("version", 1)
-            put("exportedAt", System.currentTimeMillis())
-            put("accounts", jsonArray)
-        }
-
-        return BackupCrypto.encryptBackup(rootObject.toString(), password)
-    }
-
-    /**
-     * Descifra e importa las cuentas contenidas en un archivo de respaldo.
-     */
-    override suspend fun importVault(backupBytes: ByteArray, password: CharArray): Result<Int> {
-        val decryptResult = BackupCrypto.decryptBackup(backupBytes, password)
-        if (decryptResult.isFailure) {
-            return Result.failure(decryptResult.exceptionOrNull() ?: Exception("Error al descifrar el respaldo"))
-        }
-
-        return runCatching {
-            val jsonString = decryptResult.getOrThrow()
-            val rootObject = JSONObject(jsonString)
-            val jsonArray = rootObject.getJSONArray("accounts")
-
-            var count = 0
-            for (i in 0 until jsonArray.length()) {
-                val item = jsonArray.getJSONObject(i)
-                val rawSecret = item.getString("secret")
-                val secretBytes = Base32.decode(Base32.sanitize(rawSecret))
-
-                try {
-                    val encryptedPayload = cryptoManager.encrypt(secretBytes)
-                    val entity = AccountEntity(
-                        id = item.optString("id", UUID.randomUUID().toString()),
-                        issuer = item.optString("issuer", "Cuenta"),
-                        accountName = item.optString("accountName", "Usuario"),
-                        encryptedSecret = encryptedPayload.ciphertext,
-                        iv = encryptedPayload.iv,
-                        algorithm = item.optString("algorithm", "SHA1"),
-                        digits = item.optInt("digits", 6),
-                        period = item.optInt("period", 30),
-                        type = item.optString("type", "TOTP"),
-                        counter = item.optLong("counter", 0L),
-                        isFavorite = item.optBoolean("isFavorite", false),
-                        orderIndex = item.optInt("orderIndex", 0),
-                        createdAt = item.optLong("createdAt", System.currentTimeMillis()),
-                        updatedAt = item.optLong("updatedAt", System.currentTimeMillis())
-                    )
-                    accountDao.insertAccount(entity)
-                    count++
-                } finally {
-                    CryptoManager.zeroize(secretBytes)
-                }
-            }
-
-            count
-        }
     }
 
     /**

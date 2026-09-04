@@ -2,9 +2,12 @@ package com.example.appopt.data.local
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.example.appopt.data.cloud.SyncFrequency
+import com.example.appopt.util.PerformanceMonitor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import androidx.core.content.edit
 
 /**
  * Gestor de preferencias de usuario persistentes (modo de privacidad, etc.).
@@ -29,7 +32,7 @@ class PreferencesManager(context: Context) {
      * Guarda el estado de ocultar códigos en disco.
      */
     fun setHideCodesEnabled(enabled: Boolean) {
-        sharedPreferences.edit().putBoolean(KEY_HIDE_CODES, enabled).apply()
+        sharedPreferences.edit { putBoolean(KEY_HIDE_CODES, enabled) }
     }
 
     /**
@@ -43,7 +46,7 @@ class PreferencesManager(context: Context) {
      * Guarda el estado de conexión con Google Drive.
      */
     fun setGoogleDriveConnected(connected: Boolean) {
-        sharedPreferences.edit().putBoolean(KEY_DRIVE_CONNECTED, connected).apply()
+        sharedPreferences.edit { putBoolean(KEY_DRIVE_CONNECTED, connected) }
     }
 
     /**
@@ -57,7 +60,7 @@ class PreferencesManager(context: Context) {
      * Guarda la marca de tiempo de la última sincronización en Drive.
      */
     fun setLastSyncTimestamp(timestamp: Long) {
-        sharedPreferences.edit().putLong(KEY_DRIVE_LAST_SYNC, timestamp).apply()
+        sharedPreferences.edit { putLong(KEY_DRIVE_LAST_SYNC, timestamp) }
     }
 
     /**
@@ -67,12 +70,6 @@ class PreferencesManager(context: Context) {
         return sharedPreferences.getBoolean(KEY_AUTO_SYNC_ENABLED, true)
     }
 
-    /**
-     * Guarda si la copia de seguridad automática está activada.
-     */
-    fun setAutoSyncEnabled(enabled: Boolean) {
-        sharedPreferences.edit().putBoolean(KEY_AUTO_SYNC_ENABLED, enabled).apply()
-    }
 
     /**
      * Retorna si la sincronización puede usar datos móviles (por defecto false -> solo Wi-Fi).
@@ -85,7 +82,7 @@ class PreferencesManager(context: Context) {
      * Guarda la preferencia de uso de datos móviles para sincronización.
      */
     fun setSyncMobileDataAllowed(allowed: Boolean) {
-        sharedPreferences.edit().putBoolean(KEY_SYNC_MOBILE_DATA, allowed).apply()
+        sharedPreferences.edit { putBoolean(KEY_SYNC_MOBILE_DATA, allowed) }
     }
 
     /**
@@ -99,36 +96,36 @@ class PreferencesManager(context: Context) {
      * Guarda el hash SHA-256 de la bóveda sincronizada.
      */
     fun setLastSyncedVaultHash(hash: String) {
-        sharedPreferences.edit().putString(KEY_LAST_VAULT_HASH, hash).apply()
+        sharedPreferences.edit { putString(KEY_LAST_VAULT_HASH, hash) }
     }
 
     /**
      * Retorna la frecuencia configurada para la copia de seguridad automática.
      */
-    fun getSyncFrequency(): com.example.appopt.data.cloud.SyncFrequency {
+    fun getSyncFrequency(): SyncFrequency {
         val name = sharedPreferences.getString(KEY_SYNC_FREQUENCY, null)
         return if (name != null) {
-            com.example.appopt.data.cloud.SyncFrequency.fromName(name)
+            SyncFrequency.fromName(name)
         } else {
-            if (isAutoSyncEnabled()) com.example.appopt.data.cloud.SyncFrequency.DAILY else com.example.appopt.data.cloud.SyncFrequency.OFF
+            if (isAutoSyncEnabled()) SyncFrequency.DAILY else SyncFrequency.OFF
         }
     }
 
     /**
      * Guarda la frecuencia configurada para la copia de seguridad automática.
      */
-    fun setSyncFrequency(frequency: com.example.appopt.data.cloud.SyncFrequency) {
-        sharedPreferences.edit()
-            .putString(KEY_SYNC_FREQUENCY, frequency.name)
-            .putBoolean(KEY_AUTO_SYNC_ENABLED, frequency != com.example.appopt.data.cloud.SyncFrequency.OFF)
-            .apply()
+    fun setSyncFrequency(frequency: SyncFrequency) {
+        sharedPreferences.edit {
+            putString(KEY_SYNC_FREQUENCY, frequency.name)
+                .putBoolean(KEY_AUTO_SYNC_ENABLED, frequency != SyncFrequency.OFF)
+        }
     }
 
-    private val _isFpsOverlayEnabled = kotlinx.coroutines.flow.MutableStateFlow(
+    private val _isFpsOverlayEnabled = MutableStateFlow(
         sharedPreferences.getBoolean(KEY_FPS_OVERLAY, true)
     )
     /** Flujo reactivo del estado de visualización de FPS y rendimiento. */
-    val isFpsOverlayEnabledFlow: kotlinx.coroutines.flow.StateFlow<Boolean> = _isFpsOverlayEnabled.asStateFlow()
+    val isFpsOverlayEnabledFlow: StateFlow<Boolean> = _isFpsOverlayEnabled.asStateFlow()
 
     /**
      * Retorna si la superposición visual de FPS y registros de rendimiento está habilitada.
@@ -142,11 +139,11 @@ class PreferencesManager(context: Context) {
      */
     fun setFpsOverlayEnabled(enabled: Boolean) {
         _isFpsOverlayEnabled.value = enabled
-        sharedPreferences.edit().putBoolean(KEY_FPS_OVERLAY, enabled).apply()
+        sharedPreferences.edit { putBoolean(KEY_FPS_OVERLAY, enabled) }
         if (enabled) {
-            com.example.appopt.util.PerformanceMonitor.start()
+            PerformanceMonitor.start()
         } else {
-            com.example.appopt.util.PerformanceMonitor.stop()
+            PerformanceMonitor.stop()
         }
     }
 

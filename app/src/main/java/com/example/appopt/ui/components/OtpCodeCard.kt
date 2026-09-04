@@ -99,7 +99,7 @@ fun OtpCodeCard(
 
     LaunchedEffect(copied) {
         if (copied) {
-            delay(Motion.Duration.FeedbackToast.toLong().milliseconds)
+            delay(Motion.Duration.FEEDBACK_TOAST.toLong().milliseconds)
             copied = false
         }
     }

@@ -31,11 +31,6 @@ interface AccountRepository {
     fun getAccounts(): Flow<List<TotpAccount>>
 
     /**
-     * Emite la lista de cuentas con sus códigos OTP calculados para el instante [currentTimeMillis].
-     */
-    fun getAccountsWithCodes(currentTimeMillis: Long): Flow<List<AccountWithCode>>
-
-    /**
      * Calcula sincrónicamente los códigos OTP para una lista de cuentas en memoria en el instante [currentTimeMillis],
      * utilizando una caché de pasos de tiempo para evitar descifrados de hardware redundantes.
      */
@@ -92,28 +87,6 @@ interface AccountRepository {
      * Incrementa el contador de un token HOTP.
      */
     suspend fun incrementHotpCounter(id: String)
-
-    /**
-     * Genera un código OTP individual para una cuenta específica.
-     */
-    suspend fun generateOtpForAccount(id: String, currentTimeMillis: Long): String?
-
-    /**
-     * Exporta todas las cuentas de la bóveda en un archivo cifrado con contraseña mediante PBKDF2 y AES-GCM.
-     *
-     * @param password Contraseña maestra para proteger el archivo de respaldo.
-     * @return Arreglo de bytes del archivo cifrado.
-     */
-    suspend fun exportVault(password: CharArray): ByteArray
-
-    /**
-     * Descifra e importa las cuentas contenidas en un archivo de respaldo.
-     *
-     * @param backupBytes Contenido del archivo de respaldo.
-     * @param password Contraseña de descifrado.
-     * @return [Result] con el número de cuentas importadas exitosamente.
-     */
-    suspend fun importVault(backupBytes: ByteArray, password: CharArray): Result<Int>
 
     /**
      * Exporta las cuentas de la bóveda para migración y transferencia por código QR.

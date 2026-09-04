@@ -29,15 +29,15 @@ import java.nio.charset.StandardCharsets
  */
 object GoogleDriveManager {
 
-    const val DriveScope = "https://www.googleapis.com/auth/drive.appdata"
-    private const val BackupFileName = "appopt_vault_backup.json"
+    const val DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.appdata"
+    private const val BACKUP_FILE_NAME = "appopt_vault_backup.json"
 
     /**
      * Construye la solicitud moderna de autorización con alcance exclusivo a `appDataFolder`.
      */
     fun getAuthorizationRequest(): AuthorizationRequest {
         return AuthorizationRequest.builder()
-            .setRequestedScopes(listOf(Scope(DriveScope)))
+            .setRequestedScopes(listOf(Scope(DRIVE_SCOPE)))
             .build()
     }
 
@@ -137,7 +137,7 @@ object GoogleDriveManager {
                 }
 
                 val metadataJson = JSONObject().apply {
-                    put("name", BackupFileName)
+                    put("name", BACKUP_FILE_NAME)
                     put("description", deviceName)
                     put("appProperties", JSONObject().apply {
                         put("deviceName", deviceName)
@@ -231,23 +231,13 @@ object GoogleDriveManager {
     }
 
     /**
-     * Verifica si ya existe un archivo de copia de seguridad en la carpeta privada de Google Drive.
-     *
-     * @param accessToken Token de acceso OAuth2 emitido por Google Identity Services.
-     * @return `true` si existe un archivo de respaldo previo, `false` en caso contrario.
-     */
-    suspend fun hasExistingBackup(accessToken: String): Boolean = withContext(Dispatchers.IO) {
-        findExistingBackupFileId(accessToken) != null
-    }
-
-    /**
      * Consulta la información y metadatos del respaldo existente en Google Drive.
      *
      * @param accessToken Token de acceso OAuth2 emitido por Google Identity Services.
      * @return [DriveBackupInfo] con detalles del archivo o `null` si no existe.
      */
     suspend fun fetchBackupDetails(accessToken: String): DriveBackupInfo? = withContext(Dispatchers.IO) {
-        val encodedQuery = java.net.URLEncoder.encode("name = '$BackupFileName' and trashed = false", "UTF-8")
+        val encodedQuery = java.net.URLEncoder.encode("name = '$BACKUP_FILE_NAME' and trashed = false", "UTF-8")
         val queryUrl = URL("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=$encodedQuery&fields=files(id,name,modifiedTime,description,appProperties,trashed)&orderBy=modifiedTime+desc")
         val connection = (queryUrl.openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
@@ -288,10 +278,10 @@ object GoogleDriveManager {
     }
 
     /**
-     * Consulta la API de Drive para encontrar el identificador de [BackupFileName] en `appDataFolder`.
+     * Consulta la API de Drive para encontrar el identificador de [BACKUP_FILE_NAME] en `appDataFolder`.
      */
     private fun findExistingBackupFileId(accessToken: String): String? {
-        val encodedQuery = java.net.URLEncoder.encode("name = '$BackupFileName' and trashed = false", "UTF-8")
+        val encodedQuery = java.net.URLEncoder.encode("name = '$BACKUP_FILE_NAME' and trashed = false", "UTF-8")
         val queryUrl = URL("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=$encodedQuery&fields=files(id,name,modifiedTime,trashed)&orderBy=modifiedTime+desc")
         val connection = (queryUrl.openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"

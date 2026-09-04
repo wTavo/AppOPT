@@ -33,7 +33,6 @@ import com.example.appopt.ui.theme.WarningOrange
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.util.Locale
 
 /**
  * Monitor centralizado de rendimiento gráfico y métricas de fotogramas (FPS).

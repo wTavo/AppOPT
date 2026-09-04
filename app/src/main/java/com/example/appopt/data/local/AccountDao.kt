@@ -1,7 +1,6 @@
 package com.example.appopt.data.local
 
 import androidx.room.Dao
-import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -45,12 +44,6 @@ interface AccountDao {
     suspend fun insertAccount(account: AccountEntity)
 
     /**
-     * Inserta un lote de cuentas (útil para restauraciones de respaldo).
-     */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAccounts(accounts: List<AccountEntity>)
-
-    /**
      * Actualiza los datos de una cuenta existente.
      */
     @Update
@@ -82,20 +75,8 @@ interface AccountDao {
     }
 
     /**
-     * Elimina una entidad de cuenta.
-     */
-    @Delete
-    suspend fun deleteAccount(account: AccountEntity)
-
-    /**
      * Elimina una cuenta por su identificador UUID.
      */
     @Query("DELETE FROM totp_accounts WHERE id = :id")
     suspend fun deleteAccountById(id: String)
-
-    /**
-     * Elimina todas las cuentas registradas (Wipe total).
-     */
-    @Query("DELETE FROM totp_accounts")
-    suspend fun clearAll()
 }

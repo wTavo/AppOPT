@@ -58,4 +58,24 @@ object SecurityConfig {
      * Proveedor del almacén seguro de claves en el sistema Android.
      */
     const val ANDROID_KEYSTORE_PROVIDER = "AndroidKeyStore"
+
+    /**
+     * Tiempo en milisegundos de inactividad en segundo plano antes de bloquear automáticamente la bóveda.
+     */
+    const val APP_LOCK_TIMEOUT_MILLIS = 5_000L
+
+    /**
+     * Semilla de derivación interna para la clave simétrica de sincronización automática en la nube.
+     */
+    const val AUTO_SYNC_VAULT_KEY = "AppOPT_AutoSync_Vault_E2EE_v1"
+
+    /**
+     * Nombre del archivo SQLite de la base de datos local Room.
+     */
+    const val ROOM_DATABASE_NAME = "authenticator_vault.db"
+
+    /**
+     * Nombre canónico de la tabla de cuentas OTP en SQLite / Room.
+     */
+    const val TABLE_ACCOUNTS_NAME = "totp_accounts"
 }

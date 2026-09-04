@@ -63,7 +63,7 @@ class AutoSyncWorker(
             }
 
             val token = authResult.accessToken!!
-            val autoSyncKey = "AppOPT_AutoSync_Vault_E2EE_v1".toCharArray()
+            val autoSyncKey = com.example.appopt.security.SecurityConfig.AUTO_SYNC_VAULT_KEY.toCharArray()
 
             try {
                 // 5. Cifrado y subida a Google Drive con AES-256-GCM

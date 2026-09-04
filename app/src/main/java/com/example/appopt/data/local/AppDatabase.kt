@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.example.appopt.security.SecurityConfig
 
 /**
  * Base de datos local Room de la aplicación para el almacenamiento offline de cuentas.
@@ -35,7 +36,7 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "authenticator_vault.db"
+                    SecurityConfig.ROOM_DATABASE_NAME
                 ).build()
                 INSTANCE = instance
                 instance

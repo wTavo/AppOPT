@@ -26,7 +26,7 @@ class AppLockManager : DefaultLifecycleObserver {
     val isUnlocked: StateFlow<Boolean> = _isUnlocked.asStateFlow()
 
     private var backgroundTimestamp = 0L
-    private val lockTimeoutMillis = 5_000L // Bloqueo tras 5 segundos en background
+    private val lockTimeoutMillis = SecurityConfig.APP_LOCK_TIMEOUT_MILLIS
 
     init {
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)

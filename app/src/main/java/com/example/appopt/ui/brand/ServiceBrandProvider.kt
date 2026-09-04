@@ -1,10 +1,13 @@
 package com.example.appopt.ui.brand
 
+import android.content.Context
 import androidx.annotation.DrawableRes
 import androidx.compose.ui.graphics.Color
+import androidx.core.content.ContextCompat
 import com.example.appopt.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
@@ -124,13 +127,13 @@ object ServiceBrandProvider {
      *
      * @param context Contexto de la aplicación.
      */
-    fun preloadBrandIcons(context: android.content.Context) {
+    fun preloadBrandIcons(context: Context) {
         val appContext = context.applicationContext
-        CoroutineScope(Dispatchers.IO + kotlinx.coroutines.SupervisorJob()).launch {
+        CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
             KnownBrands.forEach { brand ->
                 brand.iconResId?.let { resId ->
                     try {
-                        androidx.core.content.ContextCompat.getDrawable(appContext, resId)
+                        ContextCompat.getDrawable(appContext, resId)
                     } catch (_: Exception) {
                         // Ignorar fallos de pre-carga individual
                     }

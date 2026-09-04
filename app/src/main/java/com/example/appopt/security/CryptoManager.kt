@@ -70,7 +70,7 @@ class CryptoManager(
 
         val keyGenerator = KeyGenerator.getInstance(
             KeyProperties.KEY_ALGORITHM_AES,
-            "AndroidKeyStore"
+            SecurityConfig.ANDROID_KEYSTORE_PROVIDER
         )
 
         val spec = KeyGenParameterSpec.Builder(
@@ -79,7 +79,7 @@ class CryptoManager(
         )
             .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
             .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-            .setKeySize(256)
+            .setKeySize(SecurityConfig.BACKUP_KEY_SIZE_BITS)
             .setRandomizedEncryptionRequired(true)
             .build()
 
@@ -111,7 +111,7 @@ class CryptoManager(
      */
     fun decrypt(ciphertext: ByteArray, iv: ByteArray): ByteArray {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        val spec = GCMParameterSpec(128, iv)
+        val spec = GCMParameterSpec(SecurityConfig.AES_GCM_TAG_LENGTH_BITS, iv)
         cipher.init(Cipher.DECRYPT_MODE, getOrCreateSecretKey(), spec)
         return cipher.doFinal(ciphertext)
     }

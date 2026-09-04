@@ -254,7 +254,7 @@ fun SettingsScreen(
         AuthenticatorApp.instance.applicationScope.launch {
             try {
                 val payload = repository.exportAccountsForTransfer()
-                val autoSyncKey = "AppOPT_AutoSync_Vault_E2EE_v1".toCharArray()
+                val autoSyncKey = com.example.appopt.security.SecurityConfig.AUTO_SYNC_VAULT_KEY.toCharArray()
                 try {
                     val uploadResult = GoogleDriveManager.uploadBackup(token, payload, autoSyncKey)
                     uploadResult.onSuccess {

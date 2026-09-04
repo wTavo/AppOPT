@@ -1,5 +1,6 @@
 package com.example.appopt.ui.screens.add
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.appopt.AuthenticatorApp
@@ -24,6 +25,7 @@ import kotlinx.coroutines.launch
  * @property errorMessage Mensaje de error descriptivo si la validación falla.
  * @property isSavedSuccessfully Bandera para indicar navegación tras guardar con éxito.
  */
+@Immutable
 data class AddAccountUiState(
     val issuer: String = "",
     val accountName: String = "",

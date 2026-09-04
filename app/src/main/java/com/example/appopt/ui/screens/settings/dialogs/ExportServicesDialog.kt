@@ -132,7 +132,10 @@ fun ExportServicesDialog(
                                     size = Dimensions.ComponentSize.actionIconButton
                                 )
                                 Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
-                                Column(modifier = Modifier.weight(1f)) {
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                                ) {
                                     Text(
                                         text = account.issuer,
                                         style = MaterialTheme.typography.titleSmall
@@ -169,7 +172,10 @@ fun ExportServicesDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = Dimensions.Spacing.sm)) {
+                        Column(
+                            modifier = Modifier.weight(1f).padding(end = Dimensions.Spacing.sm),
+                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                        ) {
                             Text(
                                 text = stringResource(R.string.settings_keep_services_label),
                                 style = MaterialTheme.typography.labelLarge

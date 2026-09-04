@@ -198,7 +198,7 @@ fun AccountDetailsDialog(
 
                             Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
 
-                            Column {
+                            Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)) {
                                 Text(
                                     text = account.issuer.ifEmpty { stringResource(R.string.home_default_issuer) },
                                     style = MaterialTheme.typography.headlineSmall,
@@ -206,7 +206,6 @@ fun AccountDetailsDialog(
                                 )
 
                                 if (account.accountName.isNotBlank()) {
-                                    Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
                                     Text(
                                         text = account.accountName,
                                         style = MaterialTheme.typography.bodyMedium,

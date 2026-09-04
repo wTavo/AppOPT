@@ -186,7 +186,7 @@ fun AddAccountScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Column {
+                        Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)) {
                             Text(
                                 text = stringResource(R.string.add_account_advanced_options),
                                 style = MaterialTheme.typography.titleSmall

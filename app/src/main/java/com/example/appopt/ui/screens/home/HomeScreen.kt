@@ -193,7 +193,7 @@ fun HomeScreen(
                     }
                 }
 
-                delay(16L.milliseconds)
+                delay(Motion.Duration.DRAG_POLL_INTERVAL_MS.milliseconds)
             }
         }
     }

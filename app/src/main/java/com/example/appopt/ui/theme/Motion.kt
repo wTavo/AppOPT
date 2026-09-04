@@ -47,6 +47,9 @@ object Motion {
 
         /** Límite superior de elementos para el cálculo de retardo escalonado (8 elementos = 360ms máx). */
         const val MAX_STAGGER_INDEX = 8
+
+        /** Intervalo de sondeo del bucle de arrastre manual (~60fps). Equivale a un fotograma a 60 Hz (16ms). */
+        const val DRAG_POLL_INTERVAL_MS = 16
     }
 
     /**

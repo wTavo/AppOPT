@@ -50,7 +50,8 @@ fun DriveOverwriteWarningDialog(
             DateTimeFormatter.formatAbsoluteDateTime(it)
         } ?: (formattedLastSync ?: "")
     }
-    val deviceName = backupInfo?.deviceName ?: "Dispositivo Android"
+    val defaultDeviceName = stringResource(R.string.drive_default_device_name)
+    val deviceName = backupInfo?.deviceName ?: defaultDeviceName
 
     AlertDialog(
         onDismissRequest = onDismiss,

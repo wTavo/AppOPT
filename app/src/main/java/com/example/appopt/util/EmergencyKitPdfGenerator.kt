@@ -70,7 +70,7 @@ object EmergencyKitPdfGenerator {
         renderCanvas.scale(SCALE_FACTOR, SCALE_FACTOR)
 
         // 2. Dibujar marca de agua y contenido gráfico completo
-        renderWatermark(renderCanvas)
+        renderWatermark(context, renderCanvas)
         renderPdfContent(context, renderCanvas, primaryMethodTitle, primaryMethodValue, mnemonicWords)
 
         // 3. Estampar el bitmap rasterizado en la página PDF (Cero texto plano seleccionable)
@@ -119,7 +119,7 @@ object EmergencyKitPdfGenerator {
                     return
                 }
 
-                val info = PrintDocumentInfo.Builder("AppOPT_Emergency_Kit.pdf")
+                val info = PrintDocumentInfo.Builder(context.getString(R.string.emergency_kit_pdf_filename))
                     .setContentType(PrintDocumentInfo.CONTENT_TYPE_DOCUMENT)
                     .setPageCount(1)
                     .build()
@@ -134,7 +134,7 @@ object EmergencyKitPdfGenerator {
                 callback: WriteResultCallback?
             ) {
                 if (destination == null) {
-                    callback?.onWriteFailed("Descriptor nulo")
+                    callback?.onWriteFailed(null)
                     return
                 }
 
@@ -143,8 +143,8 @@ object EmergencyKitPdfGenerator {
                         writeEmergencyKitPdf(context, primaryMethodTitle, primaryMethodValue, mnemonicWords, out)
                     }
                     callback?.onWriteFinished(arrayOf(PageRange.ALL_PAGES))
-                } catch (e: Exception) {
-                    callback?.onWriteFailed(e.message)
+                } catch (_: Exception) {
+                    callback?.onWriteFailed(null)
                 }
             }
         }
@@ -154,8 +154,11 @@ object EmergencyKitPdfGenerator {
 
     /**
      * Dibuja una marca de agua diagonal de seguridad tenue para protección anti-fotocopia.
+     *
+     * @param context Contexto de la aplicación para resolver recursos de texto.
+     * @param canvas Lienzo de alta resolución donde se estampará la marca de agua.
      */
-    private fun renderWatermark(canvas: Canvas) {
+    private fun renderWatermark(context: Context, canvas: Canvas) {
         val watermarkPaint = Paint().apply {
             color = Color.argb(12, 15, 23, 42) // Opacidad ultrabaja ~5%
             textSize = 28f
@@ -165,7 +168,7 @@ object EmergencyKitPdfGenerator {
 
         canvas.save()
         canvas.rotate(-32f, PAGE_WIDTH / 2f, PAGE_HEIGHT / 2f)
-        val text = "APPOPT • CONFIDENCIAL"
+        val text = context.getString(R.string.emergency_kit_watermark_text)
         for (y in -200..1200 step 140) {
             for (x in -300..900 step 360) {
                 canvas.drawText(text, x.toFloat(), y.toFloat(), watermarkPaint)

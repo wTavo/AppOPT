@@ -196,4 +196,10 @@
     <string name="perf_fps_format">%1$d FPS</string>
     <string name="perf_frame_time_format">%1$.1f ms</string>
     <string name="perf_janks_format">%1$d tirones</string>
+
+    <!-- Emergency Kit PDF & Drive Defaults -->
+    <string name="drive_default_device_name">Dispositivo Android</string>
+    <string name="emergency_kit_watermark_text">APPOPT • CONFIDENCIAL</string>
+    <string name="emergency_kit_pdf_filename">AppOPT_Emergency_Kit.pdf</string>
+
 </resources>

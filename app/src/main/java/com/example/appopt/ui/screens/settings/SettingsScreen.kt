@@ -208,7 +208,7 @@ fun SettingsScreen(
                         prefsManager.setGoogleDriveConnected(true)
                     }
                 }
-            } catch (e: ApiException) {
+            } catch (_: ApiException) {
                 pendingAuthAction = null
                 scope.launch {
                     snackbarHostState.showSnackbar(driveErrorText)

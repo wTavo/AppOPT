@@ -77,4 +77,22 @@ object DateTimeFormatter {
             else -> formatAbsoluteDateTime(timestamp, locale)
         }
     }
+
+    /**
+     * Convierte una cadena de fecha en formato ISO 8601 (`yyyy-MM-dd'T'HH:mm:ss.SSS'Z'`) a milisegundos
+     * desde el Unix Epoch. Utilizado para parsear respuestas de la API de Google Drive.
+     *
+     * @param dateStr Cadena de fecha en formato ISO 8601 UTC.
+     * @return Milisegundos desde el Epoch, o [System.currentTimeMillis] si el formato es inválido.
+     */
+    fun parseIso8601ToMillis(dateStr: String): Long {
+        return try {
+            val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }
+            format.parse(dateStr)?.time ?: System.currentTimeMillis()
+        } catch (_: Exception) {
+            System.currentTimeMillis()
+        }
+    }
 }

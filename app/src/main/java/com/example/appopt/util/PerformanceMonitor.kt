@@ -1,6 +1,5 @@
 package com.example.appopt.util
 
-import android.util.Log
 import android.view.Choreographer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -39,12 +38,10 @@ import kotlinx.coroutines.flow.asStateFlow
  * Capacidades de diagnóstico:
  * - Mide la tasa de refresco real en tiempo real mediante [Choreographer].
  * - Calcula la duración exacta de cada fotograma en milisegundos (ms).
- * - Detecta caídas de fotogramas (*janks*) y emite registros detallados en Logcat (tag: `AppOPT-Perf`).
+ * - Detecta caídas de fotogramas (*janks*) y expone métricas reactivas.
  * - Expone flujos reactivos para la superposición visual en pantalla.
  */
 object PerformanceMonitor {
-
-    private const val TAG = "AppOPT-Perf"
 
     private val _currentFps = MutableStateFlow(0)
     /** Tasa actual de fotogramas por segundo. */
@@ -125,7 +122,6 @@ object PerformanceMonitor {
         accumulatedFrameDurationNanos = 0L
         janksInWindow = 0
         Choreographer.getInstance().postFrameCallback(frameCallback)
-        Log.i(TAG, "🚀 Monitor de rendimiento iniciado")
     }
 
     /**
@@ -134,7 +130,6 @@ object PerformanceMonitor {
     fun stop() {
         isRunning = false
         Choreographer.getInstance().removeFrameCallback(frameCallback)
-        Log.i(TAG, "🛑 Monitor de rendimiento detenido")
     }
 
     /**

@@ -2,6 +2,7 @@ package com.example.appopt.data.cloud
 
 import android.content.Context
 import com.example.appopt.security.BackupCrypto
+import com.example.appopt.util.DateTimeFormatter
 import com.google.android.gms.auth.api.identity.AuthorizationClient
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.auth.api.identity.Identity
@@ -261,14 +262,7 @@ object GoogleDriveManager {
         val deviceName = appProps?.optString("deviceName")?.ifEmpty { null }
             ?: fileObj.optString("description").ifEmpty { "Dispositivo Android" }
 
-        val modifiedTimeMillis = try {
-            val format = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
-                timeZone = java.util.TimeZone.getTimeZone("UTC")
-            }
-            format.parse(modifiedTimeStr)?.time ?: System.currentTimeMillis()
-        } catch (_: Exception) {
-            System.currentTimeMillis()
-        }
+        val modifiedTimeMillis = DateTimeFormatter.parseIso8601ToMillis(modifiedTimeStr)
 
         DriveBackupInfo(
             fileId = fileId,

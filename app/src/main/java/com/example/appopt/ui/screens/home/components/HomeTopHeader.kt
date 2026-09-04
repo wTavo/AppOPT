@@ -81,7 +81,7 @@ fun HomeTopHeader(
                     color = MaterialTheme.colorScheme.surface,
                     tonalElevation = Dimensions.Elevation.cardDefault,
                     shadowElevation = Dimensions.Elevation.cardDefault,
-                    border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+                    border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(Dimensions.ComponentHeight.buttonDefault)
@@ -172,7 +172,7 @@ fun HomeTopHeader(
                         color = MaterialTheme.colorScheme.surface,
                         tonalElevation = Dimensions.Elevation.cardDefault,
                         shadowElevation = Dimensions.Elevation.cardDefault,
-                        border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
+                        border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
                         modifier = Modifier.wrapContentWidth()
                     ) {
                         Text(

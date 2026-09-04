@@ -57,9 +57,9 @@ fun HomeFloatingDock(
     Surface(
         shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = Dimensions.Elevation.modal,
+        tonalElevation = Dimensions.Elevation.cardDefault,
         shadowElevation = Dimensions.Elevation.cardDragging,
-        border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+        border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
         modifier = modifier.wrapContentWidth()
     ) {
         Row(

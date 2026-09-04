@@ -98,6 +98,9 @@ object Dimensions {
 
         /** Tamaño del indicador circular de progreso TOTP (44.dp). */
         val progressIndicator: Dp = 44.dp
+
+        /** Altura estimada de tarjeta OTP para cálculo de offsets en arrastre (112.dp). */
+        val otpCardEstimatedHeight: Dp = 112.dp
     }
 
     /**

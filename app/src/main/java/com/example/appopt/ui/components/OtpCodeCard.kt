@@ -43,7 +43,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
 import com.example.appopt.R
 import com.example.appopt.domain.model.OtpType
 import com.example.appopt.domain.repository.AccountWithCode
@@ -117,7 +116,7 @@ fun OtpCodeCard(
     }
 
     val cardHeightPx = remember(density) {
-        with(density) { 112.dp.toPx() + Dimensions.Spacing.md.toPx() }
+        with(density) { Dimensions.ComponentHeight.otpCardEstimatedHeight.toPx() + Dimensions.Spacing.md.toPx() }
     }
 
     val dragModifier = if (isReorderEnabled) {

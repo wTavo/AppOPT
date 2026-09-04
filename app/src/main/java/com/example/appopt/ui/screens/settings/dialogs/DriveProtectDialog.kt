@@ -48,7 +48,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.unit.dp
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
 import com.example.appopt.data.cloud.GoogleDriveManager
@@ -450,7 +449,7 @@ fun DriveProtectDialog(
                                             Surface(
                                                 shape = RoundedCornerShape(Dimensions.CornerRadius.small),
                                                 color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                                                border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
+                                                border = if (isSelected) BorderStroke(Dimensions.Stroke.regular, MaterialTheme.colorScheme.primary) else null,
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .clickable {

@@ -48,7 +48,7 @@ fun PerformanceSettingsCard(
     ) {
         Column(
             modifier = Modifier.padding(Dimensions.Spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,

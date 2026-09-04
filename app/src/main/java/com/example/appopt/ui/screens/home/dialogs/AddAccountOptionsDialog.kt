@@ -40,6 +40,7 @@ fun AddAccountOptionsDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(Dimensions.CornerRadius.large),
         title = {
             Text(
                 text = stringResource(R.string.home_add_dialog_title),

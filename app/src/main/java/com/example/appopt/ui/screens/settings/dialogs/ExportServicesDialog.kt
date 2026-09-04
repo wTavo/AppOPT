@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -83,6 +82,7 @@ fun ExportServicesDialog(
                 onDismiss()
             }
         },
+        shape = RoundedCornerShape(Dimensions.CornerRadius.large),
         title = {
             Text(
                 text = if (isShowingQr) {
@@ -97,15 +97,13 @@ fun ExportServicesDialog(
             if (!isShowingQr) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                 ) {
                     Text(
                         text = stringResource(R.string.settings_export_services_dialog_description),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-
-                    Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
 
                     Column(
                         modifier = Modifier

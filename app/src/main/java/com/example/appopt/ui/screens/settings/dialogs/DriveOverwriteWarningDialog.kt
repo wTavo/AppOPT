@@ -55,6 +55,7 @@ fun DriveOverwriteWarningDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(Dimensions.CornerRadius.large),
         icon = {
             Icon(
                 imageVector = Icons.Filled.Shield,
@@ -71,7 +72,7 @@ fun DriveOverwriteWarningDialog(
         },
         text = {
             Column(
-                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
+                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
@@ -82,11 +83,11 @@ fun DriveOverwriteWarningDialog(
 
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.small),
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
-                        modifier = Modifier.padding(Dimensions.Spacing.sm),
+                        modifier = Modifier.padding(Dimensions.Spacing.md),
                         verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
                     ) {
                         Text(
@@ -119,7 +120,7 @@ fun DriveOverwriteWarningDialog(
             }
         },
         dismissButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
                 TextButton(onClick = onDismiss) {
                     Text(
                         text = stringResource(R.string.action_cancel),

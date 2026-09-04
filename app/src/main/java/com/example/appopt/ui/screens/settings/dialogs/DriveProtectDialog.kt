@@ -109,6 +109,7 @@ fun DriveProtectDialog(
                 else -> onDismiss()
             }
         },
+        shape = RoundedCornerShape(Dimensions.CornerRadius.large),
         title = {
             Text(
                 text = when (step) {
@@ -162,6 +163,7 @@ fun DriveProtectDialog(
                                             )
                                         }
                                     },
+                                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                                     singleLine = true,
                                     modifier = Modifier.fillMaxWidth()
                                 )
@@ -171,6 +173,7 @@ fun DriveProtectDialog(
                                     onValueChange = { masterPasswordConfirmText = it },
                                     label = { Text(stringResource(R.string.settings_drive_password_confirm_label)) },
                                     visualTransformation = if (isMasterPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                                     singleLine = true,
                                     isError = masterPasswordConfirmText.isNotEmpty() && masterPasswordText != masterPasswordConfirmText,
                                     modifier = Modifier.fillMaxWidth()
@@ -235,7 +238,7 @@ fun DriveProtectDialog(
                                         }
                                     ) {
                                         Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
-                                        Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                                        Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
                                         Text(stringResource(R.string.settings_drive_copy_60s), style = MaterialTheme.typography.labelLarge)
                                     }
 
@@ -243,7 +246,7 @@ fun DriveProtectDialog(
                                         onClick = { generated64Key = GoogleDriveManager.generate64DigitKey() }
                                     ) {
                                         Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
-                                        Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                                        Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
                                         Text(stringResource(R.string.settings_drive_key_regenerate), style = MaterialTheme.typography.labelLarge)
                                     }
                                 }
@@ -352,9 +355,9 @@ fun DriveProtectDialog(
                             }
 
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                 modifier = Modifier.fillMaxWidth(),
+                                 horizontalArrangement = Arrangement.SpaceBetween,
+                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 TextButton(
                                     onClick = {
@@ -369,7 +372,7 @@ fun DriveProtectDialog(
                                     }
                                 ) {
                                     Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
-                                    Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                                    Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
                                     Text(stringResource(R.string.settings_drive_copy_60s), style = MaterialTheme.typography.labelLarge)
                                 }
 
@@ -377,7 +380,7 @@ fun DriveProtectDialog(
                                     onClick = { generatedMnemonicWords = MnemonicManager.generate12WordPhrase() }
                                 ) {
                                     Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
-                                    Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                                    Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
                                     Text(stringResource(R.string.settings_drive_words_regenerate), style = MaterialTheme.typography.labelLarge)
                                 }
                             }
@@ -406,8 +409,8 @@ fun DriveProtectDialog(
                                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                             ) {
                                 Icon(Icons.Filled.Print, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
-                                Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                                Text(stringResource(R.string.settings_drive_print_pdf), style = MaterialTheme.typography.labelMedium)
+                                Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
+                                Text(stringResource(R.string.settings_drive_print_pdf), style = MaterialTheme.typography.labelLarge)
                             }
 
                             Text(

@@ -119,6 +119,7 @@ fun AccountDetailsDialog(
                 onDismiss()
             }
         },
+        shape = RoundedCornerShape(Dimensions.CornerRadius.large),
         title = {
             if (showDeleteConfirm) {
                 Text(
@@ -180,7 +181,7 @@ fun AccountDetailsDialog(
             } else {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.lg)
+                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                 ) {
                     if (!isEditMode) {
                         // --- MODO VISUALIZACIÓN: Tipografía limpia con Avatar de Marca ---
@@ -195,7 +196,7 @@ fun AccountDetailsDialog(
                                 size = Dimensions.IconSize.hero
                             )
 
-                            Spacer(modifier = Modifier.width(Dimensions.Spacing.md))
+                            Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
 
                             Column {
                                 Text(

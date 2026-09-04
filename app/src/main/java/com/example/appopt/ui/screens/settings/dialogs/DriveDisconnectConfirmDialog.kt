@@ -28,6 +28,7 @@ fun DriveDisconnectConfirmDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(Dimensions.CornerRadius.large),
         title = {
             Text(
                 text = stringResource(R.string.settings_drive_disconnect_confirm_title),

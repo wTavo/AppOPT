@@ -2,9 +2,7 @@ package com.example.appopt.ui.screens.settings.dialogs
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
@@ -50,6 +48,7 @@ fun DriveDecryptDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(Dimensions.CornerRadius.large),
         title = {
             Text(
                 text = stringResource(R.string.settings_drive_decrypt_title),
@@ -59,15 +58,13 @@ fun DriveDecryptDialog(
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
             ) {
                 Text(
                     text = stringResource(R.string.settings_drive_decrypt_hint),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-
-                Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
 
                 OutlinedTextField(
                     value = restoreSecretText,
@@ -82,6 +79,7 @@ fun DriveDecryptDialog(
                             )
                         }
                     },
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )

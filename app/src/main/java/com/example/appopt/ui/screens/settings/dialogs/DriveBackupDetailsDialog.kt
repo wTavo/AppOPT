@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -58,6 +58,7 @@ fun DriveBackupDetailsDialog(
                 onDismiss()
             }
         },
+        shape = RoundedCornerShape(Dimensions.CornerRadius.large),
         title = {
             Text(
                 text = if (isConfirmingDelete) {
@@ -73,7 +74,7 @@ fun DriveBackupDetailsDialog(
             if (!isConfirmingDelete) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                 ) {
                     Text(
                         text = stringResource(R.string.settings_drive_details_date, formattedLastSync ?: ""),
@@ -85,8 +86,6 @@ fun DriveBackupDetailsDialog(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-
-                    Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
 
                     OutlinedButton(
                         onClick = { isConfirmingDelete = true },
@@ -103,7 +102,7 @@ fun DriveBackupDetailsDialog(
                             contentDescription = null,
                             modifier = Modifier.size(Dimensions.IconSize.small)
                         )
-                        Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                        Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
                         Text(
                             text = stringResource(R.string.settings_drive_delete_button),
                             style = MaterialTheme.typography.labelLarge

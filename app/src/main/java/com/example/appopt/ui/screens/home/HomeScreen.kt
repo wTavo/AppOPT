@@ -121,7 +121,7 @@ fun HomeScreen(
     val appHaptics = rememberAppHaptics()
     val context = LocalContext.current
 
-    // Lista de renderizado local activa exclusivamente durante sesiones de arrastre
+    // Lista de renderizado local que mantiene el orden visual determinístico y fluido sin parpadeos
     val localAccounts = remember { mutableStateListOf<AccountWithCode>() }
     var draggingAccountId by remember { mutableStateOf<String?>(null) }
     var pointerViewportY by remember { mutableFloatStateOf(0f) }
@@ -136,13 +136,24 @@ fun HomeScreen(
         }
     }
 
-    // Durante el arrastre se usa la lista local (mutable); fuera de él, la lista del ViewModel
-    val accountsToDisplay by remember(draggingAccountId) {
-        derivedStateOf {
-            if (draggingAccountId != null && localAccounts.isNotEmpty()) localAccounts
-            else currentSuccessAccounts
+    // Sincroniza la lista local con las emisiones del ViewModel evitando rebotes o parpadeos
+    LaunchedEffect(currentSuccessAccounts) {
+        if (draggingAccountId == null) {
+            localAccounts.clear()
+            localAccounts.addAll(currentSuccessAccounts)
+        } else {
+            val codeMap = currentSuccessAccounts.associate { it.account.id to it.code }
+            for (i in localAccounts.indices) {
+                val item = localAccounts[i]
+                val updatedCode = codeMap[item.account.id]
+                if (updatedCode != null && updatedCode != item.code) {
+                    localAccounts[i] = item.copy(code = updatedCode)
+                }
+            }
         }
     }
+
+    val accountsToDisplay = if (localAccounts.isNotEmpty()) localAccounts else currentSuccessAccounts
 
     val listState = rememberLazyListState()
 
@@ -278,7 +289,7 @@ fun HomeScreen(
                                     shadowElevation = 16f
                                 }
                         } else {
-                            Modifier
+                            Modifier.animateItem()
                         }
 
                         OtpCodeCard(
@@ -293,8 +304,9 @@ fun HomeScreen(
                             onNextHotpCode = onNextHotpCode,
                             onStartDrag = {
                                 if (searchQuery.isBlank()) {
-                                    localAccounts.clear()
-                                    localAccounts.addAll(currentSuccessAccounts)
+                                    if (localAccounts.isEmpty() && currentSuccessAccounts.isNotEmpty()) {
+                                        localAccounts.addAll(currentSuccessAccounts)
+                                    }
                                     draggingAccountId = item.account.id
                                     val layoutInfo = listState.layoutInfo
                                     val draggedItem = layoutInfo.visibleItemsInfo.find { it.key == item.account.id }
@@ -309,7 +321,7 @@ fun HomeScreen(
                                 if (draggingAccountId == item.account.id) {
                                     pointerViewportY += deltaY
 
-                                    val now = System.currentTimeMillis()
+                                     val now = System.currentTimeMillis()
                                     if (now - lastSwapTime >= Motion.Duration.DragDebounce.toLong()) {
                                         val floatingCenterY = pointerViewportY
                                         val currentIndex = localAccounts.indexOfFirst { it.account.id == item.account.id }
@@ -353,11 +365,11 @@ fun HomeScreen(
                             },
                             onEndDrag = {
                                 if (draggingAccountId != null) {
-                                    onCommitReorder(localAccounts.map { it.account.id })
+                                    val finalOrderedIds = localAccounts.map { it.account.id }
+                                    onCommitReorder(finalOrderedIds)
                                     draggingAccountId = null
                                     pointerViewportY = 0f
                                     touchOffsetYInCard = 0f
-                                    localAccounts.clear()
                                 }
                             }
                         )

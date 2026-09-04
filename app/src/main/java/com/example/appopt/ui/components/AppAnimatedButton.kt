@@ -34,6 +34,7 @@ import com.example.appopt.ui.theme.SafeGreen
 import com.example.appopt.ui.theme.rememberAppHaptics
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Botón interactivo reutilizable con animación de confirmación exitosa y respuesta háptica.
@@ -77,7 +78,7 @@ fun AppAnimatedButton(
                     if (success) {
                         appHaptics.success()
                         isSuccess = true
-                        delay(Motion.Duration.SuccessAction.toLong())
+                        delay(Motion.Duration.SuccessAction.toLong().milliseconds)
                         onActionConfirmed()
                     }
                 }

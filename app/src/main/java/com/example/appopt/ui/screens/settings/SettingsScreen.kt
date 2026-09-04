@@ -58,7 +58,6 @@ import com.example.appopt.ui.screens.settings.dialogs.SyncFrequencyDialog
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.util.DateTimeFormatter
-import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.common.api.ApiException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -408,7 +407,6 @@ fun SettingsScreen(
                 prefsManager.setLastSyncedVaultHash("")
                 lastSyncedHash = ""
                 CloudVaultSyncManager.schedulePeriodicSync(context, SyncFrequency.OFF, false)
-                Identity.getSignInClient(context).signOut()
                 scope.launch {
                     snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_disconnected_success))
                 }

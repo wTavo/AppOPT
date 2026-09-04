@@ -51,6 +51,7 @@ import com.example.appopt.ui.theme.SafeGreen
 import com.example.appopt.ui.theme.UrgentRed
 import com.example.appopt.ui.theme.rememberAppHaptics
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Modal / Popup para visualizar o editar la información de una cuenta con escala tipográfica estandarizada y animaciones centralizadas.
@@ -87,7 +88,7 @@ fun AccountDetailsDialog(
 
     LaunchedEffect(copied) {
         if (copied) {
-            delay(Motion.Duration.FeedbackToast.toLong())
+            delay(Motion.Duration.FeedbackToast.toLong().milliseconds)
             copied = false
         }
     }

@@ -3,10 +3,8 @@ package com.example.appopt.ui.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -53,6 +51,7 @@ import com.example.appopt.ui.theme.WarningOrange
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.util.AccessibilityUtils
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Tarjeta visual para representar una cuenta 2FA y su código OTP actual con alto contraste, tipografía escalable, ripple nativo y arrastre.
@@ -100,7 +99,7 @@ fun OtpCodeCard(
 
     LaunchedEffect(copied) {
         if (copied) {
-            delay(Motion.Duration.FeedbackToast.toLong())
+            delay(Motion.Duration.FeedbackToast.toLong().milliseconds)
             copied = false
         }
     }

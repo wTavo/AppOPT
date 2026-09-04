@@ -6,7 +6,6 @@ import com.example.appopt.AuthenticatorApp
 import com.example.appopt.domain.model.OtpAlgorithm
 import com.example.appopt.domain.model.OtpType
 import com.example.appopt.domain.totp.Base32
-import com.example.appopt.domain.totp.TotpEngine
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -22,7 +21,6 @@ import kotlinx.coroutines.launch
  * @property period Periodo de rotación en segundos (por defecto 30).
  * @property type Tipo de OTP (TOTP por defecto).
  * @property isSecretValid Indica si la clave Base32 tiene formato canónico válido.
- * @property previewCode Código OTP de prueba generado en tiempo real.
  * @property errorMessage Mensaje de error descriptivo si la validación falla.
  * @property isSavedSuccessfully Bandera para indicar navegación tras guardar con éxito.
  */
@@ -35,7 +33,6 @@ data class AddAccountUiState(
     val period: Int = 30,
     val type: OtpType = OtpType.TOTP,
     val isSecretValid: Boolean = false,
-    val previewCode: String? = null,
     val errorMessage: String? = null,
     val isSavedSuccessfully: Boolean = false
 )
@@ -72,32 +69,15 @@ class AddAccountViewModel : ViewModel() {
     }
 
     /**
-     * Actualiza y sanea la clave secreta Base32, calculando una vista previa en tiempo real si es válida.
+     * Actualiza y sanea la clave secreta Base32 verificando su validez de formato.
      */
     fun onSecretChanged(value: String) {
         val sanitized = Base32.sanitize(value)
         val isValid = Base32.isValid(sanitized)
-        var preview: String? = null
-
-        if (isValid) {
-            try {
-                val secretBytes = Base32.decode(sanitized)
-                preview = TotpEngine.generateTotp(
-                    secretBytes = secretBytes,
-                    timeMillis = System.currentTimeMillis(),
-                    periodSeconds = _uiState.value.period,
-                    digits = _uiState.value.digits,
-                    algorithm = _uiState.value.algorithm
-                )
-            } catch (e: Exception) {
-                preview = null
-            }
-        }
 
         _uiState.value = _uiState.value.copy(
             secret = value,
             isSecretValid = isValid,
-            previewCode = preview,
             errorMessage = null
         )
     }
@@ -107,7 +87,6 @@ class AddAccountViewModel : ViewModel() {
      */
     fun onAlgorithmChanged(algo: OtpAlgorithm) {
         _uiState.value = _uiState.value.copy(algorithm = algo)
-        onSecretChanged(_uiState.value.secret)
     }
 
     /**
@@ -115,7 +94,6 @@ class AddAccountViewModel : ViewModel() {
      */
     fun onDigitsChanged(digits: Int) {
         _uiState.value = _uiState.value.copy(digits = digits)
-        onSecretChanged(_uiState.value.secret)
     }
 
     /**
@@ -123,7 +101,6 @@ class AddAccountViewModel : ViewModel() {
      */
     fun onPeriodChanged(period: Int) {
         _uiState.value = _uiState.value.copy(period = period)
-        onSecretChanged(_uiState.value.secret)
     }
 
     /**

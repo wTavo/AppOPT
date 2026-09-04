@@ -53,7 +53,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.appopt.R
 import com.example.appopt.domain.model.OtpAlgorithm
 import com.example.appopt.ui.components.AppAnimatedButton
-import com.example.appopt.ui.components.ServiceBrandAvatar
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.SafeGreen
@@ -67,7 +66,7 @@ import com.example.appopt.ui.theme.rememberAppHaptics
  * - Campos obligatorios prioritarios: Servicio/Emisor y Clave Secreta Base32.
  * - Campo opcional: Nombre de cuenta / usuario.
  * - Opciones avanzadas (Algoritmo HMAC y Dígitos) agrupadas en un panel desplegable colapsado por defecto.
- * - Validación en tiempo real y vista previa del código OTP generado.
+ * - Indicador de validación de clave Base32 en tiempo real.
  * - Botón de guardado animado reutilizable ([AppAnimatedButton]): transiciona a verde con palomita al confirmar.
  *
  * @param viewModel ViewModel encargado de la lógica y validación criptográfica del formulario.
@@ -169,57 +168,6 @@ fun AddAccountScreen(
                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                 modifier = Modifier.fillMaxWidth()
             )
-
-            // Vista previa del código OTP generado en vivo
-            AnimatedVisibility(visible = uiState.previewCode != null) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    ),
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(Dimensions.Spacing.lg),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            modifier = Modifier.weight(1f),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            ServiceBrandAvatar(
-                                issuer = uiState.issuer,
-                                size = Dimensions.IconSize.hero
-                            )
-
-                            Spacer(modifier = Modifier.width(Dimensions.Spacing.md))
-
-                            Column {
-                                Text(
-                                    text = stringResource(R.string.add_account_preview_title),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = uiState.issuer.ifEmpty { stringResource(R.string.home_default_issuer) },
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 1
-                                )
-                            }
-                        }
-
-                        Text(
-                            text = uiState.previewCode ?: "",
-                            style = MaterialTheme.typography.displayMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
 
             // Sección colapsable de Opciones Avanzadas
             Card(

@@ -65,15 +65,16 @@ import com.example.appopt.ui.theme.rememberAppHaptics
  * 2. Modo búsqueda: Barra de texto en píldora con botón de limpieza y foco directo.
  *
  * Estados visuales del título central:
- * - [CloudSyncUiState.IDLE]: Muestra el título estándar "Authenticator".
+ * - [CloudSyncUiState.IDLE]: Muestra el título estándar "Authenticator". Si Google Drive está conectado ([isDriveConnected]), se muestra con contorno verde y animación de brillo (*shine*) en las letras.
  * - [CloudSyncUiState.SYNCING]: Muestra icono de sincronización giratorio y texto descriptivo de carga.
- * - [CloudSyncUiState.SUCCESS]: Muestra contorno verde, icono de verificación y texto "Authenticator" con animación de brillo verde (*shine*).
+ * - [CloudSyncUiState.SUCCESS]: Muestra la palomita verde de confirmación junto al título.
  * - [CloudSyncUiState.ERROR]: Muestra contorno rojo e icono de advertencia de error.
  *
  * @param isSearchActive Indica si el campo de búsqueda está desplegado.
  * @param searchQuery Texto de búsqueda actual.
  * @param isHideCodesEnabled Estado del modo de privacidad para ocultar dígitos OTP.
  * @param cloudSyncState Estado visual de la sincronización en la nube ([CloudSyncUiState]).
+ * @param isDriveConnected Indica si la cuenta de Google Drive está conectada y sincronizada.
  * @param onSearchActiveChange Callback invocado al activar/desactivar el modo búsqueda.
  * @param onSearchQueryChange Callback invocado al escribir en el campo de búsqueda.
  * @param onToggleHideCodes Callback invocado al alternar el botón de privacidad de códigos.
@@ -85,6 +86,7 @@ fun HomeTopHeader(
     searchQuery: String,
     isHideCodesEnabled: Boolean,
     cloudSyncState: CloudSyncUiState,
+    isDriveConnected: Boolean = true,
     onSearchActiveChange: (Boolean) -> Unit,
     onSearchQueryChange: (String) -> Unit,
     onToggleHideCodes: () -> Unit,
@@ -135,10 +137,10 @@ fun HomeTopHeader(
     )
 
     val targetBorderColor = when (cloudSyncState) {
-        CloudSyncUiState.IDLE -> MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
         CloudSyncUiState.SYNCING -> MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-        CloudSyncUiState.SUCCESS -> SafeGreen
         CloudSyncUiState.ERROR -> MaterialTheme.colorScheme.error
+        CloudSyncUiState.SUCCESS -> SafeGreen
+        CloudSyncUiState.IDLE -> if (isDriveConnected) SafeGreen else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
     }
 
     val animatedBorderColor by animateColorAsState(
@@ -276,10 +278,17 @@ fun HomeTopHeader(
                                     CloudSyncUiState.IDLE -> {
                                         Text(
                                             text = stringResource(R.string.home_title),
-                                            style = MaterialTheme.typography.headlineSmall.copy(
-                                                fontWeight = FontWeight.ExtraBold
-                                            ),
-                                            color = MaterialTheme.colorScheme.onSurface
+                                            style = if (isDriveConnected) {
+                                                MaterialTheme.typography.headlineSmall.copy(
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    brush = successShineBrush
+                                                )
+                                            } else {
+                                                MaterialTheme.typography.headlineSmall.copy(
+                                                    fontWeight = FontWeight.ExtraBold
+                                                )
+                                            },
+                                            color = if (isDriveConnected) Color.Unspecified else MaterialTheme.colorScheme.onSurface
                                         )
                                     }
                                     CloudSyncUiState.SYNCING -> {

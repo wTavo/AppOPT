@@ -51,10 +51,22 @@ class HomeViewModel : ViewModel() {
     private val _cloudSyncState = MutableStateFlow(CloudSyncUiState.IDLE)
     val cloudSyncState: StateFlow<CloudSyncUiState> = _cloudSyncState.asStateFlow()
 
+    /** Indica si la cuenta de Google Drive está vinculada y la sincronización activa. */
+    private val _isDriveConnected = MutableStateFlow(preferencesManager.isGoogleDriveConnected())
+    val isDriveConnected: StateFlow<Boolean> = _isDriveConnected.asStateFlow()
+
     private var syncFeedbackJob: Job? = null
 
     init {
+        refreshDriveConnectionState()
         observeReactiveSync()
+    }
+
+    /**
+     * Actualiza el estado de conexión con Google Drive en tiempo real.
+     */
+    fun refreshDriveConnectionState() {
+        _isDriveConnected.value = preferencesManager.isGoogleDriveConnected()
     }
 
     /**

@@ -112,6 +112,8 @@
     <string name="settings_drive_frequency_weekly">Semanalmente</string>
     <string name="settings_drive_frequency_monthly">Mensualmente</string>
     <string name="settings_drive_frequency_off">Desactivada</string>
+    <string name="settings_drive_auto_sync_title">Copia automática al hacer cambios</string>
+    <string name="settings_drive_auto_sync_desc">Guarda tus cuentas en Google Drive automáticamente unos segundos después de agregar o editar un servicio.</string>
     <string name="settings_drive_test_sync_button">Probar copia en segundo plano (1 min)</string>
     <string name="settings_drive_test_sync_scheduled">Copia en segundo plano programada en 1 minuto. Puedes minimizar la app para comprobar.</string>
     <string name="settings_drive_mobile_data_label">Usar datos móviles para la copia</string>

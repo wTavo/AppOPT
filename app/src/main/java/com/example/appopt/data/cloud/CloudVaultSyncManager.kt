@@ -121,6 +121,54 @@ object CloudVaultSyncManager {
         )
     }
 
+    const val REACTIVE_WORK_NAME = "appopt_cloud_vault_reactive_sync"
+    const val DEFAULT_DEBOUNCE_SECONDS = 30L
+
+    /**
+     * Dispara una tarea única de sincronización en segundo plano con retardo de consolidación (*Debouncing*).
+     *
+     * Principio de consolidación:
+     * - Si el usuario realiza múltiples modificaciones consecutivas, cada cambio cancela y reemplaza
+     *   la tarea pendiente mediante [ExistingWorkPolicy.REPLACE], reiniciando el temporizador de [debounceSeconds].
+     * - Solo cuando el usuario pasa [debounceSeconds] sin realizar modificaciones, se ejecuta una única subida consolidada.
+     *
+     * @param context Contexto de la aplicación.
+     * @param debounceSeconds Retardo en segundos antes de iniciar la subida (por defecto 30 segundos).
+     */
+    fun triggerReactiveSync(
+        context: Context,
+        debounceSeconds: Long = DEFAULT_DEBOUNCE_SECONDS
+    ) {
+        val prefsManager = com.example.appopt.data.local.PreferencesManager(context)
+        if (!prefsManager.isGoogleDriveConnected() || !prefsManager.isAutoSyncEnabled()) {
+            return
+        }
+
+        val workManager = WorkManager.getInstance(context)
+        val allowMobileData = prefsManager.isSyncMobileDataAllowed()
+
+        val networkType = if (allowMobileData) {
+            NetworkType.CONNECTED
+        } else {
+            NetworkType.UNMETERED
+        }
+
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(networkType)
+            .build()
+
+        val reactiveRequest = OneTimeWorkRequestBuilder<AutoSyncWorker>()
+            .setInitialDelay(debounceSeconds, TimeUnit.SECONDS)
+            .setConstraints(constraints)
+            .build()
+
+        workManager.enqueueUniqueWork(
+            REACTIVE_WORK_NAME,
+            ExistingWorkPolicy.REPLACE,
+            reactiveRequest
+        )
+    }
+
     const val TEST_WORK_NAME = "appopt_cloud_vault_test_sync"
 
     /**

@@ -70,6 +70,13 @@ class PreferencesManager(context: Context) {
         return sharedPreferences.getBoolean(KEY_AUTO_SYNC_ENABLED, true)
     }
 
+    /**
+     * Guarda el estado de activación de la copia de seguridad automática.
+     */
+    fun setAutoSyncEnabled(enabled: Boolean) {
+        sharedPreferences.edit { putBoolean(KEY_AUTO_SYNC_ENABLED, enabled) }
+    }
+
 
     /**
      * Retorna si la sincronización puede usar datos móviles (por defecto false -> solo Wi-Fi).

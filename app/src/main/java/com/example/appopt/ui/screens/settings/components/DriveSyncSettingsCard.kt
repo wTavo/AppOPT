@@ -56,7 +56,7 @@ import com.example.appopt.ui.theme.appSwitchColors
  * @param driveBackupExists Indica si se detectó una copia de seguridad remota existente en Google Drive.
  * @param hasUnsyncedChanges Indica si existen cambios locales no sincronizados con la nube.
  * @param lastSyncTimestamp Marca de tiempo en milisegundos de la última sincronización.
- * @param syncFrequency Frecuencia configurada para la sincronización periódica en segundo plano.
+ * @param isAutoSyncEnabled Indica si la copia automática al hacer cambios está activada.
  * @param isSyncMobileDataAllowed Indica si se permite sincronizar con conexión de datos móviles.
  * @param onConnectClick Callback para conectar la cuenta de Google.
  * @param onManualSyncClick Callback para disparar la sincronización inmediata.
@@ -64,7 +64,7 @@ import com.example.appopt.ui.theme.appSwitchColors
  * @param onCreateBackupClick Callback para crear una nueva copia de seguridad.
  * @param onBackupDetailsClick Callback para ver detalles y gestionar la copia existente.
  * @param onDisconnectClick Callback para desvincular la cuenta de Google.
- * @param onFrequencyClick Callback para abrir el selector de frecuencia de sincronización.
+ * @param onAutoSyncToggle Callback para activar o desactivar la copia automática al hacer cambios.
  * @param onMobileDataToggle Callback para alternar el permiso de datos móviles.
  * @param onTestSyncClick Callback opcional para programar una prueba de sincronización en segundo plano en 1 minuto.
  * @param modifier Modificador de diseño Compose opcional.
@@ -78,7 +78,7 @@ fun DriveSyncSettingsCard(
     driveBackupExists: Boolean,
     hasUnsyncedChanges: Boolean,
     lastSyncTimestamp: Long,
-    syncFrequency: SyncFrequency,
+    isAutoSyncEnabled: Boolean,
     isSyncMobileDataAllowed: Boolean,
     onConnectClick: () -> Unit,
     onManualSyncClick: () -> Unit,
@@ -86,7 +86,7 @@ fun DriveSyncSettingsCard(
     onCreateBackupClick: () -> Unit,
     onBackupDetailsClick: () -> Unit,
     onDisconnectClick: () -> Unit,
-    onFrequencyClick: () -> Unit,
+    onAutoSyncToggle: (Boolean) -> Unit,
     onMobileDataToggle: (Boolean) -> Unit,
     onTestSyncClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -353,7 +353,7 @@ fun DriveSyncSettingsCard(
                 }
             }
 
-            // 5. Contenedor de automatización (frecuencia y datos móviles)
+            // 5. Contenedor de automatización (Copia automática al hacer cambios y datos móviles)
             if (isDriveConnected) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
@@ -364,44 +364,39 @@ fun DriveSyncSettingsCard(
                         modifier = Modifier.padding(Dimensions.Spacing.md),
                         verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
                     ) {
+                        // Switch principal: Copia automática al hacer cambios
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onFrequencyClick() }
+                                .clickable { onAutoSyncToggle(!isAutoSyncEnabled) }
                                 .padding(vertical = Dimensions.Spacing.xs),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column(
-                                modifier = Modifier.weight(1f).padding(end = Dimensions.Spacing.sm),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = Dimensions.Spacing.sm),
                                 verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
                             ) {
                                 Text(
-                                    text = stringResource(R.string.settings_drive_frequency_title),
+                                    text = stringResource(R.string.settings_drive_auto_sync_title),
                                     style = MaterialTheme.typography.titleSmall
                                 )
-                                val frequencyLabel = when (syncFrequency) {
-                                    SyncFrequency.MINUTES_15 -> stringResource(R.string.settings_drive_frequency_15min)
-                                    SyncFrequency.HOURLY -> stringResource(R.string.settings_drive_frequency_hourly)
-                                    SyncFrequency.DAILY -> stringResource(R.string.settings_drive_frequency_daily)
-                                    SyncFrequency.WEEKLY -> stringResource(R.string.settings_drive_frequency_weekly)
-                                    SyncFrequency.MONTHLY -> stringResource(R.string.settings_drive_frequency_monthly)
-                                    SyncFrequency.OFF -> stringResource(R.string.settings_drive_frequency_off)
-                                }
                                 Text(
-                                    text = frequencyLabel,
+                                    text = stringResource(R.string.settings_drive_auto_sync_desc),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            Icon(
-                                imageVector = Icons.Filled.ChevronRight,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            Switch(
+                                checked = isAutoSyncEnabled,
+                                onCheckedChange = onAutoSyncToggle,
+                                colors = appSwitchColors()
                             )
                         }
 
-                        if (syncFrequency != SyncFrequency.OFF) {
+                        if (isAutoSyncEnabled) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -411,7 +406,9 @@ fun DriveSyncSettingsCard(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Column(
-                                    modifier = Modifier.weight(1f).padding(end = Dimensions.Spacing.sm),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(end = Dimensions.Spacing.sm),
                                     verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
                                 ) {
                                     Text(

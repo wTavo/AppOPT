@@ -212,6 +212,7 @@ class AccountRepositoryImpl(
         )
 
         accountDao.insertAccount(entity)
+        com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
         return entity.toDomain()
     }
 
@@ -226,6 +227,7 @@ class AccountRepositoryImpl(
             accountName = accountName.trim(),
             updatedAt = System.currentTimeMillis()
         )
+        com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
     }
 
     /**
@@ -239,6 +241,7 @@ class AccountRepositoryImpl(
                 updatedAt = System.currentTimeMillis()
             )
         )
+        com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
     }
 
     /**
@@ -254,6 +257,7 @@ class AccountRepositoryImpl(
     override suspend fun deleteAccount(id: String) {
         otpCodeCache.remove(id)
         accountDao.deleteAccountById(id)
+        com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
     }
 
     /**
@@ -268,10 +272,11 @@ class AccountRepositoryImpl(
                 updatedAt = System.currentTimeMillis()
             )
         )
+        com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
     }
 
     /**
-     * Exporta las cuentas de la bóveda para migración y transferencia por código QR.
+     * Exporta las cuentas de la bóveda para migración y transferencia por código QR o copia en la nube.
      *
      * Si solo hay 1 cuenta, genera el URI estándar otpauth://
      * Si hay múltiples cuentas, genera un payload JSON estructurado con el prefijo "appopt-migration:"
@@ -293,6 +298,7 @@ class AccountRepositoryImpl(
                 secretBytes = cryptoManager.decrypt(entity.encryptedSecret, entity.iv)
                 val secretBase32 = Base32.encode(secretBytes)
                 val item = JSONObject().apply {
+                    put("id", entity.id)
                     put("issuer", entity.issuer)
                     put("accountName", entity.accountName)
                     put("secret", secretBase32)
@@ -301,6 +307,7 @@ class AccountRepositoryImpl(
                     put("period", entity.period)
                     put("type", entity.type)
                     put("counter", entity.counter)
+                    put("updatedAt", entity.updatedAt)
                 }
                 jsonArray.put(item)
             } finally {
@@ -367,6 +374,99 @@ class AccountRepositoryImpl(
                 }
             }
             count
+        }
+    }
+
+    /**
+     * Fusiona de forma no destructiva las cuentas provenientes de una copia remota de Google Drive con la base de datos local.
+     */
+    override suspend fun mergeAccountsFromRemote(remoteBackupJson: String): Result<Int> = withContext(Dispatchers.IO) {
+        runCatching {
+            val trimmed = remoteBackupJson.trim()
+            if (trimmed.isBlank()) return@runCatching 0
+
+            val root = JSONObject(trimmed)
+            if (!root.has("accounts")) return@runCatching 0
+            val accountsArray = root.getJSONArray("accounts")
+            if (accountsArray.length() == 0) return@runCatching 0
+
+            val currentEntities = accountDao.getAllAccountsSync()
+            val localById = currentEntities.associateBy { it.id }
+            val localByCompositeKey = currentEntities.associateBy {
+                "${it.issuer.lowercase().trim()}:${it.accountName.lowercase().trim()}"
+            }
+
+            var changesCount = 0
+
+            for (i in 0 until accountsArray.length()) {
+                val item = accountsArray.getJSONObject(i)
+                val remoteId = item.optString("id", "")
+                val remoteIssuer = item.optString("issuer", "Cuenta").trim()
+                val remoteAccountName = item.optString("accountName", "Usuario").trim()
+                val remoteUpdatedAt = item.optLong("updatedAt", 0L)
+                val rawSecret = item.getString("secret")
+                val remoteAlgorithm = OtpAlgorithm.fromString(item.optString("algorithm", "SHA1"))
+                val remoteDigits = item.optInt("digits", 6)
+                val remotePeriod = item.optInt("period", 30)
+                val remoteType = OtpType.fromString(item.optString("type", "TOTP"))
+                val remoteCounter = item.optLong("counter", 0L)
+
+                val compositeKey = "${remoteIssuer.lowercase()}:${remoteAccountName.lowercase()}"
+                val existingEntity = (if (remoteId.isNotBlank()) localById[remoteId] else null) ?: localByCompositeKey[compositeKey]
+
+                if (existingEntity == null) {
+                    val secretBytes = Base32.decode(Base32.sanitize(rawSecret))
+                    try {
+                        val payload = cryptoManager.encrypt(secretBytes)
+                        val newId = if (remoteId.isNotBlank()) remoteId else UUID.randomUUID().toString()
+                        val now = if (remoteUpdatedAt > 0L) remoteUpdatedAt else System.currentTimeMillis()
+                        val newEntity = AccountEntity(
+                            id = newId,
+                            issuer = remoteIssuer,
+                            accountName = remoteAccountName,
+                            encryptedSecret = payload.ciphertext,
+                            iv = payload.iv,
+                            algorithm = remoteAlgorithm.name,
+                            digits = remoteDigits,
+                            period = remotePeriod,
+                            type = remoteType.name,
+                            counter = remoteCounter,
+                            createdAt = now,
+                            updatedAt = now
+                        )
+                        accountDao.insertAccount(newEntity)
+                        changesCount++
+                    } finally {
+                        CryptoManager.zeroize(secretBytes)
+                    }
+                } else {
+                    if (remoteUpdatedAt > existingEntity.updatedAt) {
+                        val secretBytes = Base32.decode(Base32.sanitize(rawSecret))
+                        try {
+                            val payload = cryptoManager.encrypt(secretBytes)
+                            val updatedEntity = existingEntity.copy(
+                                issuer = remoteIssuer,
+                                accountName = remoteAccountName,
+                                encryptedSecret = payload.ciphertext,
+                                iv = payload.iv,
+                                algorithm = remoteAlgorithm.name,
+                                digits = remoteDigits,
+                                period = remotePeriod,
+                                type = remoteType.name,
+                                counter = remoteCounter,
+                                updatedAt = remoteUpdatedAt
+                            )
+                            accountDao.updateAccount(updatedEntity)
+                            otpCodeCache.remove(existingEntity.id)
+                            changesCount++
+                        } finally {
+                            CryptoManager.zeroize(secretBytes)
+                        }
+                    }
+                }
+            }
+
+            changesCount
         }
     }
 

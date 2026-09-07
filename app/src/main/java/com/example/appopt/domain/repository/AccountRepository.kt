@@ -103,4 +103,17 @@ interface AccountRepository {
      * @return [Result] con la cantidad de cuentas importadas exitosamente.
      */
     suspend fun importAccountsFromTransfer(transferPayload: String): Result<Int>
+
+    /**
+     * Fusiona de forma no destructiva las cuentas provenientes de una copia remota de Google Drive con la base de datos local.
+     *
+     * Principio de resolución determinística de conflictos (Multi-Device Deterministic Merge):
+     * - Cuentas remotas no presentes en local se incorporan automáticamente.
+     * - Cuentas coincidentes se actualizan preservando la versión con [TotpAccount.updatedAt] más reciente.
+     * - Cuentas locales no presentes en el respaldo remoto se mantienen intactas para posterior subida.
+     *
+     * @param remoteBackupJson Cadena JSON con el respaldo descargado y descifrado de Google Drive.
+     * @return [Result] con el número de cuentas insertadas o actualizadas.
+     */
+    suspend fun mergeAccountsFromRemote(remoteBackupJson: String): Result<Int>
 }

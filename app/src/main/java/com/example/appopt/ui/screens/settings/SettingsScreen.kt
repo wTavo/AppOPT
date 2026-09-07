@@ -63,7 +63,6 @@ import com.example.appopt.ui.screens.settings.dialogs.DriveDisconnectConfirmDial
 import com.example.appopt.ui.screens.settings.dialogs.DriveOverwriteWarningDialog
 import com.example.appopt.ui.screens.settings.dialogs.DriveProtectDialog
 import com.example.appopt.ui.screens.settings.dialogs.ExportServicesDialog
-import com.example.appopt.ui.screens.settings.dialogs.SyncFrequencyDialog
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.util.BatteryOptimizationHelper
@@ -107,7 +106,7 @@ fun SettingsScreen(
     // Estados de sincronización con Google Identity Services
     val authClient = remember { GoogleDriveManager.getAuthorizationClient(context) }
     var isDriveConnected by remember { mutableStateOf(prefsManager.isGoogleDriveConnected()) }
-    var syncFrequency by remember { mutableStateOf(prefsManager.getSyncFrequency()) }
+    var isAutoSyncEnabled by remember { mutableStateOf(prefsManager.isAutoSyncEnabled()) }
     var isSyncMobileDataAllowed by remember { mutableStateOf(prefsManager.isSyncMobileDataAllowed()) }
     var lastSyncTimestamp by remember { mutableLongStateOf(prefsManager.getLastSyncTimestamp()) }
     var driveAccessToken by remember { mutableStateOf<String?>(null) }
@@ -119,7 +118,6 @@ fun SettingsScreen(
 
     // Estados para control de modales
     var showExportDialog by remember { mutableStateOf(false) }
-    var showFrequencyDialog by remember { mutableStateOf(false) }
     var showBackupDetailsDialog by remember { mutableStateOf(false) }
     var showDisconnectConfirmDialog by remember { mutableStateOf(false) }
     var showDriveProtectDialog by remember { mutableStateOf(false) }
@@ -426,12 +424,14 @@ fun SettingsScreen(
                 driveBackupExists = driveBackupExists,
                 hasUnsyncedChanges = hasUnsyncedChanges,
                 lastSyncTimestamp = lastSyncTimestamp,
-                syncFrequency = syncFrequency,
+                isAutoSyncEnabled = isAutoSyncEnabled,
                 isSyncMobileDataAllowed = isSyncMobileDataAllowed,
                 onConnectClick = {
                     requestGoogleAuthorization { token ->
                         isDriveConnected = true
                         prefsManager.setGoogleDriveConnected(true)
+                        prefsManager.setAutoSyncEnabled(true)
+                        isAutoSyncEnabled = true
                         isCheckingDriveBackup = true
                         scope.launch {
                             try {
@@ -477,11 +477,19 @@ fun SettingsScreen(
                 },
                 onBackupDetailsClick = { showBackupDetailsDialog = true },
                 onDisconnectClick = { showDisconnectConfirmDialog = true },
-                onFrequencyClick = { showFrequencyDialog = true },
+                onAutoSyncToggle = { enabled ->
+                    isAutoSyncEnabled = enabled
+                    prefsManager.setAutoSyncEnabled(enabled)
+                    if (enabled) {
+                        CloudVaultSyncManager.triggerReactiveSync(context, 0L)
+                    }
+                },
                 onMobileDataToggle = { allowed ->
                     isSyncMobileDataAllowed = allowed
                     prefsManager.setSyncMobileDataAllowed(allowed)
-                    CloudVaultSyncManager.schedulePeriodicSync(context, syncFrequency, allowed)
+                    if (isAutoSyncEnabled) {
+                        CloudVaultSyncManager.triggerReactiveSync(context, 0L)
+                    }
                 },
                 onTestSyncClick = {
                     CloudVaultSyncManager.scheduleTestSync(context, 60L, isSyncMobileDataAllowed)
@@ -560,7 +568,9 @@ fun SettingsScreen(
                             prefsManager.setLastSyncTimestamp(now)
                             prefsManager.setLastSyncedVaultHash(currentHash)
                             lastSyncedHash = currentHash
-                            CloudVaultSyncManager.schedulePeriodicSync(context, syncFrequency, isSyncMobileDataAllowed)
+                            if (isAutoSyncEnabled) {
+                                CloudVaultSyncManager.triggerReactiveSync(context, 0L)
+                            }
                             SyncNotificationHelper.showSyncSuccessNotification(context.applicationContext, accounts.size)
                             snackbarHostState.showSnackbar(driveSyncSuccessText)
                         }.onFailure { _ ->
@@ -596,7 +606,9 @@ fun SettingsScreen(
                                 val currentHash = CloudVaultSyncManager.computeVaultHash(jsonPayload)
                                 prefsManager.setLastSyncedVaultHash(currentHash)
                                 lastSyncedHash = currentHash
-                                CloudVaultSyncManager.schedulePeriodicSync(context, syncFrequency, isSyncMobileDataAllowed)
+                                if (isAutoSyncEnabled) {
+                                    CloudVaultSyncManager.triggerReactiveSync(context, 0L)
+                                }
                                 snackbarHostState.showSnackbar(
                                     context.applicationContext.getString(R.string.settings_drive_restore_success, count)
                                 )
@@ -612,20 +624,6 @@ fun SettingsScreen(
                 }
             },
             onDismiss = { showDriveDecryptDialog = false }
-        )
-    }
-
-    // Modal: Selección de Frecuencia de Sincronización
-    if (showFrequencyDialog) {
-        SyncFrequencyDialog(
-            currentFrequency = syncFrequency,
-            onFrequencySelected = { frequencyOption ->
-                syncFrequency = frequencyOption
-                prefsManager.setSyncFrequency(frequencyOption)
-                CloudVaultSyncManager.schedulePeriodicSync(context, frequencyOption, isSyncMobileDataAllowed)
-                showFrequencyDialog = false
-            },
-            onDismiss = { showFrequencyDialog = false }
         )
     }
 

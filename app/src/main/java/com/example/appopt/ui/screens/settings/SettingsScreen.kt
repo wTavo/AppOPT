@@ -1,9 +1,13 @@
 package com.example.appopt.ui.screens.settings
 
+import android.Manifest
 import android.app.Activity
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -225,6 +229,18 @@ fun SettingsScreen(
         }
     }
 
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { /* Permiso otorgado o denegado por el usuario */ }
+
+    fun checkAndRequestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+
     fun requestGoogleAuthorization(onAuthorized: (String) -> Unit) {
         pendingAuthAction = onAuthorized
         authClient.authorize(GoogleDriveManager.getAuthorizationRequest())
@@ -363,6 +379,7 @@ fun SettingsScreen(
                                     lastSyncedHash = currentVaultHash
                                 }
                                  snackbarHostState.showSnackbar(driveConnectedSuccessText)
+                                checkAndRequestNotificationPermission()
                             } finally {
                                 isCheckingDriveBackup = false
                             }
@@ -534,6 +551,9 @@ fun SettingsScreen(
                 prefsManager.setSyncFrequency(frequencyOption)
                 CloudVaultSyncManager.schedulePeriodicSync(context, frequencyOption, isSyncMobileDataAllowed)
                 showFrequencyDialog = false
+                if (frequencyOption != SyncFrequency.OFF) {
+                    checkAndRequestNotificationPermission()
+                }
             },
             onDismiss = { showFrequencyDialog = false }
         )

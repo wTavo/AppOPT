@@ -12,6 +12,7 @@ import com.example.appopt.security.AppLockManager
 import com.example.appopt.security.BiometricAuthManager
 import com.example.appopt.security.CryptoManager
 import com.example.appopt.security.SecureClipboardManager
+import com.example.appopt.util.SyncNotificationHelper
 
 /**
  * Clase principal de la Aplicación que inicializa el contenedor de dependencias
@@ -75,6 +76,9 @@ class AuthenticatorApp : Application() {
         appLockManager = AppLockManager()
         secureClipboardManager = SecureClipboardManager(this)
         preferencesManager = PreferencesManager(this)
+
+        // Inicializa el canal de notificaciones para copias automáticas
+        SyncNotificationHelper.createNotificationChannel(this)
 
         // Precalienta la caché de drawables vectoriales en segundo plano
         com.example.appopt.ui.brand.ServiceBrandProvider.preloadBrandIcons(this)

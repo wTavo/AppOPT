@@ -6,6 +6,7 @@ import androidx.work.WorkerParameters
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.data.local.PreferencesManager
 import com.example.appopt.security.SecurityConfig
+import com.example.appopt.util.SyncNotificationHelper
 import com.google.android.gms.tasks.Tasks
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -74,6 +75,7 @@ class AutoSyncWorker(
                     val now = System.currentTimeMillis()
                     prefsManager.setLastSyncTimestamp(now)
                     prefsManager.setLastSyncedVaultHash(currentVaultHash)
+                    SyncNotificationHelper.showSyncSuccessNotification(applicationContext, accounts.size)
                     Result.success()
                 } else {
                     Result.retry()

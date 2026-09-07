@@ -202,6 +202,12 @@
     <string name="time_yesterday_at">ayer a las %1$s</string>
     <string name="card_seconds_abbrev">segundos restantes</string>
 
+    <!-- Notificaciones del Sistema -->
+    <string name="notification_channel_sync_name">Copia de seguridad en la nube</string>
+    <string name="notification_channel_sync_desc">Notificaciones sobre el estado de la sincronización automática en Google Drive.</string>
+    <string name="notification_sync_success_title">Copia de seguridad completada</string>
+    <string name="notification_sync_success_msg">Tus servicios se han respaldado de forma segura en Google Drive.</string>
+
     <!-- ================================================================= -->
     <!-- 3. ERRORES, VALIDACIONES Y RETROALIMENTACIÓN ACCIONABLE          -->
     <!--    (Directiva 15: Zero-Leakage & Actionable Error Handling)       -->

@@ -6,7 +6,6 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -68,9 +67,9 @@ private data class PermissionItemData(
 /**
  * Tarjeta de ajustes para la visualización y gestión de los permisos recomendados de la aplicación.
  *
- * Presenta los permisos no concedidos de forma destacada en color rojo con su botón de acción,
+ * Presenta los permisos no concedidos de forma destacada en color rojo con su botón de acción alineado,
  * mientras que los permisos ya otorgados se agrupan en un contenedor desplegable para optimizar
- * el espacio vertical en pantalla.
+ * el espacio vertical en pantalla según las directivas de Material Design 3.
  *
  * @param isCameraGranted Indica si el permiso de cámara para escaneo QR está concedido.
  * @param isNotificationGranted Indica si las notificaciones del sistema están habilitadas.
@@ -134,48 +133,21 @@ fun PermissionsSettingsCard(
             modifier = Modifier.padding(Dimensions.Spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
         ) {
-            // 1. Cabecera con icono, título y badge de estado
+            // 1. Cabecera limpia con icono y título estándar
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
-                    modifier = Modifier.weight(1f, fill = false)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Security,
-                        contentDescription = null,
-                        tint = if (pendingPermissions.isEmpty()) SafeGreen else MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(Dimensions.IconSize.medium)
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_permissions_title),
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                }
-
-                val badgeColor = if (pendingPermissions.isEmpty()) SafeGreen else MaterialTheme.colorScheme.error
-                val badgeBg = if (pendingPermissions.isEmpty()) SafeGreen.copy(alpha = 0.12f) else MaterialTheme.colorScheme.errorContainer
-                val badgeText = if (pendingPermissions.isEmpty()) {
-                    stringResource(R.string.settings_permission_granted)
-                } else {
-                    stringResource(R.string.settings_permission_not_granted)
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
-                    color = badgeBg
-                ) {
-                    Text(
-                        text = badgeText,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = badgeColor,
-                        modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs)
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Filled.Security,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(Dimensions.IconSize.medium)
+                )
+                Text(
+                    text = stringResource(R.string.settings_permissions_title),
+                    style = MaterialTheme.typography.titleMedium
+                )
             }
 
             // 2. Descripción explicativa
@@ -290,6 +262,9 @@ fun PermissionsSettingsCard(
 /**
  * Fila para un permiso no concedido, con énfasis visual en rojo/alerta y botón de acción.
  *
+ * Utiliza una estructura de dos columnas: contenido informativo a la izquierda (icono, título y descripción)
+ * y botón de acción a la derecha, alineado verticalmente según las directivas de Material Design 3.
+ *
  * @param icon Icono representativo del permiso.
  * @param title Nombre del permiso o funcionalidad.
  * @param description Explicación del propósito del permiso.
@@ -307,62 +282,54 @@ private fun PendingPermissionRow(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f),
-        border = BorderStroke(
-            width = Dimensions.Stroke.thin,
-            color = MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
-        )
+        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.20f)
     ) {
-        Column(
-            modifier = Modifier.padding(Dimensions.Spacing.md),
-            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(Dimensions.Spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
-                    modifier = Modifier.weight(1f, fill = false)
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(Dimensions.IconSize.small)
-                    )
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(Dimensions.IconSize.medium)
+            )
 
-                Button(
-                    onClick = {
-                        appHaptics.click()
-                        onRequestPermission()
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError
-                    ),
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                ) {
-                    Text(
-                        text = stringResource(R.string.settings_permission_action_grant),
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Button(
+                onClick = {
+                    appHaptics.click()
+                    onRequestPermission()
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError
+                ),
+                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_permission_action_grant),
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
         }
     }
 }
@@ -382,67 +349,63 @@ private fun GrantedPermissionRow(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Dimensions.CornerRadius.small),
+        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
         color = MaterialTheme.colorScheme.surface
     ) {
-        Column(
-            modifier = Modifier.padding(Dimensions.Spacing.sm),
-            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(Dimensions.Spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = SafeGreen,
+                modifier = Modifier.size(Dimensions.IconSize.medium)
+            )
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Surface(
+                shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
+                color = SafeGreen.copy(alpha = 0.12f)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
-                    modifier = Modifier.weight(1f, fill = false)
+                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs),
+                    modifier = Modifier.padding(
+                        horizontal = Dimensions.Spacing.sm,
+                        vertical = Dimensions.Spacing.xs
+                    )
                 ) {
                     Icon(
-                        imageVector = icon,
+                        imageVector = Icons.Filled.CheckCircle,
                         contentDescription = null,
                         tint = SafeGreen,
                         modifier = Modifier.size(Dimensions.IconSize.small)
                     )
                     Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleSmall
+                        text = stringResource(R.string.settings_permission_granted),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = SafeGreen
                     )
                 }
-
-                Surface(
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
-                    color = SafeGreen.copy(alpha = 0.12f)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs),
-                        modifier = Modifier.padding(
-                            horizontal = Dimensions.Spacing.sm,
-                            vertical = Dimensions.Spacing.xs
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.CheckCircle,
-                            contentDescription = null,
-                            tint = SafeGreen,
-                            modifier = Modifier.size(Dimensions.IconSize.small)
-                        )
-                        Text(
-                            text = stringResource(R.string.settings_permission_granted),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = SafeGreen
-                        )
-                    }
-                }
             }
-
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }

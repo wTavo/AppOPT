@@ -168,41 +168,4 @@ object CloudVaultSyncManager {
             reactiveRequest
         )
     }
-
-    const val TEST_WORK_NAME = "appopt_cloud_vault_test_sync"
-
-    /**
-     * Programa una prueba de ejecución única de la copia en segundo plano con un retardo en segundos.
-     *
-     * @param context Contexto de la aplicación.
-     * @param delaySeconds Tiempo en segundos antes de ejecutar el worker (por defecto 60 s).
-     * @param allowMobileData Indica si permite datos móviles.
-     */
-    fun scheduleTestSync(
-        context: Context,
-        delaySeconds: Long = 60L,
-        allowMobileData: Boolean = true
-    ) {
-        val workManager = WorkManager.getInstance(context)
-        val networkType = if (allowMobileData) {
-            NetworkType.CONNECTED
-        } else {
-            NetworkType.UNMETERED
-        }
-
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(networkType)
-            .build()
-
-        val testRequest = OneTimeWorkRequestBuilder<AutoSyncWorker>()
-            .setInitialDelay(delaySeconds, TimeUnit.SECONDS)
-            .setConstraints(constraints)
-            .build()
-
-        workManager.enqueueUniqueWork(
-            TEST_WORK_NAME,
-            ExistingWorkPolicy.REPLACE,
-            testRequest
-        )
-    }
 }

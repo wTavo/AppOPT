@@ -21,7 +21,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CloudDone
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.SyncDisabled
 import androidx.compose.material3.Button
@@ -40,7 +39,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import com.example.appopt.R
-import com.example.appopt.data.cloud.SyncFrequency
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.SafeGreen
 import com.example.appopt.ui.theme.WarningOrange
@@ -66,7 +64,6 @@ import com.example.appopt.ui.theme.appSwitchColors
  * @param onDisconnectClick Callback para desvincular la cuenta de Google.
  * @param onAutoSyncToggle Callback para activar o desactivar la copia automática al hacer cambios.
  * @param onMobileDataToggle Callback para alternar el permiso de datos móviles.
- * @param onTestSyncClick Callback opcional para programar una prueba de sincronización en segundo plano en 1 minuto.
  * @param modifier Modificador de diseño Compose opcional.
  */
 @Composable
@@ -88,7 +85,6 @@ fun DriveSyncSettingsCard(
     onDisconnectClick: () -> Unit,
     onAutoSyncToggle: (Boolean) -> Unit,
     onMobileDataToggle: (Boolean) -> Unit,
-    onTestSyncClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -426,25 +422,6 @@ fun DriveSyncSettingsCard(
                                     onCheckedChange = onMobileDataToggle,
                                     colors = appSwitchColors()
                                 )
-                            }
-
-                            if (onTestSyncClick != null) {
-                                OutlinedButton(
-                                    onClick = onTestSyncClick,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Schedule,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(Dimensions.IconSize.small)
-                                    )
-                                    Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
-                                    Text(
-                                        text = stringResource(R.string.settings_drive_test_sync_button),
-                                        style = MaterialTheme.typography.labelLarge
-                                    )
-                                }
                             }
                         }
                     }

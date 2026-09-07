@@ -57,6 +57,7 @@ import com.example.appopt.ui.screens.settings.dialogs.ExportServicesDialog
 import com.example.appopt.ui.screens.settings.dialogs.SyncFrequencyDialog
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
+import com.example.appopt.util.BatteryOptimizationHelper
 import com.example.appopt.util.DateTimeFormatter
 import com.google.android.gms.common.api.ApiException
 import kotlinx.coroutines.Dispatchers
@@ -126,8 +127,12 @@ fun SettingsScreen(
 
     val lifecycleOwner = LocalLifecycleOwner.current
     var currentTick by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var isBatteryOptimizationIgnored by remember {
+        mutableStateOf(BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context))
+    }
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            isBatteryOptimizationIgnored = BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)
             while (isActive) {
                 val now = System.currentTimeMillis()
                 currentTick = now
@@ -339,6 +344,7 @@ fun SettingsScreen(
                 lastSyncTimestamp = lastSyncTimestamp,
                 syncFrequency = syncFrequency,
                 isSyncMobileDataAllowed = isSyncMobileDataAllowed,
+                isBatteryOptimizationIgnored = isBatteryOptimizationIgnored,
                 onConnectClick = {
                     requestGoogleAuthorization { token ->
                         isDriveConnected = true
@@ -393,6 +399,9 @@ fun SettingsScreen(
                     isSyncMobileDataAllowed = allowed
                     prefsManager.setSyncMobileDataAllowed(allowed)
                     CloudVaultSyncManager.schedulePeriodicSync(context, syncFrequency, allowed)
+                },
+                onRequestBatteryOptimizationClick = {
+                    BatteryOptimizationHelper.requestIgnoreBatteryOptimizations(context)
                 }
             )
         }

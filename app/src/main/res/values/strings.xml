@@ -112,6 +112,10 @@
     <string name="settings_drive_frequency_off">Desactivada</string>
     <string name="settings_drive_mobile_data_label">Usar datos móviles para la copia</string>
     <string name="settings_drive_mobile_data_description">Si está desactivado, la copia automática solo se realizará mediante Wi-Fi.</string>
+    <string name="settings_drive_battery_opt_title">Optimización de batería de Android</string>
+    <string name="settings_drive_battery_opt_description">Para garantizar que la copia automática se realice a tiempo en segundo plano, permite que AppOPT funcione sin restricciones de batería.</string>
+    <string name="settings_drive_battery_opt_button">Desactivar restricción</string>
+    <string name="settings_drive_battery_opt_active">Sin restricciones de batería (Óptimo para copia automática)</string>
     <string name="settings_drive_delete_button">Eliminar copia de Google Drive</string>
     <string name="settings_drive_delete_confirm_title">Eliminar copia de seguridad</string>
     <string name="settings_drive_delete_confirm_msg">¿Deseas eliminar permanentemente tu copia de seguridad de Google Drive? Esta acción no se puede deshacer y no podrás restaurar tus servicios desde la nube.</string>

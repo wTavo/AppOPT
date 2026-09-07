@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BatteryAlert
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.Sync
@@ -56,6 +58,7 @@ import com.example.appopt.ui.theme.appSwitchColors
  * @param lastSyncTimestamp Marca de tiempo en milisegundos de la última sincronización.
  * @param syncFrequency Frecuencia configurada para la sincronización periódica en segundo plano.
  * @param isSyncMobileDataAllowed Indica si se permite sincronizar con conexión de datos móviles.
+ * @param isBatteryOptimizationIgnored Indica si la aplicación está exenta de restricciones de optimización de batería.
  * @param onConnectClick Callback para conectar la cuenta de Google.
  * @param onManualSyncClick Callback para disparar la sincronización inmediata.
  * @param onRestoreClick Callback para iniciar el descifrado y restauración.
@@ -64,6 +67,7 @@ import com.example.appopt.ui.theme.appSwitchColors
  * @param onDisconnectClick Callback para desvincular la cuenta de Google.
  * @param onFrequencyClick Callback para abrir el selector de frecuencia de sincronización.
  * @param onMobileDataToggle Callback para alternar el permiso de datos móviles.
+ * @param onRequestBatteryOptimizationClick Callback para solicitar la exclusión de optimización de batería.
  * @param modifier Modificador de diseño Compose opcional.
  */
 @Composable
@@ -77,6 +81,7 @@ fun DriveSyncSettingsCard(
     lastSyncTimestamp: Long,
     syncFrequency: SyncFrequency,
     isSyncMobileDataAllowed: Boolean,
+    isBatteryOptimizationIgnored: Boolean,
     onConnectClick: () -> Unit,
     onManualSyncClick: () -> Unit,
     onRestoreClick: () -> Unit,
@@ -85,6 +90,7 @@ fun DriveSyncSettingsCard(
     onDisconnectClick: () -> Unit,
     onFrequencyClick: () -> Unit,
     onMobileDataToggle: (Boolean) -> Unit,
+    onRequestBatteryOptimizationClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -423,6 +429,71 @@ fun DriveSyncSettingsCard(
                                     onCheckedChange = onMobileDataToggle,
                                     colors = appSwitchColors()
                                 )
+                            }
+
+                            if (!isBatteryOptimizationIgnored) {
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                    color = WarningOrange.copy(alpha = 0.12f)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(Dimensions.Spacing.md),
+                                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.BatteryAlert,
+                                                contentDescription = null,
+                                                tint = WarningOrange,
+                                                modifier = Modifier.size(Dimensions.IconSize.small)
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.settings_drive_battery_opt_title),
+                                                style = MaterialTheme.typography.titleSmall,
+                                                color = WarningOrange
+                                            )
+                                        }
+                                        Text(
+                                            text = stringResource(R.string.settings_drive_battery_opt_description),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        OutlinedButton(
+                                            onClick = onRequestBatteryOptimizationClick,
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                                        ) {
+                                            Text(
+                                                text = stringResource(R.string.settings_drive_battery_opt_button),
+                                                style = MaterialTheme.typography.labelLarge
+                                            )
+                                        }
+                                    }
+                                }
+                            } else {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = Dimensions.Spacing.xs),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.CheckCircle,
+                                        contentDescription = null,
+                                        tint = SafeGreen,
+                                        modifier = Modifier.size(Dimensions.IconSize.small)
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.settings_drive_battery_opt_active),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = SafeGreen
+                                    )
+                                }
                             }
                         }
                     }

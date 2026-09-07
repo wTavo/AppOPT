@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -25,30 +26,47 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import com.example.appopt.R
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.SafeGreen
+import com.example.appopt.ui.theme.UrgentRed
 import com.example.appopt.ui.theme.rememberAppHaptics
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Botón interactivo reutilizable con animación de confirmación exitosa, protección contra doble pulsación y respuesta háptica.
+ * Estados visuales de interacción para [AppAnimatedButton].
+ */
+enum class AnimatedButtonState {
+    /** Estado neutro de reposo. */
+    IDLE,
+    /** Acción completada con éxito: palomita y fondo verde de seguridad. */
+    SUCCESS,
+    /** Acción fallida o inválida: 'X' y fondo rojo de urgencia. */
+    ERROR
+}
+
+/**
+ * Botón interactivo reutilizable con animación de confirmación exitosa/error, protección contra doble pulsación y respuesta háptica.
  *
  * Principio de diseño y seguridad:
- * - En estado normal muestra el texto descriptivo de la acción con fondo primario.
+ * - En estado normal muestra el texto descriptivo de la acción con color configurable o primario por defecto.
  * - Al pulsar, bloquea inmediatamente cualquier pulsación adicional concurrente ([isProcessing]).
- * - Al confirmarse la acción, emite respuesta háptica ([AppHaptics.success]), realiza una transición fluida al verde ([SafeGreen]),
- *   reemplaza el texto con una palomita blanca ([Icons.Filled.Check]) manteniendo su color vivo, y ejecuta [onActionConfirmed].
+ * - Si [onClick] retorna `true`: emite respuesta háptica ([AppHaptics.success]), realiza una transición fluida al verde ([SafeGreen]),
+ *   reemplaza el texto con una palomita blanca ([Icons.Filled.Check]) y ejecuta [onActionConfirmed].
+ * - Si [onClick] retorna `false` o lanza excepción: emite respuesta háptica ([AppHaptics.error]), realiza una transición fluida al rojo ([UrgentRed]),
+ *   reemplaza el texto con una 'X' blanca ([Icons.Filled.Close]), y regresa al estado [AnimatedButtonState.IDLE] permitiendo corregir y reintentar.
  *
  * @param text Texto descriptivo del botón en Sentence case.
- * @param onClick Acción a ejecutar al presionar. Debe retornar `true` si la acción fue exitosa y debe animarse.
+ * @param onClick Acción asíncrona a ejecutar. Debe retornar `true` si la acción fue exitosa o `false` si falló.
  * @param onActionConfirmed Callback invocado una vez finalizada la animación de la palomita.
+ * @param modifier Modificador de layout Compose.
  * @param enabled Si es falso, el botón queda deshabilitado visual y funcionalmente.
- * @param modifier Modificador de layout.
+ * @param containerColor Color de fondo opcional en estado normal (por defecto [MaterialTheme.colorScheme.primary]).
  */
 @Composable
 fun AppAnimatedButton(
@@ -56,20 +74,29 @@ fun AppAnimatedButton(
     onClick: suspend () -> Boolean,
     onActionConfirmed: () -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    containerColor: Color? = null
 ) {
     val coroutineScope = rememberCoroutineScope()
     val appHaptics = rememberAppHaptics()
-    var isSuccess by remember { mutableStateOf(false) }
+    var buttonState by remember { mutableStateOf(AnimatedButtonState.IDLE) }
     var isProcessing by remember { mutableStateOf(false) }
 
+    val defaultContainerColor = containerColor ?: MaterialTheme.colorScheme.primary
+
+    val targetContainerColor = when (buttonState) {
+        AnimatedButtonState.IDLE -> defaultContainerColor
+        AnimatedButtonState.SUCCESS -> SafeGreen
+        AnimatedButtonState.ERROR -> UrgentRed
+    }
+
     val animatedContainerColor by animateColorAsState(
-        targetValue = if (isSuccess) SafeGreen else MaterialTheme.colorScheme.primary,
+        targetValue = targetContainerColor,
         animationSpec = Motion.Spec.buttonColorSpec(),
         label = "animatedButtonColor"
     )
 
-    val isButtonInteractive = enabled && !isProcessing && !isSuccess
+    val isButtonInteractive = enabled && !isProcessing && buttonState == AnimatedButtonState.IDLE
 
     Button(
         onClick = {
@@ -80,25 +107,39 @@ fun AppAnimatedButton(
                         val success = onClick()
                         if (success) {
                             appHaptics.success()
-                            isSuccess = true
+                            buttonState = AnimatedButtonState.SUCCESS
                             delay(Motion.Duration.SUCCESS_ACTION.toLong().milliseconds)
                             onActionConfirmed()
                         } else {
                             appHaptics.error()
+                            buttonState = AnimatedButtonState.ERROR
+                            delay(Motion.Duration.SUCCESS_ACTION.toLong().milliseconds)
+                            buttonState = AnimatedButtonState.IDLE
                             isProcessing = false
                         }
                     } catch (_: Exception) {
+                        appHaptics.error()
+                        buttonState = AnimatedButtonState.ERROR
+                        delay(Motion.Duration.SUCCESS_ACTION.toLong().milliseconds)
+                        buttonState = AnimatedButtonState.IDLE
                         isProcessing = false
                     }
                 }
             }
         },
-        enabled = isButtonInteractive || isSuccess,
+        enabled = isButtonInteractive || buttonState != AnimatedButtonState.IDLE,
         colors = ButtonDefaults.buttonColors(
             containerColor = animatedContainerColor,
             contentColor = MaterialTheme.colorScheme.onPrimary,
-            disabledContainerColor = if (isSuccess) SafeGreen else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-            disabledContentColor = if (isSuccess) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+            disabledContainerColor = when (buttonState) {
+                AnimatedButtonState.SUCCESS -> SafeGreen
+                AnimatedButtonState.ERROR -> UrgentRed
+                AnimatedButtonState.IDLE -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+            },
+            disabledContentColor = when (buttonState) {
+                AnimatedButtonState.SUCCESS, AnimatedButtonState.ERROR -> MaterialTheme.colorScheme.onPrimary
+                AnimatedButtonState.IDLE -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+            }
         ),
         shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
         modifier = modifier
@@ -106,28 +147,41 @@ fun AppAnimatedButton(
             .height(Dimensions.ComponentHeight.buttonDefault)
     ) {
         AnimatedContent(
-            targetState = isSuccess,
+            targetState = buttonState,
             transitionSpec = {
                 fadeIn(animationSpec = Motion.Spec.quickFadeSpec()) togetherWith
                         fadeOut(animationSpec = Motion.Spec.quickFadeSpec())
             },
             label = "animatedButtonContent"
-        ) { successState ->
-            if (successState) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Filled.Check,
-                        contentDescription = stringResource(R.string.action_copied),
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(Dimensions.IconSize.large)
+        ) { state ->
+            when (state) {
+                AnimatedButtonState.SUCCESS -> {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Filled.Check,
+                            contentDescription = stringResource(R.string.home_sync_success),
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(Dimensions.IconSize.large)
+                        )
+                    }
+                }
+                AnimatedButtonState.ERROR -> {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.home_sync_error),
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(Dimensions.IconSize.large)
+                        )
+                    }
+                }
+                AnimatedButtonState.IDLE -> {
+                    Text(
+                        text = text,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onPrimary
                     )
                 }
-            } else {
-                Text(
-                    text = text,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
             }
         }
     }

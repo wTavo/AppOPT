@@ -155,4 +155,11 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 - **PROHIBIDO** redactar mensajes de commit de Git en inglés u otros idiomas.
 - **OBLIGATORIO** escribir todos los mensajes de commit en **español**, utilizando la estructura de commits semánticos (ej. `feat: ...`, `fix: ...`, `refactor: ...`, `test: ...`, `docs: ...`) con descripciones claras y gramaticalmente correctas en español.
 
+---
+
+## 24. Idempotencia, Bloqueo de Doble Pulsación y Retroalimentación en Botones (*Idempotent Animated Buttons*)
+- **PROHIBIDO** permitir pulsaciones múltiples o concurrentes en botones que ejecutan acciones asíncronas, mutantes o destructivas (guardado, edición, borrado, sincronización o transferencia).
+- **OBLIGATORIO** utilizar `AppAnimatedButton` o banderas atómicas de bloqueo (`isProcessing`) para congelar la interactividad al primer toque, proporcionando confirmación visual inmediata (palomita blanca sobre fondo `SafeGreen` en éxito o 'X' blanca sobre fondo `UrgentRed` en fallo) y respuesta háptica semántica (`AppHaptics`).
+
+
 

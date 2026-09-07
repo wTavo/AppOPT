@@ -103,24 +103,24 @@ fun HomeTopHeader(
         }
     }
 
-    // Animación infinita para rotación de sincronización y barrido de brillo (*shine*)
+    // Animación infinita para rotación de sincronización y barrido de brillo suave y pausado (*shine*)
     val infiniteTransition = rememberInfiniteTransition(label = "headerSyncInfiniteTransition")
 
     val rotationAngle by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1000, easing = LinearEasing),
+            animation = tween(durationMillis = 1200, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "syncRotation"
     )
 
     val shineOffset by infiniteTransition.animateFloat(
-        initialValue = -150f,
-        targetValue = 400f,
+        initialValue = -300f,
+        targetValue = 600f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1500, easing = LinearEasing),
+            animation = tween(durationMillis = 4000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "shineOffsetAnimation"
@@ -133,7 +133,7 @@ fun HomeTopHeader(
             SafeGreen
         ),
         start = Offset(shineOffset, 0f),
-        end = Offset(shineOffset + 120f, 0f)
+        end = Offset(shineOffset + 180f, 0f)
     )
 
     val targetBorderColor = when (cloudSyncState) {
@@ -270,7 +270,7 @@ fun HomeTopHeader(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.Center,
                                 modifier = Modifier.padding(
-                                    horizontal = Dimensions.Spacing.lg,
+                                    horizontal = Dimensions.Spacing.xl,
                                     vertical = Dimensions.Spacing.sm
                                 )
                             ) {
@@ -297,16 +297,8 @@ fun HomeTopHeader(
                                             contentDescription = stringResource(R.string.home_sync_syncing),
                                             tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier
-                                                .size(Dimensions.IconSize.medium)
+                                                .size(Dimensions.IconSize.large)
                                                 .graphicsLayer { rotationZ = rotationAngle }
-                                        )
-                                        Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
-                                        Text(
-                                            text = stringResource(R.string.home_sync_syncing),
-                                            style = MaterialTheme.typography.titleMedium.copy(
-                                                fontWeight = FontWeight.Bold
-                                            ),
-                                            color = MaterialTheme.colorScheme.primary
                                         )
                                     }
                                     CloudSyncUiState.SUCCESS -> {
@@ -314,15 +306,7 @@ fun HomeTopHeader(
                                             imageVector = Icons.Filled.Check,
                                             contentDescription = stringResource(R.string.home_sync_success),
                                             tint = SafeGreen,
-                                            modifier = Modifier.size(Dimensions.IconSize.medium)
-                                        )
-                                        Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
-                                        Text(
-                                            text = stringResource(R.string.home_title),
-                                            style = MaterialTheme.typography.headlineSmall.copy(
-                                                fontWeight = FontWeight.ExtraBold,
-                                                brush = successShineBrush
-                                            )
+                                            modifier = Modifier.size(Dimensions.IconSize.large)
                                         )
                                     }
                                     CloudSyncUiState.ERROR -> {
@@ -330,15 +314,7 @@ fun HomeTopHeader(
                                             imageVector = Icons.Filled.Close,
                                             contentDescription = stringResource(R.string.home_sync_error),
                                             tint = MaterialTheme.colorScheme.error,
-                                            modifier = Modifier.size(Dimensions.IconSize.medium)
-                                        )
-                                        Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
-                                        Text(
-                                            text = stringResource(R.string.home_sync_error),
-                                            style = MaterialTheme.typography.titleMedium.copy(
-                                                fontWeight = FontWeight.Bold
-                                            ),
-                                            color = MaterialTheme.colorScheme.error
+                                            modifier = Modifier.size(Dimensions.IconSize.large)
                                         )
                                     }
                                 }

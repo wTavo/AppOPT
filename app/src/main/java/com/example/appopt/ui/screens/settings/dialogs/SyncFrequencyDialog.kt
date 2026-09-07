@@ -52,6 +52,8 @@ fun SyncFrequencyDialog(
                 verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
             ) {
                 val frequencyOptions = listOf(
+                    SyncFrequency.MINUTES_15 to R.string.settings_drive_frequency_15min,
+                    SyncFrequency.HOURLY to R.string.settings_drive_frequency_hourly,
                     SyncFrequency.DAILY to R.string.settings_drive_frequency_daily,
                     SyncFrequency.WEEKLY to R.string.settings_drive_frequency_weekly,
                     SyncFrequency.MONTHLY to R.string.settings_drive_frequency_monthly,

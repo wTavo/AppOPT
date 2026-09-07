@@ -12,15 +12,20 @@ import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+
 /**
  * Frecuencia configurable de la copia de seguridad automática en Google Drive.
  *
- * @property intervalDays Intervalo de días entre ejecuciones periódicas (0 para desactivada).
+ * @property intervalMinutes Intervalo en minutos entre ejecuciones periódicas (0 para desactivada).
  */
-enum class SyncFrequency(val intervalDays: Long) {
-    DAILY(1L),
-    WEEKLY(7L),
-    MONTHLY(30L),
+enum class SyncFrequency(val intervalMinutes: Long) {
+    MINUTES_15(15L),
+    HOURLY(60L),
+    DAILY(1440L),
+    WEEKLY(10080L),
+    MONTHLY(43200L),
     OFF(0L);
 
     companion object {
@@ -104,7 +109,7 @@ object CloudVaultSyncManager {
             .setRequiresBatteryNotLow(true)
             .build()
 
-        val syncRequest = PeriodicWorkRequestBuilder<AutoSyncWorker>(frequency.intervalDays, TimeUnit.DAYS)
+        val syncRequest = PeriodicWorkRequestBuilder<AutoSyncWorker>(frequency.intervalMinutes, TimeUnit.MINUTES)
             .setConstraints(constraints)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, TimeUnit.MINUTES)
             .build()
@@ -113,6 +118,43 @@ object CloudVaultSyncManager {
             PERIODIC_WORK_NAME,
             ExistingPeriodicWorkPolicy.UPDATE,
             syncRequest
+        )
+    }
+
+    const val TEST_WORK_NAME = "appopt_cloud_vault_test_sync"
+
+    /**
+     * Programa una prueba de ejecución única de la copia en segundo plano con un retardo en segundos.
+     *
+     * @param context Contexto de la aplicación.
+     * @param delaySeconds Tiempo en segundos antes de ejecutar el worker (por defecto 60 s).
+     * @param allowMobileData Indica si permite datos móviles.
+     */
+    fun scheduleTestSync(
+        context: Context,
+        delaySeconds: Long = 60L,
+        allowMobileData: Boolean = true
+    ) {
+        val workManager = WorkManager.getInstance(context)
+        val networkType = if (allowMobileData) {
+            NetworkType.CONNECTED
+        } else {
+            NetworkType.UNMETERED
+        }
+
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(networkType)
+            .build()
+
+        val testRequest = OneTimeWorkRequestBuilder<AutoSyncWorker>()
+            .setInitialDelay(delaySeconds, TimeUnit.SECONDS)
+            .setConstraints(constraints)
+            .build()
+
+        workManager.enqueueUniqueWork(
+            TEST_WORK_NAME,
+            ExistingWorkPolicy.REPLACE,
+            testRequest
         )
     }
 }

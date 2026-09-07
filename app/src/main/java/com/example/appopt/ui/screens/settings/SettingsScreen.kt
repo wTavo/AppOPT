@@ -134,6 +134,7 @@ fun SettingsScreen(
     val driveSyncSuccessText = stringResource(R.string.settings_drive_sync_success)
     val driveDecryptErrorText = stringResource(R.string.settings_drive_decrypt_error)
     val driveDeleteSuccessText = stringResource(R.string.settings_drive_delete_success)
+    val driveTestSyncScheduledText = stringResource(R.string.settings_drive_test_sync_scheduled)
 
     val lifecycleOwner = LocalLifecycleOwner.current
     var currentTick by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -471,6 +472,13 @@ fun SettingsScreen(
                 },
                 onRequestBatteryOptimizationClick = {
                     BatteryOptimizationHelper.requestIgnoreBatteryOptimizations(context)
+                },
+                onTestSyncClick = {
+                    CloudVaultSyncManager.scheduleTestSync(context, 60L, isSyncMobileDataAllowed)
+                    appHaptics.click()
+                    scope.launch {
+                        snackbarHostState.showSnackbar(driveTestSyncScheduledText)
+                    }
                 }
             )
 

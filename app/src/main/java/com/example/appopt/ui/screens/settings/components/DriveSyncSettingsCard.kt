@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.BatteryAlert
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.SyncDisabled
 import androidx.compose.material3.Button
@@ -68,6 +69,7 @@ import com.example.appopt.ui.theme.appSwitchColors
  * @param onFrequencyClick Callback para abrir el selector de frecuencia de sincronización.
  * @param onMobileDataToggle Callback para alternar el permiso de datos móviles.
  * @param onRequestBatteryOptimizationClick Callback para solicitar la exclusión de optimización de batería.
+ * @param onTestSyncClick Callback opcional para programar una prueba de sincronización en segundo plano en 1 minuto.
  * @param modifier Modificador de diseño Compose opcional.
  */
 @Composable
@@ -91,6 +93,7 @@ fun DriveSyncSettingsCard(
     onFrequencyClick: () -> Unit,
     onMobileDataToggle: (Boolean) -> Unit,
     onRequestBatteryOptimizationClick: () -> Unit,
+    onTestSyncClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -383,6 +386,8 @@ fun DriveSyncSettingsCard(
                                     style = MaterialTheme.typography.titleSmall
                                 )
                                 val frequencyLabel = when (syncFrequency) {
+                                    SyncFrequency.MINUTES_15 -> stringResource(R.string.settings_drive_frequency_15min)
+                                    SyncFrequency.HOURLY -> stringResource(R.string.settings_drive_frequency_hourly)
                                     SyncFrequency.DAILY -> stringResource(R.string.settings_drive_frequency_daily)
                                     SyncFrequency.WEEKLY -> stringResource(R.string.settings_drive_frequency_weekly)
                                     SyncFrequency.MONTHLY -> stringResource(R.string.settings_drive_frequency_monthly)
@@ -492,6 +497,25 @@ fun DriveSyncSettingsCard(
                                         text = stringResource(R.string.settings_drive_battery_opt_active),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = SafeGreen
+                                    )
+                                }
+                            }
+
+                            if (onTestSyncClick != null) {
+                                OutlinedButton(
+                                    onClick = onTestSyncClick,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Schedule,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(Dimensions.IconSize.small)
+                                    )
+                                    Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
+                                    Text(
+                                        text = stringResource(R.string.settings_drive_test_sync_button),
+                                        style = MaterialTheme.typography.labelLarge
                                     )
                                 }
                             }

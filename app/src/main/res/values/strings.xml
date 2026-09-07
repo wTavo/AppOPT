@@ -209,8 +209,12 @@
     <!-- Notificaciones del Sistema -->
     <string name="notification_channel_sync_name">Copia de seguridad en la nube</string>
     <string name="notification_channel_sync_desc">Notificaciones sobre el estado de la sincronización automática en Google Drive.</string>
+    <string name="notification_sync_progress_title">Sincronizando con Google Drive…</string>
+    <string name="notification_sync_progress_msg">Guardando copia de seguridad cifrada…</string>
     <string name="notification_sync_success_title">Copia de seguridad completada</string>
     <string name="notification_sync_success_msg">Tus servicios se han respaldado de forma segura en Google Drive.</string>
+    <string name="notification_sync_error_title">Error al sincronizar</string>
+    <string name="notification_sync_error_msg">No se pudo completar la copia de seguridad. Verifica tu conexión a internet.</string>
 
     <!-- Permisos de la Aplicación -->
     <string name="settings_permissions_title">Permisos de la aplicación</string>

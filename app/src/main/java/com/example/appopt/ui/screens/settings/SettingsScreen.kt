@@ -330,6 +330,7 @@ fun SettingsScreen(
                 val payload = repository.exportAccountsForTransfer()
                 val autoSyncKey = com.example.appopt.security.SecurityConfig.AUTO_SYNC_VAULT_KEY.toCharArray()
                 try {
+                    SyncNotificationHelper.showSyncProgressNotification(context.applicationContext)
                     val uploadResult = GoogleDriveManager.uploadBackup(token, payload, autoSyncKey)
                     uploadResult.onSuccess {
                         val now = System.currentTimeMillis()
@@ -344,6 +345,7 @@ fun SettingsScreen(
                             appHaptics.success()
                         }
                     }.onFailure { _ ->
+                        SyncNotificationHelper.showSyncFailureNotification(context.applicationContext)
                         withContext(Dispatchers.Main) {
                             appHaptics.error()
                             snackbarHostState.showSnackbar(driveErrorText)
@@ -545,6 +547,7 @@ fun SettingsScreen(
                     isDriveLoading = true
                     try {
                         val payload = repository.exportAccountsForTransfer()
+                        SyncNotificationHelper.showSyncProgressNotification(context.applicationContext)
                         val uploadResult = GoogleDriveManager.uploadBackup(
                             accessToken = driveAccessToken!!,
                             rawBackupJson = payload,
@@ -565,6 +568,7 @@ fun SettingsScreen(
                             SyncNotificationHelper.showSyncSuccessNotification(context.applicationContext, accounts.size)
                             snackbarHostState.showSnackbar(driveSyncSuccessText)
                         }.onFailure { _ ->
+                            SyncNotificationHelper.showSyncFailureNotification(context.applicationContext)
                             snackbarHostState.showSnackbar(driveErrorText)
                         }
                     } finally {

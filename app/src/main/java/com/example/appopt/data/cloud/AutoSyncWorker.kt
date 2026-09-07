@@ -69,6 +69,7 @@ class AutoSyncWorker(
 
             try {
                 // 5. Cifrado y subida a Google Drive con AES-256-GCM
+                SyncNotificationHelper.showSyncProgressNotification(applicationContext)
                 val uploadResult = GoogleDriveManager.uploadBackup(token, payload, autoSyncKey)
 
                 if (uploadResult.isSuccess) {
@@ -78,12 +79,14 @@ class AutoSyncWorker(
                     SyncNotificationHelper.showSyncSuccessNotification(applicationContext, accounts.size)
                     Result.success()
                 } else {
+                    SyncNotificationHelper.showSyncFailureNotification(applicationContext)
                     Result.retry()
                 }
             } finally {
                 autoSyncKey.fill('0')
             }
         } catch (_: Exception) {
+            SyncNotificationHelper.showSyncFailureNotification(applicationContext)
             Result.retry()
         }
     }

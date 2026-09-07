@@ -12,13 +12,15 @@ import com.example.appopt.MainActivity
 import com.example.appopt.R
 
 /**
- * Gestor centralizado de notificaciones del sistema para eventos de sincronización en la nube.
+ * Gestor centralizado de notificaciones del sistema para el ciclo de vida de la sincronización en la nube.
  *
  * Responsabilidades:
  * - Creación y configuración del canal de notificaciones del sistema ([CHANNEL_ID_CLOUD_SYNC]).
- * - Publicación de notificaciones de confirmación cuando una copia de seguridad en segundo plano
- *   se completa exitosamente (similar a la experiencia de aplicaciones de mensajería).
- * - Manejo seguro de permisos de notificación en Android 13+ (API 33+).
+ * - Emisión de notificaciones de estado en tiempo real:
+ *   1. En curso ("Sincronizando con Google Drive…") con indicador de progreso continuo.
+ *   2. Completada con éxito ("Copia de seguridad completada").
+ *   3. Error de sincronización ("Error al sincronizar").
+ * - Manejo seguro y defensivo de permisos de notificación en Android 13+ (API 33+).
  */
 object SyncNotificationHelper {
 
@@ -30,7 +32,7 @@ object SyncNotificationHelper {
     /**
      * Identificador numérico único de la notificación de sincronización.
      */
-    const val NOTIFICATION_ID_SYNC_SUCCESS = 2001
+    const val NOTIFICATION_ID_SYNC = 2001
 
     /**
      * Registra el canal de notificaciones para la sincronización en segundo plano en Android 8.0+ (API 26+).
@@ -54,14 +56,57 @@ object SyncNotificationHelper {
     }
 
     /**
-     * Muestra una notificación en la bandeja del sistema confirmando que la copia automática
-     * en Google Drive se completó satisfactoriamente.
+     * Muestra una notificación continua e interactiva indicando que la copia de seguridad está en curso.
      *
      * @param context Contexto de la aplicación.
-     * @param accountsCount Cantidad de servicios o credenciales 2FA respaldadas.
+     */
+    fun showSyncProgressNotification(context: Context) {
+        createNotificationChannel(context)
+
+        val notificationManager = NotificationManagerCompat.from(context)
+        if (!notificationManager.areNotificationsEnabled()) {
+            return
+        }
+
+        try {
+            val intent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+
+            val pendingIntent = PendingIntent.getActivity(
+                context,
+                0,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val title = context.getString(R.string.notification_sync_progress_title)
+            val contentText = context.getString(R.string.notification_sync_progress_msg)
+
+            val builder = NotificationCompat.Builder(context, CHANNEL_ID_CLOUD_SYNC)
+                .setSmallIcon(R.drawable.ic_notification_sync)
+                .setContentTitle(title)
+                .setContentText(contentText)
+                .setProgress(0, 0, true)
+                .setOngoing(true)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setContentIntent(pendingIntent)
+
+            notificationManager.notify(NOTIFICATION_ID_SYNC, builder.build())
+        } catch (_: SecurityException) {
+            // Manejo defensivo en Android 13+ si el permiso fue revocado
+        } catch (_: Exception) {
+            // Fallback silencioso sin exponer detalles técnicos a la vista
+        }
+    }
+
+    /**
+     * Actualiza la notificación de sincronización a estado de éxito finalizado.
+     *
+     * @param context Contexto de la aplicación.
+     * @param accountsCount Cantidad de cuentas o servicios respaldados.
      */
     fun showSyncSuccessNotification(context: Context, accountsCount: Int = 0) {
-        // Asegurar que el canal exista en sistemas Android O+
         createNotificationChannel(context)
 
         val notificationManager = NotificationManagerCompat.from(context)
@@ -88,13 +133,61 @@ object SyncNotificationHelper {
                 .setSmallIcon(R.drawable.ic_notification_sync)
                 .setContentTitle(title)
                 .setContentText(contentText)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setProgress(0, 0, false)
+                .setOngoing(false)
                 .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setContentIntent(pendingIntent)
 
-            notificationManager.notify(NOTIFICATION_ID_SYNC_SUCCESS, builder.build())
+            notificationManager.notify(NOTIFICATION_ID_SYNC, builder.build())
         } catch (_: SecurityException) {
-            // Manejo defensivo en Android 13+ si el permiso POST_NOTIFICATIONS fue revocado
+            // Manejo defensivo en Android 13+ si el permiso fue revocado
+        } catch (_: Exception) {
+            // Fallback silencioso sin exponer detalles técnicos a la vista
+        }
+    }
+
+    /**
+     * Actualiza la notificación de sincronización a estado de error o fallo de conexión.
+     *
+     * @param context Contexto de la aplicación.
+     */
+    fun showSyncFailureNotification(context: Context) {
+        createNotificationChannel(context)
+
+        val notificationManager = NotificationManagerCompat.from(context)
+        if (!notificationManager.areNotificationsEnabled()) {
+            return
+        }
+
+        try {
+            val intent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+
+            val pendingIntent = PendingIntent.getActivity(
+                context,
+                0,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val title = context.getString(R.string.notification_sync_error_title)
+            val contentText = context.getString(R.string.notification_sync_error_msg)
+
+            val builder = NotificationCompat.Builder(context, CHANNEL_ID_CLOUD_SYNC)
+                .setSmallIcon(R.drawable.ic_notification_sync)
+                .setContentTitle(title)
+                .setContentText(contentText)
+                .setProgress(0, 0, false)
+                .setOngoing(false)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setContentIntent(pendingIntent)
+
+            notificationManager.notify(NOTIFICATION_ID_SYNC, builder.build())
+        } catch (_: SecurityException) {
+            // Manejo defensivo en Android 13+ si el permiso fue revocado
         } catch (_: Exception) {
             // Fallback silencioso sin exponer detalles técnicos a la vista
         }

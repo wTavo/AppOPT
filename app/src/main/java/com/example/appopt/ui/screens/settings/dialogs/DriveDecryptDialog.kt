@@ -86,21 +86,25 @@ fun DriveDecryptDialog(
             }
         },
         confirmButton = {
+            var isProcessing by remember { mutableStateOf(false) }
             Button(
                 onClick = {
-                    val normalizedSecret = if (restoreSecretText.contains(" ")) {
-                        MnemonicManager.normalizePhrase(restoreSecretText)
-                    } else {
-                        restoreSecretText.trim()
-                    }
-                    val passChars = normalizedSecret.toCharArray()
-                    try {
-                        onRestore(passChars)
-                    } finally {
-                        passChars.fill('0')
+                    if (!isProcessing) {
+                        isProcessing = true
+                        val normalizedSecret = if (restoreSecretText.contains(" ")) {
+                            MnemonicManager.normalizePhrase(restoreSecretText)
+                        } else {
+                            restoreSecretText.trim()
+                        }
+                        val passChars = normalizedSecret.toCharArray()
+                        try {
+                            onRestore(passChars)
+                        } finally {
+                            passChars.fill('0')
+                        }
                     }
                 },
-                enabled = restoreSecretText.isNotBlank(),
+                enabled = restoreSecretText.isNotBlank() && !isProcessing,
                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
             ) {
                 Text(

@@ -537,33 +537,37 @@ fun DriveProtectDialog(
                     }
                 }
                 else -> {
+                    var isProcessing by remember { mutableStateOf(false) }
                     Button(
                         onClick = {
-                            val isAllCorrect = quizQuestions.all { quizSelectedAnswers[it.position] == it.correctWord }
-                            if (!isAllCorrect) {
-                                appHaptics.error()
-                                isQuizError = true
-                                Toast.makeText(context, quizErrorMsg, Toast.LENGTH_LONG).show()
-                                return@Button
-                            }
+                            if (!isProcessing) {
+                                val isAllCorrect = quizQuestions.all { quizSelectedAnswers[it.position] == it.correctWord }
+                                if (!isAllCorrect) {
+                                    appHaptics.error()
+                                    isQuizError = true
+                                    Toast.makeText(context, quizErrorMsg, Toast.LENGTH_LONG).show()
+                                    return@Button
+                                }
 
-                            val primaryPassChars = if (selectedProtectionTab == 0) {
-                                masterPasswordText.toCharArray()
-                            } else {
-                                generated64Key.toCharArray()
-                            }
-                            val emergencyMnemonicChars = MnemonicManager.normalizePhrase(
-                                generatedMnemonicWords.joinToString(" ")
-                            ).toCharArray()
+                                isProcessing = true
+                                val primaryPassChars = if (selectedProtectionTab == 0) {
+                                    masterPasswordText.toCharArray()
+                                } else {
+                                    generated64Key.toCharArray()
+                                }
+                                val emergencyMnemonicChars = MnemonicManager.normalizePhrase(
+                                    generatedMnemonicWords.joinToString(" ")
+                                ).toCharArray()
 
-                            try {
-                                onProtectAndSync(primaryPassChars, emergencyMnemonicChars)
-                            } finally {
-                                primaryPassChars.fill('0')
-                                emergencyMnemonicChars.fill('0')
+                                try {
+                                    onProtectAndSync(primaryPassChars, emergencyMnemonicChars)
+                                } finally {
+                                    primaryPassChars.fill('0')
+                                    emergencyMnemonicChars.fill('0')
+                                }
                             }
                         },
-                        enabled = isQuizAnswered,
+                        enabled = isQuizAnswered && !isProcessing,
                         shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                     ) {
                         Text(stringResource(R.string.settings_drive_encrypt_and_sync), style = MaterialTheme.typography.labelLarge)

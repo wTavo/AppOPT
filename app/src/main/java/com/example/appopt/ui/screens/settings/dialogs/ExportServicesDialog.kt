@@ -233,41 +233,52 @@ fun ExportServicesDialog(
         }
     },
     confirmButton = {
-            if (!isShowingQr) {
-                Button(
-                    onClick = {
+        var isProcessing by remember { mutableStateOf(false) }
+        if (!isShowingQr) {
+            Button(
+                onClick = {
+                    if (!isProcessing) {
+                        isProcessing = true
                         val idsToExport = selectedServiceIds.toSet()
                         scope.launch {
-                            val payload = onExportPayload(idsToExport)
-                            transferQrBitmap = QrCodeGenerator.generateQrBitmap(payload, size = 600)
-                            exportedServiceIds = idsToExport
-                            isShowingQr = true
+                            try {
+                                val payload = onExportPayload(idsToExport)
+                                transferQrBitmap = QrCodeGenerator.generateQrBitmap(payload, size = 600)
+                                exportedServiceIds = idsToExport
+                                isShowingQr = true
+                            } finally {
+                                isProcessing = false
+                            }
                         }
-                    },
-                    enabled = selectedServiceIds.isNotEmpty(),
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                ) {
-                    Text(stringResource(R.string.settings_generate_qr_button), style = MaterialTheme.typography.labelLarge)
-                }
-            } else {
-                Button(
-                    onClick = {
-                        onCompleteExport(exportedServiceIds, keepServicesOnDevice)
-                    },
-                    enabled = transferQrBitmap != null || keepServicesOnDevice,
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                ) {
-                    Text(
-                        text = if (!keepServicesOnDevice) {
-                            stringResource(R.string.settings_export_confirm_done)
-                        } else {
-                            stringResource(R.string.account_modal_close_button)
-                        },
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                }
+                    }
+                },
+                enabled = selectedServiceIds.isNotEmpty() && !isProcessing,
+                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+            ) {
+                Text(stringResource(R.string.settings_generate_qr_button), style = MaterialTheme.typography.labelLarge)
             }
-        },
+        } else {
+            Button(
+                onClick = {
+                    if (!isProcessing) {
+                        isProcessing = true
+                        onCompleteExport(exportedServiceIds, keepServicesOnDevice)
+                    }
+                },
+                enabled = (transferQrBitmap != null || keepServicesOnDevice) && !isProcessing,
+                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+            ) {
+                Text(
+                    text = if (!keepServicesOnDevice) {
+                        stringResource(R.string.settings_export_confirm_done)
+                    } else {
+                        stringResource(R.string.account_modal_close_button)
+                    },
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+        }
+    },
         dismissButton = {
             if (!isShowingQr) {
                 TextButton(onClick = onDismiss) {

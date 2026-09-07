@@ -312,12 +312,17 @@ fun AccountDetailsDialog(
         },
         confirmButton = {
             if (showDeleteConfirm) {
+                var isDeleting by remember { mutableStateOf(false) }
                 Button(
                     onClick = {
-                        showDeleteConfirm = false
-                        onDeleteAccount(account.id)
-                        onDismiss()
+                        if (!isDeleting) {
+                            isDeleting = true
+                            showDeleteConfirm = false
+                            onDeleteAccount(account.id)
+                            onDismiss()
+                        }
                     },
+                    enabled = !isDeleting,
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error,

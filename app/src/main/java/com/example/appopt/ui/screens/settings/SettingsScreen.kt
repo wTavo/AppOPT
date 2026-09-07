@@ -392,20 +392,32 @@ fun SettingsScreen(
         ) {
             Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
 
-            // 1. Tarjeta de Rendimiento y Diagnóstico
+            // 1. Tarjeta de Permisos de la Aplicación (Al inicio)
+            PermissionsSettingsCard(
+                isCameraGranted = isCameraPermissionGranted,
+                isNotificationGranted = isNotificationPermissionGranted,
+                isBatteryOptimizationIgnored = isBatteryOptimizationIgnored,
+                onRequestCameraPermission = { requestCameraPermission() },
+                onRequestNotificationPermission = { checkAndRequestNotificationPermission() },
+                onRequestBatteryOptimization = {
+                    BatteryOptimizationHelper.requestIgnoreBatteryOptimizations(context)
+                }
+            )
+
+            // 2. Tarjeta de Rendimiento y Diagnóstico
             PerformanceSettingsCard(
                 isFpsOverlayEnabled = isFpsOverlayEnabled,
                 onFpsOverlayChanged = { enabled -> prefsManager.setFpsOverlayEnabled(enabled) }
             )
 
-            // 2. Tarjeta de Transferencia Offline por Código QR
+            // 3. Tarjeta de Transferencia Offline por Código QR
             TransferSettingsCard(
                 accounts = accounts,
                 onExportClick = { showExportDialog = true },
                 onImportClick = onNavigateToScanQr
             )
 
-            // 3. Tarjeta de Copia de Seguridad y Sincronización en Google Drive
+            // 4. Tarjeta de Copia de Seguridad y Sincronización en Google Drive
             DriveSyncSettingsCard(
                 isDriveConnected = isDriveConnected,
                 isDriveLoading = isDriveLoading,
@@ -416,7 +428,6 @@ fun SettingsScreen(
                 lastSyncTimestamp = lastSyncTimestamp,
                 syncFrequency = syncFrequency,
                 isSyncMobileDataAllowed = isSyncMobileDataAllowed,
-                isBatteryOptimizationIgnored = isBatteryOptimizationIgnored,
                 onConnectClick = {
                     requestGoogleAuthorization { token ->
                         isDriveConnected = true
@@ -472,27 +483,12 @@ fun SettingsScreen(
                     prefsManager.setSyncMobileDataAllowed(allowed)
                     CloudVaultSyncManager.schedulePeriodicSync(context, syncFrequency, allowed)
                 },
-                onRequestBatteryOptimizationClick = {
-                    BatteryOptimizationHelper.requestIgnoreBatteryOptimizations(context)
-                },
                 onTestSyncClick = {
                     CloudVaultSyncManager.scheduleTestSync(context, 60L, isSyncMobileDataAllowed)
                     appHaptics.click()
                     scope.launch {
                         snackbarHostState.showSnackbar(driveTestSyncScheduledText)
                     }
-                }
-            )
-
-            // 4. Tarjeta de Permisos Recomendados de la Aplicación
-            PermissionsSettingsCard(
-                isCameraGranted = isCameraPermissionGranted,
-                isNotificationGranted = isNotificationPermissionGranted,
-                isBatteryOptimizationIgnored = isBatteryOptimizationIgnored,
-                onRequestCameraPermission = { requestCameraPermission() },
-                onRequestNotificationPermission = { checkAndRequestNotificationPermission() },
-                onRequestBatteryOptimization = {
-                    BatteryOptimizationHelper.requestIgnoreBatteryOptimizations(context)
                 }
             )
         }

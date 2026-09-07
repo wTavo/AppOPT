@@ -226,6 +226,8 @@
     <string name="settings_permission_battery_title">Sin restricciones de batería</string>
     <string name="settings_permission_battery_desc">Evita que Android congele o retrase la copia de seguridad automática en segundo plano.</string>
     <string name="settings_permission_granted">Permitido</string>
+    <string name="settings_permission_not_granted">No permitido</string>
+    <string name="settings_permissions_granted_count">Permisos concedidos (%1$d)</string>
     <string name="settings_permission_action_grant">Permitir</string>
     <string name="settings_permission_action_configure">Configurar</string>
 

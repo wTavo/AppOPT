@@ -1,5 +1,13 @@
 package com.example.appopt.ui.screens.settings.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,31 +19,58 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BatterySaver
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import com.example.appopt.R
 import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.SafeGreen
 import com.example.appopt.ui.theme.rememberAppHaptics
 
 /**
+ * Modelo de datos interno para estructurar los permisos recomendados en la interfaz de ajustes.
+ *
+ * @param id Identificador único del permiso.
+ * @param icon Icono representativo del permiso.
+ * @param titleRes Recurso de texto para el título del permiso.
+ * @param descriptionRes Recurso de texto para la descripción explicativa del permiso.
+ * @param isGranted Indica si el permiso se encuentra actualmente concedido en el sistema.
+ * @param onRequest Callback ejecutado al pulsar el botón para conceder o configurar el permiso.
+ */
+private data class PermissionItemData(
+    val id: String,
+    val icon: ImageVector,
+    val titleRes: Int,
+    val descriptionRes: Int,
+    val isGranted: Boolean,
+    val onRequest: () -> Unit
+)
+
+/**
  * Tarjeta de ajustes para la visualización y gestión de los permisos recomendados de la aplicación.
  *
- * Presenta el estado en tiempo real (permitido o pendiente) de los permisos de cámara,
- * notificaciones y ahorro de batería, explicando la función de cada uno y permitiendo
- * otorgarlos o configurarlos de forma interactiva.
+ * Presenta los permisos no concedidos de forma destacada en color rojo con su botón de acción,
+ * mientras que los permisos ya otorgados se agrupan en un contenedor desplegable para optimizar
+ * el espacio vertical en pantalla.
  *
  * @param isCameraGranted Indica si el permiso de cámara para escaneo QR está concedido.
  * @param isNotificationGranted Indica si las notificaciones del sistema están habilitadas.
@@ -55,6 +90,39 @@ fun PermissionsSettingsCard(
     onRequestBatteryOptimization: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val appHaptics = rememberAppHaptics()
+    var isGrantedSectionExpanded by rememberSaveable { mutableStateOf(false) }
+
+    val permissions = listOf(
+        PermissionItemData(
+            id = "camera",
+            icon = Icons.Filled.CameraAlt,
+            titleRes = R.string.settings_permission_camera_title,
+            descriptionRes = R.string.settings_permission_camera_desc,
+            isGranted = isCameraGranted,
+            onRequest = onRequestCameraPermission
+        ),
+        PermissionItemData(
+            id = "notifications",
+            icon = Icons.Filled.Notifications,
+            titleRes = R.string.settings_permission_notifications_title,
+            descriptionRes = R.string.settings_permission_notifications_desc,
+            isGranted = isNotificationGranted,
+            onRequest = onRequestNotificationPermission
+        ),
+        PermissionItemData(
+            id = "battery",
+            icon = Icons.Filled.BatterySaver,
+            titleRes = R.string.settings_permission_battery_title,
+            descriptionRes = R.string.settings_permission_battery_desc,
+            isGranted = isBatteryOptimizationIgnored,
+            onRequest = onRequestBatteryOptimization
+        )
+    )
+
+    val pendingPermissions = permissions.filter { !it.isGranted }
+    val grantedPermissions = permissions.filter { it.isGranted }
+
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -66,76 +134,172 @@ fun PermissionsSettingsCard(
             modifier = Modifier.padding(Dimensions.Spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
         ) {
-            // Cabecera de la sección
+            // 1. Cabecera con icono, título y badge de estado
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Filled.Security,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(Dimensions.IconSize.medium)
-                )
-                Text(
-                    text = stringResource(R.string.settings_permissions_title),
-                    style = MaterialTheme.typography.titleMedium
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
+                    modifier = Modifier.weight(1f, fill = false)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Security,
+                        contentDescription = null,
+                        tint = if (pendingPermissions.isEmpty()) SafeGreen else MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(Dimensions.IconSize.medium)
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_permissions_title),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+
+                val badgeColor = if (pendingPermissions.isEmpty()) SafeGreen else MaterialTheme.colorScheme.error
+                val badgeBg = if (pendingPermissions.isEmpty()) SafeGreen.copy(alpha = 0.12f) else MaterialTheme.colorScheme.errorContainer
+                val badgeText = if (pendingPermissions.isEmpty()) {
+                    stringResource(R.string.settings_permission_granted)
+                } else {
+                    stringResource(R.string.settings_permission_not_granted)
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
+                    color = badgeBg
+                ) {
+                    Text(
+                        text = badgeText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = badgeColor,
+                        modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs)
+                    )
+                }
             }
 
+            // 2. Descripción explicativa
             Text(
                 text = stringResource(R.string.settings_permissions_description),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            // Lista de permisos individuales
-            Column(
-                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
-            ) {
-                PermissionItemRow(
-                    icon = Icons.Filled.CameraAlt,
-                    title = stringResource(R.string.settings_permission_camera_title),
-                    description = stringResource(R.string.settings_permission_camera_desc),
-                    isGranted = isCameraGranted,
-                    onRequestPermission = onRequestCameraPermission
+            // 3. Permisos pendientes (fuera del desplegable, en tono rojo)
+            if (pendingPermissions.isNotEmpty()) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                ) {
+                    pendingPermissions.forEach { item ->
+                        PendingPermissionRow(
+                            icon = item.icon,
+                            title = stringResource(item.titleRes),
+                            description = stringResource(item.descriptionRes),
+                            onRequestPermission = item.onRequest
+                        )
+                    }
+                }
+            }
+
+            // 4. Permisos ya concedidos (dentro de contenedor desplegable)
+            if (grantedPermissions.isNotEmpty()) {
+                val arrowRotation by animateFloatAsState(
+                    targetValue = if (isGrantedSectionExpanded) 180f else 0f,
+                    animationSpec = Motion.Spec.privacyCollapseSpec(),
+                    label = "granted_permissions_arrow_rotation"
                 )
 
-                PermissionItemRow(
-                    icon = Icons.Filled.Notifications,
-                    title = stringResource(R.string.settings_permission_notifications_title),
-                    description = stringResource(R.string.settings_permission_notifications_desc),
-                    isGranted = isNotificationGranted,
-                    onRequestPermission = onRequestNotificationPermission
-                )
+                Surface(
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    appHaptics.click()
+                                    isGrantedSectionExpanded = !isGrantedSectionExpanded
+                                }
+                                .padding(Dimensions.Spacing.md),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.CheckCircle,
+                                    contentDescription = null,
+                                    tint = SafeGreen,
+                                    modifier = Modifier.size(Dimensions.IconSize.small)
+                                )
+                                Text(
+                                    text = stringResource(
+                                        R.string.settings_permissions_granted_count,
+                                        grantedPermissions.size
+                                    ),
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                            }
 
-                PermissionItemRow(
-                    icon = Icons.Filled.BatterySaver,
-                    title = stringResource(R.string.settings_permission_battery_title),
-                    description = stringResource(R.string.settings_permission_battery_desc),
-                    isGranted = isBatteryOptimizationIgnored,
-                    onRequestPermission = onRequestBatteryOptimization
-                )
+                            Icon(
+                                imageVector = Icons.Filled.KeyboardArrowDown,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .size(Dimensions.IconSize.medium)
+                                    .graphicsLayer { rotationZ = arrowRotation }
+                            )
+                        }
+
+                        AnimatedVisibility(
+                            visible = isGrantedSectionExpanded,
+                            enter = fadeIn(Motion.Spec.privacyCollapseSpec()) + expandVertically(Motion.Spec.privacyCollapseSpec()),
+                            exit = fadeOut(Motion.Spec.privacyCollapseSpec()) + shrinkVertically(Motion.Spec.privacyCollapseSpec())
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .padding(
+                                        start = Dimensions.Spacing.md,
+                                        end = Dimensions.Spacing.md,
+                                        bottom = Dimensions.Spacing.md
+                                    ),
+                                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                            ) {
+                                grantedPermissions.forEach { item ->
+                                    GrantedPermissionRow(
+                                        icon = item.icon,
+                                        title = stringResource(item.titleRes),
+                                        description = stringResource(item.descriptionRes)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 }
 
 /**
- * Fila reutilizable para la presentación del estado y acción de un permiso específico.
+ * Fila para un permiso no concedido, con énfasis visual en rojo/alerta y botón de acción.
  *
  * @param icon Icono representativo del permiso.
  * @param title Nombre del permiso o funcionalidad.
- * @param description Explicación del propósito del permiso en la aplicación.
- * @param isGranted Indica si el permiso se encuentra activo o autorizado.
- * @param onRequestPermission Callback para invocar la solicitud o ajuste del permiso.
+ * @param description Explicación del propósito del permiso.
+ * @param onRequestPermission Callback para invocar la solicitud del permiso.
  */
 @Composable
-private fun PermissionItemRow(
+private fun PendingPermissionRow(
     icon: ImageVector,
     title: String,
     description: String,
-    isGranted: Boolean,
     onRequestPermission: () -> Unit
 ) {
     val appHaptics = rememberAppHaptics()
@@ -143,7 +307,11 @@ private fun PermissionItemRow(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-        color = MaterialTheme.colorScheme.surfaceVariant
+        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f),
+        border = BorderStroke(
+            width = Dimensions.Stroke.thin,
+            color = MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
+        )
     ) {
         Column(
             modifier = Modifier.padding(Dimensions.Spacing.md),
@@ -162,7 +330,79 @@ private fun PermissionItemRow(
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = if (isGranted) SafeGreen else MaterialTheme.colorScheme.primary,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(Dimensions.IconSize.small)
+                    )
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+
+                Button(
+                    onClick = {
+                        appHaptics.click()
+                        onRequestPermission()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    ),
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_permission_action_grant),
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
+
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+/**
+ * Fila para un permiso concedido, presentado con tono verde seguro dentro del contenedor desplegable.
+ *
+ * @param icon Icono representativo del permiso.
+ * @param title Nombre del permiso o funcionalidad.
+ * @param description Explicación del propósito del permiso.
+ */
+@Composable
+private fun GrantedPermissionRow(
+    icon: ImageVector,
+    title: String,
+    description: String
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(Dimensions.CornerRadius.small),
+        color = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier.padding(Dimensions.Spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
+                    modifier = Modifier.weight(1f, fill = false)
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = SafeGreen,
                         modifier = Modifier.size(Dimensions.IconSize.small)
                     )
                     Text(
@@ -171,43 +411,28 @@ private fun PermissionItemRow(
                     )
                 }
 
-                if (isGranted) {
-                    Surface(
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
-                        color = SafeGreen.copy(alpha = 0.12f)
+                Surface(
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
+                    color = SafeGreen.copy(alpha = 0.12f)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs),
+                        modifier = Modifier.padding(
+                            horizontal = Dimensions.Spacing.sm,
+                            vertical = Dimensions.Spacing.xs
+                        )
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs),
-                            modifier = Modifier.padding(
-                                horizontal = Dimensions.Spacing.sm,
-                                vertical = Dimensions.Spacing.xs
-                            )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.CheckCircle,
-                                contentDescription = null,
-                                tint = SafeGreen,
-                                modifier = Modifier.size(Dimensions.IconSize.small)
-                            )
-                            Text(
-                                text = stringResource(R.string.settings_permission_granted),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = SafeGreen
-                            )
-                        }
-                    }
-                } else {
-                    OutlinedButton(
-                        onClick = {
-                            appHaptics.click()
-                            onRequestPermission()
-                        },
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.CheckCircle,
+                            contentDescription = null,
+                            tint = SafeGreen,
+                            modifier = Modifier.size(Dimensions.IconSize.small)
+                        )
                         Text(
-                            text = stringResource(R.string.settings_permission_action_grant),
-                            style = MaterialTheme.typography.labelSmall
+                            text = stringResource(R.string.settings_permission_granted),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = SafeGreen
                         )
                     }
                 }

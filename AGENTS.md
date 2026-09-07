@@ -149,4 +149,10 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 - **PROHIBIDO** generar respaldos en la nube o formatos de exportación sin declarar explícitamente su versión de esquema de datos.
 - **OBLIGATORIO** incluir una cabecera de versión (`version` / `schemaVersion`) en los formatos JSON de transferencia y sobre criptográfico (`CURRENT_BACKUP_VERSION`), garantizando compatibilidad hacia atrás y hacia adelante.
 
+---
+
+## 23. Mensajes de Control de Versiones en Español (*Spanish Git Commits*)
+- **PROHIBIDO** redactar mensajes de commit de Git en inglés u otros idiomas.
+- **OBLIGATORIO** escribir todos los mensajes de commit en **español**, utilizando la estructura de commits semánticos (ej. `feat: ...`, `fix: ...`, `refactor: ...`, `test: ...`, `docs: ...`) con descripciones claras y gramaticalmente correctas en español.
+
 

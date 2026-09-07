@@ -26,6 +26,9 @@
 
     <!-- Pantalla Principal (Home Screen) -->
     <string name="home_title">Authenticator</string>
+    <string name="home_sync_syncing">Sincronizando…</string>
+    <string name="home_sync_success">Sincronizado</string>
+    <string name="home_sync_error">Error al sincronizar</string>
     <string name="home_search_placeholder">Buscar servicio o cuenta…</string>
     <string name="home_lock_vault">Bloquear bóveda</string>
     <string name="home_add_account">Agregar cuenta</string>

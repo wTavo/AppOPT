@@ -6,6 +6,11 @@ import com.example.appopt.AuthenticatorApp
 import com.example.appopt.domain.repository.AccountWithCode
 import com.example.appopt.security.SecurityConfig
 import com.example.appopt.ui.common.UiState
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
+import com.example.appopt.data.cloud.CloudVaultSyncManager
+import com.example.appopt.ui.screens.home.model.CloudSyncUiState
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -26,6 +31,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * - Persiste y sincroniza el estado de privacidad para ocultar/mostrar códigos.
  * - Modela el estado visual con [UiState] para evitar parpadeos (*flickering*) al cargar desde Room.
  * - Persiste de forma atómica el ordenamiento personalizado tras finalizar el arrastre.
+ * - Observa en tiempo real el ciclo de vida de la sincronización en la nube mediante [cloudSyncState].
  */
 class HomeViewModel : ViewModel() {
 
@@ -40,6 +46,74 @@ class HomeViewModel : ViewModel() {
     /** Estado persistente del modo de privacidad para ocultar códigos. */
     private val _isHideCodesEnabled = MutableStateFlow(preferencesManager.isHideCodesEnabled())
     val isHideCodesEnabled: StateFlow<Boolean> = _isHideCodesEnabled.asStateFlow()
+
+    /** Estado reactivo del indicador visual de sincronización en la nube para la cabecera. */
+    private val _cloudSyncState = MutableStateFlow(CloudSyncUiState.IDLE)
+    val cloudSyncState: StateFlow<CloudSyncUiState> = _cloudSyncState.asStateFlow()
+
+    private var syncFeedbackJob: Job? = null
+
+    init {
+        observeReactiveSync()
+    }
+
+    /**
+     * Observa el estado del worker de sincronización reactiva en segundo plano ([CloudVaultSyncManager.REACTIVE_WORK_NAME]).
+     *
+     * Mapea las transiciones de estado a [CloudSyncUiState] para alimentar la animación de la cabecera:
+     * - [WorkInfo.State.ENQUEUED] o [WorkInfo.State.RUNNING]: Transiciona a [CloudSyncUiState.SYNCING].
+     * - [WorkInfo.State.SUCCEEDED]: Tras una sincronización activa, muestra [CloudSyncUiState.SUCCESS] por 2.5s y vuelve a reposo.
+     * - [WorkInfo.State.FAILED]: Muestra [CloudSyncUiState.ERROR] por 3s y vuelve a reposo.
+     */
+    private fun observeReactiveSync() {
+        viewModelScope.launch {
+            var previousState: WorkInfo.State? = null
+            WorkManager.getInstance(AuthenticatorApp.instance)
+                .getWorkInfosForUniqueWorkFlow(CloudVaultSyncManager.REACTIVE_WORK_NAME)
+                .collect { workInfoList ->
+                    val workInfo = workInfoList.firstOrNull()
+                    if (workInfo == null) {
+                        syncFeedbackJob?.cancel()
+                        _cloudSyncState.value = CloudSyncUiState.IDLE
+                        previousState = null
+                        return@collect
+                    }
+
+                    val currentState = workInfo.state
+                    when (currentState) {
+                        WorkInfo.State.ENQUEUED, WorkInfo.State.RUNNING -> {
+                            syncFeedbackJob?.cancel()
+                            _cloudSyncState.value = CloudSyncUiState.SYNCING
+                        }
+                        WorkInfo.State.SUCCEEDED -> {
+                            if (previousState == WorkInfo.State.ENQUEUED || previousState == WorkInfo.State.RUNNING) {
+                                syncFeedbackJob?.cancel()
+                                syncFeedbackJob = viewModelScope.launch {
+                                    _cloudSyncState.value = CloudSyncUiState.SUCCESS
+                                    delay(2500.milliseconds)
+                                    _cloudSyncState.value = CloudSyncUiState.IDLE
+                                }
+                            }
+                        }
+                        WorkInfo.State.FAILED -> {
+                            if (previousState == WorkInfo.State.ENQUEUED || previousState == WorkInfo.State.RUNNING) {
+                                syncFeedbackJob?.cancel()
+                                syncFeedbackJob = viewModelScope.launch {
+                                    _cloudSyncState.value = CloudSyncUiState.ERROR
+                                    delay(3000.milliseconds)
+                                    _cloudSyncState.value = CloudSyncUiState.IDLE
+                                }
+                            }
+                        }
+                        WorkInfo.State.CANCELLED, WorkInfo.State.BLOCKED -> {
+                            syncFeedbackJob?.cancel()
+                            _cloudSyncState.value = CloudSyncUiState.IDLE
+                        }
+                    }
+                    previousState = currentState
+                }
+        }
+    }
 
     /**
      * Flujo de pulsos sincronizados al borde del paso TOTP (cada 30 s por defecto).

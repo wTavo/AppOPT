@@ -73,6 +73,7 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val isHideCodesEnabled by viewModel.isHideCodesEnabled.collectAsStateWithLifecycle()
+    val cloudSyncState by viewModel.cloudSyncState.collectAsStateWithLifecycle()
 
     var isSearchActive by remember { mutableStateOf(false) }
     var selectedAccountId by remember { mutableStateOf<String?>(null) }
@@ -356,6 +357,7 @@ fun HomeScreen(
             isSearchActive = isSearchActive,
             searchQuery = searchQuery,
             isHideCodesEnabled = isHideCodesEnabled,
+            cloudSyncState = cloudSyncState,
             onSearchActiveChange = { isSearchActive = it },
             onSearchQueryChange = viewModel::onSearchQueryChanged,
             onToggleHideCodes = { viewModel.toggleHideCodes() },

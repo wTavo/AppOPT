@@ -2,11 +2,15 @@ package com.example.appopt.ui.screens.settings
 
 import android.Manifest
 import android.app.Activity
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -51,6 +55,7 @@ import com.example.appopt.data.cloud.GoogleDriveManager
 import com.example.appopt.data.cloud.SyncFrequency
 import com.example.appopt.ui.screens.settings.components.DriveSyncSettingsCard
 import com.example.appopt.ui.screens.settings.components.PerformanceSettingsCard
+import com.example.appopt.ui.screens.settings.components.PermissionsSettingsCard
 import com.example.appopt.ui.screens.settings.components.TransferSettingsCard
 import com.example.appopt.ui.screens.settings.dialogs.DriveBackupDetailsDialog
 import com.example.appopt.ui.screens.settings.dialogs.DriveDecryptDialog
@@ -63,6 +68,7 @@ import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.util.BatteryOptimizationHelper
 import com.example.appopt.util.DateTimeFormatter
+import com.example.appopt.util.SyncNotificationHelper
 import com.google.android.gms.common.api.ApiException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -131,11 +137,31 @@ fun SettingsScreen(
 
     val lifecycleOwner = LocalLifecycleOwner.current
     var currentTick by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var isCameraPermissionGranted by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    var isNotificationPermissionGranted by remember {
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+            } else {
+                NotificationManagerCompat.from(context).areNotificationsEnabled()
+            }
+        )
+    }
     var isBatteryOptimizationIgnored by remember {
         mutableStateOf(BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context))
     }
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            isCameraPermissionGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+            isNotificationPermissionGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+            } else {
+                NotificationManagerCompat.from(context).areNotificationsEnabled()
+            }
             isBatteryOptimizationIgnored = BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)
             while (isActive) {
                 val now = System.currentTimeMillis()
@@ -229,15 +255,41 @@ fun SettingsScreen(
         }
     }
 
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        isCameraPermissionGranted = granted
+    }
+
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
-    ) { /* Permiso otorgado o denegado por el usuario */ }
+    ) { granted ->
+        isNotificationPermissionGranted = granted
+    }
+
+    fun openAppSystemSettings() {
+        try {
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.parse("package:${context.packageName}")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        } catch (_: Exception) {}
+    }
+
+    fun requestCameraPermission() {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
 
     fun checkAndRequestNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
+        } else if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            openAppSystemSettings()
         }
     }
 
@@ -283,6 +335,7 @@ fun SettingsScreen(
                         val currentHash = CloudVaultSyncManager.computeAccountsSignature(accounts)
                         prefsManager.setLastSyncTimestamp(now)
                         prefsManager.setLastSyncedVaultHash(currentHash)
+                        SyncNotificationHelper.showSyncSuccessNotification(context.applicationContext, accounts.size)
                         withContext(Dispatchers.Main) {
                             lastSyncTimestamp = now
                             lastSyncedHash = currentHash
@@ -421,6 +474,18 @@ fun SettingsScreen(
                     BatteryOptimizationHelper.requestIgnoreBatteryOptimizations(context)
                 }
             )
+
+            // 4. Tarjeta de Permisos Recomendados de la Aplicación
+            PermissionsSettingsCard(
+                isCameraGranted = isCameraPermissionGranted,
+                isNotificationGranted = isNotificationPermissionGranted,
+                isBatteryOptimizationIgnored = isBatteryOptimizationIgnored,
+                onRequestCameraPermission = { requestCameraPermission() },
+                onRequestNotificationPermission = { checkAndRequestNotificationPermission() },
+                onRequestBatteryOptimization = {
+                    BatteryOptimizationHelper.requestIgnoreBatteryOptimizations(context)
+                }
+            )
         }
     }
 
@@ -490,6 +555,7 @@ fun SettingsScreen(
                             prefsManager.setLastSyncedVaultHash(currentHash)
                             lastSyncedHash = currentHash
                             CloudVaultSyncManager.schedulePeriodicSync(context, syncFrequency, isSyncMobileDataAllowed)
+                            SyncNotificationHelper.showSyncSuccessNotification(context.applicationContext, accounts.size)
                             snackbarHostState.showSnackbar(driveSyncSuccessText)
                         }.onFailure { _ ->
                             snackbarHostState.showSnackbar(driveErrorText)

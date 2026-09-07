@@ -432,7 +432,6 @@ fun SettingsScreen(
                                     lastSyncedHash = currentVaultHash
                                 }
                                  snackbarHostState.showSnackbar(driveConnectedSuccessText)
-                                checkAndRequestNotificationPermission()
                             } finally {
                                 isCheckingDriveBackup = false
                             }
@@ -617,9 +616,6 @@ fun SettingsScreen(
                 prefsManager.setSyncFrequency(frequencyOption)
                 CloudVaultSyncManager.schedulePeriodicSync(context, frequencyOption, isSyncMobileDataAllowed)
                 showFrequencyDialog = false
-                if (frequencyOption != SyncFrequency.OFF) {
-                    checkAndRequestNotificationPermission()
-                }
             },
             onDismiss = { showFrequencyDialog = false }
         )

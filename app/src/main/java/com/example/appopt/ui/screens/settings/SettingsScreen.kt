@@ -161,6 +161,11 @@ fun SettingsScreen(
                 NotificationManagerCompat.from(context).areNotificationsEnabled()
             }
             isBatteryOptimizationIgnored = BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)
+            isDriveConnected = prefsManager.isGoogleDriveConnected()
+            isAutoSyncEnabled = prefsManager.isAutoSyncEnabled()
+            isSyncMobileDataAllowed = prefsManager.isSyncMobileDataAllowed()
+            lastSyncTimestamp = prefsManager.getLastSyncTimestamp()
+            lastSyncedHash = prefsManager.getLastSyncedVaultHash()
             while (isActive) {
                 val now = System.currentTimeMillis()
                 currentTick = now
@@ -179,13 +184,13 @@ fun SettingsScreen(
     }
 
     val currentVaultHash = remember(accounts) {
-        if (accounts.isEmpty()) "" else CloudVaultSyncManager.computeAccountsSignature(accounts)
+        CloudVaultSyncManager.computeAccountsSignature(accounts)
     }
-    val hasUnsyncedChanges = remember(currentVaultHash, lastSyncedHash) {
-        if (accounts.isEmpty()) {
+    val hasUnsyncedChanges = remember(currentVaultHash, lastSyncedHash, isDriveConnected, lastSyncTimestamp) {
+        if (!isDriveConnected || lastSyncTimestamp == 0L) {
             false
         } else {
-            lastSyncedHash.isNullOrEmpty() || currentVaultHash != lastSyncedHash
+            !lastSyncedHash.isNullOrEmpty() && currentVaultHash != lastSyncedHash
         }
     }
 

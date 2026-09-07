@@ -59,9 +59,6 @@ class AutoSyncWorker(
 
                 // 4. Extraer cuentas locales consolidadas tras la posible fusión
                 val accounts = repository.getAccounts().first()
-                if (accounts.isEmpty()) {
-                    return@withContext Result.success()
-                }
 
                 // 5. Comparar huella digital SHA-256 para evitar subidas redundantes
                 val currentVaultHash = CloudVaultSyncManager.computeAccountsSignature(accounts)

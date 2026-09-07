@@ -36,14 +36,13 @@ import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Botón interactivo reutilizable con animación de confirmación exitosa y respuesta háptica.
+ * Botón interactivo reutilizable con animación de confirmación exitosa, protección contra doble pulsación y respuesta háptica.
  *
- * Comportamiento:
- * - En estado normal muestra el texto descriptivo de la acción.
- * - Al pulsar, si la acción se confirma, emite respuesta háptica de éxito ([AppHaptics.success]),
- *   realiza una transición fluida hacia el color verde de seguridad ([SafeGreen]),
- *   reemplaza el texto con una palomita ([Icons.Filled.Check]) durante [Motion.Duration.SUCCESS_ACTION] ms, y
- *   finalmente ejecuta el callback [onActionConfirmed].
+ * Principio de diseño y seguridad:
+ * - En estado normal muestra el texto descriptivo de la acción con fondo primario.
+ * - Al pulsar, bloquea inmediatamente cualquier pulsación adicional concurrente ([isProcessing]).
+ * - Al confirmarse la acción, emite respuesta háptica ([AppHaptics.success]), realiza una transición fluida al verde ([SafeGreen]),
+ *   reemplaza el texto con una palomita blanca ([Icons.Filled.Check]) manteniendo su color vivo, y ejecuta [onActionConfirmed].
  *
  * @param text Texto descriptivo del botón en Sentence case.
  * @param onClick Acción a ejecutar al presionar. Debe retornar `true` si la acción fue exitosa y debe animarse.
@@ -62,6 +61,7 @@ fun AppAnimatedButton(
     val coroutineScope = rememberCoroutineScope()
     val appHaptics = rememberAppHaptics()
     var isSuccess by remember { mutableStateOf(false) }
+    var isProcessing by remember { mutableStateOf(false) }
 
     val animatedContainerColor by animateColorAsState(
         targetValue = if (isSuccess) SafeGreen else MaterialTheme.colorScheme.primary,
@@ -69,24 +69,36 @@ fun AppAnimatedButton(
         label = "animatedButtonColor"
     )
 
+    val isButtonInteractive = enabled && !isProcessing && !isSuccess
+
     Button(
         onClick = {
-            if (!isSuccess) {
+            if (isButtonInteractive) {
+                isProcessing = true
                 coroutineScope.launch {
-                    val success = onClick()
-                    if (success) {
-                        appHaptics.success()
-                        isSuccess = true
-                        delay(Motion.Duration.SUCCESS_ACTION.toLong().milliseconds)
-                        onActionConfirmed()
+                    try {
+                        val success = onClick()
+                        if (success) {
+                            appHaptics.success()
+                            isSuccess = true
+                            delay(Motion.Duration.SUCCESS_ACTION.toLong().milliseconds)
+                            onActionConfirmed()
+                        } else {
+                            appHaptics.error()
+                            isProcessing = false
+                        }
+                    } catch (_: Exception) {
+                        isProcessing = false
                     }
                 }
             }
         },
-        enabled = enabled && !isSuccess,
+        enabled = isButtonInteractive || isSuccess,
         colors = ButtonDefaults.buttonColors(
             containerColor = animatedContainerColor,
-            contentColor = MaterialTheme.colorScheme.onPrimary
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            disabledContainerColor = if (isSuccess) SafeGreen else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+            disabledContentColor = if (isSuccess) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
         ),
         shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
         modifier = modifier
@@ -113,7 +125,8 @@ fun AppAnimatedButton(
             } else {
                 Text(
                     text = text,
-                    style = MaterialTheme.typography.labelLarge
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onPrimary
                 )
             }
         }

@@ -22,6 +22,8 @@ import com.example.appopt.R
 import com.example.appopt.data.cloud.SyncFrequency
 import com.example.appopt.ui.theme.Dimensions
 
+import com.example.appopt.ui.theme.rememberAppHaptics
+
 /**
  * Diálogo modal para seleccionar la frecuencia de sincronización en segundo plano con Google Drive.
  *
@@ -37,6 +39,7 @@ fun SyncFrequencyDialog(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val appHaptics = rememberAppHaptics()
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(Dimensions.CornerRadius.large),
@@ -65,6 +68,7 @@ fun SyncFrequencyDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
+                                appHaptics.click()
                                 onFrequencySelected(frequencyOption)
                             }
                             .padding(vertical = Dimensions.Spacing.xs),
@@ -73,6 +77,7 @@ fun SyncFrequencyDialog(
                         RadioButton(
                             selected = currentFrequency == frequencyOption,
                             onClick = {
+                                appHaptics.click()
                                 onFrequencySelected(frequencyOption)
                             }
                         )
@@ -86,7 +91,12 @@ fun SyncFrequencyDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                onClick = {
+                    appHaptics.click()
+                    onDismiss()
+                }
+            ) {
                 Text(
                     text = stringResource(R.string.action_close),
                     style = MaterialTheme.typography.labelLarge

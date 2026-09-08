@@ -24,6 +24,7 @@ import androidx.compose.ui.res.stringResource
 import com.example.appopt.R
 import com.example.appopt.data.cloud.DriveBackupInfo
 import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.util.DateTimeFormatter
 
 /**
@@ -45,6 +46,7 @@ fun DriveOverwriteWarningDialog(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val appHaptics = rememberAppHaptics()
     val backupDateFormatted = remember(backupInfo, formattedLastSync) {
         backupInfo?.modifiedTimeMillis?.let {
             DateTimeFormatter.formatAbsoluteDateTime(it)

@@ -23,6 +23,8 @@ import androidx.compose.ui.res.stringResource
 import com.example.appopt.R
 import com.example.appopt.ui.theme.Dimensions
 
+import com.example.appopt.ui.theme.rememberAppHaptics
+
 /**
  * Diálogo modal para seleccionar el método de incorporación de cuentas (Escaneo QR o Ingreso Manual).
  *
@@ -38,6 +40,7 @@ fun AddAccountOptionsDialog(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val appHaptics = rememberAppHaptics()
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(Dimensions.CornerRadius.large),
@@ -53,7 +56,10 @@ fun AddAccountOptionsDialog(
                 verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
             ) {
                 Button(
-                    onClick = onScanQr,
+                    onClick = {
+                        appHaptics.click()
+                        onScanQr()
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                 ) {
@@ -70,7 +76,10 @@ fun AddAccountOptionsDialog(
                 }
 
                 OutlinedButton(
-                    onClick = onAddManual,
+                    onClick = {
+                        appHaptics.click()
+                        onAddManual()
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                 ) {
@@ -89,7 +98,12 @@ fun AddAccountOptionsDialog(
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                onClick = {
+                    appHaptics.click()
+                    onDismiss()
+                }
+            ) {
                 Text(
                     text = stringResource(R.string.action_close),
                     style = MaterialTheme.typography.labelLarge

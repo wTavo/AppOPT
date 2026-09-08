@@ -40,12 +40,12 @@ import com.example.appopt.R
 import com.example.appopt.security.MnemonicManager
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.SafeGreen
+import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.util.DateTimeFormatter
 
 /**
- * Diálogo modal para ingresar la clave o frase de recuperación mnemónica y restaurar la bóveda desde Google Drive.
- *
- * Aplica el principio de Cero Confianza y sobreescritura segura de contraseñas tras su procesamiento.
+ * Diálogo modal para solicitar la clave de descifrado (contraseña personalizada o frase BIP-39 de 12 palabras)
+ * al restaurar una copia de seguridad seleccionada de Google Drive.
  *
  * @param backupDateMillis Marca de tiempo de la copia de seguridad que se va a restaurar (opcional).
  * @param deviceName Nombre del dispositivo emisor del respaldo (opcional).
@@ -64,6 +64,7 @@ fun DriveDecryptDialog(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val appHaptics = rememberAppHaptics()
     var restoreSecretText by remember { mutableStateOf("") }
     var isRestoreSecretVisible by remember { mutableStateOf(false) }
 
@@ -191,6 +192,7 @@ fun DriveDecryptDialog(
                 onClick = {
                     if (!isProcessing) {
                         isProcessing = true
+                        appHaptics.click()
                         val normalizedSecret = if (restoreSecretText.contains(" ")) {
                             MnemonicManager.normalizePhrase(restoreSecretText)
                         } else {
@@ -214,7 +216,12 @@ fun DriveDecryptDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                onClick = {
+                    appHaptics.click()
+                    onDismiss()
+                }
+            ) {
                 Text(
                     text = stringResource(R.string.action_close),
                     style = MaterialTheme.typography.labelLarge

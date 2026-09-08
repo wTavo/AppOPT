@@ -13,6 +13,8 @@ import androidx.compose.ui.res.stringResource
 import com.example.appopt.R
 import com.example.appopt.ui.theme.Dimensions
 
+import com.example.appopt.ui.theme.rememberAppHaptics
+
 /**
  * Diálogo modal de confirmación destructiva para desvincular la cuenta de Google Drive.
  *
@@ -26,6 +28,7 @@ fun DriveDisconnectConfirmDialog(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val appHaptics = rememberAppHaptics()
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(Dimensions.CornerRadius.large),
@@ -43,7 +46,10 @@ fun DriveDisconnectConfirmDialog(
         },
         confirmButton = {
             Button(
-                onClick = onConfirm,
+                onClick = {
+                    appHaptics.click()
+                    onConfirm()
+                },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error,
                     contentColor = MaterialTheme.colorScheme.onError
@@ -57,7 +63,12 @@ fun DriveDisconnectConfirmDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                onClick = {
+                    appHaptics.click()
+                    onDismiss()
+                }
+            ) {
                 Text(
                     text = stringResource(R.string.action_cancel),
                     style = MaterialTheme.typography.labelLarge

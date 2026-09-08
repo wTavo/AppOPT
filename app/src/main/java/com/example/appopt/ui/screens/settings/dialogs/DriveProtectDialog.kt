@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -95,7 +94,7 @@ fun DriveProtectDialog(
     val wordsCopiedMsg = stringResource(R.string.settings_drive_words_copied)
     val passwordLabel = stringResource(R.string.settings_drive_password_label)
     val keyLabel = stringResource(R.string.settings_drive_key_label)
-    val quizErrorMsg = stringResource(R.string.settings_drive_quiz_error)
+    val quizErrorMsg = stringResource(R.string.settings_drive_quiz_description)
 
     val isPasswordValid = masterPasswordText.length >= 10 && masterPasswordText == masterPasswordConfirmText
     val isStep1Valid = if (selectedProtectionTab == 0) isPasswordValid else generated64Key.isNotBlank()
@@ -126,388 +125,63 @@ fun DriveProtectDialog(
                 verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
             ) {
                 when (step) {
-                    1 -> {
-                        Text(
-                            text = stringResource(R.string.settings_drive_protect_description),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        PrimaryTabRow(selectedTabIndex = selectedProtectionTab) {
-                            Tab(
-                                selected = selectedProtectionTab == 0,
-                                onClick = { selectedProtectionTab = 0 },
-                                text = { Text(stringResource(R.string.settings_drive_method_password), style = MaterialTheme.typography.labelSmall) },
-                                icon = { Icon(Icons.Filled.Password, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small)) }
+                    1 -> DriveProtectStepMethod(
+                        selectedTab = selectedProtectionTab,
+                        onTabSelected = { selectedProtectionTab = it },
+                        masterPasswordText = masterPasswordText,
+                        onMasterPasswordChange = { masterPasswordText = it },
+                        masterPasswordConfirmText = masterPasswordConfirmText,
+                        onMasterPasswordConfirmChange = { masterPasswordConfirmText = it },
+                        isMasterPasswordVisible = isMasterPasswordVisible,
+                        onTogglePasswordVisibility = { isMasterPasswordVisible = !isMasterPasswordVisible },
+                        generated64Key = generated64Key,
+                        onRegenerateKey = {
+                            appHaptics.click()
+                            generated64Key = GoogleDriveManager.generate64DigitKey()
+                        },
+                        onCopyKey = {
+                            appHaptics.copy()
+                            secureClipboard.copyToClipboard(
+                                label = "Google Drive 64-Key",
+                                text = generated64Key,
+                                autoClearSeconds = SecurityConfig.CLIPBOARD_RECOVERY_KEY_AUTO_CLEAR_SECONDS
                             )
-                            Tab(
-                                selected = selectedProtectionTab == 1,
-                                onClick = { selectedProtectionTab = 1 },
-                                text = { Text(stringResource(R.string.settings_drive_method_key), style = MaterialTheme.typography.labelSmall) },
-                                icon = { Icon(Icons.Filled.Key, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small)) }
+                            Toast.makeText(context, keyCopiedMsg, Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                    2 -> DriveProtectStepEmergencyKit(
+                        mnemonicWords = generatedMnemonicWords,
+                        onCopyWords = {
+                            appHaptics.copy()
+                            secureClipboard.copyToClipboard(
+                                label = "12 Words Emergency Kit",
+                                text = generatedMnemonicWords.joinToString(" "),
+                                autoClearSeconds = SecurityConfig.CLIPBOARD_RECOVERY_KEY_AUTO_CLEAR_SECONDS
+                            )
+                            Toast.makeText(context, wordsCopiedMsg, Toast.LENGTH_SHORT).show()
+                        },
+                        onPrintPdf = {
+                            appHaptics.click()
+                            val primaryTitle = if (selectedProtectionTab == 0) passwordLabel else keyLabel
+                            val primaryVal = if (selectedProtectionTab == 0) masterPasswordText else generated64Key
+                            EmergencyKitPdfGenerator.printEmergencyKit(
+                                context = context,
+                                primaryMethodTitle = primaryTitle,
+                                primaryMethodValue = primaryVal,
+                                mnemonicWords = generatedMnemonicWords
                             )
                         }
-
-                        if (selectedProtectionTab == 0) {
-                            Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
-                                OutlinedTextField(
-                                    value = masterPasswordText,
-                                    onValueChange = { masterPasswordText = it },
-                                    label = { Text(stringResource(R.string.settings_drive_password_label)) },
-                                    visualTransformation = if (isMasterPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                                    trailingIcon = {
-                                        IconButton(onClick = { isMasterPasswordVisible = !isMasterPasswordVisible }) {
-                                            Icon(
-                                                imageVector = if (isMasterPasswordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                                contentDescription = null
-                                            )
-                                        }
-                                    },
-                                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                    singleLine = true,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-
-                                OutlinedTextField(
-                                    value = masterPasswordConfirmText,
-                                    onValueChange = { masterPasswordConfirmText = it },
-                                    label = { Text(stringResource(R.string.settings_drive_password_confirm_label)) },
-                                    visualTransformation = if (isMasterPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                    singleLine = true,
-                                    isError = masterPasswordConfirmText.isNotEmpty() && masterPasswordText != masterPasswordConfirmText,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-
-                                if (masterPasswordText.isNotEmpty() && masterPasswordText.length < 10) {
-                                    Text(
-                                        text = stringResource(R.string.settings_drive_password_too_short),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                } else if (masterPasswordConfirmText.isNotEmpty() && masterPasswordText != masterPasswordConfirmText) {
-                                    Text(
-                                        text = stringResource(R.string.settings_drive_password_mismatch),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                }
-
-                                Surface(
-                                    shape = RoundedCornerShape(Dimensions.CornerRadius.small),
-                                    color = MaterialTheme.colorScheme.errorContainer
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.settings_drive_password_warning),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onErrorContainer,
-                                        modifier = Modifier.padding(Dimensions.Spacing.sm)
-                                    )
-                                }
-                            }
-                        } else {
-                            Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
-                                Surface(
-                                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                    color = MaterialTheme.colorScheme.surfaceVariant,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Column(modifier = Modifier.padding(Dimensions.Spacing.sm)) {
-                                        Text(
-                                            text = generated64Key,
-                                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                                            modifier = Modifier.fillMaxWidth()
-                                        )
-                                    }
-                                }
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    TextButton(
-                                        onClick = {
-                                            appHaptics.copy()
-                                            secureClipboard.copyToClipboard(
-                                                label = "AppOPT-BackupKey",
-                                                text = generated64Key,
-                                                autoClearSeconds = SecurityConfig.CLIPBOARD_RECOVERY_KEY_AUTO_CLEAR_SECONDS
-                                            )
-                                            Toast.makeText(context, keyCopiedMsg, Toast.LENGTH_LONG).show()
-                                        }
-                                    ) {
-                                        Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
-                                        Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
-                                        Text(stringResource(R.string.settings_drive_copy_60s), style = MaterialTheme.typography.labelLarge)
-                                    }
-
-                                    TextButton(
-                                        onClick = { generated64Key = GoogleDriveManager.generate64DigitKey() }
-                                    ) {
-                                        Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
-                                        Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
-                                        Text(stringResource(R.string.settings_drive_key_regenerate), style = MaterialTheme.typography.labelLarge)
-                                    }
-                                }
-
-                                Surface(
-                                    shape = RoundedCornerShape(Dimensions.CornerRadius.small),
-                                    color = MaterialTheme.colorScheme.errorContainer
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.settings_drive_key_warning),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onErrorContainer,
-                                        modifier = Modifier.padding(Dimensions.Spacing.sm)
-                                    )
-                                }
-                            }
+                    )
+                    3 -> DriveProtectStepQuiz(
+                        questions = quizQuestions,
+                        selectedAnswers = quizSelectedAnswers,
+                        isError = isQuizError,
+                        onSelectAnswer = { questionIdx, option ->
+                            appHaptics.click()
+                            isQuizError = false
+                            quizSelectedAnswers = quizSelectedAnswers + (questionIdx to option)
                         }
-                    }
-                    2 -> {
-                        Text(
-                            text = stringResource(R.string.settings_drive_emergency_description),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
-                            Text(
-                                text = stringResource(R.string.settings_drive_summary_primary_title),
-                                style = MaterialTheme.typography.titleSmall
-                            )
-
-                            Surface(
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.small),
-                                color = MaterialTheme.colorScheme.surfaceVariant,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(Dimensions.Spacing.sm),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = if (selectedProtectionTab == 0) Icons.Filled.Password else Icons.Filled.Key,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(Dimensions.IconSize.small),
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                    Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                                    Text(
-                                        text = if (selectedProtectionTab == 0) {
-                                            "•••••••••••• (${masterPasswordText.length} caracteres)"
-                                        } else {
-                                            generated64Key
-                                        },
-                                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
-
-                            Text(
-                                text = stringResource(R.string.settings_drive_summary_emergency_title),
-                                style = MaterialTheme.typography.titleSmall
-                            )
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
-                            ) {
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
-                                ) {
-                                    generatedMnemonicWords.take(6).forEachIndexed { index, word ->
-                                        Surface(
-                                            shape = RoundedCornerShape(Dimensions.CornerRadius.small),
-                                            color = MaterialTheme.colorScheme.surfaceVariant,
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Text(
-                                                text = "${index + 1}. $word",
-                                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                                                modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs)
-                                            )
-                                        }
-                                    }
-                                }
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
-                                ) {
-                                    generatedMnemonicWords.drop(6).forEachIndexed { index, word ->
-                                        Surface(
-                                            shape = RoundedCornerShape(Dimensions.CornerRadius.small),
-                                            color = MaterialTheme.colorScheme.surfaceVariant,
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Text(
-                                                text = "${index + 7}. $word",
-                                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                                                modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            Row(
-                                 modifier = Modifier.fillMaxWidth(),
-                                 horizontalArrangement = Arrangement.SpaceBetween,
-                                 verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                TextButton(
-                                    onClick = {
-                                        appHaptics.copy()
-                                        val fullPhrase = generatedMnemonicWords.joinToString(" ")
-                                        secureClipboard.copyToClipboard(
-                                            label = "AppOPT-MnemonicWords",
-                                            text = fullPhrase,
-                                            autoClearSeconds = SecurityConfig.CLIPBOARD_RECOVERY_KEY_AUTO_CLEAR_SECONDS
-                                        )
-                                        Toast.makeText(context, wordsCopiedMsg, Toast.LENGTH_LONG).show()
-                                    }
-                                ) {
-                                    Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
-                                    Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
-                                    Text(stringResource(R.string.settings_drive_copy_60s), style = MaterialTheme.typography.labelLarge)
-                                }
-
-                                TextButton(
-                                    onClick = { generatedMnemonicWords = MnemonicManager.generate12WordPhrase() }
-                                ) {
-                                    Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
-                                    Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
-                                    Text(stringResource(R.string.settings_drive_words_regenerate), style = MaterialTheme.typography.labelLarge)
-                                }
-                            }
-
-                            OutlinedButton(
-                                onClick = {
-                                    appHaptics.click()
-                                    val methodTitle = if (selectedProtectionTab == 0) {
-                                        passwordLabel
-                                    } else {
-                                        keyLabel
-                                    }
-                                    val methodValue = if (selectedProtectionTab == 0) {
-                                        "•••••••••••• (${masterPasswordText.length} caracteres)"
-                                    } else {
-                                        generated64Key
-                                    }
-                                    EmergencyKitPdfGenerator.printEmergencyKit(
-                                        context = context,
-                                        primaryMethodTitle = methodTitle,
-                                        primaryMethodValue = methodValue,
-                                        mnemonicWords = generatedMnemonicWords
-                                    )
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                            ) {
-                                Icon(Icons.Filled.Print, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
-                                Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
-                                Text(stringResource(R.string.settings_drive_print_pdf), style = MaterialTheme.typography.labelLarge)
-                            }
-
-                            Text(
-                                text = stringResource(R.string.settings_drive_print_pdf_hint),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-
-                            Surface(
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.small),
-                                color = MaterialTheme.colorScheme.errorContainer
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.settings_drive_words_warning),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onErrorContainer,
-                                    modifier = Modifier.padding(Dimensions.Spacing.sm)
-                                )
-                            }
-                        }
-                    }
-                    else -> {
-                        Text(
-                            text = stringResource(R.string.settings_drive_quiz_description),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)) {
-                            quizQuestions.forEach { question ->
-                                Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)) {
-                                    Text(
-                                        text = stringResource(R.string.settings_drive_quiz_question_label, question.position),
-                                        style = MaterialTheme.typography.titleSmall
-                                    )
-
-                                    Column(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
-                                    ) {
-                                        question.options.forEach { option ->
-                                            val isSelected = quizSelectedAnswers[question.position] == option
-                                            Surface(
-                                                shape = RoundedCornerShape(Dimensions.CornerRadius.small),
-                                                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                                                border = if (isSelected) BorderStroke(Dimensions.Stroke.regular, MaterialTheme.colorScheme.primary) else null,
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .clickable {
-                                                        appHaptics.click()
-                                                        isQuizError = false
-                                                        quizSelectedAnswers = quizSelectedAnswers + (question.position to option)
-                                                    }
-                                            ) {
-                                                Row(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.sm),
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.SpaceBetween
-                                                ) {
-                                                    Text(
-                                                        text = option,
-                                                        style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
-                                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        maxLines = 1
-                                                    )
-                                                    if (isSelected) {
-                                                        Icon(
-                                                            imageVector = Icons.Filled.CheckCircle,
-                                                            contentDescription = null,
-                                                            modifier = Modifier.size(Dimensions.IconSize.small),
-                                                            tint = MaterialTheme.colorScheme.primary
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            if (isQuizError) {
-                                Surface(
-                                    shape = RoundedCornerShape(Dimensions.CornerRadius.small),
-                                    color = MaterialTheme.colorScheme.errorContainer
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.settings_drive_quiz_error),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onErrorContainer,
-                                        modifier = Modifier.padding(Dimensions.Spacing.sm)
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    )
                 }
             }
         },
@@ -515,7 +189,10 @@ fun DriveProtectDialog(
             when (step) {
                 1 -> {
                     Button(
-                        onClick = { step = 2 },
+                        onClick = {
+                            appHaptics.click()
+                            step = 2
+                        },
                         enabled = isStep1Valid,
                         shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                     ) {
@@ -525,49 +202,48 @@ fun DriveProtectDialog(
                 2 -> {
                     Button(
                         onClick = {
-                            quizQuestions = MnemonicManager.generateQuiz(generatedMnemonicWords, 2)
+                            appHaptics.click()
+                            quizQuestions = MnemonicManager.generateQuiz(generatedMnemonicWords)
                             quizSelectedAnswers = emptyMap()
                             isQuizError = false
                             step = 3
                         },
-                        enabled = generatedMnemonicWords.size == 12,
                         shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                     ) {
                         Text(stringResource(R.string.settings_drive_to_quiz_step), style = MaterialTheme.typography.labelLarge)
                     }
                 }
-                else -> {
-                    var isProcessing by remember { mutableStateOf(false) }
+                3 -> {
                     Button(
                         onClick = {
-                            if (!isProcessing) {
-                                val isAllCorrect = quizQuestions.all { quizSelectedAnswers[it.position] == it.correctWord }
-                                if (!isAllCorrect) {
-                                    appHaptics.error()
-                                    isQuizError = true
-                                    Toast.makeText(context, quizErrorMsg, Toast.LENGTH_LONG).show()
-                                    return@Button
-                                }
+                            val allCorrect = quizQuestions.mapIndexed { idx, q ->
+                                quizSelectedAnswers[idx] == q.correctWord
+                            }.all { it }
 
-                                isProcessing = true
-                                val primaryPassChars = if (selectedProtectionTab == 0) {
+                            if (allCorrect) {
+                                appHaptics.success()
+                                val primaryPass = if (selectedProtectionTab == 0) {
                                     masterPasswordText.toCharArray()
                                 } else {
                                     generated64Key.toCharArray()
                                 }
-                                val emergencyMnemonicChars = MnemonicManager.normalizePhrase(
-                                    generatedMnemonicWords.joinToString(" ")
-                                ).toCharArray()
-
+                                val mnemonicPass = generatedMnemonicWords.joinToString(" ").toCharArray()
                                 try {
-                                    onProtectAndSync(primaryPassChars, emergencyMnemonicChars)
+                                    onProtectAndSync(primaryPass, mnemonicPass)
                                 } finally {
-                                    primaryPassChars.fill('0')
-                                    emergencyMnemonicChars.fill('0')
+                                    primaryPass.fill('0')
+                                    mnemonicPass.fill('0')
+                                    masterPasswordText = ""
+                                    masterPasswordConfirmText = ""
+                                    generated64Key = ""
                                 }
+                            } else {
+                                appHaptics.error()
+                                isQuizError = true
+                                Toast.makeText(context, quizErrorMsg, Toast.LENGTH_LONG).show()
                             }
                         },
-                        enabled = isQuizAnswered && !isProcessing,
+                        enabled = isQuizAnswered,
                         shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                     ) {
                         Text(stringResource(R.string.settings_drive_encrypt_and_sync), style = MaterialTheme.typography.labelLarge)
@@ -586,15 +262,270 @@ fun DriveProtectDialog(
                 }
             ) {
                 Text(
-                    text = when (step) {
-                        3 -> stringResource(R.string.settings_drive_quiz_review_words)
-                        2 -> stringResource(R.string.settings_drive_details_back)
-                        else -> stringResource(R.string.action_close)
-                    },
+                    text = if (step == 1) stringResource(R.string.action_cancel) else stringResource(R.string.settings_drive_details_back),
                     style = MaterialTheme.typography.labelLarge
                 )
             }
         },
         modifier = modifier
     )
+}
+
+/**
+ * Sub-componente para el Paso 1: Selección y configuración del método de protección principal.
+ */
+@Composable
+private fun DriveProtectStepMethod(
+    selectedTab: Int,
+    onTabSelected: (Int) -> Unit,
+    masterPasswordText: String,
+    onMasterPasswordChange: (String) -> Unit,
+    masterPasswordConfirmText: String,
+    onMasterPasswordConfirmChange: (String) -> Unit,
+    isMasterPasswordVisible: Boolean,
+    onTogglePasswordVisibility: () -> Unit,
+    generated64Key: String,
+    onRegenerateKey: () -> Unit,
+    onCopyKey: () -> Unit
+) {
+    Text(
+        text = stringResource(R.string.settings_drive_protect_description),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+
+    PrimaryTabRow(selectedTabIndex = selectedTab) {
+        Tab(
+            selected = selectedTab == 0,
+            onClick = { onTabSelected(0) },
+            text = { Text(stringResource(R.string.settings_drive_method_password), style = MaterialTheme.typography.labelSmall) },
+            icon = { Icon(Icons.Filled.Password, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small)) }
+        )
+        Tab(
+            selected = selectedTab == 1,
+            onClick = { onTabSelected(1) },
+            text = { Text(stringResource(R.string.settings_drive_method_key), style = MaterialTheme.typography.labelSmall) },
+            icon = { Icon(Icons.Filled.Key, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small)) }
+        )
+    }
+
+    if (selectedTab == 0) {
+        OutlinedTextField(
+            value = masterPasswordText,
+            onValueChange = onMasterPasswordChange,
+            label = { Text(stringResource(R.string.settings_drive_password_label)) },
+            visualTransformation = if (isMasterPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                IconButton(onClick = onTogglePasswordVisibility) {
+                    Icon(
+                        imageVector = if (isMasterPasswordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                        contentDescription = null
+                    )
+                }
+            },
+            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        OutlinedTextField(
+            value = masterPasswordConfirmText,
+            onValueChange = onMasterPasswordConfirmChange,
+            label = { Text(stringResource(R.string.settings_drive_password_confirm_label)) },
+            visualTransformation = if (isMasterPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            isError = masterPasswordConfirmText.isNotEmpty() && masterPasswordText != masterPasswordConfirmText,
+            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+    } else {
+        Surface(
+            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(Dimensions.Spacing.md),
+                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_drive_key_warning),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = generated64Key.chunked(16).joinToString("\n"),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    IconButton(onClick = onRegenerateKey) {
+                        Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.settings_drive_key_regenerate))
+                    }
+                    IconButton(onClick = onCopyKey) {
+                        Icon(Icons.Filled.ContentCopy, contentDescription = stringResource(R.string.settings_drive_copy_60s))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Sub-componente para el Paso 2: Visualización y exportación/impresión del Kit de Emergencia BIP-39.
+ */
+@Composable
+private fun DriveProtectStepEmergencyKit(
+    mnemonicWords: List<String>,
+    onCopyWords: () -> Unit,
+    onPrintPdf: () -> Unit
+) {
+    Text(
+        text = stringResource(R.string.settings_drive_emergency_description),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+
+    Surface(
+        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(Dimensions.Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+        ) {
+            val chunked = mnemonicWords.chunked(3)
+            chunked.forEachIndexed { rowIdx, rowWords ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    rowWords.forEachIndexed { colIdx, word ->
+                        val wordNumber = rowIdx * 3 + colIdx + 1
+                        Text(
+                            text = "$wordNumber. $word",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+    ) {
+        OutlinedButton(
+            onClick = onCopyWords,
+            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+            modifier = Modifier.weight(1f)
+        ) {
+            Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
+            Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+            Text(stringResource(R.string.settings_drive_copy_60s), style = MaterialTheme.typography.labelMedium)
+        }
+
+        OutlinedButton(
+            onClick = onPrintPdf,
+            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+            modifier = Modifier.weight(1f)
+        ) {
+            Icon(Icons.Filled.Print, contentDescription = null, modifier = Modifier.size(Dimensions.IconSize.small))
+            Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+            Text(stringResource(R.string.settings_drive_print_pdf), style = MaterialTheme.typography.labelMedium)
+        }
+    }
+}
+
+/**
+ * Sub-componente para el Paso 3: Cuestionario de verificación de palabras mnemónicas.
+ */
+@Composable
+private fun DriveProtectStepQuiz(
+    questions: List<MnemonicManager.MnemonicQuizQuestion>,
+    selectedAnswers: Map<Int, String>,
+    isError: Boolean,
+    onSelectAnswer: (Int, String) -> Unit
+) {
+    Text(
+        text = stringResource(R.string.settings_drive_quiz_description),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+
+    Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
+        questions.forEachIndexed { qIdx, q ->
+            Surface(
+                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                border = BorderStroke(
+                    Dimensions.Stroke.thin,
+                    if (isError) MaterialTheme.colorScheme.error.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(Dimensions.Spacing.sm),
+                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_drive_quiz_question_label, q.position),
+                        style = MaterialTheme.typography.titleSmall
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                    ) {
+                        q.options.forEach { option ->
+                            val isSelected = selectedAnswers[qIdx] == option
+                            Surface(
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.small),
+                                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                                border = BorderStroke(
+                                    Dimensions.Stroke.thin,
+                                    if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                                ),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { onSelectAnswer(qIdx, option) }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(vertical = Dimensions.Spacing.xs, horizontal = Dimensions.Spacing.xs),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    if (isSelected) {
+                                        Icon(
+                                            Icons.Filled.CheckCircle,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(Dimensions.IconSize.small / 1.4f)
+                                        )
+                                        Spacer(modifier = Modifier.width(Dimensions.Spacing.xs / 2))
+                                    }
+                                    Text(
+                                        text = option,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontFamily = FontFamily.Monospace,
+                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

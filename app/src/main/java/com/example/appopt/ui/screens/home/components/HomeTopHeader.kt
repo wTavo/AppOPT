@@ -110,7 +110,7 @@ fun HomeTopHeader(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1200, easing = LinearEasing),
+            animation = tween(durationMillis = Motion.Duration.SYNC_ROTATION, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "syncRotation"
@@ -120,7 +120,7 @@ fun HomeTopHeader(
         initialValue = -300f,
         targetValue = 600f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 4000, easing = LinearEasing),
+            animation = tween(durationMillis = Motion.Duration.AMBIENT_SHINE_LOOP, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "shineOffsetAnimation"

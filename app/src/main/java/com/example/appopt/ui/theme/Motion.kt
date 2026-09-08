@@ -50,6 +50,12 @@ object Motion {
 
         /** Intervalo de sondeo del bucle de arrastre manual (~60fps). Equivale a un fotograma a 60 Hz (16ms). */
         const val DRAG_POLL_INTERVAL_MS = 16
+
+        /** Duración de la animación de rotación continua para sincronización activa en cabecera (1200ms). */
+        const val SYNC_ROTATION = 1200
+
+        /** Duración del bucle de brillo ambiental (*ambient shine*) en estado de sincronización exitosa (4000ms). */
+        const val AMBIENT_SHINE_LOOP = 4000
     }
 
     /**

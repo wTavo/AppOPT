@@ -83,6 +83,11 @@
     <string name="settings_transfer_description">Transfiere tus servicios directamente a otro teléfono mediante un código QR sin pasar por ningún servidor.</string>
     <string name="settings_export_services_button">Exportar servicios</string>
     <string name="settings_import_services_button">Importar servicios</string>
+    <string name="settings_transfer_export_auth_title">Exportar servicios</string>
+    <string name="settings_transfer_export_auth_subtitle">Confirma tu identidad para generar el código QR de transferencia</string>
+    <string name="settings_transfer_import_auth_title">Importar servicios</string>
+    <string name="settings_transfer_import_auth_subtitle">Confirma tu identidad para escanear y transferir servicios</string>
+    <string name="settings_transfer_auth_failed">Autenticación cancelada o no reconocida</string>
     <string name="settings_export_services_dialog_title">Seleccionar servicios</string>
     <string name="settings_export_services_dialog_description">Elige los servicios que deseas transferir a tu otro dispositivo.</string>
     <string name="settings_keep_services_label">Mantener servicios en este dispositivo</string>

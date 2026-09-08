@@ -10,6 +10,9 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.biometric.BiometricPrompt
+import androidx.fragment.app.FragmentActivity
+import com.example.appopt.AuthenticatorApp
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -112,6 +115,9 @@ fun SettingsScreen(
     var showDriveDecryptDialog by remember { mutableStateOf(false) }
     var showOverwriteWarningDialog by remember { mutableStateOf(false) }
 
+    // Gestor de autenticación biométrica
+    val biometricAuthManager = remember { AuthenticatorApp.instance.biometricAuthManager }
+
     // Mensajes centralizados de retroalimentación
     val driveErrorText = stringResource(R.string.settings_drive_error)
     val driveConnectedSuccessText = stringResource(R.string.settings_drive_connected_success)
@@ -120,6 +126,11 @@ fun SettingsScreen(
     val driveSyncSuccessText = stringResource(R.string.settings_drive_sync_success)
     val driveDecryptErrorText = stringResource(R.string.settings_drive_decrypt_error)
     val driveDeleteSingleSuccessText = stringResource(R.string.settings_drive_delete_single_success)
+    val exportAuthTitle = stringResource(R.string.settings_transfer_export_auth_title)
+    val exportAuthSubtitle = stringResource(R.string.settings_transfer_export_auth_subtitle)
+    val importAuthTitle = stringResource(R.string.settings_transfer_import_auth_title)
+    val importAuthSubtitle = stringResource(R.string.settings_transfer_import_auth_subtitle)
+    val transferAuthFailedText = stringResource(R.string.settings_transfer_auth_failed)
 
     // Diagnóstico en tiempo real de permisos y reloj del sistema
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -317,8 +328,62 @@ fun SettingsScreen(
             // 3. Tarjeta de Transferencia Offline por Código QR
             TransferSettingsCard(
                 accounts = uiState.accounts,
-                onExportClick = { showExportDialog = true },
-                onImportClick = onNavigateToScanQr
+                onExportClick = {
+                    val activity = context as? FragmentActivity
+                    if (activity != null) {
+                        biometricAuthManager.authenticate(
+                            activity = activity,
+                            title = exportAuthTitle,
+                            subtitle = exportAuthSubtitle,
+                            onSuccess = {
+                                appHaptics.success()
+                                showExportDialog = true
+                            },
+                            onError = { errorCode, _ ->
+                                if (errorCode != BiometricPrompt.ERROR_USER_CANCELED &&
+                                    errorCode != BiometricPrompt.ERROR_NEGATIVE_BUTTON &&
+                                    errorCode != BiometricPrompt.ERROR_CANCELED
+                                ) {
+                                    appHaptics.error()
+                                    scope.launch { snackbarHostState.showSnackbar(transferAuthFailedText) }
+                                }
+                            },
+                            onFailed = {
+                                appHaptics.error()
+                            }
+                        )
+                    } else {
+                        showExportDialog = true
+                    }
+                },
+                onImportClick = {
+                    val activity = context as? FragmentActivity
+                    if (activity != null) {
+                        biometricAuthManager.authenticate(
+                            activity = activity,
+                            title = importAuthTitle,
+                            subtitle = importAuthSubtitle,
+                            onSuccess = {
+                                appHaptics.success()
+                                onNavigateToScanQr()
+                            },
+                            onError = { errorCode, _ ->
+                                if (errorCode != BiometricPrompt.ERROR_USER_CANCELED &&
+                                    errorCode != BiometricPrompt.ERROR_NEGATIVE_BUTTON &&
+                                    errorCode != BiometricPrompt.ERROR_CANCELED
+                                ) {
+                                    appHaptics.error()
+                                    scope.launch { snackbarHostState.showSnackbar(transferAuthFailedText) }
+                                }
+                            },
+                            onFailed = {
+                                appHaptics.error()
+                            }
+                        )
+                    } else {
+                        onNavigateToScanQr()
+                    }
+                }
             )
 
             // 4. Tarjeta de Copia de Seguridad y Sincronización en Google Drive

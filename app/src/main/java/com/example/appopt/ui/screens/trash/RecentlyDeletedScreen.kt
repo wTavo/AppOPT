@@ -464,6 +464,7 @@ private fun DeletedAccountCard(
                     modifier = Modifier
                         .weight(1f)
                         .height(Dimensions.ComponentHeight.buttonDefault),
+                    contentPadding = PaddingValues(horizontal = Dimensions.Spacing.xs, vertical = Dimensions.Spacing.xs),
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.error
@@ -473,22 +474,16 @@ private fun DeletedAccountCard(
                         MaterialTheme.colorScheme.error.copy(alpha = 0.4f)
                     )
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.DeleteForever,
-                        contentDescription = null,
-                        modifier = Modifier.size(Dimensions.IconSize.medium)
-                    )
-                    Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
                     Text(
                         text = stringResource(R.string.trash_permanent_delete_button),
-                        style = MaterialTheme.typography.labelLarge,
-                        maxLines = 1
+                        style = MaterialTheme.typography.labelMedium,
+                        textAlign = TextAlign.Center,
+                        maxLines = 2
                     )
                 }
 
                 AppAnimatedButton(
                     text = stringResource(R.string.trash_restore_button),
-                    leadingIcon = Icons.Filled.Restore,
                     height = Dimensions.ComponentHeight.buttonDefault,
                     onClick = {
                         onRestore()

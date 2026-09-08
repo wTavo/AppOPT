@@ -11,6 +11,7 @@ import com.example.appopt.domain.totp.Base32
 import com.example.appopt.domain.totp.OtpUriParser
 import com.example.appopt.domain.totp.TotpEngine
 import com.example.appopt.security.CryptoManager
+import com.example.appopt.security.TransferCrypto
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -350,11 +351,13 @@ class AccountRepositoryImpl(
     /**
      * Exporta las cuentas de la bóveda para migración y transferencia por código QR o copia en la nube.
      *
-     * Si solo hay 1 cuenta, genera el URI estándar otpauth://
-     * Si hay múltiples cuentas, genera un payload JSON estructurado con el prefijo "appopt-migration:"
-     * que asegura compatibilidad y decodificación eficiente en el código QR.
+     * Si se suministra un [pin], el resultado es cifrado mediante AES-256-GCM y PBKDF2 con prefijo "appopt-transfer:".
+     * Si no se suministra un [pin], genera el payload JSON estándar "appopt-migration".
      */
-    override suspend fun exportAccountsForTransfer(selectedAccountIds: Set<String>?): String {
+    override suspend fun exportAccountsForTransfer(
+        selectedAccountIds: Set<String>?,
+        pin: CharArray?
+    ): String {
         val allEntities = accountDao.getAllAccounts().first()
         val entities = if (selectedAccountIds != null) {
             allEntities.filter { it.id in selectedAccountIds }
@@ -391,17 +394,48 @@ class AccountRepositoryImpl(
             put("type", "appopt-migration")
             put("accounts", jsonArray)
         }
-        return rootObject.toString()
+
+        val plainJson = rootObject.toString()
+        return if (pin != null) {
+            TransferCrypto.encryptTransferPayload(plainJson, pin)
+        } else {
+            plainJson
+        }
     }
 
     /**
      * Importa una o múltiples cuentas a partir de los datos escaneados de un código QR de transferencia.
+     *
+     * Soporta:
+     * 1. URIs estándar otpauth://
+     * 2. Transferencias cifradas con prefijo "appopt-transfer:" descifradas mediante [pin].
+     * 3. Payloads JSON legados o sin cifrar con arreglo "accounts".
      */
-    override suspend fun importAccountsFromTransfer(transferPayload: String): Result<Int> {
+    override suspend fun importAccountsFromTransfer(
+        transferPayload: String,
+        pin: CharArray?
+    ): Result<Int> {
         val trimmed = transferPayload.trim()
-        // 1. Caso URI individual estándar otpauth://
-        if (trimmed.startsWith("otpauth://", ignoreCase = true)) {
-            val parseResult = OtpUriParser.parse(trimmed)
+
+        // 1. Caso payload cifrado con PIN
+        val effectivePayload = if (trimmed.startsWith(TransferCrypto.QR_TRANSFER_PREFIX, ignoreCase = true)) {
+            if (pin == null) {
+                return Result.failure(TransferCrypto.InvalidPinException("Se requiere PIN para descifrar esta transferencia"))
+            }
+            val decryptResult = TransferCrypto.decryptTransferPayload(trimmed, pin)
+            if (decryptResult.isFailure) {
+                return Result.failure(decryptResult.exceptionOrNull() ?: TransferCrypto.InvalidPinException())
+            }
+            decryptResult.getOrThrow()
+        } else {
+            trimmed
+        }
+
+        val effectiveTrimmed = effectivePayload.trim()
+
+        // 2. Caso URI individual estándar otpauth://
+        if (effectiveTrimmed.startsWith("otpauth://", ignoreCase = true)) {
+            val parseResult = OtpUriParser.parse(effectiveTrimmed)
             if (parseResult.isFailure) {
                 return Result.failure(parseResult.exceptionOrNull() ?: Exception("QR OTP no válido"))
             }
@@ -419,9 +453,9 @@ class AccountRepositoryImpl(
             return Result.success(1)
         }
 
-        // 2. Caso JSON estructurado multi-cuenta
+        // 3. Caso JSON estructurado multi-cuenta
         return runCatching {
-            val root = JSONObject(trimmed)
+            val root = JSONObject(effectiveTrimmed)
             val accountsArray = root.getJSONArray("accounts")
             var count = 0
             for (i in 0 until accountsArray.length()) {

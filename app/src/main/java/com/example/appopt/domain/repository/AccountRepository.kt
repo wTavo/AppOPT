@@ -92,17 +92,25 @@ interface AccountRepository {
      * Exporta las cuentas de la bóveda para migración y transferencia por código QR.
      *
      * @param selectedAccountIds Conjunto opcional de identificadores de cuentas a exportar. Si es null, exporta todas.
+     * @param pin PIN opcional de 6 dígitos en [CharArray] para cifrar el payload con AES-256-GCM.
      * @return Cadena formateada para codificarse en un código QR de migración.
      */
-    suspend fun exportAccountsForTransfer(selectedAccountIds: Set<String>? = null): String
+    suspend fun exportAccountsForTransfer(
+        selectedAccountIds: Set<String>? = null,
+        pin: CharArray? = null
+    ): String
 
     /**
      * Importa una o múltiples cuentas a partir de los datos escaneados de un código QR de transferencia.
      *
      * @param transferPayload Cadena de texto obtenida del código QR.
+     * @param pin PIN opcional de 6 dígitos en [CharArray] para descifrar transferencias protegidas.
      * @return [Result] con la cantidad de cuentas importadas exitosamente.
      */
-    suspend fun importAccountsFromTransfer(transferPayload: String): Result<Int>
+    suspend fun importAccountsFromTransfer(
+        transferPayload: String,
+        pin: CharArray? = null
+    ): Result<Int>
 
     /**
      * Fusiona de forma no destructiva las cuentas provenientes de una copia remota de Google Drive con la base de datos local.

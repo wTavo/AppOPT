@@ -615,13 +615,17 @@ class SettingsViewModel : ViewModel() {
     }
 
     /**
-     * Exporta las cuentas seleccionadas en formato JSON estructurado para transferencia offline.
+     * Exporta las cuentas seleccionadas para transferencia offline con cifrado opcional mediante PIN.
      *
      * @param selectedIds Conjunto de identificadores de cuentas a exportar.
-     * @return Cadena JSON con el payload de transferencia.
+     * @param pin PIN opcional en [CharArray] para cifrar el payload con AES-256-GCM.
+     * @return Cadena formateada para código QR con el payload de transferencia.
      */
-    suspend fun exportAccounts(selectedIds: Set<String>): String = withContext(Dispatchers.IO) {
-        repository.exportAccountsForTransfer(selectedIds)
+    suspend fun exportAccounts(
+        selectedIds: Set<String>,
+        pin: CharArray? = null
+    ): String = withContext(Dispatchers.IO) {
+        repository.exportAccountsForTransfer(selectedIds, pin)
     }
 
     /**

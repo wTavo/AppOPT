@@ -94,4 +94,25 @@ object SecurityConfig {
      * Evita sobrecargar la API remota con peticiones redundantes ante aperturas consecutivas del diálogo de historial.
      */
     const val BACKUP_HISTORY_CACHE_TTL_MILLIS = 20_000L
+
+    /**
+     * Longitud en dígitos para el PIN de transferencia de servicios por código QR.
+     */
+    const val TRANSFER_QR_PIN_LENGTH = 6
+
+    /**
+     * Tiempo de expiración en segundos para la validez del código QR de transferencia cifrado (90 segundos).
+     */
+    const val TRANSFER_QR_EXPIRATION_SECONDS = 90
+
+    /**
+     * Número de iteraciones PBKDF2 para la derivación de clave a partir del PIN de transferencia QR.
+     * Optimizado para derivación instantánea en dispositivos móviles sin bloquear el renderizado de cámara.
+     */
+    const val TRANSFER_QR_PBKDF2_ITERATIONS = 10_000
+
+    /**
+     * Versión del esquema del sobre criptográfico de transferencia por código QR.
+     */
+    const val TRANSFER_QR_VERSION = 1
 }

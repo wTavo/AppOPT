@@ -97,6 +97,12 @@
     <string name="settings_export_qr_dialog_hint">En tu nuevo teléfono, abre el escáner QR de la app y apunta a este código.</string>
     <string name="settings_export_confirm_done">Listo, servicios transferidos</string>
     <string name="settings_services_deleted_after_export">Los servicios seleccionados fueron eliminados de este dispositivo.</string>
+    <string name="settings_transfer_pin_label">PIN de transferencia:</string>
+    <string name="settings_transfer_pin_hint">Ingresa este PIN en el otro teléfono para descifrar tus servicios.</string>
+    <string name="settings_transfer_expires_in">Expira en %1$d s</string>
+    <string name="settings_transfer_expired_title">Código QR expirado</string>
+    <string name="settings_transfer_expired_desc">Por seguridad, el código QR y el PIN han caducado tras 90 segundos.</string>
+    <string name="settings_transfer_regenerate_button">Generar nuevo código</string>
 
     <!-- Copia de Seguridad en Google Drive -->
     <string name="settings_drive_title">Copia de seguridad en Google Drive</string>
@@ -271,6 +277,13 @@
     <string name="scan_error_invalid_qr">El código QR escaneado no contiene un formato OTP válido.</string>
     <string name="scan_error_camera_init">No se pudo iniciar la cámara. Comprueba que ninguna otra aplicación la esté usando e inténtalo de nuevo.</string>
     <string name="settings_export_qr_error">No se pudo generar el código QR con los servicios seleccionados. Intenta exportar menos servicios a la vez.</string>
+    <string name="scan_transfer_pin_dialog_title">PIN de transferencia</string>
+    <string name="scan_transfer_pin_dialog_desc">Ingresa el PIN de 6 dígitos que aparece en la pantalla del otro teléfono:</string>
+    <string name="scan_transfer_pin_input_label">PIN (6 dígitos)</string>
+    <string name="scan_transfer_pin_confirm_button">Descifrar e importar</string>
+    <string name="scan_transfer_pin_error_incorrect">PIN incorrecto. Verifica los dígitos e inténtalo de nuevo.</string>
+    <string name="scan_transfer_pin_error_expired">Este código QR ha expirado. Genera uno nuevo en el dispositivo emisor.</string>
+    <string name="scan_transfer_import_success">Se importaron %1$d servicios correctamente</string>
 
     <!-- Sincronización y Respaldo en la Nube (Google Drive E2EE) -->
     <string name="settings_drive_error">No se pudo completar la operación en Google Drive. Verifica tu conexión e inténtalo de nuevo.</string>

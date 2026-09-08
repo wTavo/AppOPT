@@ -481,7 +481,7 @@ fun SettingsScreen(
     if (showExportDialog) {
         ExportServicesDialog(
             accounts = uiState.accounts,
-            onExportPayload = { selectedIds -> viewModel.exportAccounts(selectedIds) },
+            onExportPayload = { selectedIds, pinChars -> viewModel.exportAccounts(selectedIds, pinChars) },
             onCompleteExport = { exportedIds, keepOnDevice ->
                 if (!keepOnDevice && exportedIds.isNotEmpty()) {
                     viewModel.deleteExportedAccounts(exportedIds)

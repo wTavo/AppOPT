@@ -18,14 +18,17 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -34,10 +37,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -54,12 +59,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
+import com.example.appopt.security.TransferCrypto
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
@@ -70,10 +79,11 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
 
 /**
- * Pantalla de escaneo de códigos QR 2FA con CameraX, Google ML Kit y escala tipográfica estandarizada.
+ * Pantalla de escaneo de códigos QR 2FA con CameraX, Google ML Kit y soporte para transferencias cifradas con PIN.
  *
  * Principio de privacidad y seguridad:
  * - El procesamiento de la imagen del código QR se realiza exclusivamente en el hardware local.
+ * - Soporta códigos QR cifrados con AES-256-GCM solicitando un PIN de 6 dígitos antes de descifrar.
  * - No se guardan fotografías ni se envían datos a ningún servidor externo.
  *
  * @param onScanSuccess Callback invocado al escanear e importar exitosamente una cuenta.
@@ -98,6 +108,8 @@ fun QrScannerScreen(
     val repository = AuthenticatorApp.instance.accountRepository
     val invalidQrErrorText = stringResource(R.string.scan_error_invalid_qr)
     val cameraInitErrorText = stringResource(R.string.scan_error_camera_init)
+    val incorrectPinErrorText = stringResource(R.string.scan_transfer_pin_error_incorrect)
+    val expiredQrErrorText = stringResource(R.string.scan_transfer_pin_error_expired)
 
     var hasCameraPermission by remember {
         mutableStateOf(
@@ -119,6 +131,12 @@ fun QrScannerScreen(
     }
 
     var isProcessingQr by remember { mutableStateOf(false) }
+
+    // Estado del modal de ingreso de PIN para transferencias cifradas
+    var pendingEncryptedPayload by remember { mutableStateOf<String?>(null) }
+    var transferPinInput by remember { mutableStateOf("") }
+    var pinErrorMessage by remember { mutableStateOf<String?>(null) }
+    var isVerifyingPin by remember { mutableStateOf(false) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -192,7 +210,7 @@ fun QrScannerScreen(
 
                             imageAnalysis.setAnalyzer(cameraExecutor) { imageProxy ->
                                 val now = System.currentTimeMillis()
-                                if (isProcessingQr || (now - lastAnalysisTimestamp < 200L)) {
+                                if (isProcessingQr || pendingEncryptedPayload != null || (now - lastAnalysisTimestamp < 200L)) {
                                     imageProxy.close()
                                     return@setAnalyzer
                                 }
@@ -211,7 +229,18 @@ fun QrScannerScreen(
                                                 if (barcode.valueType == Barcode.TYPE_TEXT || barcode.valueType == Barcode.TYPE_UNKNOWN) {
                                                     val rawValue = barcode.rawValue ?: continue
                                                     val trimmed = rawValue.trim()
-                                                    if ((trimmed.startsWith("otpauth://", ignoreCase = true) || trimmed.startsWith("{")) && !isProcessingQr) {
+
+                                                    // 1. Caso QR Cifrado con PIN
+                                                    if (trimmed.startsWith(TransferCrypto.QR_TRANSFER_PREFIX, ignoreCase = true) && !isProcessingQr && pendingEncryptedPayload == null) {
+                                                        appHaptics.click()
+                                                        pendingEncryptedPayload = trimmed
+                                                        transferPinInput = ""
+                                                        pinErrorMessage = null
+                                                        break
+                                                    }
+
+                                                    // 2. Caso estándar otpauth:// o JSON legado
+                                                    if ((trimmed.startsWith("otpauth://", ignoreCase = true) || trimmed.startsWith("{")) && !isProcessingQr && pendingEncryptedPayload == null) {
                                                         isProcessingQr = true
                                                         scope.launch {
                                                             val importResult = repository.importAccountsFromTransfer(trimmed)
@@ -224,6 +253,7 @@ fun QrScannerScreen(
                                                                 snackbarHostState.showSnackbar(invalidQrErrorText)
                                                             }
                                                         }
+                                                        break
                                                     }
                                                 }
                                             }
@@ -349,5 +379,115 @@ fun QrScannerScreen(
                 }
             }
         }
+    }
+
+    // Modal: Solicitud de PIN para Transferencia Cifrada (AES-256-GCM)
+    if (pendingEncryptedPayload != null) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!isVerifyingPin) {
+                    pendingEncryptedPayload = null
+                    transferPinInput = ""
+                    pinErrorMessage = null
+                    isProcessingQr = false
+                }
+            },
+            shape = RoundedCornerShape(Dimensions.CornerRadius.large),
+            title = {
+                Text(
+                    text = stringResource(R.string.scan_transfer_pin_dialog_title),
+                    style = MaterialTheme.typography.titleLarge
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                ) {
+                    Text(
+                        text = stringResource(R.string.scan_transfer_pin_dialog_desc),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    OutlinedTextField(
+                        value = transferPinInput,
+                        onValueChange = { input ->
+                            if (input.length <= 6 && input.all { it.isDigit() }) {
+                                transferPinInput = input
+                                pinErrorMessage = null
+                            }
+                        },
+                        label = { Text(stringResource(R.string.scan_transfer_pin_input_label)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = MaterialTheme.typography.headlineSmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                    )
+
+                    if (pinErrorMessage != null) {
+                        Text(
+                            text = pinErrorMessage!!,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val payload = pendingEncryptedPayload ?: return@Button
+                        val pinChars = transferPinInput.toCharArray()
+                        isVerifyingPin = true
+                        scope.launch {
+                            try {
+                                val result = repository.importAccountsFromTransfer(payload, pinChars)
+                                result.onSuccess {
+                                    appHaptics.success()
+                                    pendingEncryptedPayload = null
+                                    transferPinInput = ""
+                                    pinErrorMessage = null
+                                    onScanSuccess()
+                                }.onFailure { error ->
+                                    appHaptics.error()
+                                    pinErrorMessage = when (error) {
+                                        is TransferCrypto.ExpiredTransferException -> expiredQrErrorText
+                                        is TransferCrypto.InvalidPinException -> incorrectPinErrorText
+                                        else -> incorrectPinErrorText
+                                    }
+                                }
+                            } finally {
+                                pinChars.fill('0')
+                                isVerifyingPin = false
+                            }
+                        }
+                    },
+                    enabled = transferPinInput.length == 6 && !isVerifyingPin,
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                ) {
+                    Text(stringResource(R.string.scan_transfer_pin_confirm_button), style = MaterialTheme.typography.labelLarge)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        if (!isVerifyingPin) {
+                            pendingEncryptedPayload = null
+                            transferPinInput = ""
+                            pinErrorMessage = null
+                            isProcessingQr = false
+                        }
+                    }
+                ) {
+                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
+                }
+            }
+        )
     }
 }

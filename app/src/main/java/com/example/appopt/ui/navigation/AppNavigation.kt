@@ -1,5 +1,9 @@
 package com.example.appopt.ui.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -13,7 +17,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.ui.screens.add.AddAccountScreen
@@ -25,30 +28,49 @@ import com.example.appopt.ui.screens.scan.QrScannerScreen
 import com.example.appopt.ui.screens.settings.SettingsScreen
 import com.example.appopt.ui.screens.trash.RecentlyDeletedScreen
 import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.Motion
 import com.example.appopt.util.PerformanceFpsOverlay
 
 /**
  * Grafo principal de navegación y control de acceso de la aplicación.
  *
  * Principio de compuerta de seguridad (*Security Gate Layer*):
- * - Mantiene el grafo [NavHost] pre-renderizado en segundo plano para respuesta en 0ms con las transiciones nativas estándar del sistema.
+ * - Mantiene el grafo [NavHost] pre-renderizado en segundo plano para respuesta en 0ms.
  * - [LockScreen] se sitúa como una capa opaca superior (*Z-Index Overlay*) cuando la bóveda está bloqueada.
  * - Al autenticar exitosamente, la capa de bloqueo se retira de inmediato mostrando los servicios sin pausas ni pantallas vacías.
  * - Incorpora la superposición de diagnóstico [PerformanceFpsOverlay] en la capa superior si está activada.
- * - Inversión dinámica de Z-Index: La pantalla destino activa se posiciona en zIndex(1f) recibiendo interacción táctil inmediata mientras la pantalla saliente se desliza/desvanece por detrás en zIndex(0f).
+ * - Transición de capa superior universal: Tanto al avanzar como al regresar, la pantalla de destino entra por encima deslizándose y recibiendo interacción táctil inmediata desde el milisegundo 0.
  */
 @Composable
 fun AppNavigation() {
     val appLockManager = AuthenticatorApp.instance.appLockManager
     val isUnlocked by appLockManager.isUnlocked.collectAsStateWithLifecycle()
     val navController = rememberNavController()
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
 
     Box(modifier = Modifier.fillMaxSize()) {
         NavHost(
             navController = navController,
-            startDestination = Screen.Home.route
+            startDestination = Screen.Home.route,
+            enterTransition = {
+                fadeIn(animationSpec = tween(Motion.Duration.FAST, easing = Motion.EasingCurve.Standard)) +
+                    slideIntoContainer(
+                        towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                        animationSpec = tween(Motion.Duration.MEDIUM, easing = Motion.EasingCurve.Emphasized)
+                    )
+            },
+            exitTransition = {
+                fadeOut(animationSpec = tween(Motion.Duration.FAST, easing = Motion.EasingCurve.Standard))
+            },
+            popEnterTransition = {
+                fadeIn(animationSpec = tween(Motion.Duration.FAST, easing = Motion.EasingCurve.Standard)) +
+                    slideIntoContainer(
+                        towards = AnimatedContentTransitionScope.SlideDirection.End,
+                        animationSpec = tween(Motion.Duration.MEDIUM, easing = Motion.EasingCurve.Emphasized)
+                    )
+            },
+            popExitTransition = {
+                fadeOut(animationSpec = tween(Motion.Duration.FAST, easing = Motion.EasingCurve.Standard))
+            }
         ) {
             composable(Screen.Home.route) {
                 val homeViewModel: HomeViewModel = viewModel()
@@ -57,8 +79,7 @@ fun AppNavigation() {
                     onNavigateToScanQr = { navController.navigate(Screen.ScanQr.route) },
                     onNavigateToAddManual = { navController.navigate(Screen.AddManual.route) },
                     onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
-                    onNavigateToRecentlyDeleted = { navController.navigate(Screen.RecentlyDeleted.route) },
-                    modifier = Modifier.zIndex(if (currentRoute == Screen.Home.route) 1f else 0f)
+                    onNavigateToRecentlyDeleted = { navController.navigate(Screen.RecentlyDeleted.route) }
                 )
             }
 
@@ -74,8 +95,7 @@ fun AppNavigation() {
                     },
                     onNavigateBack = {
                         navController.popBackStack()
-                    },
-                    modifier = Modifier.zIndex(if (currentRoute == Screen.ScanQr.route) 1f else 0f)
+                    }
                 )
             }
 
@@ -83,23 +103,20 @@ fun AppNavigation() {
                 val addViewModel: AddAccountViewModel = viewModel()
                 AddAccountScreen(
                     viewModel = addViewModel,
-                    onNavigateBack = { navController.popBackStack() },
-                    modifier = Modifier.zIndex(if (currentRoute == Screen.AddManual.route) 1f else 0f)
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
             composable(Screen.Settings.route) {
                 SettingsScreen(
                     onNavigateBack = { navController.popBackStack() },
-                    onNavigateToScanQr = { navController.navigate(Screen.ScanQr.route) },
-                    modifier = Modifier.zIndex(if (currentRoute == Screen.Settings.route) 1f else 0f)
+                    onNavigateToScanQr = { navController.navigate(Screen.ScanQr.route) }
                 )
             }
 
             composable(Screen.RecentlyDeleted.route) {
                 RecentlyDeletedScreen(
-                    onNavigateBack = { navController.popBackStack() },
-                    modifier = Modifier.zIndex(if (currentRoute == Screen.RecentlyDeleted.route) 1f else 0f)
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
         }

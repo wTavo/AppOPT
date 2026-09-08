@@ -1,7 +1,6 @@
 package com.example.appopt.security
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -11,7 +10,7 @@ import org.junit.Test
  */
 class TransferCryptoTest {
 
-    private val sampleAccountsJson = """{"version":1,"type":"appopt-migration","accounts":[{"id":"test-1","issuer":"GitHub","accountName":"alice","secret":"JBSWY3DPEHPK3PXP","algorithm":"SHA1","digits":6,"period":30,"type":"TOTP"}]}"""
+    private val sampleAccountsJson = """{"v":1,"a":[{"i":"GitHub","a":"alice","s":"JBSWY3DPEHPK3PXP"}]}"""
     private val correctPin = "482915".toCharArray()
     private val wrongPin = "111222".toCharArray()
 
@@ -41,6 +40,31 @@ class TransferCryptoTest {
         val decryptResult = TransferCrypto.decryptTransferPayload(encryptedPayload, correctPin)
         assertTrue(decryptResult.isSuccess)
         assertEquals(sampleAccountsJson, decryptResult.getOrThrow())
+    }
+
+    /**
+     * Valida que exportar un conjunto masivo de 25 cuentas genere un payload comprimido y compacto
+     * perfectamente integrable en una matriz de código QR sin exceder los límites físicos.
+     */
+    @Test
+    fun testEncryptLargeAccountListIsCompact() {
+        val accountsList = (1..25).joinToString(",") { i ->
+            """{"i":"Service $i","a":"user$i@example.com","s":"JBSWY3DPEHPK3PXP"}"""
+        }
+        val largeJson = """{"v":1,"a":[$accountsList]}"""
+
+        val encryptedPayload = TransferCrypto.encryptTransferPayload(
+            accountsJson = largeJson,
+            pin = correctPin,
+            durationSeconds = 90
+        )
+
+        // El payload completo no debe exceder 1500 caracteres para asegurar lectura instantánea en cualquier cámara
+        assertTrue("Payload demasiado grande: ${encryptedPayload.length}", encryptedPayload.length < 1500)
+
+        val decryptResult = TransferCrypto.decryptTransferPayload(encryptedPayload, correctPin)
+        assertTrue(decryptResult.isSuccess)
+        assertEquals(largeJson, decryptResult.getOrThrow())
     }
 
     /**

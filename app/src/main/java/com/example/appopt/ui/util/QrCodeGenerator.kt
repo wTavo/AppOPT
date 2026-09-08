@@ -29,6 +29,7 @@ object QrCodeGenerator {
             val hints = EnumMap<EncodeHintType, Any>(EncodeHintType::class.java).apply {
                 put(EncodeHintType.MARGIN, 1)
                 put(EncodeHintType.CHARACTER_SET, "UTF-8")
+                put(EncodeHintType.ERROR_CORRECTION, com.google.zxing.qrcode.decoder.ErrorCorrectionLevel.L)
             }
             val bitMatrix = MultiFormatWriter().encode(content, BarcodeFormat.QR_CODE, size, size, hints)
             val width = bitMatrix.width

@@ -372,16 +372,26 @@ class AccountRepositoryImpl(
                 secretBytes = cryptoManager.decrypt(entity.encryptedSecret, entity.iv)
                 val secretBase32 = Base32.encode(secretBytes)
                 val item = JSONObject().apply {
-                    put("id", entity.id)
-                    put("issuer", entity.issuer)
-                    put("accountName", entity.accountName)
-                    put("secret", secretBase32)
-                    put("algorithm", entity.algorithm)
-                    put("digits", entity.digits)
-                    put("period", entity.period)
-                    put("type", entity.type)
-                    put("counter", entity.counter)
-                    put("updatedAt", entity.updatedAt)
+                    put("i", entity.issuer)
+                    if (entity.accountName.isNotBlank()) {
+                        put("a", entity.accountName)
+                    }
+                    put("s", secretBase32)
+                    if (entity.algorithm != "SHA1") {
+                        put("alg", entity.algorithm)
+                    }
+                    if (entity.digits != 6) {
+                        put("d", entity.digits)
+                    }
+                    if (entity.period != 30) {
+                        put("p", entity.period)
+                    }
+                    if (entity.type != "TOTP") {
+                        put("t", entity.type)
+                    }
+                    if (entity.counter > 0) {
+                        put("c", entity.counter)
+                    }
                 }
                 jsonArray.put(item)
             } finally {
@@ -390,9 +400,8 @@ class AccountRepositoryImpl(
         }
 
         val rootObject = JSONObject().apply {
-            put("version", 1)
-            put("type", "appopt-migration")
-            put("accounts", jsonArray)
+            put("v", 1)
+            put("a", jsonArray)
         }
 
         val plainJson = rootObject.toString()
@@ -409,7 +418,7 @@ class AccountRepositoryImpl(
      * Soporta:
      * 1. URIs estándar otpauth://
      * 2. Transferencias cifradas con prefijo "appopt-transfer:" descifradas mediante [pin].
-     * 3. Payloads JSON legados o sin cifrar con arreglo "accounts".
+     * 3. Payloads JSON estructurados (formato compacto optimizado "a" y formato legado "accounts").
      */
     override suspend fun importAccountsFromTransfer(
         transferPayload: String,
@@ -453,25 +462,77 @@ class AccountRepositoryImpl(
             return Result.success(1)
         }
 
-        // 3. Caso JSON estructurado multi-cuenta
+        // 3. Caso JSON estructurado multi-cuenta (formato compacto o legado)
         return runCatching {
             val root = JSONObject(effectiveTrimmed)
-            val accountsArray = root.getJSONArray("accounts")
+            val accountsArray = when {
+                root.has("a") -> root.getJSONArray("a")
+                root.has("accounts") -> root.getJSONArray("accounts")
+                else -> throw IllegalArgumentException("Estructura de cuentas no válida")
+            }
+
             var count = 0
             for (i in 0 until accountsArray.length()) {
                 val item = accountsArray.getJSONObject(i)
-                val rawSecret = item.getString("secret")
+                val rawSecret = when {
+                    item.has("s") -> item.getString("s")
+                    item.has("secret") -> item.getString("secret")
+                    else -> throw IllegalArgumentException("Falta clave secreta")
+                }
                 val secretBytes = Base32.decode(Base32.sanitize(rawSecret))
+
+                val issuer = when {
+                    item.has("i") -> item.getString("i")
+                    item.has("issuer") -> item.getString("issuer")
+                    else -> "Cuenta"
+                }
+
+                val accountName = when {
+                    item.has("a") -> item.getString("a")
+                    item.has("accountName") -> item.getString("accountName")
+                    else -> ""
+                }
+
+                val algorithmStr = when {
+                    item.has("alg") -> item.getString("alg")
+                    item.has("algorithm") -> item.getString("algorithm")
+                    else -> "SHA1"
+                }
+
+                val digits = when {
+                    item.has("d") -> item.getInt("d")
+                    item.has("digits") -> item.getInt("digits")
+                    else -> 6
+                }
+
+                val period = when {
+                    item.has("p") -> item.getInt("p")
+                    item.has("period") -> item.getInt("period")
+                    else -> 30
+                }
+
+                val typeStr = when {
+                    item.has("t") -> item.getString("t")
+                    item.has("type") -> item.getString("type")
+                    else -> "TOTP"
+                }
+
+                val counter = when {
+                    item.has("c") -> item.getLong("c")
+                    item.has("counter") -> item.getLong("counter")
+                    else -> 0L
+                }
+
                 try {
                     saveAccount(
-                        issuer = item.optString("issuer", "Cuenta"),
-                        accountName = item.optString("accountName", "Usuario"),
+                        issuer = issuer,
+                        accountName = accountName,
                         secretBytes = secretBytes,
-                        algorithm = OtpAlgorithm.fromString(item.optString("algorithm", "SHA1")),
-                        digits = item.optInt("digits", 6),
-                        period = item.optInt("period", 30),
-                        type = OtpType.fromString(item.optString("type", "TOTP")),
-                        counter = item.optLong("counter", 0L)
+                        algorithm = OtpAlgorithm.fromString(algorithmStr),
+                        digits = digits,
+                        period = period,
+                        type = OtpType.fromString(typeStr),
+                        counter = counter
                     )
                     count++
                 } finally {

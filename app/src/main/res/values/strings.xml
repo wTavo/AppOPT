@@ -105,7 +105,7 @@
     <string name="settings_transfer_expired_desc">Por seguridad, el código QR y el PIN han caducado tras 90 segundos.</string>
     <string name="settings_transfer_regenerate_button">Generar nuevo código</string>
     <string name="settings_transfer_page_indicator">Código %1$d de %2$d</string>
-    <string name="settings_transfer_batch_range">Servicios %1$d–%2$d de %3$d</string>
+    <string name="settings_transfer_selected_services_count">%1$d servicios seleccionados</string>
     <string name="settings_transfer_prev_code">Anterior</string>
     <string name="settings_transfer_next_code">Siguiente</string>
     <string name="settings_transfer_pin_toggle_show">Mostrar PIN</string>

@@ -413,13 +413,9 @@ fun ExportServicesDialog(
                                     fontWeight = FontWeight.SemiBold
                                 )
 
-                                val startIdx = currentQrIndex * SecurityConfig.TRANSFER_QR_BATCH_SIZE + 1
-                                val endIdx = minOf((currentQrIndex + 1) * SecurityConfig.TRANSFER_QR_BATCH_SIZE, exportedServiceIds.size)
                                 Text(
                                     text = stringResource(
-                                        R.string.settings_transfer_batch_range,
-                                        startIdx,
-                                        endIdx,
+                                        R.string.settings_transfer_selected_services_count,
                                         exportedServiceIds.size
                                     ),
                                     style = MaterialTheme.typography.labelSmall,
@@ -443,6 +439,16 @@ fun ExportServicesDialog(
                                 )
                             }
                         }
+                    } else if (exportedServiceIds.isNotEmpty()) {
+                        Text(
+                            text = stringResource(
+                                R.string.settings_transfer_selected_services_count,
+                                exportedServiceIds.size
+                            ),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
                     }
 
                     val currentBitmap = transferQrBitmaps.getOrNull(currentQrIndex)

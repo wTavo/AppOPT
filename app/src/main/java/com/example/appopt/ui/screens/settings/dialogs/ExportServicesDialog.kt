@@ -302,75 +302,6 @@ fun ExportServicesDialog(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
                 ) {
-                    if (transferPin.length == 6) {
-                        val formattedPin = "${transferPin.substring(0, 3)} ${transferPin.substring(3)}"
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-                            ),
-                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = Dimensions.Spacing.sm, horizontal = Dimensions.Spacing.md),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.settings_transfer_pin_label),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-
-                                    IconButton(
-                                        onClick = {
-                                            haptics.click()
-                                            isPinVisible = !isPinVisible
-                                        },
-                                        modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
-                                    ) {
-                                        Icon(
-                                            imageVector = if (isPinVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                            contentDescription = if (isPinVisible) {
-                                                stringResource(R.string.settings_transfer_pin_toggle_hide)
-                                            } else {
-                                                stringResource(R.string.settings_transfer_pin_toggle_show)
-                                            },
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(Dimensions.IconSize.small)
-                                        )
-                                    }
-                                }
-
-                                Text(
-                                    text = if (isPinVisible) formattedPin else stringResource(R.string.settings_transfer_pin_masked_value),
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-
-                                Text(
-                                    text = if (isPinVisible) {
-                                        stringResource(R.string.settings_transfer_pin_hint)
-                                    } else {
-                                        stringResource(R.string.settings_transfer_pin_toggle_show)
-                                    },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
-                    }
-
                     // Paginación por lotes (si hay más de 1 código QR)
                     if (transferQrBitmaps.size > 1) {
                         Row(
@@ -510,6 +441,76 @@ fun ExportServicesDialog(
                             color = if (secondsRemaining <= 20) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
+
+                        // Tarjeta de PIN de transferencia
+                        if (transferPin.length == 6) {
+                            val formattedPin = "${transferPin.substring(0, 3)} ${transferPin.substring(3)}"
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                                ),
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = Dimensions.Spacing.sm, horizontal = Dimensions.Spacing.md),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.settings_transfer_pin_label),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+
+                                        IconButton(
+                                            onClick = {
+                                                haptics.click()
+                                                isPinVisible = !isPinVisible
+                                            },
+                                            modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
+                                        ) {
+                                            Icon(
+                                                imageVector = if (isPinVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                                contentDescription = if (isPinVisible) {
+                                                    stringResource(R.string.settings_transfer_pin_toggle_hide)
+                                                } else {
+                                                    stringResource(R.string.settings_transfer_pin_toggle_show)
+                                                },
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(Dimensions.IconSize.small)
+                                            )
+                                        }
+                                    }
+
+                                    Text(
+                                        text = if (isPinVisible) formattedPin else stringResource(R.string.settings_transfer_pin_masked_value),
+                                        style = MaterialTheme.typography.headlineMedium,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+
+                                    Text(
+                                        text = if (isPinVisible) {
+                                            stringResource(R.string.settings_transfer_pin_hint)
+                                        } else {
+                                            stringResource(R.string.settings_transfer_pin_toggle_show)
+                                        },
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        }
                     } else {
                         Text(
                             text = stringResource(R.string.settings_export_qr_error),

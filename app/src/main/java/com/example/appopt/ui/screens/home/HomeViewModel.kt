@@ -23,16 +23,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
-import com.example.appopt.data.cloud.ManualSyncManager
-import com.example.appopt.data.cloud.SyncEvent
-
-private data class CloudSyncSnapshot(
-    val reactiveList: List<WorkInfo>,
-    val periodicList: List<WorkInfo>,
-    val isManualSyncing: Boolean,
-    val manualEvent: SyncEvent?
-)
-
 /**
  * ViewModel de la pantalla principal que sincroniza en tiempo real las cuentas registradas con el reloj del sistema.
  *
@@ -81,37 +71,35 @@ class HomeViewModel : ViewModel() {
     }
 
     /**
-     * Observa el estado unificado de sincronización en la nube (WorkManager y ejecuciones directas de [ManualSyncManager]).
+     * Observa el estado del motor unificado de sincronización en segundo plano de [WorkManager]
+     * ([CloudVaultSyncManager.REACTIVE_WORK_NAME] y [CloudVaultSyncManager.PERIODIC_WORK_NAME]).
      *
      * Mapea reactivamente las transiciones a [CloudSyncUiState]:
-     * - Si hay una tarea reactiva en cola, periódica o manual en ejecución: [CloudSyncUiState.SYNCING].
-     * - Al completar una subida efectiva (automática o manual): [CloudSyncUiState.SUCCESS] por 2.5s y vuelve a [CloudSyncUiState.IDLE].
-     * - Si la tarea fue cancelada o finalizó sin subida requerida: vuelve inmediatamente a [CloudSyncUiState.IDLE].
+     * - Si hay una tarea en cola (diferida 30s) o en ejecución (reactiva, manual o periódica): [CloudSyncUiState.SYNCING].
+     * - Al completar una subida efectiva a Google Drive: [CloudSyncUiState.SUCCESS] por 2.5s y vuelve a [CloudSyncUiState.IDLE].
+     * - Si la tarea fue cancelada o finalizó sin subida requerida (huellas idénticas): vuelve inmediatamente a [CloudSyncUiState.IDLE].
      * - Si falla una tarea activa: [CloudSyncUiState.ERROR] por 3s y vuelve a [CloudSyncUiState.IDLE].
      * - En cualquier otro caso: [CloudSyncUiState.IDLE].
      */
     private fun observeCloudSync() {
         viewModelScope.launch {
             var wasSyncing = false
-            var lastHandledManualEventTimestamp = 0L
             val workManager = WorkManager.getInstance(AuthenticatorApp.instance)
 
             combine(
                 workManager.getWorkInfosForUniqueWorkFlow(CloudVaultSyncManager.REACTIVE_WORK_NAME),
-                workManager.getWorkInfosForUniqueWorkFlow(CloudVaultSyncManager.PERIODIC_WORK_NAME),
-                ManualSyncManager.isSyncing,
-                ManualSyncManager.lastSyncEvent
-            ) { reactiveList, periodicList, isManualSyncing, manualEvent ->
-                CloudSyncSnapshot(reactiveList, periodicList, isManualSyncing, manualEvent)
-            }.collect { snapshot ->
-                val isReactiveActive = snapshot.reactiveList.any {
+                workManager.getWorkInfosForUniqueWorkFlow(CloudVaultSyncManager.PERIODIC_WORK_NAME)
+            ) { reactiveList, periodicList ->
+                Pair(reactiveList, periodicList)
+            }.collect { (reactiveList, periodicList) ->
+                val isReactiveActive = reactiveList.any {
                     it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.BLOCKED
                 }
-                val isPeriodicActive = snapshot.periodicList.any {
+                val isPeriodicActive = periodicList.any {
                     it.state == WorkInfo.State.RUNNING
                 }
-                val isSyncActive = isReactiveActive || isPeriodicActive || snapshot.isManualSyncing
-                val allInfos = snapshot.reactiveList + snapshot.periodicList
+                val isSyncActive = isReactiveActive || isPeriodicActive
+                val allInfos = reactiveList + periodicList
 
                 if (isSyncActive) {
                     wasSyncing = true
@@ -122,25 +110,10 @@ class HomeViewModel : ViewModel() {
                         wasSyncing = false
                         syncFeedbackJob?.cancel()
 
-                        val hasWorkerFailed = allInfos.any { it.state == WorkInfo.State.FAILED }
-                        val isManualFailure = snapshot.manualEvent is SyncEvent.Failure && snapshot.manualEvent.timestamp > lastHandledManualEventTimestamp
-                        val hasFailed = hasWorkerFailed || isManualFailure
-
-                        val hasWorkerSucceededWithUpload = allInfos.any { info ->
+                        val hasFailed = allInfos.any { it.state == WorkInfo.State.FAILED }
+                        val hasSucceededWithUpload = allInfos.any { info ->
                             info.state == WorkInfo.State.SUCCEEDED &&
                                 info.outputData.getBoolean(CloudVaultSyncManager.KEY_SYNC_PERFORMED, false)
-                        }
-                        val isManualSuccess = snapshot.manualEvent is SyncEvent.Success && snapshot.manualEvent.timestamp > lastHandledManualEventTimestamp
-                        val hasSucceededWithUpload = hasWorkerSucceededWithUpload || isManualSuccess
-
-                        if (snapshot.manualEvent != null) {
-                            val eventTs = when (val ev = snapshot.manualEvent) {
-                                is SyncEvent.Success -> ev.timestamp
-                                is SyncEvent.Failure -> ev.timestamp
-                            }
-                            if (eventTs > lastHandledManualEventTimestamp) {
-                                lastHandledManualEventTimestamp = eventTs
-                            }
                         }
 
                         if (hasFailed) {

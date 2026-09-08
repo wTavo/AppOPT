@@ -146,9 +146,50 @@ object CloudVaultSyncManager {
     }
 
     /**
+     * Encola una sincronización inmediata en la nube a través del motor unificado de [WorkManager] (retardo 0s).
+     *
+     * Principio de diseño:
+     * - Cancela y reemplaza de inmediato cualquier tarea reactiva diferida de 30s que estuviera en cola.
+     * - Ejecuta [AutoSyncWorker] de forma instantánea garantizando que la subida sobreviva
+     *   al ciclo de vida de la pantalla si el usuario sale de la aplicación.
+     *
+     * @param context Contexto de la aplicación.
+     */
+    fun syncImmediately(context: Context) {
+        val prefsManager = com.example.appopt.data.local.PreferencesManager(context)
+        if (!prefsManager.isGoogleDriveConnected()) {
+            return
+        }
+
+        val workManager = WorkManager.getInstance(context)
+        val allowMobileData = prefsManager.isSyncMobileDataAllowed()
+        val networkType = if (allowMobileData) {
+            NetworkType.CONNECTED
+        } else {
+            NetworkType.UNMETERED
+        }
+
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(networkType)
+            .build()
+
+        val immediateRequest = OneTimeWorkRequestBuilder<AutoSyncWorker>()
+            .setInitialDelay(0L, TimeUnit.SECONDS)
+            .setConstraints(constraints)
+            .build()
+
+        workManager.enqueueUniqueWork(
+            REACTIVE_WORK_NAME,
+            ExistingWorkPolicy.REPLACE,
+            immediateRequest
+        )
+    }
+
+    /**
      * Dispara una tarea única de sincronización en segundo plano con retardo de consolidación (*Debouncing*).
      *
      * Principio de consolidación y verificación de paridad:
+     * - Si [debounceSeconds] es 0, delega inmediatamente a [syncImmediately].
      * - Si las credenciales locales son idénticas a la última versión subida a Google Drive
      *   (ej. el usuario envió una cuenta a la papelera y la restauró de inmediato), cancela
      *   cualquier tarea pendiente en cola para evitar subidas o animaciones redundantes.
@@ -168,9 +209,14 @@ object CloudVaultSyncManager {
             return
         }
 
+        if (debounceSeconds == 0L) {
+            syncImmediately(context)
+            return
+        }
+
         val workManager = WorkManager.getInstance(context)
 
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+        CoroutineScope(Dispatchers.IO).launch {
             val lastSyncedVaultHash = prefsManager.getLastSyncedVaultHash()
             val db = com.example.appopt.data.local.AppDatabase.getInstance(context)
             val entities = db.accountDao().getAllAccountsSync()

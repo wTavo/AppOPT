@@ -340,14 +340,8 @@ fun SettingsScreen(
                 },
                 onManualSyncClick = {
                     val executeSync: (String) -> Unit = { token ->
-                        viewModel.executeManualSync(context, token) { success ->
-                            if (success) {
-                                appHaptics.success()
-                            } else {
-                                appHaptics.error()
-                                scope.launch { snackbarHostState.showSnackbar(driveErrorText) }
-                            }
-                        }
+                        appHaptics.click()
+                        viewModel.executeManualSync(context, token)
                     }
                     val token = driveAccessToken ?: GoogleDriveManager.currentAccessToken
                     if (token == null) {

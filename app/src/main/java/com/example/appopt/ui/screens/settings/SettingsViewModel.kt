@@ -162,10 +162,19 @@ class SettingsViewModel : ViewModel() {
                 workManager.getWorkInfosForUniqueWorkFlow(CloudVaultSyncManager.REACTIVE_WORK_NAME),
                 workManager.getWorkInfosForUniqueWorkFlow(CloudVaultSyncManager.PERIODIC_WORK_NAME)
             ) { reactiveList, periodicList ->
-                reactiveList.any { it.state == WorkInfo.State.RUNNING } ||
+                val isRunning = reactiveList.any { it.state == WorkInfo.State.RUNNING } ||
                         periodicList.any { it.state == WorkInfo.State.RUNNING }
-            }.collect { isRunning ->
-                _internalState.update { it.copy(isAutoSyncRunning = isRunning) }
+                val hasSucceeded = reactiveList.any {
+                    it.state == WorkInfo.State.SUCCEEDED && it.outputData.getBoolean(CloudVaultSyncManager.KEY_SYNC_PERFORMED, false)
+                }
+                Pair(isRunning, hasSucceeded)
+            }.collect { (isRunning, hasSucceeded) ->
+                _internalState.update { current ->
+                    current.copy(
+                        isAutoSyncRunning = isRunning,
+                        driveBackupExists = if (hasSucceeded) true else current.driveBackupExists
+                    )
+                }
             }
         }
     }
@@ -290,30 +299,16 @@ class SettingsViewModel : ViewModel() {
     }
 
     /**
-     * Ejecuta una sincronización manual inmediata con la nube.
+     * Ejecuta una sincronización manual inmediata con la nube a través del motor unificado de [WorkManager].
      *
      * @param context Contexto de la aplicación.
-     * @param token Token de acceso de Google Drive.
-     * @param onComplete Callback con el resultado booleano de éxito o fallo.
+     * @param token Token de acceso de Google Drive opcional para cachear en memoria.
      */
-    fun executeManualSync(context: Context, token: String, onComplete: (Boolean) -> Unit) {
-        viewModelScope.launch {
-            _internalState.update { it.copy(isDriveLoading = true) }
-            try {
-                val result = withContext(Dispatchers.IO) {
-                    ManualSyncManager.syncNow(context, token)
-                }
-                if (result.isSuccess) {
-                    _internalState.update { it.copy(driveBackupExists = true) }
-                    refreshBackupHistory(token)
-                    onComplete(true)
-                } else {
-                    onComplete(false)
-                }
-            } finally {
-                _internalState.update { it.copy(isDriveLoading = false) }
-            }
+    fun executeManualSync(context: Context, token: String? = null) {
+        if (token != null) {
+            GoogleDriveManager.currentAccessToken = token
         }
+        CloudVaultSyncManager.syncImmediately(context)
     }
 
     /**

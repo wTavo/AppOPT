@@ -15,4 +15,7 @@ sealed class Screen(val route: String) {
 
     /** Pantalla de diagnóstico de seguridad y generación de Recovery Key. */
     data object Settings : Screen("settings")
+
+    /** Pantalla de papelera y servicios eliminados recientemente (30 días). */
+    data object RecentlyDeleted : Screen("recently_deleted")
 }

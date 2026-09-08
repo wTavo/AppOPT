@@ -72,7 +72,7 @@ enum class AnimatedButtonState {
 fun AppAnimatedButton(
     text: String,
     onClick: suspend () -> Boolean,
-    onActionConfirmed: () -> Unit,
+    onActionConfirmed: () -> Unit = {},
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     containerColor: Color? = null

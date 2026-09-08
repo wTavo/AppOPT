@@ -49,12 +49,17 @@ object DateTimeFormatter {
         val now = System.currentTimeMillis()
         val diffMillis = now - timestamp
 
-        if (diffMillis < 0L) {
+        // Si la marca de tiempo está ligeramente en el futuro por desfase de reloj con el servidor (hasta 1 min)
+        // o hace menos de 60 segundos, se considera "hace unos momentos".
+        if (diffMillis < 60_000L && diffMillis > -60_000L) {
+            return context.getString(R.string.time_just_now)
+        }
+
+        if (diffMillis <= -60_000L) {
             return formatAbsoluteDateTime(timestamp, locale)
         }
 
         val diffMinutes = diffMillis / (60 * 1000)
-        val diffHours = diffMillis / (60 * 60 * 1000)
 
         val timeFormat = SimpleDateFormat("HH:mm", locale)
         val timeString = timeFormat.format(Date(timestamp))
@@ -79,21 +84,32 @@ object DateTimeFormatter {
     }
 
     /**
-     * Convierte una cadena de fecha en formato ISO 8601 (`yyyy-MM-dd'T'HH:mm:ss.SSS'Z'`) a milisegundos
-     * desde el Unix Epoch. Utilizado para parsear respuestas de la API de Google Drive.
+     * Convierte una cadena de fecha en formato ISO 8601 (`yyyy-MM-dd'T'HH:mm:ss.SSS'Z'` o `yyyy-MM-dd'T'HH:mm:ss'Z'`)
+     * a milisegundos desde Unix Epoch en hora local. Utilizado para parsear respuestas de la API de Google Drive.
      *
      * @param dateStr Cadena de fecha en formato ISO 8601 UTC.
      * @return Milisegundos desde el Epoch, o [System.currentTimeMillis] si el formato es inválido.
      */
     fun parseIso8601ToMillis(dateStr: String): Long {
+        if (dateStr.isBlank()) return System.currentTimeMillis()
         return try {
-            val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
-                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                java.time.Instant.parse(dateStr).toEpochMilli()
+            } else {
+                val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+                    timeZone = java.util.TimeZone.getTimeZone("UTC")
+                }
+                format.parse(dateStr)?.time ?: System.currentTimeMillis()
             }
-            format.parse(dateStr)?.time ?: System.currentTimeMillis()
         } catch (_: Exception) {
-            // Fallback defensivo: ante una cadena ISO no válida o nula, devuelve la marca de tiempo actual del sistema.
-            System.currentTimeMillis()
+            try {
+                val fallbackFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+                    timeZone = java.util.TimeZone.getTimeZone("UTC")
+                }
+                fallbackFormat.parse(dateStr)?.time ?: System.currentTimeMillis()
+            } catch (_: Exception) {
+                System.currentTimeMillis()
+            }
         }
     }
 }

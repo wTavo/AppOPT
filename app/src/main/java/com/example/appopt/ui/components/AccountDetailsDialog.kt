@@ -175,7 +175,7 @@ fun AccountDetailsDialog(
         text = {
             if (showDeleteConfirm) {
                 Text(
-                    text = stringResource(R.string.home_delete_dialog_message),
+                    text = stringResource(R.string.account_details_delete_to_trash_hint),
                     style = MaterialTheme.typography.bodyMedium
                 )
             } else {
@@ -329,7 +329,7 @@ fun AccountDetailsDialog(
                         contentColor = MaterialTheme.colorScheme.onError
                     )
                 ) {
-                    Text(stringResource(R.string.action_delete), style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(R.string.account_details_move_to_trash_btn), style = MaterialTheme.typography.labelLarge)
                 }
             }
         },

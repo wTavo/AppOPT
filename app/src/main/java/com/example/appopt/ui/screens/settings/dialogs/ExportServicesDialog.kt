@@ -282,7 +282,7 @@ fun ExportServicesDialog(
         dismissButton = {
             if (!isShowingQr) {
                 TextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(R.string.action_close), style = MaterialTheme.typography.labelLarge)
                 }
             } else {
                 TextButton(onClick = { isShowingQr = false }) {

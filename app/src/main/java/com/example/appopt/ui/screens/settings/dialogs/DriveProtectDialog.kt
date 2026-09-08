@@ -589,7 +589,7 @@ fun DriveProtectDialog(
                     text = when (step) {
                         3 -> stringResource(R.string.settings_drive_quiz_review_words)
                         2 -> stringResource(R.string.settings_drive_details_back)
-                        else -> stringResource(R.string.action_cancel)
+                        else -> stringResource(R.string.action_close)
                     },
                     style = MaterialTheme.typography.labelLarge
                 )

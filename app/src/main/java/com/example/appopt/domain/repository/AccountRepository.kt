@@ -116,4 +116,44 @@ interface AccountRepository {
      * @return [Result] con el número de cuentas insertadas o actualizadas.
      */
     suspend fun mergeAccountsFromRemote(remoteBackupJson: String): Result<Int>
+
+    /**
+     * Emite el listado reactivo de cuentas que se encuentran actualmente en la papelera de reciclaje temporal.
+     */
+    fun getDeletedAccounts(): Flow<List<TotpAccount>>
+
+    /**
+     * Traslada una cuenta a la papelera de reciclaje temporal por 30 días.
+     *
+     * @param id Identificador UUID de la cuenta.
+     */
+    suspend fun moveToTrash(id: String): Result<Unit>
+
+    /**
+     * Restaura una cuenta desde la papelera de reciclaje a la bóveda activa de cuentas.
+     *
+     * @param id Identificador UUID de la cuenta.
+     */
+    suspend fun restoreFromTrash(id: String): Result<Unit>
+
+    /**
+     * Elimina físicamente una cuenta de forma definitiva e irreversible.
+     *
+     * @param id Identificador UUID de la cuenta a purgar.
+     */
+    suspend fun permanentlyDelete(id: String): Result<Unit>
+
+    /**
+     * Vacía completamente la papelera de reciclaje.
+     *
+     * @return [Result] con la cantidad de cuentas purgadas.
+     */
+    suspend fun emptyTrash(): Result<Int>
+
+    /**
+     * Purga automáticamente las cuentas cuya estancia en papelera supere los 30 días de retención.
+     *
+     * @return [Result] con la cantidad de cuentas purgadas.
+     */
+    suspend fun purgeExpiredTrash(): Result<Int>
 }

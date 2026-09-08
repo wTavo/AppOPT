@@ -6,6 +6,7 @@ import androidx.work.WorkerParameters
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.data.local.PreferencesManager
 import com.example.appopt.security.SecurityConfig
+import com.example.appopt.util.SyncNotificationHelper
 import com.google.android.gms.tasks.Tasks
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -26,7 +27,7 @@ class AutoSyncWorker(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        val prefsManager = PreferencesManager(applicationContext)
+        val prefsManager = AuthenticatorApp.instance.preferencesManager
 
         // 1. Validar si la sincronización automática está habilitada y la cuenta conectada
         if (!prefsManager.isGoogleDriveConnected() || !prefsManager.isAutoSyncEnabled()) {
@@ -36,60 +37,38 @@ class AutoSyncWorker(
         val repository = AuthenticatorApp.instance.accountRepository
 
         try {
-            // 2. Solicitar token OAuth2 silencioso a Google Identity Services
-            val authClient = GoogleDriveManager.getAuthorizationClient(applicationContext)
-            val authResult = Tasks.await(authClient.authorize(GoogleDriveManager.getAuthorizationRequest()))
-
-            if (authResult.hasResolution() || authResult.accessToken == null) {
-                return@withContext Result.retry()
+            // 2. Obtener token OAuth2 (en memoria o solicitar a Google Identity Services)
+            val token = GoogleDriveManager.currentAccessToken ?: run {
+                val authClient = GoogleDriveManager.getAuthorizationClient(applicationContext)
+                val authResult = Tasks.await(authClient.authorize(GoogleDriveManager.getAuthorizationRequest()))
+                if (authResult.hasResolution() || authResult.accessToken == null) {
+                    SyncNotificationHelper.showSyncFailureNotification(applicationContext)
+                    return@withContext Result.failure()
+                }
+                authResult.accessToken!!.also { GoogleDriveManager.currentAccessToken = it }
             }
 
-            val token = authResult.accessToken!!
-            val autoSyncKey = SecurityConfig.AUTO_SYNC_VAULT_KEY.toCharArray()
+            // 3. Comparar huella digital SHA-256 para evitar subidas redundantes
+            val accounts = repository.getAccounts().first()
+            val currentVaultHash = CloudVaultSyncManager.computeAccountsSignature(accounts)
+            val lastSyncedVaultHash = prefsManager.getLastSyncedVaultHash()
 
-            try {
-                // 3. Fusión remota previa (Descargar cambios de otros teléfonos si existen)
-                val downloadResult = GoogleDriveManager.downloadBackup(token, autoSyncKey)
-                if (downloadResult.isSuccess) {
-                    val remotePayload = downloadResult.getOrNull()
-                    if (!remotePayload.isNullOrBlank()) {
-                        repository.mergeAccountsFromRemote(remotePayload)
-                    }
-                }
+            if (currentVaultHash == lastSyncedVaultHash) {
+                // El contenido de las credenciales es idéntico: 0 subidas necesarias
+                return@withContext Result.success()
+            }
 
-                // 4. Extraer cuentas locales consolidadas tras la posible fusión
-                val accounts = repository.getAccounts().first()
+            // 4. Ejecutar la canalización de subida unificada
+            val uploadResult = ManualSyncManager.syncNow(applicationContext, token)
 
-                // 5. Comparar huella digital SHA-256 para evitar subidas redundantes
-                val currentVaultHash = CloudVaultSyncManager.computeAccountsSignature(accounts)
-                val lastSyncedVaultHash = prefsManager.getLastSyncedVaultHash()
-
-                if (currentVaultHash == lastSyncedVaultHash && downloadResult.isSuccess) {
-                    // El contenido de las credenciales es idéntico: 0 subidas necesarias
-                    return@withContext Result.success()
-                }
-
-                val payload = repository.exportAccountsForTransfer()
-                if (payload.isBlank()) {
-                    return@withContext Result.success()
-                }
-
-                // 6. Cifrado y subida a Google Drive con AES-256-GCM
-                val uploadResult = GoogleDriveManager.uploadBackup(token, payload, autoSyncKey)
-
-                if (uploadResult.isSuccess) {
-                    val now = System.currentTimeMillis()
-                    prefsManager.setLastSyncTimestamp(now)
-                    prefsManager.setLastSyncedVaultHash(currentVaultHash)
-                    Result.success()
-                } else {
-                    Result.retry()
-                }
-            } finally {
-                autoSyncKey.fill('0')
+            if (uploadResult.isSuccess) {
+                Result.success()
+            } else {
+                Result.failure()
             }
         } catch (_: Exception) {
-            Result.retry()
+            SyncNotificationHelper.showSyncFailureNotification(applicationContext)
+            Result.failure()
         }
     }
 }

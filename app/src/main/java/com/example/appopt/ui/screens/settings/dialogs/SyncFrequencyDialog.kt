@@ -88,7 +88,7 @@ fun SyncFrequencyDialog(
         confirmButton = {
             TextButton(onClick = onDismiss) {
                 Text(
-                    text = stringResource(R.string.action_cancel),
+                    text = stringResource(R.string.action_close),
                     style = MaterialTheme.typography.labelLarge
                 )
             }

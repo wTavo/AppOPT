@@ -59,6 +59,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * @param onNavigateToScanQr Callback para navegar hacia la cámara para escanear QR.
  * @param onNavigateToAddManual Callback para navegar hacia el formulario manual.
  * @param onNavigateToSettings Callback para navegar hacia la pantalla de Ajustes.
+ * @param onNavigateToRecentlyDeleted Callback para navegar hacia la papelera de reciclaje.
  * @param modifier Modificador de diseño Compose opcional.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -68,6 +69,7 @@ fun HomeScreen(
     onNavigateToScanQr: () -> Unit,
     onNavigateToAddManual: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToRecentlyDeleted: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -75,10 +77,7 @@ fun HomeScreen(
     val isHideCodesEnabled by viewModel.isHideCodesEnabled.collectAsStateWithLifecycle()
     val cloudSyncState by viewModel.cloudSyncState.collectAsStateWithLifecycle()
     val isDriveConnected by viewModel.isDriveConnected.collectAsStateWithLifecycle()
-
-    LaunchedEffect(Unit) {
-        viewModel.refreshDriveConnectionState()
-    }
+    val deletedAccountsCount by viewModel.deletedAccountsCount.collectAsStateWithLifecycle()
 
     var isSearchActive by remember { mutableStateOf(false) }
     var selectedAccountId by remember { mutableStateOf<String?>(null) }
@@ -349,7 +348,9 @@ fun HomeScreen(
         HomeFloatingDock(
             onLockVault = { viewModel.lockVault() },
             onAddAccountClick = { showAddOptionsDialog = true },
+            onNavigateToRecentlyDeleted = onNavigateToRecentlyDeleted,
             onNavigateToSettings = onNavigateToSettings,
+            deletedAccountsCount = deletedAccountsCount,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()

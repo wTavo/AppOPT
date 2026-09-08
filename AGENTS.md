@@ -36,6 +36,8 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
   - `Dimensions.Elevation.*` para sombras y planos (`cardDefault`, `cardDragging`, `modal`).
   - `Dimensions.CornerRadius.*` para formas (`small`, `medium`, `large`, `pill`).
   - `Dimensions.IconSize.*` para tamaños de iconos (`small`, `medium`, `large`, `hero`, `illustration`).
+  - `Dimensions.ComponentSize.*` para límites y componentes estándar (`modalListMaxHeight`, `actionIconButton`, `qrCodeDisplay`, etc.).
+  - `Dimensions.ComponentHeight.*` para alturas (`buttonDefault`, `buttonCompact`, `progressIndicator`).
 
 ---
 
@@ -95,10 +97,23 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 
 ---
 
-## 14. Gestión Unificada de Diálogos Modales y Navegación Defensiva (*Single-Dialog State Machine*)
+## 14. Gestión Unificada de Diálogos Modales, Navegación Defensiva y Espaciados Estándar (*Single-Dialog State Machine & Modal Design Standard*)
 - **PROHIBIDO** superponer o apilar múltiples diálogos modales en pantalla (*Stacked Modals*).
-- **OBLIGATORIO** unificar flujos encadenados (confirmaciones destructivas, modo edición, sub-pasos) dentro de un único diálogo modal dinámico con transición de contenido.
-- **OBLIGATORIO** implementar navegación defensiva hacia atrás en `onDismissRequest`: presionar afuera o atrás debe revertir al estado/paso anterior antes de cerrar el modal por completo.
+- **PROHIBIDO** cerrar un diálogo modal y abrir otro diálogo separado en su lugar para flujos encadenados, restauraciones, sub-pasos o confirmaciones (antipatrón de parpadeo y desmontaje de modales).
+- **PROHIBIDO** quemar espaciados o dimensiones arbitrarias dentro de los diálogos, o permitir que listas internas desborden la pantalla sin límite de altura.
+- **OBLIGATORIO** unificar flujos encadenados (confirmaciones destructivas, modo edición, sub-pasos de descifrado/restauración) dentro de un único diálogo modal dinámico mediante una máquina de estados interna con transición fluida de contenido (idéntico al patrón de `AccountDetailsDialog.kt`).
+- **OBLIGATORIO el estándar uniforme de geometría y espaciados en diálogos:**
+  - **Forma del modal:** `shape = RoundedCornerShape(Dimensions.CornerRadius.large)` (16.dp).
+  - **Tipografía de encabezado:** `style = MaterialTheme.typography.titleLarge` (en color `onSurface` o `error` para destructivos).
+  - **Espaciado vertical del contenido:** `Arrangement.spacedBy(Dimensions.Spacing.md)` (12.dp) para formularios/bloques y `Dimensions.Spacing.sm` (8.dp) para listas o subtítulos compactos.
+  - **Límite de listas internas:** `heightIn(max = Dimensions.ComponentSize.modalListMaxHeight)` (240.dp) con scroll vertical (`LazyColumn` o `verticalScroll`).
+  - **Tarjetas y superficies internas:** `shape = RoundedCornerShape(Dimensions.CornerRadius.medium)` y padding `Dimensions.Spacing.md`.
+  - **Botones interactivos y modales:** `shape = RoundedCornerShape(Dimensions.CornerRadius.medium)` con tipografía `MaterialTheme.typography.labelLarge`.
+- **OBLIGATORIO el estándar uniforme de nomenclatura en botones de diálogos:**
+  - **«Cerrar» (`R.string.action_close` / `account_modal_close_button`):** Para el botón de descarte del estado/diálogo principal (*Main Dialog*).
+  - **«Volver» (`R.string.settings_drive_details_back`):** Para regresar de un sub-paso, pantalla secundaria o confirmación al estado anterior dentro del modal.
+  - **«Cancelar» (`R.string.action_cancel`):** Exclusivo para abortar una acción destructiva irreversible antes de confirmarla.
+- **OBLIGATORIO** implementar navegación defensiva hacia atrás en `onDismissRequest`: presionar afuera o el botón atrás del sistema debe revertir al estado/paso anterior antes de cerrar el modal por completo.
 
 ---
 

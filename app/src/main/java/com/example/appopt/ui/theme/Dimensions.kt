@@ -96,6 +96,9 @@ object Dimensions {
         /** Altura estándar para botones primarios y campos de texto (50.dp). */
         val buttonDefault: Dp = 50.dp
 
+        /** Altura compacta para botones secundarios de tarjeta o tabla (36.dp). */
+        val buttonCompact: Dp = 36.dp
+
         /** Tamaño del indicador circular de progreso TOTP (44.dp). */
         val progressIndicator: Dp = 44.dp
 

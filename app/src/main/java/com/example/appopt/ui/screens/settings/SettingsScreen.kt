@@ -43,16 +43,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import kotlinx.coroutines.flow.first
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
 import com.example.appopt.data.cloud.CloudVaultSyncManager
 import com.example.appopt.data.cloud.DriveBackupInfo
+import com.example.appopt.data.cloud.DriveBackupItem
 import com.example.appopt.data.cloud.GoogleDriveManager
+import com.example.appopt.data.cloud.ManualSyncManager
 import com.example.appopt.data.cloud.SyncFrequency
+import com.example.appopt.security.SecurityConfig
 import com.example.appopt.ui.screens.settings.components.DriveSyncSettingsCard
 import com.example.appopt.ui.screens.settings.components.PerformanceSettingsCard
 import com.example.appopt.ui.screens.settings.components.PermissionsSettingsCard
@@ -103,18 +109,38 @@ fun SettingsScreen(
     val accounts by repository.getAccounts().collectAsStateWithLifecycle(initialValue = emptyList())
     val isFpsOverlayEnabled by prefsManager.isFpsOverlayEnabledFlow.collectAsStateWithLifecycle()
 
-    // Estados de sincronización con Google Identity Services
+    // Estados reactivos de sincronización con Google Identity Services
     val authClient = remember { GoogleDriveManager.getAuthorizationClient(context) }
-    var isDriveConnected by remember { mutableStateOf(prefsManager.isGoogleDriveConnected()) }
-    var isAutoSyncEnabled by remember { mutableStateOf(prefsManager.isAutoSyncEnabled()) }
-    var isSyncMobileDataAllowed by remember { mutableStateOf(prefsManager.isSyncMobileDataAllowed()) }
-    var lastSyncTimestamp by remember { mutableLongStateOf(prefsManager.getLastSyncTimestamp()) }
+    val isDriveConnected by prefsManager.isGoogleDriveConnectedFlow.collectAsStateWithLifecycle()
+    val isAutoSyncEnabled by prefsManager.isAutoSyncEnabledFlow.collectAsStateWithLifecycle()
+    val isSyncMobileDataAllowed by prefsManager.isSyncMobileDataAllowedFlow.collectAsStateWithLifecycle()
+    val lastSyncTimestamp by prefsManager.lastSyncTimestampFlow.collectAsStateWithLifecycle()
+    val lastSyncedHash by prefsManager.lastSyncedVaultHashFlow.collectAsStateWithLifecycle()
     var driveAccessToken by remember { mutableStateOf<String?>(null) }
     var isDriveLoading by remember { mutableStateOf(false) }
     var isCheckingDriveBackup by remember { mutableStateOf(false) }
     var driveBackupExists by remember { mutableStateOf(false) }
     var driveBackupInfo by remember { mutableStateOf<DriveBackupInfo?>(null) }
-    var lastSyncedHash by remember { mutableStateOf(prefsManager.getLastSyncedVaultHash()) }
+
+    // Observación en tiempo real del estado de tareas WorkManager de sincronización en segundo plano
+    val reactiveWorkInfos by remember(context) {
+        WorkManager.getInstance(context)
+            .getWorkInfosForUniqueWorkFlow(CloudVaultSyncManager.REACTIVE_WORK_NAME)
+    }.collectAsStateWithLifecycle(initialValue = emptyList())
+
+    val periodicWorkInfos by remember(context) {
+        WorkManager.getInstance(context)
+            .getWorkInfosForUniqueWorkFlow(CloudVaultSyncManager.PERIODIC_WORK_NAME)
+    }.collectAsStateWithLifecycle(initialValue = emptyList())
+
+    val isGlobalSyncing by ManualSyncManager.isSyncing.collectAsStateWithLifecycle()
+
+    val isAutoSyncRunning = remember(reactiveWorkInfos, periodicWorkInfos) {
+        reactiveWorkInfos.any { it.state == WorkInfo.State.RUNNING } ||
+                periodicWorkInfos.any { it.state == WorkInfo.State.RUNNING }
+    }
+
+    val isSyncActive = isDriveLoading || isGlobalSyncing || isAutoSyncRunning
 
     // Estados para control de modales
     var showExportDialog by remember { mutableStateOf(false) }
@@ -123,6 +149,10 @@ fun SettingsScreen(
     var showDriveProtectDialog by remember { mutableStateOf(false) }
     var showDriveDecryptDialog by remember { mutableStateOf(false) }
     var showOverwriteWarningDialog by remember { mutableStateOf(false) }
+    var backupHistoryList by remember { mutableStateOf<List<DriveBackupItem>>(emptyList()) }
+    var lastBackupHistoryFetchTimestamp by remember { mutableLongStateOf(0L) }
+    var selectedBackupToRestore by remember { mutableStateOf<DriveBackupItem?>(null) }
+    var isFetchingBackupHistory by remember { mutableStateOf(false) }
 
     // Mensajes de retroalimentación centralizados
     val driveErrorText = stringResource(R.string.settings_drive_error)
@@ -132,6 +162,18 @@ fun SettingsScreen(
     val driveSyncSuccessText = stringResource(R.string.settings_drive_sync_success)
     val driveDecryptErrorText = stringResource(R.string.settings_drive_decrypt_error)
     val driveDeleteSuccessText = stringResource(R.string.settings_drive_delete_success)
+    val driveDeleteSingleSuccessText = stringResource(R.string.settings_drive_delete_single_success)
+    val driveDeleteAllSuccessText = stringResource(R.string.settings_drive_delete_all_success)
+
+    // Notificación visual de error en pantalla si una tarea de sincronización en segundo plano falla
+    LaunchedEffect(reactiveWorkInfos, periodicWorkInfos) {
+        val hasFailure = reactiveWorkInfos.any { it.state == WorkInfo.State.FAILED } ||
+                periodicWorkInfos.any { it.state == WorkInfo.State.FAILED }
+        if (hasFailure) {
+            appHaptics.error()
+            snackbarHostState.showSnackbar(driveErrorText)
+        }
+    }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     var currentTick by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -161,11 +203,6 @@ fun SettingsScreen(
                 NotificationManagerCompat.from(context).areNotificationsEnabled()
             }
             isBatteryOptimizationIgnored = BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)
-            isDriveConnected = prefsManager.isGoogleDriveConnected()
-            isAutoSyncEnabled = prefsManager.isAutoSyncEnabled()
-            isSyncMobileDataAllowed = prefsManager.isSyncMobileDataAllowed()
-            lastSyncTimestamp = prefsManager.getLastSyncTimestamp()
-            lastSyncedHash = prefsManager.getLastSyncedVaultHash()
             while (isActive) {
                 val now = System.currentTimeMillis()
                 currentTick = now
@@ -175,19 +212,29 @@ fun SettingsScreen(
         }
     }
 
-    val formattedLastSync = remember(lastSyncTimestamp, currentTick) {
-        if (lastSyncTimestamp == 0L) {
+    val effectiveLastSyncTimestamp = remember(lastSyncTimestamp, backupHistoryList, driveBackupInfo) {
+        if (lastSyncTimestamp > 0L) {
+            lastSyncTimestamp
+        } else {
+            backupHistoryList.firstOrNull()?.modifiedTimeMillis
+                ?: driveBackupInfo?.modifiedTimeMillis
+                ?: 0L
+        }
+    }
+
+    val formattedLastSync = remember(effectiveLastSyncTimestamp, currentTick) {
+        if (effectiveLastSyncTimestamp == 0L) {
             null
         } else {
-            DateTimeFormatter.formatRelativeSyncTime(context, lastSyncTimestamp)
+            DateTimeFormatter.formatRelativeSyncTime(context, effectiveLastSyncTimestamp)
         }
     }
 
     val currentVaultHash = remember(accounts) {
         CloudVaultSyncManager.computeAccountsSignature(accounts)
     }
-    val hasUnsyncedChanges = remember(currentVaultHash, lastSyncedHash, isDriveConnected, lastSyncTimestamp) {
-        if (!isDriveConnected || lastSyncTimestamp == 0L) {
+    val hasUnsyncedChanges = remember(currentVaultHash, lastSyncedHash, isDriveConnected, effectiveLastSyncTimestamp) {
+        if (!isDriveConnected || effectiveLastSyncTimestamp == 0L) {
             false
         } else {
             !lastSyncedHash.isNullOrEmpty() && currentVaultHash != lastSyncedHash
@@ -195,35 +242,74 @@ fun SettingsScreen(
     }
 
     LaunchedEffect(Unit) {
-        if (prefsManager.isGoogleDriveConnected() && lastSyncTimestamp == 0L) {
-            isCheckingDriveBackup = true
-            authClient.authorize(GoogleDriveManager.getAuthorizationRequest())
-                .addOnSuccessListener { result ->
-                    if (!result.hasResolution() && result.accessToken != null) {
-                        driveAccessToken = result.accessToken
-                        isDriveConnected = true
-                        scope.launch {
-                            try {
-                                val info = GoogleDriveManager.fetchBackupDetails(result.accessToken!!)
-                                driveBackupExists = info != null
-                                driveBackupInfo = info
-                                if (info != null && accounts.isNotEmpty()) {
-                                    val syncTime = info.modifiedTimeMillis
-                                    lastSyncTimestamp = syncTime
-                                    prefsManager.setLastSyncTimestamp(syncTime)
-                                    prefsManager.setLastSyncedVaultHash(currentVaultHash)
-                                    lastSyncedHash = currentVaultHash
+        if (prefsManager.isGoogleDriveConnected()) {
+            val token = driveAccessToken ?: GoogleDriveManager.currentAccessToken
+            if (token != null) {
+                driveAccessToken = token
+            } else {
+                isCheckingDriveBackup = true
+                authClient.authorize(GoogleDriveManager.getAuthorizationRequest())
+                    .addOnSuccessListener { result ->
+                        if (!result.hasResolution() && result.accessToken != null) {
+                            val newToken = result.accessToken!!
+                            driveAccessToken = newToken
+                            GoogleDriveManager.currentAccessToken = newToken
+                            scope.launch {
+                                try {
+                                    val historyResult = ManualSyncManager.fetchBackupHistory(newToken)
+                                    if (historyResult.isSuccess) {
+                                        val items = historyResult.getOrNull().orEmpty()
+                                        backupHistoryList = items
+                                        lastBackupHistoryFetchTimestamp = System.currentTimeMillis()
+                                        driveBackupExists = items.isNotEmpty()
+                                        val mostRecent = items.firstOrNull()
+                                        if (mostRecent != null) {
+                                            driveBackupInfo = DriveBackupInfo(
+                                                fileId = mostRecent.fileId,
+                                                modifiedTimeMillis = mostRecent.modifiedTimeMillis,
+                                                deviceName = mostRecent.deviceName
+                                            )
+                                            if (accounts.isNotEmpty() && lastSyncTimestamp == 0L) {
+                                                prefsManager.setLastSyncTimestamp(mostRecent.modifiedTimeMillis)
+                                                prefsManager.setLastSyncedVaultHash(currentVaultHash)
+                                            }
+                                        }
+                                    }
+                                } finally {
+                                    isCheckingDriveBackup = false
                                 }
-                            } finally {
-                                isCheckingDriveBackup = false
                             }
+                        } else {
+                            isCheckingDriveBackup = false
                         }
-                    } else {
+                    }.addOnFailureListener {
                         isCheckingDriveBackup = false
                     }
-                }.addOnFailureListener {
-                    isCheckingDriveBackup = false
+            }
+        }
+    }
+
+    // Observar actualizaciones reactivas de sincronización en segundo plano
+    LaunchedEffect(lastSyncTimestamp) {
+        if (lastSyncTimestamp > 0L && prefsManager.isGoogleDriveConnected()) {
+            driveBackupExists = true
+            val token = driveAccessToken ?: GoogleDriveManager.currentAccessToken
+            if (token != null) {
+                val historyResult = ManualSyncManager.fetchBackupHistory(token)
+                if (historyResult.isSuccess) {
+                    val items = historyResult.getOrNull().orEmpty()
+                    backupHistoryList = items
+                    lastBackupHistoryFetchTimestamp = System.currentTimeMillis()
+                    val mostRecent = items.firstOrNull()
+                    if (mostRecent != null) {
+                        driveBackupInfo = DriveBackupInfo(
+                            fileId = mostRecent.fileId,
+                            modifiedTimeMillis = mostRecent.modifiedTimeMillis,
+                            deviceName = mostRecent.deviceName
+                        )
+                    }
                 }
+            }
         }
     }
 
@@ -237,12 +323,12 @@ fun SettingsScreen(
                 val token = authResult.accessToken
                 if (token != null) {
                     driveAccessToken = token
+                    GoogleDriveManager.currentAccessToken = token
                     val action = pendingAuthAction
                     pendingAuthAction = null
                     if (action != null) {
                         action(token)
                     } else {
-                        isDriveConnected = true
                         prefsManager.setGoogleDriveConnected(true)
                     }
                 }
@@ -329,32 +415,29 @@ fun SettingsScreen(
     fun executeManualSync(token: String) {
         AuthenticatorApp.instance.applicationScope.launch {
             try {
-                val payload = repository.exportAccountsForTransfer()
-                val autoSyncKey = com.example.appopt.security.SecurityConfig.AUTO_SYNC_VAULT_KEY.toCharArray()
-                try {
-                    SyncNotificationHelper.showSyncProgressNotification(context.applicationContext)
-                    val uploadResult = GoogleDriveManager.uploadBackup(token, payload, autoSyncKey)
-                    uploadResult.onSuccess {
-                        val now = System.currentTimeMillis()
-                        val currentHash = CloudVaultSyncManager.computeAccountsSignature(accounts)
-                        prefsManager.setLastSyncTimestamp(now)
-                        prefsManager.setLastSyncedVaultHash(currentHash)
-                        SyncNotificationHelper.showSyncSuccessNotification(context.applicationContext, accounts.size)
-                        withContext(Dispatchers.Main) {
-                            lastSyncTimestamp = now
-                            lastSyncedHash = currentHash
-                            driveBackupExists = true
-                            appHaptics.success()
+                val result = ManualSyncManager.syncNow(context, token)
+                withContext(Dispatchers.Main) {
+                    if (result.isSuccess) {
+                        driveBackupExists = true
+                        appHaptics.success()
+                        scope.launch {
+                            val historyResult = ManualSyncManager.fetchBackupHistory(token)
+                            val items = historyResult.getOrNull().orEmpty()
+                            backupHistoryList = items
+                            lastBackupHistoryFetchTimestamp = System.currentTimeMillis()
+                            val mostRecent = items.firstOrNull()
+                            if (mostRecent != null) {
+                                driveBackupInfo = DriveBackupInfo(
+                                    fileId = mostRecent.fileId,
+                                    modifiedTimeMillis = mostRecent.modifiedTimeMillis,
+                                    deviceName = mostRecent.deviceName
+                                )
+                            }
                         }
-                    }.onFailure { _ ->
-                        SyncNotificationHelper.showSyncFailureNotification(context.applicationContext)
-                        withContext(Dispatchers.Main) {
-                            appHaptics.error()
-                            snackbarHostState.showSnackbar(driveErrorText)
-                        }
+                    } else {
+                        appHaptics.error()
+                        snackbarHostState.showSnackbar(driveErrorText)
                     }
-                } finally {
-                    autoSyncKey.fill('0')
                 }
             } finally {
                 withContext(Dispatchers.Main) {
@@ -422,42 +505,40 @@ fun SettingsScreen(
             // 4. Tarjeta de Copia de Seguridad y Sincronización en Google Drive
             DriveSyncSettingsCard(
                 isDriveConnected = isDriveConnected,
-                isDriveLoading = isDriveLoading,
+                isDriveLoading = isSyncActive,
                 isCheckingDriveBackup = isCheckingDriveBackup,
                 formattedLastSync = formattedLastSync,
                 driveBackupExists = driveBackupExists,
                 hasUnsyncedChanges = hasUnsyncedChanges,
-                lastSyncTimestamp = lastSyncTimestamp,
+                lastSyncTimestamp = effectiveLastSyncTimestamp,
                 isAutoSyncEnabled = isAutoSyncEnabled,
                 isSyncMobileDataAllowed = isSyncMobileDataAllowed,
                 onConnectClick = {
+                    isDriveLoading = true
                     requestGoogleAuthorization { token ->
-                        isDriveConnected = true
                         prefsManager.setGoogleDriveConnected(true)
-                        prefsManager.setAutoSyncEnabled(true)
-                        isAutoSyncEnabled = true
-                        isCheckingDriveBackup = true
+                        driveAccessToken = token
+                        GoogleDriveManager.currentAccessToken = token
+                        isDriveLoading = false
                         scope.launch {
-                            try {
-                                val info = GoogleDriveManager.fetchBackupDetails(token)
-                                driveBackupExists = info != null
-                                driveBackupInfo = info
-                                if (info != null && accounts.isNotEmpty()) {
-                                    val syncTime = info.modifiedTimeMillis
-                                    lastSyncTimestamp = syncTime
-                                    prefsManager.setLastSyncTimestamp(syncTime)
-                                    prefsManager.setLastSyncedVaultHash(currentVaultHash)
-                                    lastSyncedHash = currentVaultHash
-                                }
-                                 snackbarHostState.showSnackbar(driveConnectedSuccessText)
-                            } finally {
-                                isCheckingDriveBackup = false
+                            val historyResult = ManualSyncManager.fetchBackupHistory(token)
+                            val items = historyResult.getOrNull().orEmpty()
+                            backupHistoryList = items
+                            lastBackupHistoryFetchTimestamp = System.currentTimeMillis()
+                            driveBackupExists = items.isNotEmpty()
+                            val mostRecent = items.firstOrNull()
+                            if (mostRecent != null) {
+                                driveBackupInfo = DriveBackupInfo(
+                                    fileId = mostRecent.fileId,
+                                    modifiedTimeMillis = mostRecent.modifiedTimeMillis,
+                                    deviceName = mostRecent.deviceName
+                                )
                             }
+                            snackbarHostState.showSnackbar(driveConnectedSuccessText)
                         }
                     }
                 },
                 onManualSyncClick = {
-                    if (isDriveLoading) return@DriveSyncSettingsCard
                     isDriveLoading = true
                     if (driveAccessToken == null) {
                         requestGoogleAuthorization { token -> executeManualSync(token) }
@@ -479,17 +560,79 @@ fun SettingsScreen(
                         showDriveProtectDialog = true
                     }
                 },
-                onBackupDetailsClick = { showBackupDetailsDialog = true },
+                onBackupDetailsClick = {
+                    showBackupDetailsDialog = true
+                    val now = System.currentTimeMillis()
+                    val isCacheStale = backupHistoryList.isEmpty() || (now - lastBackupHistoryFetchTimestamp > SecurityConfig.BACKUP_HISTORY_CACHE_TTL_MILLIS)
+
+                    if (isCacheStale) {
+                        val fetchAndOpenDetails: (String) -> Unit = { token ->
+                            isFetchingBackupHistory = true
+                            scope.launch {
+                                try {
+                                    val historyResult = ManualSyncManager.fetchBackupHistory(token)
+                                    if (historyResult.isSuccess) {
+                                        val items = historyResult.getOrNull().orEmpty()
+                                        backupHistoryList = items
+                                        lastBackupHistoryFetchTimestamp = System.currentTimeMillis()
+                                        driveBackupExists = items.isNotEmpty()
+                                        val mostRecent = items.firstOrNull()
+                                        if (mostRecent != null) {
+                                            driveBackupInfo = DriveBackupInfo(
+                                                fileId = mostRecent.fileId,
+                                                modifiedTimeMillis = mostRecent.modifiedTimeMillis,
+                                                deviceName = mostRecent.deviceName
+                                            )
+                                        }
+                                    } else {
+                                        // Token expirado o error de autenticación: solicitar nuevo token silencioso y reintentar
+                                        driveAccessToken = null
+                                        GoogleDriveManager.currentAccessToken = null
+                                        requestGoogleAuthorization { freshToken ->
+                                            scope.launch {
+                                                isFetchingBackupHistory = true
+                                                try {
+                                                    val retryResult = ManualSyncManager.fetchBackupHistory(freshToken)
+                                                    if (retryResult.isSuccess) {
+                                                        val items = retryResult.getOrNull().orEmpty()
+                                                        backupHistoryList = items
+                                                        lastBackupHistoryFetchTimestamp = System.currentTimeMillis()
+                                                        driveBackupExists = items.isNotEmpty()
+                                                        val mostRecent = items.firstOrNull()
+                                                        if (mostRecent != null) {
+                                                            driveBackupInfo = DriveBackupInfo(
+                                                                fileId = mostRecent.fileId,
+                                                                modifiedTimeMillis = mostRecent.modifiedTimeMillis,
+                                                                deviceName = mostRecent.deviceName
+                                                            )
+                                                        }
+                                                    }
+                                                } finally {
+                                                    isFetchingBackupHistory = false
+                                                }
+                                            }
+                                        }
+                                    }
+                                } finally {
+                                    isFetchingBackupHistory = false
+                                }
+                            }
+                        }
+                        if (driveAccessToken == null) {
+                            requestGoogleAuthorization { token -> fetchAndOpenDetails(token) }
+                        } else {
+                            fetchAndOpenDetails(driveAccessToken!!)
+                        }
+                    }
+                },
                 onDisconnectClick = { showDisconnectConfirmDialog = true },
                 onAutoSyncToggle = { enabled ->
-                    isAutoSyncEnabled = enabled
                     prefsManager.setAutoSyncEnabled(enabled)
                     if (enabled) {
                         CloudVaultSyncManager.triggerReactiveSync(context, 0L)
                     }
                 },
                 onMobileDataToggle = { allowed ->
-                    isSyncMobileDataAllowed = allowed
                     prefsManager.setSyncMobileDataAllowed(allowed)
                     if (isAutoSyncEnabled) {
                         CloudVaultSyncManager.triggerReactiveSync(context, 0L)
@@ -504,14 +647,15 @@ fun SettingsScreen(
         DriveDisconnectConfirmDialog(
             onConfirm = {
                 showDisconnectConfirmDialog = false
-                isDriveConnected = false
                 driveAccessToken = null
+                GoogleDriveManager.clearSession()
                 driveBackupExists = false
-                lastSyncTimestamp = 0L
+                driveBackupInfo = null
+                backupHistoryList = emptyList()
+                lastBackupHistoryFetchTimestamp = 0L
                 prefsManager.setGoogleDriveConnected(false)
                 prefsManager.setLastSyncTimestamp(0L)
                 prefsManager.setLastSyncedVaultHash("")
-                lastSyncedHash = ""
                 CloudVaultSyncManager.schedulePeriodicSync(context, SyncFrequency.OFF, false)
                 scope.launch {
                     snackbarHostState.showSnackbar(driveDisconnectedSuccessText)
@@ -547,31 +691,33 @@ fun SettingsScreen(
                 scope.launch {
                     isDriveLoading = true
                     try {
-                        val payload = repository.exportAccountsForTransfer()
-                        SyncNotificationHelper.showSyncProgressNotification(context.applicationContext)
-                        val uploadResult = GoogleDriveManager.uploadBackup(
+                        val result = ManualSyncManager.createProtectedBackup(
+                            context = context,
                             accessToken = driveAccessToken!!,
-                            rawBackupJson = payload,
                             secretKeyPass = primaryPassChars,
                             emergencyMnemonic = emergencyMnemonicChars
                         )
-                        uploadResult.onSuccess {
-                            val now = System.currentTimeMillis()
-                            val currentHash = CloudVaultSyncManager.computeVaultHash(payload)
-                            isDriveConnected = true
+                        result.onSuccess {
                             driveBackupExists = true
-                            lastSyncTimestamp = now
-                            prefsManager.setGoogleDriveConnected(true)
-                            prefsManager.setLastSyncTimestamp(now)
-                            prefsManager.setLastSyncedVaultHash(currentHash)
-                            lastSyncedHash = currentHash
+                            scope.launch {
+                                val historyResult = ManualSyncManager.fetchBackupHistory(driveAccessToken!!)
+                                val items = historyResult.getOrNull().orEmpty()
+                                backupHistoryList = items
+                                lastBackupHistoryFetchTimestamp = System.currentTimeMillis()
+                                val mostRecent = items.firstOrNull()
+                                if (mostRecent != null) {
+                                    driveBackupInfo = DriveBackupInfo(
+                                        fileId = mostRecent.fileId,
+                                        modifiedTimeMillis = mostRecent.modifiedTimeMillis,
+                                        deviceName = mostRecent.deviceName
+                                    )
+                                }
+                            }
                             if (isAutoSyncEnabled) {
                                 CloudVaultSyncManager.triggerReactiveSync(context, 0L)
                             }
-                            SyncNotificationHelper.showSyncSuccessNotification(context.applicationContext, accounts.size)
                             snackbarHostState.showSnackbar(driveSyncSuccessText)
-                        }.onFailure { _ ->
-                            SyncNotificationHelper.showSyncFailureNotification(context.applicationContext)
+                        }.onFailure {
                             snackbarHostState.showSnackbar(driveErrorText)
                         }
                     } finally {
@@ -583,79 +729,158 @@ fun SettingsScreen(
         )
     }
 
-    // Modal: Descifrado y Restauración desde Google Drive
+    // Modal: Descifrado y Restauración desde Google Drive (Acceso Directo desde Tarjeta Principal)
     if (showDriveDecryptDialog) {
+        val targetDateMillis = driveBackupInfo?.modifiedTimeMillis
+        val targetDeviceName = driveBackupInfo?.deviceName
+
         DriveDecryptDialog(
+            backupDateMillis = targetDateMillis,
+            deviceName = targetDeviceName,
+            isMostRecent = true,
             onRestore = { passChars ->
                 showDriveDecryptDialog = false
                 scope.launch {
                     isDriveLoading = true
                     try {
-                        val downloadResult = GoogleDriveManager.downloadBackup(driveAccessToken!!, passChars)
-                        downloadResult.onSuccess { jsonPayload ->
-                            val importResult = repository.importAccountsFromTransfer(jsonPayload)
-                            importResult.onSuccess { count ->
-                                isDriveConnected = true
-                                prefsManager.setGoogleDriveConnected(true)
-                                val now = System.currentTimeMillis()
-                                lastSyncTimestamp = now
-                                prefsManager.setLastSyncTimestamp(now)
-                                val currentHash = CloudVaultSyncManager.computeVaultHash(jsonPayload)
-                                prefsManager.setLastSyncedVaultHash(currentHash)
-                                lastSyncedHash = currentHash
-                                if (isAutoSyncEnabled) {
-                                    CloudVaultSyncManager.triggerReactiveSync(context, 0L)
-                                }
-                                snackbarHostState.showSnackbar(
-                                    context.applicationContext.getString(R.string.settings_drive_restore_success, count)
-                                )
-                            }.onFailure { _ ->
-                                snackbarHostState.showSnackbar(driveErrorText)
+                        val result = ManualSyncManager.restoreFromBackup(
+                            context = context,
+                            accessToken = driveAccessToken!!,
+                            secretKeyPass = passChars
+                        )
+                        result.onSuccess { count ->
+                            lastBackupHistoryFetchTimestamp = 0L
+                            if (isAutoSyncEnabled) {
+                                CloudVaultSyncManager.triggerReactiveSync(context, 0L)
                             }
-                        }.onFailure {
-                            snackbarHostState.showSnackbar(driveDecryptErrorText)
+                            snackbarHostState.showSnackbar(
+                                context.applicationContext.getString(R.string.settings_drive_restore_success, count)
+                            )
+                        }.onFailure { error ->
+                            val isDecryptFailure = error.message?.contains("clave", ignoreCase = true) == true ||
+                                    error.message?.contains("descargar", ignoreCase = true) == true
+                            snackbarHostState.showSnackbar(
+                                if (isDecryptFailure) driveDecryptErrorText else driveErrorText
+                            )
                         }
                     } finally {
                         isDriveLoading = false
                     }
                 }
             },
-            onDismiss = { showDriveDecryptDialog = false }
+            onDismiss = {
+                showDriveDecryptDialog = false
+            }
         )
     }
 
-    // Modal: Detalles de la Copia y Confirmación de Eliminación
+    // Modal: Detalles de la Copia, Historial (Point-in-Time Recovery) y Eliminación Granular / Total
     if (showBackupDetailsDialog) {
         DriveBackupDetailsDialog(
-            formattedLastSync = formattedLastSync,
-            isLoading = isDriveLoading,
-            onDeleteConfirmed = {
+            backupItems = backupHistoryList,
+            isLoading = isFetchingBackupHistory,
+            onRestoreBackup = { item, passChars ->
                 showBackupDetailsDialog = false
-                val executeDelete: (String) -> Unit = { token ->
+                val executeRestore: (String) -> Unit = { token ->
                     scope.launch {
                         isDriveLoading = true
                         try {
-                            val deleteResult = GoogleDriveManager.deleteBackup(token)
-                            deleteResult.onSuccess {
-                                prefsManager.setLastSyncTimestamp(0L)
-                                prefsManager.setLastSyncedVaultHash("")
-                                lastSyncedHash = ""
-                                lastSyncTimestamp = 0L
-                                driveBackupExists = false
-                                snackbarHostState.showSnackbar(driveDeleteSuccessText)
-                            }.onFailure { _ ->
-                                snackbarHostState.showSnackbar(driveErrorText)
+                            val result = ManualSyncManager.restoreSpecificBackup(
+                                context = context,
+                                accessToken = token,
+                                fileId = item.fileId,
+                                secretKeyPass = passChars
+                            )
+                            result.onSuccess { count ->
+                                lastBackupHistoryFetchTimestamp = 0L
+                                if (isAutoSyncEnabled) {
+                                    CloudVaultSyncManager.triggerReactiveSync(context, 0L)
+                                }
+                                snackbarHostState.showSnackbar(
+                                    context.applicationContext.getString(R.string.settings_drive_restore_success, count)
+                                )
+                            }.onFailure { error ->
+                                val isDecryptFailure = error.message?.contains("clave", ignoreCase = true) == true ||
+                                        error.message?.contains("descargar", ignoreCase = true) == true
+                                snackbarHostState.showSnackbar(
+                                    if (isDecryptFailure) driveDecryptErrorText else driveErrorText
+                                )
                             }
                         } finally {
                             isDriveLoading = false
                         }
                     }
                 }
+                if (driveAccessToken == null) {
+                    requestGoogleAuthorization { token -> executeRestore(token) }
+                } else {
+                    executeRestore(driveAccessToken!!)
+                }
+            },
+            onDeleteSpecificBackup = { item ->
+                val executeDeleteSpecific: (String) -> Unit = { token ->
+                    scope.launch {
+                        isFetchingBackupHistory = true
+                        try {
+                            val deleteResult = ManualSyncManager.deleteSpecificBackup(token, item.fileId)
+                            deleteResult.onSuccess {
+                                val updated = backupHistoryList.filterNot { it.fileId == item.fileId }
+                                backupHistoryList = updated
+                                lastBackupHistoryFetchTimestamp = System.currentTimeMillis()
+                                driveBackupExists = updated.isNotEmpty()
+                                val mostRecent = updated.firstOrNull()
+                                driveBackupInfo = if (mostRecent != null) {
+                                    DriveBackupInfo(
+                                        fileId = mostRecent.fileId,
+                                        modifiedTimeMillis = mostRecent.modifiedTimeMillis,
+                                        deviceName = mostRecent.deviceName
+                                    )
+                                } else {
+                                    null
+                                }
+                                snackbarHostState.showSnackbar(driveDeleteSingleSuccessText)
+                            }.onFailure {
+                                snackbarHostState.showSnackbar(driveErrorText)
+                            }
+                        } finally {
+                            isFetchingBackupHistory = false
+                        }
+                    }
+                }
+                if (driveAccessToken == null) {
+                    requestGoogleAuthorization { token -> executeDeleteSpecific(token) }
+                } else {
+                    executeDeleteSpecific(driveAccessToken!!)
+                }
+            },
+            onDeleteAllConfirmed = {
+                showBackupDetailsDialog = false
+                val executeDeleteAll: (String) -> Unit = { token ->
+                    scope.launch {
+                        isFetchingBackupHistory = true
+                        try {
+                            val deleteResult = ManualSyncManager.deleteAllBackups(token)
+                            deleteResult.onSuccess {
+                                backupHistoryList = emptyList()
+                                lastBackupHistoryFetchTimestamp = 0L
+                                driveBackupExists = false
+                                driveBackupInfo = null
+                                prefsManager.setLastSyncTimestamp(0L)
+                                prefsManager.setLastSyncedVaultHash("")
+                                snackbarHostState.showSnackbar(driveDeleteAllSuccessText)
+                            }.onFailure {
+                                snackbarHostState.showSnackbar(driveErrorText)
+                            }
+                        } finally {
+                            isFetchingBackupHistory = false
+                        }
+                    }
+                }
 
                 if (driveAccessToken == null) {
-                    requestGoogleAuthorization { token -> executeDelete(token) }
+                    requestGoogleAuthorization { token -> executeDeleteAll(token) }
                 } else {
-                    executeDelete(driveAccessToken!!)
+                    executeDeleteAll(driveAccessToken!!)
                 }
             },
             onDismiss = { showBackupDetailsDialog = false }

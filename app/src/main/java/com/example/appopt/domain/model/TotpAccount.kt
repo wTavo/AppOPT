@@ -13,6 +13,8 @@ package com.example.appopt.domain.model
  * @property counter Valor del contador de eventos para tokens HOTP.
  * @property isFavorite Indica si el usuario fijó esta cuenta en la parte superior.
  * @property orderIndex Posición para ordenamiento personalizado.
+ * @property isDeleted Indica si la cuenta se encuentra en la papelera de reciclaje temporal.
+ * @property deletedAt Timestamp UNIX en que la cuenta fue trasladada a la papelera.
  * @property createdAt Timestamp UNIX de creación.
  * @property updatedAt Timestamp UNIX de última modificación.
  */
@@ -27,6 +29,8 @@ data class TotpAccount(
     val counter: Long = 0L,
     val isFavorite: Boolean = false,
     val orderIndex: Int = 0,
+    val isDeleted: Boolean = false,
+    val deletedAt: Long? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )

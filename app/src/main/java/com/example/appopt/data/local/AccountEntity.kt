@@ -28,6 +28,8 @@ data class AccountEntity(
     val counter: Long = 0L,
     val isFavorite: Boolean = false,
     val orderIndex: Int = 0,
+    val isDeleted: Boolean = false,
+    val deletedAt: Long? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 ) {
@@ -49,6 +51,8 @@ data class AccountEntity(
         if (counter != other.counter) return false
         if (isFavorite != other.isFavorite) return false
         if (orderIndex != other.orderIndex) return false
+        if (isDeleted != other.isDeleted) return false
+        if (deletedAt != other.deletedAt) return false
         if (createdAt != other.createdAt) return false
         if (updatedAt != other.updatedAt) return false
 
@@ -68,6 +72,8 @@ data class AccountEntity(
         result = 31 * result + counter.hashCode()
         result = 31 * result + isFavorite.hashCode()
         result = 31 * result + orderIndex
+        result = 31 * result + isDeleted.hashCode()
+        result = 31 * result + (deletedAt?.hashCode() ?: 0)
         result = 31 * result + createdAt.hashCode()
         result = 31 * result + updatedAt.hashCode()
         return result

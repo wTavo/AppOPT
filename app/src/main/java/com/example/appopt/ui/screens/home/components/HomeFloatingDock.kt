@@ -12,14 +12,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,18 +41,23 @@ import com.example.appopt.ui.theme.rememberAppHaptics
  * 1. Bloquear bóveda.
  * 2. Gestor de contraseñas.
  * 3. Botón Hero (+) para agregar nuevas cuentas OTP.
- * 4. Navegación hacia Ajustes.
+ * 4. Papelera de reciclaje y servicios eliminados recientemente (con badge).
+ * 5. Navegación hacia Ajustes.
  *
  * @param onLockVault Callback invocado para bloquear manualmente la aplicación.
  * @param onAddAccountClick Callback invocado al presionar el botón Hero (+) de adición.
+ * @param onNavigateToRecentlyDeleted Callback invocado al presionar la papelera de reciclaje.
  * @param onNavigateToSettings Callback invocado al presionar el botón de ajustes.
+ * @param deletedAccountsCount Cantidad de servicios en papelera de reciclaje para mostrar badge.
  * @param modifier Modificador de diseño Compose opcional.
  */
 @Composable
 fun HomeFloatingDock(
     onLockVault: () -> Unit,
     onAddAccountClick: () -> Unit,
+    onNavigateToRecentlyDeleted: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    deletedAccountsCount: Int = 0,
     modifier: Modifier = Modifier
 ) {
     val appHaptics = rememberAppHaptics()
@@ -63,8 +72,8 @@ fun HomeFloatingDock(
         modifier = modifier.wrapContentWidth()
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = Dimensions.Spacing.lg, vertical = Dimensions.Spacing.sm),
-            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xl),
+            modifier = Modifier.padding(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 1. Bloquear bóveda manualmente
@@ -122,7 +131,37 @@ fun HomeFloatingDock(
                 )
             }
 
-            // 4. Ajustes y Configuración
+            // 4. Papelera de reciclaje / Eliminados recientemente
+            IconButton(
+                onClick = {
+                    appHaptics.click()
+                    onNavigateToRecentlyDeleted()
+                }
+            ) {
+                BadgedBox(
+                    badge = {
+                        if (deletedAccountsCount > 0) {
+                            Badge(
+                                containerColor = MaterialTheme.colorScheme.error,
+                                contentColor = MaterialTheme.colorScheme.onError
+                            ) {
+                                Text(
+                                    text = deletedAccountsCount.toString(),
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        }
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.DeleteOutline,
+                        contentDescription = stringResource(R.string.trash_nav_title),
+                        tint = if (deletedAccountsCount > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            // 5. Ajustes y Configuración
             IconButton(
                 onClick = {
                     appHaptics.click()

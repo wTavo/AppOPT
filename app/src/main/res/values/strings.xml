@@ -5,6 +5,7 @@
     <string name="app_name">Authenticator</string>
 
     <string name="action_cancel">Cancelar</string>
+    <string name="action_close">Cerrar</string>
     <string name="action_delete">Eliminar</string>
     <string name="action_edit">Editar</string>
     <string name="action_cancel_edit">Cancelar edición</string>
@@ -132,6 +133,20 @@
     <string name="settings_drive_details_date">Fecha del respaldo: %1$s</string>
     <string name="settings_drive_details_encryption">Cifrado: AES-256-GCM de extremo a extremo</string>
     <string name="settings_drive_details_back">Volver</string>
+    <string name="settings_drive_history_title">Historial de copias de seguridad</string>
+    <string name="settings_drive_history_subtitle">Se conservan automáticamente las últimas 3 versiones de tu bóveda.</string>
+    <string name="settings_drive_history_empty">No hay copias de seguridad disponibles en Google Drive.</string>
+    <string name="settings_drive_history_loading">Cargando versiones de respaldo…</string>
+    <string name="settings_drive_restore_version_action">Restaurar</string>
+    <string name="settings_drive_delete_version_action">Eliminar</string>
+    <string name="settings_drive_delete_all_action">Eliminar todas las copias</string>
+    <string name="settings_drive_delete_all_confirm_title">¿Eliminar todas las copias de seguridad?</string>
+    <string name="settings_drive_delete_all_confirm_desc">Se borrarán permanentemente todas las versiones de la nube. Esta acción no se puede deshacer.</string>
+    <string name="settings_drive_delete_version_confirm_title">¿Eliminar esta versión?</string>
+    <string name="settings_drive_delete_version_confirm_desc">Esta versión de la copia de seguridad será eliminada de forma irreversible.</string>
+    <string name="settings_drive_version_most_recent_badge">Más reciente</string>
+    <string name="settings_drive_delete_single_success">Versión eliminada correctamente</string>
+    <string name="settings_drive_delete_all_success">Todas las copias de seguridad fueron eliminadas</string>
     <string name="settings_drive_overwrite_title">Sobrescribir copia existente</string>
     <string name="settings_drive_overwrite_msg">Ya existe una copia de seguridad en Google Drive. Si continúas, la copia anterior será reemplazada permanentemente por los servicios de este dispositivo.</string>
     <string name="settings_drive_overwrite_date">Fecha: %1$s</string>
@@ -177,6 +192,7 @@
     <string name="settings_drive_decrypt_title">Descifrar copia de seguridad</string>
     <string name="settings_drive_decrypt_hint">Ingresa tu contraseña maestra, tu clave de 64 dígitos o tu frase de 12 palabras de emergencia para descifrar tu respaldo.</string>
     <string name="settings_drive_decrypt_input_label">Contraseña, clave de 64 dígitos o 12 palabras</string>
+    <string name="settings_drive_decrypt_device">Dispositivo: %1$s</string>
     <string name="settings_drive_encrypt_and_sync">Cifrar y sincronizar</string>
     <string name="settings_drive_decrypt_and_restore">Descifrar y restaurar</string>
 
@@ -259,5 +275,29 @@
     <!-- Generación e Impresión del Kit de Emergencia PDF -->
     <string name="emergency_kit_print_error">No se pudo generar el documento para impresión. Comprueba el almacenamiento disponible e inténtalo de nuevo.</string>
     <string name="emergency_kit_descriptor_error">El servicio de impresión del sistema no devolvió un destino válido.</string>
+
+    <!-- Papelera de Reciclaje y Eliminados Recientemente (30 Días) -->
+    <string name="trash_nav_title">Eliminados recientemente</string>
+    <string name="trash_title">Papelera de reciclaje</string>
+    <string name="trash_description">Los servicios eliminados se conservan aquí durante 30 días antes de su eliminación permanente.</string>
+    <string name="trash_badge_count">%1$d en papelera</string>
+    <string name="trash_badge_single">1 en papelera</string>
+    <string name="trash_days_remaining">Se eliminará definitivamente en %1$d días</string>
+    <string name="trash_hours_remaining">Se eliminará definitivamente hoy</string>
+    <string name="trash_restore_button">Restaurar</string>
+    <string name="trash_restore_success">Servicio restaurado correctamente</string>
+    <string name="trash_permanent_delete_button">Eliminar definitivamente</string>
+    <string name="trash_empty_button">Vaciar papelera</string>
+    <string name="trash_empty_title">Vaciar papelera de reciclaje</string>
+    <string name="trash_empty_confirm_msg">¿Deseas eliminar permanentemente todos los servicios de la papelera? Esta acción no se puede deshacer.</string>
+    <string name="trash_empty_success">Papelera vaciada correctamente</string>
+    <string name="trash_permanent_delete_title">Eliminación definitiva</string>
+    <string name="trash_permanent_delete_confirm_msg">¿Deseas eliminar permanentemente este servicio? No podrás recuperar este código 2FA.</string>
+    <string name="trash_permanent_delete_success">Servicio eliminado definitivamente</string>
+    <string name="trash_empty_state_title">La papelera está vacía</string>
+    <string name="trash_empty_state_desc">Los servicios que elimines se guardarán aquí durante 30 días por si necesitas recuperarlos.</string>
+    <string name="account_details_delete_to_trash_hint">Este servicio se trasladará a \"Eliminados recientemente\". Podrás restaurarlo durante los próximos 30 días antes de su eliminación definitiva.</string>
+    <string name="account_details_move_to_trash_btn">Mover a la papelera</string>
+    <string name="account_details_moved_to_trash_success">Servicio movido a la papelera</string>
 
 </resources>

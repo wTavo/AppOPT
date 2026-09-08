@@ -49,6 +49,14 @@ class AccountRepositoryImpl(
             replay = 1
         )
 
+    private val deletedAccountsFlow: SharedFlow<List<TotpAccount>> = accountDao.getDeletedAccounts()
+        .map { list -> list.map { it.toDomain() } }
+        .shareIn(
+            scope = repositoryScope,
+            started = SharingStarted.Eagerly,
+            replay = 1
+        )
+
     private data class CachedOtp(
         val step: Long,
         val counter: Long,
@@ -66,6 +74,10 @@ class AccountRepositoryImpl(
                 }
             }
         }
+        // Purga automática de registros en papelera que superen los 30 días de retención
+        repositoryScope.launch {
+            purgeExpiredTrash()
+        }
     }
 
     /**
@@ -79,6 +91,11 @@ class AccountRepositoryImpl(
      * Obtiene la lista de cuentas como modelos de dominio sin exponer secretos (pre-cargada con replay=1).
      */
     override fun getAccounts(): Flow<List<TotpAccount>> = accountsFlow
+
+    /**
+     * Obtiene el flujo reactivo de cuentas en la papelera de reciclaje temporal.
+     */
+    override fun getDeletedAccounts(): Flow<List<TotpAccount>> = deletedAccountsFlow
 
     /**
      * Calcula sincrónicamente los códigos OTP para una lista de cuentas en memoria en el instante [currentTimeMillis],
@@ -252,12 +269,67 @@ class AccountRepositoryImpl(
     }
 
     /**
-     * Elimina permanentemente una cuenta de la base de datos.
+     * Elimina una cuenta trasladándola a la papelera de reciclaje temporal (30 días).
      */
     override suspend fun deleteAccount(id: String) {
-        otpCodeCache.remove(id)
-        accountDao.deleteAccountById(id)
-        com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
+        moveToTrash(id)
+    }
+
+    /**
+     * Traslada una cuenta a la papelera de reciclaje temporal por 30 días.
+     */
+    override suspend fun moveToTrash(id: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            otpCodeCache.remove(id)
+            val now = System.currentTimeMillis()
+            accountDao.moveToTrash(id, now)
+            com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
+        }
+    }
+
+    /**
+     * Restaura una cuenta desde la papelera de reciclaje a la bóveda activa.
+     */
+    override suspend fun restoreFromTrash(id: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val now = System.currentTimeMillis()
+            accountDao.restoreFromTrash(id, now)
+            com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
+        }
+    }
+
+    /**
+     * Elimina permanentemente una cuenta de la base de datos de forma irreversible.
+     */
+    override suspend fun permanentlyDelete(id: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            otpCodeCache.remove(id)
+            accountDao.deleteAccountById(id)
+            com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
+        }
+    }
+
+    /**
+     * Vacía completamente la papelera de reciclaje.
+     */
+    override suspend fun emptyTrash(): Result<Int> = withContext(Dispatchers.IO) {
+        runCatching {
+            val count = accountDao.emptyTrash()
+            if (count > 0) {
+                com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
+            }
+            count
+        }
+    }
+
+    /**
+     * Purga automáticamente las cuentas cuya estancia en papelera supere los 30 días.
+     */
+    override suspend fun purgeExpiredTrash(): Result<Int> = withContext(Dispatchers.IO) {
+        runCatching {
+            val threshold = System.currentTimeMillis() - com.example.appopt.security.SecurityConfig.TRASH_RETENTION_MILLIS
+            accountDao.purgeExpiredTrash(threshold)
+        }
     }
 
     /**
@@ -289,7 +361,6 @@ class AccountRepositoryImpl(
         } else {
             allEntities
         }
-        if (entities.isEmpty()) return ""
 
         val jsonArray = JSONArray()
         for (entity in entities) {
@@ -485,6 +556,8 @@ class AccountRepositoryImpl(
             counter = counter,
             isFavorite = isFavorite,
             orderIndex = orderIndex,
+            isDeleted = isDeleted,
+            deletedAt = deletedAt,
             createdAt = createdAt,
             updatedAt = updatedAt
         )

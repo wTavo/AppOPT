@@ -21,17 +21,55 @@ class PreferencesManager(context: Context) {
         Context.MODE_PRIVATE
     )
 
+    private val _isHideCodesEnabled = MutableStateFlow(sharedPreferences.getBoolean(KEY_HIDE_CODES, false))
+    val isHideCodesEnabledFlow: StateFlow<Boolean> = _isHideCodesEnabled.asStateFlow()
+
+    private val _isDriveConnected = MutableStateFlow(sharedPreferences.getBoolean(KEY_DRIVE_CONNECTED, false))
+    val isGoogleDriveConnectedFlow: StateFlow<Boolean> = _isDriveConnected.asStateFlow()
+
+    private val _lastSyncTimestamp = MutableStateFlow(sharedPreferences.getLong(KEY_DRIVE_LAST_SYNC, 0L))
+    val lastSyncTimestampFlow: StateFlow<Long> = _lastSyncTimestamp.asStateFlow()
+
+    private val _lastSyncedVaultHash = MutableStateFlow(sharedPreferences.getString(KEY_LAST_VAULT_HASH, null))
+    val lastSyncedVaultHashFlow: StateFlow<String?> = _lastSyncedVaultHash.asStateFlow()
+
+    private val _isAutoSyncEnabled = MutableStateFlow(sharedPreferences.getBoolean(KEY_AUTO_SYNC_ENABLED, true))
+    val isAutoSyncEnabledFlow: StateFlow<Boolean> = _isAutoSyncEnabled.asStateFlow()
+
+    private val _isSyncMobileData = MutableStateFlow(sharedPreferences.getBoolean(KEY_SYNC_MOBILE_DATA, false))
+    val isSyncMobileDataAllowedFlow: StateFlow<Boolean> = _isSyncMobileData.asStateFlow()
+
+    private val _isFpsOverlayEnabled = MutableStateFlow(sharedPreferences.getBoolean(KEY_FPS_OVERLAY, true))
+    val isFpsOverlayEnabledFlow: StateFlow<Boolean> = _isFpsOverlayEnabled.asStateFlow()
+
+    private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
+        when (key) {
+            KEY_HIDE_CODES -> _isHideCodesEnabled.value = prefs.getBoolean(KEY_HIDE_CODES, false)
+            KEY_DRIVE_CONNECTED -> _isDriveConnected.value = prefs.getBoolean(KEY_DRIVE_CONNECTED, false)
+            KEY_DRIVE_LAST_SYNC -> _lastSyncTimestamp.value = prefs.getLong(KEY_DRIVE_LAST_SYNC, 0L)
+            KEY_LAST_VAULT_HASH -> _lastSyncedVaultHash.value = prefs.getString(KEY_LAST_VAULT_HASH, null)
+            KEY_AUTO_SYNC_ENABLED -> _isAutoSyncEnabled.value = prefs.getBoolean(KEY_AUTO_SYNC_ENABLED, true)
+            KEY_SYNC_MOBILE_DATA -> _isSyncMobileData.value = prefs.getBoolean(KEY_SYNC_MOBILE_DATA, false)
+            KEY_FPS_OVERLAY -> _isFpsOverlayEnabled.value = prefs.getBoolean(KEY_FPS_OVERLAY, true)
+        }
+    }
+
+    init {
+        sharedPreferences.registerOnSharedPreferenceChangeListener(preferenceChangeListener)
+    }
+
     /**
      * Retorna si el modo de ocultar códigos está habilitado de forma persistente.
      */
     fun isHideCodesEnabled(): Boolean {
-        return sharedPreferences.getBoolean(KEY_HIDE_CODES, false)
+        return _isHideCodesEnabled.value
     }
 
     /**
      * Guarda el estado de ocultar códigos en disco.
      */
     fun setHideCodesEnabled(enabled: Boolean) {
+        _isHideCodesEnabled.value = enabled
         sharedPreferences.edit { putBoolean(KEY_HIDE_CODES, enabled) }
     }
 
@@ -39,13 +77,14 @@ class PreferencesManager(context: Context) {
      * Retorna si la cuenta de Google Drive ha sido conectada previamente.
      */
     fun isGoogleDriveConnected(): Boolean {
-        return sharedPreferences.getBoolean(KEY_DRIVE_CONNECTED, false)
+        return _isDriveConnected.value
     }
 
     /**
      * Guarda el estado de conexión con Google Drive.
      */
     fun setGoogleDriveConnected(connected: Boolean) {
+        _isDriveConnected.value = connected
         sharedPreferences.edit { putBoolean(KEY_DRIVE_CONNECTED, connected) }
     }
 
@@ -53,13 +92,14 @@ class PreferencesManager(context: Context) {
      * Retorna la marca de tiempo (timestamp en millis) de la última sincronización en Drive.
      */
     fun getLastSyncTimestamp(): Long {
-        return sharedPreferences.getLong(KEY_DRIVE_LAST_SYNC, 0L)
+        return _lastSyncTimestamp.value
     }
 
     /**
      * Guarda la marca de tiempo de la última sincronización en Drive.
      */
     fun setLastSyncTimestamp(timestamp: Long) {
+        _lastSyncTimestamp.value = timestamp
         sharedPreferences.edit { putLong(KEY_DRIVE_LAST_SYNC, timestamp) }
     }
 
@@ -67,28 +107,29 @@ class PreferencesManager(context: Context) {
      * Retorna si la copia de seguridad automática está activada (por defecto true).
      */
     fun isAutoSyncEnabled(): Boolean {
-        return sharedPreferences.getBoolean(KEY_AUTO_SYNC_ENABLED, true)
+        return _isAutoSyncEnabled.value
     }
 
     /**
      * Guarda el estado de activación de la copia de seguridad automática.
      */
     fun setAutoSyncEnabled(enabled: Boolean) {
+        _isAutoSyncEnabled.value = enabled
         sharedPreferences.edit { putBoolean(KEY_AUTO_SYNC_ENABLED, enabled) }
     }
-
 
     /**
      * Retorna si la sincronización puede usar datos móviles (por defecto false -> solo Wi-Fi).
      */
     fun isSyncMobileDataAllowed(): Boolean {
-        return sharedPreferences.getBoolean(KEY_SYNC_MOBILE_DATA, false)
+        return _isSyncMobileData.value
     }
 
     /**
      * Guarda la preferencia de uso de datos móviles para sincronización.
      */
     fun setSyncMobileDataAllowed(allowed: Boolean) {
+        _isSyncMobileData.value = allowed
         sharedPreferences.edit { putBoolean(KEY_SYNC_MOBILE_DATA, allowed) }
     }
 
@@ -96,13 +137,14 @@ class PreferencesManager(context: Context) {
      * Retorna el último hash SHA-256 de la bóveda sincronizada en la nube.
      */
     fun getLastSyncedVaultHash(): String? {
-        return sharedPreferences.getString(KEY_LAST_VAULT_HASH, null)
+        return _lastSyncedVaultHash.value
     }
 
     /**
      * Guarda el hash SHA-256 de la bóveda sincronizada.
      */
     fun setLastSyncedVaultHash(hash: String) {
+        _lastSyncedVaultHash.value = hash
         sharedPreferences.edit { putString(KEY_LAST_VAULT_HASH, hash) }
     }
 
@@ -127,12 +169,6 @@ class PreferencesManager(context: Context) {
                 .putBoolean(KEY_AUTO_SYNC_ENABLED, frequency != SyncFrequency.OFF)
         }
     }
-
-    private val _isFpsOverlayEnabled = MutableStateFlow(
-        sharedPreferences.getBoolean(KEY_FPS_OVERLAY, true)
-    )
-    /** Flujo reactivo del estado de visualización de FPS y rendimiento. */
-    val isFpsOverlayEnabledFlow: StateFlow<Boolean> = _isFpsOverlayEnabled.asStateFlow()
 
     /**
      * Retorna si la superposición visual de FPS y registros de rendimiento está habilitada.

@@ -22,4 +22,26 @@ class DateTimeFormatterTest {
         val result = DateTimeFormatter.formatAbsoluteDateTime(1700000000000L, Locale.US)
         assertTrue(result.contains("2023") || result.contains("11") || result.contains("14"))
     }
+
+    @Test
+    fun parseIso8601ToMillis_withMilliseconds_returnsCorrectTimestamp() {
+        val isoString = "2023-11-14T22:13:20.000Z"
+        val millis = DateTimeFormatter.parseIso8601ToMillis(isoString)
+        assertEquals(1700000000000L, millis)
+    }
+
+    @Test
+    fun parseIso8601ToMillis_withoutMilliseconds_returnsCorrectTimestamp() {
+        val isoString = "2023-11-14T22:13:20Z"
+        val millis = DateTimeFormatter.parseIso8601ToMillis(isoString)
+        assertEquals(1700000000000L, millis)
+    }
+
+    @Test
+    fun parseIso8601ToMillis_emptyString_returnsCurrentTimeSafely() {
+        val before = System.currentTimeMillis()
+        val millis = DateTimeFormatter.parseIso8601ToMillis("")
+        val after = System.currentTimeMillis()
+        assertTrue(millis in before..after)
+    }
 }

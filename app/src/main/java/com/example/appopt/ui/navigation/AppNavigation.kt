@@ -18,6 +18,7 @@ import com.example.appopt.ui.screens.home.HomeViewModel
 import com.example.appopt.ui.screens.lock.LockScreen
 import com.example.appopt.ui.screens.scan.QrScannerScreen
 import com.example.appopt.ui.screens.settings.SettingsScreen
+import com.example.appopt.ui.screens.trash.RecentlyDeletedScreen
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -51,7 +52,8 @@ fun AppNavigation() {
                     viewModel = homeViewModel,
                     onNavigateToScanQr = { navController.navigate(Screen.ScanQr.route) },
                     onNavigateToAddManual = { navController.navigate(Screen.AddManual.route) },
-                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+                    onNavigateToRecentlyDeleted = { navController.navigate(Screen.RecentlyDeleted.route) }
                 )
             }
 
@@ -83,6 +85,12 @@ fun AppNavigation() {
                 SettingsScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToScanQr = { navController.navigate(Screen.ScanQr.route) }
+                )
+            }
+
+            composable(Screen.RecentlyDeleted.route) {
+                RecentlyDeletedScreen(
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
         }

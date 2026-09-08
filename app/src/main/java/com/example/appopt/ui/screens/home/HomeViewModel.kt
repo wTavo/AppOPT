@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
@@ -47,83 +48,84 @@ class HomeViewModel : ViewModel() {
     private val _isHideCodesEnabled = MutableStateFlow(preferencesManager.isHideCodesEnabled())
     val isHideCodesEnabled: StateFlow<Boolean> = _isHideCodesEnabled.asStateFlow()
 
+    /** Estado reactivo del total de cuentas en papelera de reciclaje. */
+    val deletedAccountsCount: StateFlow<Int> = repository.getDeletedAccounts()
+        .map { it.size }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = 0
+        )
+
     /** Estado reactivo del indicador visual de sincronización en la nube para la cabecera. */
     private val _cloudSyncState = MutableStateFlow(CloudSyncUiState.IDLE)
     val cloudSyncState: StateFlow<CloudSyncUiState> = _cloudSyncState.asStateFlow()
 
     /** Indica si la cuenta de Google Drive está vinculada y la sincronización activa. */
-    private val _isDriveConnected = MutableStateFlow(preferencesManager.isGoogleDriveConnected())
-    val isDriveConnected: StateFlow<Boolean> = _isDriveConnected.asStateFlow()
+    val isDriveConnected: StateFlow<Boolean> = preferencesManager.isGoogleDriveConnectedFlow
 
     private var syncFeedbackJob: Job? = null
 
     init {
-        refreshDriveConnectionState()
-        observeReactiveSync()
+        observeCloudSync()
     }
 
     /**
-     * Actualiza el estado de conexión con Google Drive en tiempo real.
-     */
-    fun refreshDriveConnectionState() {
-        _isDriveConnected.value = preferencesManager.isGoogleDriveConnected()
-    }
-
-    /**
-     * Observa el estado del worker de sincronización reactiva en segundo plano ([CloudVaultSyncManager.REACTIVE_WORK_NAME]).
+     * Observa el estado de las tareas de sincronización en segundo plano de WorkManager
+     * ([CloudVaultSyncManager.REACTIVE_WORK_NAME] y [CloudVaultSyncManager.PERIODIC_WORK_NAME]).
      *
-     * Mapea las transiciones de estado a [CloudSyncUiState] para alimentar la animación de la cabecera:
-     * - [WorkInfo.State.ENQUEUED] o [WorkInfo.State.RUNNING]: Transiciona a [CloudSyncUiState.SYNCING].
-     * - [WorkInfo.State.SUCCEEDED]: Tras una sincronización activa, muestra [CloudSyncUiState.SUCCESS] por 2.5s y vuelve a reposo.
-     * - [WorkInfo.State.FAILED]: Muestra [CloudSyncUiState.ERROR] por 3s y vuelve a reposo.
+     * Mapea reactivamente las transiciones a [CloudSyncUiState]:
+     * - Si hay una tarea reactiva en cola (retardo de consolidación) o en ejecución: [CloudSyncUiState.SYNCING].
+     * - Al completar una tarea activa: [CloudSyncUiState.SUCCESS] por 2.5s y vuelve a [CloudSyncUiState.IDLE].
+     * - Si falla una tarea activa: [CloudSyncUiState.ERROR] por 3s y vuelve a [CloudSyncUiState.IDLE].
+     * - En cualquier otro caso: [CloudSyncUiState.IDLE].
      */
-    private fun observeReactiveSync() {
+    private fun observeCloudSync() {
         viewModelScope.launch {
-            var previousState: WorkInfo.State? = null
-            WorkManager.getInstance(AuthenticatorApp.instance)
-                .getWorkInfosForUniqueWorkFlow(CloudVaultSyncManager.REACTIVE_WORK_NAME)
-                .collect { workInfoList ->
-                    val workInfo = workInfoList.firstOrNull()
-                    if (workInfo == null) {
-                        syncFeedbackJob?.cancel()
-                        _cloudSyncState.value = CloudSyncUiState.IDLE
-                        previousState = null
-                        return@collect
-                    }
-
-                    val currentState = workInfo.state
-                    when (currentState) {
-                        WorkInfo.State.ENQUEUED, WorkInfo.State.RUNNING -> {
-                            syncFeedbackJob?.cancel()
-                            _cloudSyncState.value = CloudSyncUiState.SYNCING
-                        }
-                        WorkInfo.State.SUCCEEDED -> {
-                            if (previousState == WorkInfo.State.ENQUEUED || previousState == WorkInfo.State.RUNNING) {
-                                syncFeedbackJob?.cancel()
-                                syncFeedbackJob = viewModelScope.launch {
-                                    _cloudSyncState.value = CloudSyncUiState.SUCCESS
-                                    delay(2500.milliseconds)
-                                    _cloudSyncState.value = CloudSyncUiState.IDLE
-                                }
-                            }
-                        }
-                        WorkInfo.State.FAILED -> {
-                            if (previousState == WorkInfo.State.ENQUEUED || previousState == WorkInfo.State.RUNNING) {
-                                syncFeedbackJob?.cancel()
-                                syncFeedbackJob = viewModelScope.launch {
-                                    _cloudSyncState.value = CloudSyncUiState.ERROR
-                                    delay(3000.milliseconds)
-                                    _cloudSyncState.value = CloudSyncUiState.IDLE
-                                }
-                            }
-                        }
-                        WorkInfo.State.CANCELLED, WorkInfo.State.BLOCKED -> {
-                            syncFeedbackJob?.cancel()
-                            _cloudSyncState.value = CloudSyncUiState.IDLE
-                        }
-                    }
-                    previousState = currentState
+            var wasSyncing = false
+            val workManager = WorkManager.getInstance(AuthenticatorApp.instance)
+            combine(
+                workManager.getWorkInfosForUniqueWorkFlow(CloudVaultSyncManager.REACTIVE_WORK_NAME),
+                workManager.getWorkInfosForUniqueWorkFlow(CloudVaultSyncManager.PERIODIC_WORK_NAME)
+            ) { reactiveList, periodicList ->
+                Pair(reactiveList, periodicList)
+            }.collect { (reactiveList, periodicList) ->
+                val isReactiveActive = reactiveList.any {
+                    it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.BLOCKED
                 }
+                val isPeriodicActive = periodicList.any {
+                    it.state == WorkInfo.State.RUNNING
+                }
+                val isSyncActive = isReactiveActive || isPeriodicActive
+                val allInfos = reactiveList + periodicList
+
+                if (isSyncActive) {
+                    wasSyncing = true
+                    syncFeedbackJob?.cancel()
+                    _cloudSyncState.value = CloudSyncUiState.SYNCING
+                } else {
+                    if (wasSyncing) {
+                        wasSyncing = false
+                        syncFeedbackJob?.cancel()
+                        val hasFailed = allInfos.any { it.state == WorkInfo.State.FAILED }
+                        if (hasFailed) {
+                            syncFeedbackJob = viewModelScope.launch {
+                                _cloudSyncState.value = CloudSyncUiState.ERROR
+                                delay(3000.milliseconds)
+                                _cloudSyncState.value = CloudSyncUiState.IDLE
+                            }
+                        } else {
+                            syncFeedbackJob = viewModelScope.launch {
+                                _cloudSyncState.value = CloudSyncUiState.SUCCESS
+                                delay(2500.milliseconds)
+                                _cloudSyncState.value = CloudSyncUiState.IDLE
+                            }
+                        }
+                    } else if (syncFeedbackJob?.isActive != true) {
+                        _cloudSyncState.value = CloudSyncUiState.IDLE
+                    }
+                }
+            }
         }
     }
 

@@ -20,16 +20,28 @@ import kotlinx.coroutines.flow.Flow
 interface AccountDao {
 
     /**
-     * Obtiene el listado completo de cuentas ordenadas por favoritos, orden personalizado y fecha de creación.
+     * Obtiene el listado completo de cuentas activas ordenadas por favoritos, orden personalizado y fecha de creación.
      */
-    @Query("SELECT * FROM totp_accounts ORDER BY isFavorite DESC, orderIndex ASC, createdAt DESC")
+    @Query("SELECT * FROM totp_accounts WHERE isDeleted = 0 ORDER BY isFavorite DESC, orderIndex ASC, createdAt DESC")
     fun getAllAccounts(): Flow<List<AccountEntity>>
 
     /**
-     * Obtiene sincrónicamente todas las entidades en una sola consulta por lotes para descifrado de alto rendimiento.
+     * Obtiene sincrónicamente todas las entidades activas en una sola consulta por lotes para descifrado de alto rendimiento.
      */
-    @Query("SELECT * FROM totp_accounts")
+    @Query("SELECT * FROM totp_accounts WHERE isDeleted = 0")
     suspend fun getAllAccountsSync(): List<AccountEntity>
+
+    /**
+     * Obtiene el listado de cuentas en la papelera de reciclaje ordenadas por fecha de eliminación descendente.
+     */
+    @Query("SELECT * FROM totp_accounts WHERE isDeleted = 1 ORDER BY deletedAt DESC")
+    fun getDeletedAccounts(): Flow<List<AccountEntity>>
+
+    /**
+     * Obtiene sincrónicamente las cuentas en papelera.
+     */
+    @Query("SELECT * FROM totp_accounts WHERE isDeleted = 1")
+    suspend fun getDeletedAccountsSync(): List<AccountEntity>
 
     /**
      * Obtiene una cuenta específica por su identificador único UUID.
@@ -75,8 +87,45 @@ interface AccountDao {
     }
 
     /**
-     * Elimina una cuenta por su identificador UUID.
+     * Traslada una cuenta a la papelera de reciclaje temporal (eliminación lógica).
+     *
+     * @param id Identificador UUID de la cuenta.
+     * @param deletedAt Timestamp UNIX en que se efectuó el traslado a papelera.
+     */
+    @Query("UPDATE totp_accounts SET isDeleted = 1, deletedAt = :deletedAt, isFavorite = 0, updatedAt = :deletedAt WHERE id = :id")
+    suspend fun moveToTrash(id: String, deletedAt: Long = System.currentTimeMillis())
+
+    /**
+     * Restaura una cuenta desde la papelera de reciclaje a la bóveda activa.
+     *
+     * @param id Identificador UUID de la cuenta.
+     * @param updatedAt Timestamp UNIX de reactivación para forzar sincronización.
+     */
+    @Query("UPDATE totp_accounts SET isDeleted = 0, deletedAt = NULL, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun restoreFromTrash(id: String, updatedAt: Long = System.currentTimeMillis())
+
+    /**
+     * Elimina físicamente una cuenta por su identificador UUID (eliminación definitiva).
+     *
+     * @param id Identificador UUID de la cuenta a purgar.
      */
     @Query("DELETE FROM totp_accounts WHERE id = :id")
     suspend fun deleteAccountById(id: String)
+
+    /**
+     * Purga definitivamente todas las cuentas cuya estancia en papelera supere el umbral especificado.
+     *
+     * @param expirationThreshold Timestamp límite antes del cual las cuentas son eliminadas.
+     * @return Número de registros purgados.
+     */
+    @Query("DELETE FROM totp_accounts WHERE isDeleted = 1 AND deletedAt <= :expirationThreshold")
+    suspend fun purgeExpiredTrash(expirationThreshold: Long): Int
+
+    /**
+     * Vacía completamente la papelera de reciclaje eliminando todos los registros marcados como eliminados.
+     *
+     * @return Número de registros purgados.
+     */
+    @Query("DELETE FROM totp_accounts WHERE isDeleted = 1")
+    suspend fun emptyTrash(): Int
 }

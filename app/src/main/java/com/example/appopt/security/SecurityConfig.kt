@@ -78,4 +78,20 @@ object SecurityConfig {
      * Nombre canónico de la tabla de cuentas OTP en SQLite / Room.
      */
     const val TABLE_ACCOUNTS_NAME = "totp_accounts"
+
+    /**
+     * Días de retención en la papelera de reciclaje antes de la eliminación definitiva.
+     */
+    const val TRASH_RETENTION_DAYS = 30L
+
+    /**
+     * Tiempo en milisegundos de retención en la papelera de reciclaje (30 días).
+     */
+    const val TRASH_RETENTION_MILLIS = TRASH_RETENTION_DAYS * 24L * 60L * 60L * 1000L
+
+    /**
+     * Tiempo de expiración de caché en milisegundos (TTL) para el historial de copias de seguridad de Google Drive (20 segundos).
+     * Evita sobrecargar la API remota con peticiones redundantes ante aperturas consecutivas del diálogo de historial.
+     */
+    const val BACKUP_HISTORY_CACHE_TTL_MILLIS = 20_000L
 }

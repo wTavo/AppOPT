@@ -31,7 +31,20 @@ import java.nio.charset.StandardCharsets
 object GoogleDriveManager {
 
     const val DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.appdata"
-    private const val BACKUP_FILE_NAME = "appopt_vault_backup.json"
+    const val MAX_BACKUP_VERSIONS = 3
+    private const val BACKUP_FILE_PREFIX = "appopt_vault_backup_"
+    private const val LEGACY_BACKUP_FILE_NAME = "appopt_vault_backup.json"
+
+    /** Token de acceso en memoria activo emitido por Google Identity Services. */
+    @Volatile
+    var currentAccessToken: String? = null
+
+    /**
+     * Purga y limpia el token de sesión de Google Drive.
+     */
+    fun clearSession() {
+        currentAccessToken = null
+    }
 
     /**
      * Construye la solicitud moderna de autorización con alcance exclusivo a `appDataFolder`.
@@ -62,14 +75,14 @@ object GoogleDriveManager {
     }
 
     /**
-     * Sube o actualiza la copia de seguridad de la bóveda en el espacio privado de Google Drive.
-     * Los datos son cifrados previamente de forma local con **AES-256-GCM** y esquema Dual-Slot para garantizar Cero Conocimiento.
+     * Sube una nueva versión de copia de seguridad sellada a Google Drive en `appDataFolder`.
+     * Tras la subida exitosa, ejecuta la poda automática conservando únicamente las [MAX_BACKUP_VERSIONS] versiones más recientes.
      *
-     * @param accessToken Token de acceso OAuth2 emitido por Google Identity Services.
-     * @param rawBackupJson Cadena con la estructura de cuentas a cifrar.
+     * @param accessToken Token OAuth2 activo.
+     * @param rawBackupJson Estructura JSON de cuentas a cifrar.
      * @param secretKeyPass Contraseña o clave de 64 dígitos en [CharArray].
-     * @param emergencyMnemonic Frase mnemónica de 12 palabras de emergencia opcional en [CharArray].
-     * @return [Result] exitoso si la petición concluyó con código HTTP 200/201.
+     * @param emergencyMnemonic Frase mnemónica de 12 palabras opcional en [CharArray].
+     * @return [Result] exitoso si el archivo fue creado y podado correctamente.
      */
     suspend fun uploadBackup(
         accessToken: String,
@@ -78,7 +91,6 @@ object GoogleDriveManager {
         emergencyMnemonic: CharArray? = null
     ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
-            // Cifrado local con AES-256-GCM (Dual-Slot o simple) antes de transmitir a la nube
             val encryptedBytes = if (emergencyMnemonic != null) {
                 BackupCrypto.encryptDualBackup(rawBackupJson, secretKeyPass, emergencyMnemonic)
             } else {
@@ -87,103 +99,143 @@ object GoogleDriveManager {
             val encryptedEnvelopeString = String(encryptedBytes, StandardCharsets.UTF_8)
             val deviceName = "${android.os.Build.MANUFACTURER.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }} ${android.os.Build.MODEL}".trim()
 
-            val existingFileId = findExistingBackupFileId(accessToken)
-
-            if (existingFileId != null) {
-                // Actualización del contenido del archivo existente mediante PATCH
-                val updateUrl = URL("https://www.googleapis.com/upload/drive/v3/files/$existingFileId?uploadType=media")
-                val connection = (updateUrl.openConnection() as HttpURLConnection).apply {
-                    requestMethod = "PATCH"
-                    setRequestProperty("Authorization", "Bearer $accessToken")
-                    setRequestProperty("Content-Type", "application/json; charset=UTF-8")
-                    doOutput = true
-                }
-
-                connection.outputStream.use { os ->
-                    os.write(encryptedEnvelopeString.toByteArray(StandardCharsets.UTF_8))
-                }
-
-                val responseCode = connection.responseCode
-                if (responseCode !in 200..299) {
-                    throw IllegalStateException("Error al actualizar respaldo en Drive (HTTP $responseCode)")
-                }
-
-                // Actualización de metadatos del dispositivo
-                try {
-                    val metaUpdateUrl = URL("https://www.googleapis.com/drive/v3/files/$existingFileId")
-                    val metaConn = (metaUpdateUrl.openConnection() as HttpURLConnection).apply {
-                        requestMethod = "PATCH"
-                        setRequestProperty("Authorization", "Bearer $accessToken")
-                        setRequestProperty("Content-Type", "application/json; charset=UTF-8")
-                        doOutput = true
-                    }
-                    val updateMetaJson = JSONObject().apply {
-                        put("description", deviceName)
-                        put("appProperties", JSONObject().apply {
-                            put("deviceName", deviceName)
-                        })
-                    }.toString()
-                    metaConn.outputStream.use { it.write(updateMetaJson.toByteArray(StandardCharsets.UTF_8)) }
-                    metaConn.responseCode
-                } catch (_: Exception) {
-                    // Degradación elegante intencional: la carga del archivo principal fue exitosa; el fallo en actualizar metadatos secundarios no invalida el respaldo.
-                }
-            } else {
-                // Creación de nuevo archivo multipart en appDataFolder
-                val boundary = "=====AppOPTBoundary${System.currentTimeMillis()}====="
-                val createUrl = URL("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart")
-                val connection = (createUrl.openConnection() as HttpURLConnection).apply {
-                    requestMethod = "POST"
-                    setRequestProperty("Authorization", "Bearer $accessToken")
-                    setRequestProperty("Content-Type", "multipart/related; boundary=$boundary")
-                    doOutput = true
-                }
-
-                val metadataJson = JSONObject().apply {
-                    put("name", BACKUP_FILE_NAME)
-                    put("description", deviceName)
-                    put("appProperties", JSONObject().apply {
-                        put("deviceName", deviceName)
-                    })
-                    put("parents", org.json.JSONArray().apply { put("appDataFolder") })
-                }.toString()
-
-                OutputStreamWriter(connection.outputStream, StandardCharsets.UTF_8).use { writer ->
-                    writer.write("--$boundary\r\n")
-                    writer.write("Content-Type: application/json; charset=UTF-8\r\n\r\n")
-                    writer.write(metadataJson)
-                    writer.write("\r\n--$boundary\r\n")
-                    writer.write("Content-Type: application/json\r\n\r\n")
-                    writer.write(encryptedEnvelopeString)
-                    writer.write("\r\n--$boundary--\r\n")
-                    writer.flush()
-                }
-
-                val responseCode = connection.responseCode
-                if (responseCode !in 200..299) {
-                    throw IllegalStateException("Error al crear respaldo en Drive (HTTP $responseCode)")
-                }
+            val fileName = "${BACKUP_FILE_PREFIX}${System.currentTimeMillis()}.json"
+            val boundary = "=====AppOPTBoundary${System.currentTimeMillis()}====="
+            val createUrl = URL("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart")
+            val connection = (createUrl.openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                setRequestProperty("Authorization", "Bearer $accessToken")
+                setRequestProperty("Content-Type", "multipart/related; boundary=$boundary")
+                doOutput = true
             }
+
+            val metadataJson = JSONObject().apply {
+                put("name", fileName)
+                put("description", deviceName)
+                put("appProperties", JSONObject().apply {
+                    put("deviceName", deviceName)
+                })
+                put("parents", org.json.JSONArray().apply { put("appDataFolder") })
+            }.toString()
+
+            OutputStreamWriter(connection.outputStream, StandardCharsets.UTF_8).use { writer ->
+                writer.write("--$boundary\r\n")
+                writer.write("Content-Type: application/json; charset=UTF-8\r\n\r\n")
+                writer.write(metadataJson)
+                writer.write("\r\n--$boundary\r\n")
+                writer.write("Content-Type: application/json\r\n\r\n")
+                writer.write(encryptedEnvelopeString)
+                writer.write("\r\n--$boundary--\r\n")
+                writer.flush()
+            }
+
+            val responseCode = connection.responseCode
+            if (responseCode !in 200..299) {
+                throw IllegalStateException("Error al crear respaldo en Drive (HTTP $responseCode)")
+            }
+
+            // Poda automática: eliminar copias que excedan el límite de retención
+            pruneOldBackups(accessToken, MAX_BACKUP_VERSIONS)
             Unit
         }
     }
 
     /**
-     * Descarga el archivo de respaldo más reciente desde la carpeta privada de Google Drive
-     * y descifra el contenedor sellado con **AES-256-GCM**.
+     * Consulta y lista todas las versiones de copia de seguridad disponibles en Google Drive ordenadas de más reciente a más antigua.
      *
-     * @param accessToken Token de acceso OAuth2 emitido por Google Identity Services.
-     * @param secretKeyPass Contraseña o PIN de descifrado en [CharArray].
-     * @return [Result] con el contenido del archivo de respaldo en formato JSON descifrado.
+     * @param accessToken Token OAuth2 activo.
+     * @return [Result] con la lista de [DriveBackupItem] disponibles.
      */
-    suspend fun downloadBackup(
+    suspend fun fetchAllBackups(accessToken: String): Result<List<DriveBackupItem>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val encodedQuery = java.net.URLEncoder.encode("trashed = false and (name = '$LEGACY_BACKUP_FILE_NAME' or name contains '$BACKUP_FILE_PREFIX')", "UTF-8")
+            val queryUrl = URL("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=$encodedQuery&fields=files(id,name,modifiedTime,size,description,appProperties,trashed)&orderBy=modifiedTime+desc")
+            val connection = (queryUrl.openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                setRequestProperty("Authorization", "Bearer $accessToken")
+            }
+
+            if (connection.responseCode !in 200..299) {
+                throw IllegalStateException("Error al listar copias de seguridad de Drive (HTTP ${connection.responseCode})")
+            }
+
+            val responseText = BufferedReader(InputStreamReader(connection.inputStream, StandardCharsets.UTF_8)).use {
+                it.readText()
+            }
+
+            val json = JSONObject(responseText)
+            val filesArray = json.optJSONArray("files") ?: return@runCatching emptyList()
+
+            val items = mutableListOf<DriveBackupItem>()
+            for (i in 0 until filesArray.length()) {
+                val fileObj = filesArray.getJSONObject(i)
+                val id = fileObj.optString("id")
+                if (id.isNullOrEmpty()) continue
+
+                val name = fileObj.optString("name", "Copia de seguridad")
+                val modifiedTimeStr = fileObj.optString("modifiedTime")
+                val modifiedTimeMillis = DateTimeFormatter.parseIso8601ToMillis(modifiedTimeStr)
+                val sizeBytes = fileObj.optLong("size", 0L)
+                val appProps = fileObj.optJSONObject("appProperties")
+                val deviceName = appProps?.optString("deviceName")?.ifEmpty { null }
+                    ?: fileObj.optString("description").ifEmpty { "Dispositivo Android" }
+
+                items.add(
+                    DriveBackupItem(
+                        fileId = id,
+                        fileName = name,
+                        modifiedTimeMillis = modifiedTimeMillis,
+                        sizeBytes = sizeBytes,
+                        deviceName = deviceName,
+                        isMostRecent = false
+                    )
+                )
+            }
+
+            // Ordenar de más reciente a más antigua
+            val sorted = items.sortedByDescending { it.modifiedTimeMillis }
+            if (sorted.isNotEmpty()) {
+                sorted.mapIndexed { index, item ->
+                    if (index == 0) item.copy(isMostRecent = true) else item
+                }
+            } else {
+                emptyList()
+            }
+        }
+    }
+
+    /**
+     * Elimina las copias de seguridad antiguas que excedan el límite de retención configurado.
+     *
+     * @param accessToken Token OAuth2 activo.
+     * @param maxKeep Número máximo de versiones a conservar (por defecto [MAX_BACKUP_VERSIONS]).
+     */
+    suspend fun pruneOldBackups(accessToken: String, maxKeep: Int = MAX_BACKUP_VERSIONS): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val allBackups = fetchAllBackups(accessToken).getOrNull() ?: return@runCatching
+            if (allBackups.size > maxKeep) {
+                val toDelete = allBackups.drop(maxKeep)
+                toDelete.forEach { backup ->
+                    deleteBackupById(accessToken, backup.fileId)
+                }
+            }
+        }
+    }
+
+    /**
+     * Descarga y descifra una versión específica de copia de seguridad por su identificador único de archivo.
+     *
+     * @param accessToken Token OAuth2 activo.
+     * @param fileId Identificador del archivo en Google Drive.
+     * @param secretKeyPass Contraseña o PIN de descifrado en [CharArray].
+     * @return [Result] con el contenido del respaldo en formato JSON descifrado.
+     */
+    suspend fun downloadBackupById(
         accessToken: String,
+        fileId: String,
         secretKeyPass: CharArray
     ): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
-            val fileId = findExistingBackupFileId(accessToken)
-                ?: throw NoSuchElementException("No se encontró ninguna copia de seguridad en tu Google Drive")
-
             val downloadUrl = URL("https://www.googleapis.com/drive/v3/files/$fileId?alt=media")
             val connection = (downloadUrl.openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
@@ -199,27 +251,42 @@ object GoogleDriveManager {
                 reader.readText()
             }
 
-            // Si el archivo descargado es un sobre cifrado con AES-256-GCM, lo desciframos con la clave provista
             if (downloadedContent.contains("\"ciphertext\"")) {
                 val decryptedResult = BackupCrypto.decryptBackup(downloadedContent.toByteArray(StandardCharsets.UTF_8), secretKeyPass)
                 decryptedResult.getOrThrow()
             } else {
-                // Compatibilidad en caso de respaldo previo sin sellar
                 downloadedContent
             }
         }
     }
 
     /**
-     * Elimina permanentemente el archivo de copia de seguridad de la carpeta privada de Google Drive.
+     * Descarga la copia de seguridad más reciente de Google Drive.
      *
-     * @param accessToken Token de acceso OAuth2 emitido por Google Identity Services.
-     * @return [Result] exitoso si el archivo fue eliminado o si no existía previamente.
+     * @param accessToken Token OAuth2 activo.
+     * @param secretKeyPass Contraseña o clave de descifrado en [CharArray].
+     * @return [Result] con el contenido JSON descifrado.
      */
-    suspend fun deleteBackup(accessToken: String): Result<Unit> = withContext(Dispatchers.IO) {
-        runCatching {
-            val fileId = findExistingBackupFileId(accessToken) ?: return@runCatching
+    suspend fun downloadBackup(
+        accessToken: String,
+        secretKeyPass: CharArray
+    ): Result<String> = withContext(Dispatchers.IO) {
+        val backupsResult = fetchAllBackups(accessToken)
+        val mostRecent = backupsResult.getOrNull()?.firstOrNull()
+            ?: return@withContext Result.failure(NoSuchElementException("No se encontró ninguna copia de seguridad en tu Google Drive"))
 
+        downloadBackupById(accessToken, mostRecent.fileId, secretKeyPass)
+    }
+
+    /**
+     * Elimina permanentemente una versión específica de copia de seguridad en Google Drive.
+     *
+     * @param accessToken Token OAuth2 activo.
+     * @param fileId Identificador del archivo a eliminar.
+     * @return [Result] con éxito o fallo de la eliminación.
+     */
+    suspend fun deleteBackupById(accessToken: String, fileId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
             val deleteUrl = URL("https://www.googleapis.com/drive/v3/files/$fileId")
             val connection = (deleteUrl.openConnection() as HttpURLConnection).apply {
                 requestMethod = "DELETE"
@@ -234,67 +301,48 @@ object GoogleDriveManager {
     }
 
     /**
-     * Consulta la información y metadatos del respaldo existente en Google Drive.
+     * Elimina permanentemente todas las copias de seguridad de la carpeta privada de Google Drive.
      *
-     * @param accessToken Token de acceso OAuth2 emitido por Google Identity Services.
-     * @return [DriveBackupInfo] con detalles del archivo o `null` si no existe.
+     * @param accessToken Token OAuth2 activo.
+     * @return [Result] con éxito o fallo de la operación.
      */
-    suspend fun fetchBackupDetails(accessToken: String): DriveBackupInfo? = withContext(Dispatchers.IO) {
-        val encodedQuery = java.net.URLEncoder.encode("name = '$BACKUP_FILE_NAME' and trashed = false", "UTF-8")
-        val queryUrl = URL("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=$encodedQuery&fields=files(id,name,modifiedTime,description,appProperties,trashed)&orderBy=modifiedTime+desc")
-        val connection = (queryUrl.openConnection() as HttpURLConnection).apply {
-            requestMethod = "GET"
-            setRequestProperty("Authorization", "Bearer $accessToken")
+    suspend fun deleteAllBackups(accessToken: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val allBackups = fetchAllBackups(accessToken).getOrNull() ?: return@runCatching
+            allBackups.forEach { backup ->
+                val deleteUrl = URL("https://www.googleapis.com/drive/v3/files/${backup.fileId}")
+                val connection = (deleteUrl.openConnection() as HttpURLConnection).apply {
+                    requestMethod = "DELETE"
+                    setRequestProperty("Authorization", "Bearer $accessToken")
+                }
+                val responseCode = connection.responseCode
+                if (responseCode !in 200..299 && responseCode != 404) {
+                    throw IllegalStateException("Error al eliminar la copia en Google Drive (HTTP $responseCode)")
+                }
+            }
         }
-
-        if (connection.responseCode !in 200..299) return@withContext null
-
-        val responseText = BufferedReader(InputStreamReader(connection.inputStream, StandardCharsets.UTF_8)).use {
-            it.readText()
-        }
-
-        val json = JSONObject(responseText)
-        val filesArray = json.optJSONArray("files") ?: return@withContext null
-        if (filesArray.length() == 0) return@withContext null
-
-        val fileObj = filesArray.getJSONObject(0)
-        val fileId = fileObj.optString("id").ifEmpty { return@withContext null }
-        val modifiedTimeStr = fileObj.optString("modifiedTime")
-        val appProps = fileObj.optJSONObject("appProperties")
-        val deviceName = appProps?.optString("deviceName")?.ifEmpty { null }
-            ?: fileObj.optString("description").ifEmpty { "Dispositivo Android" }
-
-        val modifiedTimeMillis = DateTimeFormatter.parseIso8601ToMillis(modifiedTimeStr)
-
-        DriveBackupInfo(
-            fileId = fileId,
-            modifiedTimeMillis = modifiedTimeMillis,
-            deviceName = deviceName
-        )
     }
 
     /**
-     * Consulta la API de Drive para encontrar el identificador de [BACKUP_FILE_NAME] en `appDataFolder`.
+     * Elimina la copia más reciente (compatibilidad legacy).
      */
-    private fun findExistingBackupFileId(accessToken: String): String? {
-        val encodedQuery = java.net.URLEncoder.encode("name = '$BACKUP_FILE_NAME' and trashed = false", "UTF-8")
-        val queryUrl = URL("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=$encodedQuery&fields=files(id,name,modifiedTime,trashed)&orderBy=modifiedTime+desc")
-        val connection = (queryUrl.openConnection() as HttpURLConnection).apply {
-            requestMethod = "GET"
-            setRequestProperty("Authorization", "Bearer $accessToken")
-        }
+    suspend fun deleteBackup(accessToken: String): Result<Unit> = deleteAllBackups(accessToken)
 
-        if (connection.responseCode !in 200..299) return null
+    /**
+     * Consulta la información del respaldo más reciente en Google Drive.
+     *
+     * @param accessToken Token OAuth2 activo.
+     * @return [DriveBackupInfo] con detalles o `null` si no existe.
+     */
+    suspend fun fetchBackupDetails(accessToken: String): DriveBackupInfo? = withContext(Dispatchers.IO) {
+        val allBackups = fetchAllBackups(accessToken).getOrNull() ?: return@withContext null
+        val mostRecent = allBackups.firstOrNull() ?: return@withContext null
 
-        val responseText = BufferedReader(InputStreamReader(connection.inputStream, StandardCharsets.UTF_8)).use {
-            it.readText()
-        }
-
-        val json = JSONObject(responseText)
-        val filesArray = json.optJSONArray("files") ?: return null
-        if (filesArray.length() == 0) return null
-
-        return filesArray.getJSONObject(0).optString("id").ifEmpty { null }
+        DriveBackupInfo(
+            fileId = mostRecent.fileId,
+            modifiedTimeMillis = mostRecent.modifiedTimeMillis,
+            deviceName = mostRecent.deviceName
+        )
     }
 }
 

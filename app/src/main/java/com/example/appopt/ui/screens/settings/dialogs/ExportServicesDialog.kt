@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -19,7 +20,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.TimerOff
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -58,6 +62,7 @@ import com.example.appopt.security.TransferCrypto
 import com.example.appopt.ui.components.ServiceBrandAvatar
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.appSwitchColors
+import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.ui.util.QrCodeGenerator
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -85,12 +90,14 @@ fun ExportServicesDialog(
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
+    val haptics = rememberAppHaptics()
     val selectedServiceIds = remember { mutableStateListOf<String>().apply { addAll(accounts.map { it.id }) } }
     var keepServicesOnDevice by remember { mutableStateOf(true) }
     var isShowingQr by remember { mutableStateOf(false) }
     var transferQrBitmaps by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
     var currentQrIndex by remember { mutableIntStateOf(0) }
     var transferPin by remember { mutableStateOf("") }
+    var isPinVisible by remember { mutableStateOf(false) }
     var exportedServiceIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var secondsRemaining by remember { mutableIntStateOf(SecurityConfig.TRANSFER_QR_EXPIRATION_SECONDS) }
     var isExpired by remember { mutableStateOf(false) }
@@ -109,6 +116,7 @@ fun ExportServicesDialog(
             if (secondsRemaining <= 0) {
                 isExpired = true
                 transferQrBitmaps = emptyList()
+                isPinVisible = false
             }
         }
     }
@@ -117,6 +125,7 @@ fun ExportServicesDialog(
         val idsToExport = selectedServiceIds.toSet()
         val pin = TransferCrypto.generateTransferPin()
         transferPin = pin
+        isPinVisible = false
         val pinChars = pin.toCharArray()
         scope.launch {
             try {
@@ -301,20 +310,51 @@ fun ExportServicesDialog(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
                             ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.settings_transfer_pin_label),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+
+                                    IconButton(
+                                        onClick = {
+                                            haptics.click()
+                                            isPinVisible = !isPinVisible
+                                        },
+                                        modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isPinVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                            contentDescription = if (isPinVisible) {
+                                                stringResource(R.string.settings_transfer_pin_toggle_hide)
+                                            } else {
+                                                stringResource(R.string.settings_transfer_pin_toggle_show)
+                                            },
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(Dimensions.IconSize.small)
+                                        )
+                                    }
+                                }
+
                                 Text(
-                                    text = stringResource(R.string.settings_transfer_pin_label),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Text(
-                                    text = formattedPin,
+                                    text = if (isPinVisible) formattedPin else stringResource(R.string.settings_transfer_pin_masked_value),
                                     style = MaterialTheme.typography.headlineMedium,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
+
                                 Text(
-                                    text = stringResource(R.string.settings_transfer_pin_hint),
+                                    text = if (isPinVisible) {
+                                        stringResource(R.string.settings_transfer_pin_hint)
+                                    } else {
+                                        stringResource(R.string.settings_transfer_pin_toggle_show)
+                                    },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center
@@ -331,7 +371,13 @@ fun ExportServicesDialog(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             IconButton(
-                                onClick = { if (currentQrIndex > 0) currentQrIndex-- },
+                                onClick = {
+                                    if (currentQrIndex > 0) {
+                                        haptics.click()
+                                        currentQrIndex--
+                                        isPinVisible = false
+                                    }
+                                },
                                 enabled = currentQrIndex > 0
                             ) {
                                 Icon(
@@ -366,7 +412,13 @@ fun ExportServicesDialog(
                             }
 
                             IconButton(
-                                onClick = { if (currentQrIndex < transferQrBitmaps.size - 1) currentQrIndex++ },
+                                onClick = {
+                                    if (currentQrIndex < transferQrBitmaps.size - 1) {
+                                        haptics.click()
+                                        currentQrIndex++
+                                        isPinVisible = false
+                                    }
+                                },
                                 enabled = currentQrIndex < transferQrBitmaps.size - 1
                             ) {
                                 Icon(
@@ -379,18 +431,51 @@ fun ExportServicesDialog(
 
                     val currentBitmap = transferQrBitmaps.getOrNull(currentQrIndex)
                     if (currentBitmap != null) {
-                        Surface(
-                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                            color = Color.White,
-                            modifier = Modifier.padding(Dimensions.Spacing.xs)
-                        ) {
-                            Image(
-                                bitmap = currentBitmap.asImageBitmap(),
-                                contentDescription = null,
+                        if (isPinVisible) {
+                            // Superficie de protección: oculta el QR mientras el PIN está expuesto
+                            Surface(
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                                 modifier = Modifier
                                     .size(Dimensions.ComponentSize.qrCodeDisplay)
                                     .padding(Dimensions.Spacing.xs)
-                            )
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(Dimensions.Spacing.md),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Lock,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(Dimensions.IconSize.hero)
+                                    )
+                                    Spacer(modifier = Modifier.height(Dimensions.Spacing.sm))
+                                    Text(
+                                        text = stringResource(R.string.settings_transfer_qr_blurred_hint),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        textAlign = TextAlign.Center,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        } else {
+                            Surface(
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                color = Color.White,
+                                modifier = Modifier.padding(Dimensions.Spacing.xs)
+                            ) {
+                                Image(
+                                    bitmap = currentBitmap.asImageBitmap(),
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .size(Dimensions.ComponentSize.qrCodeDisplay)
+                                        .padding(Dimensions.Spacing.xs)
+                                )
+                            }
                         }
 
                         // Barra y etiqueta de tiempo restante

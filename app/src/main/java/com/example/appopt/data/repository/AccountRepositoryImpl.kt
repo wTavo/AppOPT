@@ -12,6 +12,7 @@ import com.example.appopt.domain.totp.OtpUriParser
 import com.example.appopt.domain.totp.TotpEngine
 import com.example.appopt.security.CryptoManager
 import com.example.appopt.security.TransferCrypto
+import com.example.appopt.security.TransferQrChunk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -420,6 +421,14 @@ class AccountRepositoryImpl(
      * @param batchSize Cantidad máxima de cuentas por código QR (por defecto [SecurityConfig.TRANSFER_QR_BATCH_SIZE]).
      * @return Lista de cadenas cifradas, una por cada lote.
      */
+    /**
+     * Exporta las cuentas seleccionadas bajo el esquema criptográfico "Todo o Nada" (v2) divididas en lotes multi-QR.
+     *
+     * @param selectedAccountIds Conjunto opcional de identificadores de cuentas a exportar.
+     * @param pin PIN de 6 dígitos en [CharArray] para cifrar el sobre ensamblado.
+     * @param batchSize Cantidad de cuentas (referencial para tamaño).
+     * @return Lista de cadenas cifradas formateadas para códigos QR.
+     */
     override suspend fun exportAccountsInBatches(
         selectedAccountIds: Set<String>?,
         pin: CharArray,
@@ -434,55 +443,47 @@ class AccountRepositoryImpl(
 
         if (entities.isEmpty()) return emptyList()
 
-        val chunks = entities.chunked(batchSize)
-        val resultBatches = mutableListOf<String>()
-
-        for (chunk in chunks) {
-            val jsonArray = JSONArray()
-            for (entity in chunk) {
-                var secretBytes: ByteArray? = null
-                try {
-                    secretBytes = cryptoManager.decrypt(entity.encryptedSecret, entity.iv)
-                    val secretBase32 = Base32.encode(secretBytes)
-                    val item = JSONObject().apply {
-                        put("i", entity.issuer)
-                        if (entity.accountName.isNotBlank()) {
-                            put("a", entity.accountName)
-                        }
-                        put("s", secretBase32)
-                        if (entity.algorithm != "SHA1") {
-                            put("alg", entity.algorithm)
-                        }
-                        if (entity.digits != 6) {
-                            put("d", entity.digits)
-                        }
-                        if (entity.period != 30) {
-                            put("p", entity.period)
-                        }
-                        if (entity.type != "TOTP") {
-                            put("t", entity.type)
-                        }
-                        if (entity.counter > 0) {
-                            put("c", entity.counter)
-                        }
+        val jsonArray = JSONArray()
+        for (entity in entities) {
+            var secretBytes: ByteArray? = null
+            try {
+                secretBytes = cryptoManager.decrypt(entity.encryptedSecret, entity.iv)
+                val secretBase32 = Base32.encode(secretBytes)
+                val item = JSONObject().apply {
+                    put("i", entity.issuer)
+                    if (entity.accountName.isNotBlank()) {
+                        put("a", entity.accountName)
                     }
-                    jsonArray.put(item)
-                } finally {
-                    secretBytes?.let { CryptoManager.zeroize(it) }
+                    put("s", secretBase32)
+                    if (entity.algorithm != "SHA1") {
+                        put("alg", entity.algorithm)
+                    }
+                    if (entity.digits != 6) {
+                        put("d", entity.digits)
+                    }
+                    if (entity.period != 30) {
+                        put("p", entity.period)
+                    }
+                    if (entity.type != "TOTP") {
+                        put("t", entity.type)
+                    }
+                    if (entity.counter > 0) {
+                        put("c", entity.counter)
+                    }
                 }
+                jsonArray.put(item)
+            } finally {
+                secretBytes?.let { CryptoManager.zeroize(it) }
             }
-
-            val rootObject = JSONObject().apply {
-                put("v", 1)
-                put("a", jsonArray)
-            }
-
-            val plainJson = rootObject.toString()
-            val encryptedChunk = TransferCrypto.encryptTransferPayload(plainJson, pin)
-            resultBatches.add(encryptedChunk)
         }
 
-        return resultBatches
+        val rootObject = JSONObject().apply {
+            put("v", 1)
+            put("a", jsonArray)
+        }
+
+        val plainJson = rootObject.toString()
+        return TransferCrypto.encryptTransferPayloadInChunks(plainJson, pin)
     }
 
     /**
@@ -535,9 +536,31 @@ class AccountRepositoryImpl(
             return Result.success(1)
         }
 
-        // 3. Caso JSON estructurado multi-cuenta (formato compacto o legado)
+        // 3. Caso JSON estructurado multi-cuenta
+        return parseAndSaveAccountsJson(effectiveTrimmed)
+    }
+
+    /**
+     * Importa y fusiona cuentas a partir de un conjunto completo de fragmentos "Todo o Nada" (v2).
+     */
+    override suspend fun importAccountsFromChunks(
+        chunks: List<TransferQrChunk>,
+        pin: CharArray
+    ): Result<Int> {
+        val decryptResult = TransferCrypto.decryptAssembledChunks(chunks, pin)
+        if (decryptResult.isFailure) {
+            return Result.failure(decryptResult.exceptionOrNull() ?: TransferCrypto.InvalidPinException())
+        }
+        val plainJson = decryptResult.getOrThrow().trim()
+        return parseAndSaveAccountsJson(plainJson)
+    }
+
+    /**
+     * Parsea un JSON multi-cuenta y persiste las cuentas cifradas en Room.
+     */
+    private suspend fun parseAndSaveAccountsJson(jsonString: String): Result<Int> {
         return runCatching {
-            val root = JSONObject(effectiveTrimmed)
+            val root = JSONObject(jsonString)
             val accountsArray = when {
                 root.has("a") -> root.getJSONArray("a")
                 root.has("accounts") -> root.getJSONArray("accounts")

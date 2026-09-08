@@ -118,22 +118,85 @@ class TransferCryptoTest {
     }
 
     /**
-     * Valida que múltiples lotes independientes cifrados con el mismo PIN se descifren correctamente.
+     * Valida que múltiples fragmentos generados bajo el esquema Todo o Nada (v2) se ensamblen y descifren correctamente.
      */
     @Test
-    fun testBatchingMultiplePayloadsSharePin() {
-        val batch1Json = """{"v":1,"a":[{"i":"Google","s":"JBSWY3DPEHPK3PXP"}]}"""
-        val batch2Json = """{"v":1,"a":[{"i":"GitHub","s":"JBSWY3DPEHPK3PXP"}]}"""
+    fun testAllOrNothingMultiChunkEncryptionAndAssembly() {
+        val accountsList = (1..30).joinToString(",") { i ->
+            """{"i":"Service $i","a":"user$i@example.com","s":"JBSWY3DPEHPK3PXP"}"""
+        }
+        val largeJson = """{"v":1,"a":[$accountsList]}"""
 
-        val enc1 = TransferCrypto.encryptTransferPayload(batch1Json, correctPin, 90)
-        val enc2 = TransferCrypto.encryptTransferPayload(batch2Json, correctPin, 90)
+        // Forzar fragmentos pequeños (100 bytes) para generar 3 o más códigos QR
+        val qrStrings = TransferCrypto.encryptTransferPayloadInChunks(
+            accountsJson = largeJson,
+            pin = correctPin,
+            durationSeconds = 90,
+            maxChunkBytes = 100
+        )
 
-        val dec1 = TransferCrypto.decryptTransferPayload(enc1, correctPin)
-        val dec2 = TransferCrypto.decryptTransferPayload(enc2, correctPin)
+        assertTrue(qrStrings.size >= 3)
 
-        assertTrue(dec1.isSuccess)
-        assertTrue(dec2.isSuccess)
-        assertEquals(batch1Json, dec1.getOrThrow())
-        assertEquals(batch2Json, dec2.getOrThrow())
+        // Parsear cada fragmento
+        val chunks = qrStrings.map { TransferCrypto.parseTransferChunk(it) }
+        assertEquals(qrStrings.size, chunks.size)
+        assertTrue(chunks.all { it.version == SecurityConfig.TRANSFER_QR_VERSION_V2 })
+        assertTrue(chunks.all { it.total == chunks.size })
+
+        // Ensamblar y descifrar con PIN correcto
+        val decryptResult = TransferCrypto.decryptAssembledChunks(chunks, correctPin)
+        assertTrue(decryptResult.isSuccess)
+        assertEquals(largeJson, decryptResult.getOrThrow())
+    }
+
+    /**
+     * Valida que si falta al menos 1 fragmento (ej. 2 de 3), sea imposible descifrar cualquier dato (Todo o Nada).
+     */
+    @Test
+    fun testAllOrNothingMissingChunkFailsCompletely() {
+        val accountsList = (1..20).joinToString(",") { i ->
+            """{"i":"Service $i","a":"user$i@example.com","s":"JBSWY3DPEHPK3PXP"}"""
+        }
+        val json = """{"v":1,"a":[$accountsList]}"""
+
+        val qrStrings = TransferCrypto.encryptTransferPayloadInChunks(
+            accountsJson = json,
+            pin = correctPin,
+            durationSeconds = 90,
+            maxChunkBytes = 100
+        )
+
+        assertTrue(qrStrings.size >= 2)
+        val allChunks = qrStrings.map { TransferCrypto.parseTransferChunk(it) }
+
+        // Omitir el último fragmento
+        val incompleteChunks = allChunks.dropLast(1)
+
+        val decryptResult = TransferCrypto.decryptAssembledChunks(incompleteChunks, correctPin)
+        assertTrue(decryptResult.isFailure)
+        assertTrue(decryptResult.exceptionOrNull() is TransferCrypto.IncompleteTransferException)
+    }
+
+    /**
+     * Valida que ingresar un PIN incorrecto con todos los fragmentos completos falle por autenticación AES-GCM.
+     */
+    @Test
+    fun testAllOrNothingWrongPinFails() {
+        val accountsList = (1..20).joinToString(",") { i ->
+            """{"i":"Service $i","a":"user$i@example.com","s":"JBSWY3DPEHPK3PXP"}"""
+        }
+        val json = """{"v":1,"a":[$accountsList]}"""
+
+        val qrStrings = TransferCrypto.encryptTransferPayloadInChunks(
+            accountsJson = json,
+            pin = correctPin,
+            durationSeconds = 90,
+            maxChunkBytes = 100
+        )
+
+        val allChunks = qrStrings.map { TransferCrypto.parseTransferChunk(it) }
+        val decryptResult = TransferCrypto.decryptAssembledChunks(allChunks, wrongPin)
+        assertTrue(decryptResult.isFailure)
+        assertTrue(decryptResult.exceptionOrNull() is TransferCrypto.InvalidPinException)
     }
 }

@@ -51,6 +51,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -71,6 +73,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
 import com.example.appopt.security.TransferCrypto
+import com.example.appopt.security.TransferQrChunk
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
@@ -136,6 +139,11 @@ fun QrScannerScreen(
     var isProcessingQr by remember { mutableStateOf(false) }
     var totalImportedAccountsCount by remember { mutableIntStateOf(0) }
     var lastScannedPayload by remember { mutableStateOf<String?>(null) }
+
+    // Estado de la sesión de fragmentos "Todo o Nada" (v2)
+    val sessionChunks = remember { mutableStateMapOf<Int, TransferQrChunk>() }
+    var currentSessionId by remember { mutableLongStateOf(0L) }
+    var totalExpectedChunks by remember { mutableIntStateOf(0) }
 
     // Estado del modal de ingreso de PIN para transferencias cifradas
     var cachedSessionPin by remember { mutableStateOf<String?>(null) }
@@ -250,43 +258,79 @@ fun QrScannerScreen(
                                                         continue
                                                     }
 
-                                                    // 1. Caso QR Cifrado con PIN
+                                                    // 1. Caso QR Cifrado con PIN (Todo o Nada o v1)
                                                     if (trimmed.startsWith(TransferCrypto.QR_TRANSFER_PREFIX, ignoreCase = true) && !isProcessingQr && pendingEncryptedPayload == null) {
                                                         lastScannedPayload = trimmed
-                                                        val activePin = cachedSessionPin
-                                                        if (activePin != null && activePin.length == 6) {
-                                                            // Descifrado automático con el PIN de la sesión
-                                                            isProcessingQr = true
-                                                            scope.launch {
-                                                                val pinChars = activePin.toCharArray()
-                                                                try {
-                                                                    val result = repository.importAccountsFromTransfer(trimmed, pinChars)
-                                                                    result.onSuccess { count ->
-                                                                        appHaptics.success()
-                                                                        totalImportedAccountsCount += count
-                                                                        snackbarHostState.showSnackbar(
-                                                                            context.getString(R.string.scan_transfer_batch_success, count)
-                                                                        )
-                                                                        delay(1200L)
-                                                                        isProcessingQr = false
-                                                                    }.onFailure {
-                                                                        cachedSessionPin = null
-                                                                        pendingEncryptedPayload = trimmed
-                                                                        transferPinInput = ""
-                                                                        pinErrorMessage = null
-                                                                        isProcessingQr = false
+                                                        val parsedChunk = try {
+                                                            TransferCrypto.parseTransferChunk(trimmed)
+                                                        } catch (_: Exception) {
+                                                            null
+                                                        }
+
+                                                        if (parsedChunk != null) {
+                                                            // Reiniciar sesión si se detecta un cambio de Session ID
+                                                            if (parsedChunk.sessionId != 0L && parsedChunk.sessionId != currentSessionId) {
+                                                                sessionChunks.clear()
+                                                                currentSessionId = parsedChunk.sessionId
+                                                                totalExpectedChunks = parsedChunk.total
+                                                            } else if (parsedChunk.total > 0 && totalExpectedChunks == 0) {
+                                                                totalExpectedChunks = parsedChunk.total
+                                                            }
+
+                                                            sessionChunks[parsedChunk.index] = parsedChunk
+
+                                                            if (parsedChunk.total > 1 && sessionChunks.size < parsedChunk.total) {
+                                                                // Faltan fragmentos por escanear
+                                                                appHaptics.dragTick()
+                                                                scope.launch {
+                                                                    snackbarHostState.showSnackbar(
+                                                                        context.getString(R.string.scan_transfer_chunk_progress, sessionChunks.size, parsedChunk.total)
+                                                                    )
+                                                                }
+                                                            } else {
+                                                                // Todos los fragmentos recopilados (o es mono-código)
+                                                                val activePin = cachedSessionPin
+                                                                if (activePin != null && activePin.length == 6) {
+                                                                    isProcessingQr = true
+                                                                    scope.launch {
+                                                                        val pinChars = activePin.toCharArray()
+                                                                        try {
+                                                                            val result = if (sessionChunks.isNotEmpty() && sessionChunks.size == totalExpectedChunks) {
+                                                                                repository.importAccountsFromChunks(sessionChunks.values.toList(), pinChars)
+                                                                            } else {
+                                                                                repository.importAccountsFromTransfer(trimmed, pinChars)
+                                                                            }
+                                                                            result.onSuccess { count ->
+                                                                                appHaptics.success()
+                                                                                totalImportedAccountsCount += count
+                                                                                sessionChunks.clear()
+                                                                                totalExpectedChunks = 0
+                                                                                currentSessionId = 0L
+                                                                                snackbarHostState.showSnackbar(
+                                                                                    context.getString(R.string.scan_transfer_import_success, count)
+                                                                                )
+                                                                                delay(1200L)
+                                                                                onScanSuccess()
+                                                                            }.onFailure {
+                                                                                cachedSessionPin = null
+                                                                                pendingEncryptedPayload = trimmed
+                                                                                transferPinInput = ""
+                                                                                pinErrorMessage = null
+                                                                                isProcessingQr = false
+                                                                            }
+                                                                        } finally {
+                                                                            pinChars.fill('0')
+                                                                        }
                                                                     }
-                                                                } finally {
-                                                                    pinChars.fill('0')
+                                                                } else {
+                                                                    appHaptics.success()
+                                                                    pendingEncryptedPayload = trimmed
+                                                                    transferPinInput = ""
+                                                                    pinErrorMessage = null
                                                                 }
                                                             }
-                                                        } else {
-                                                            appHaptics.click()
-                                                            pendingEncryptedPayload = trimmed
-                                                            transferPinInput = ""
-                                                            pinErrorMessage = null
+                                                            break
                                                         }
-                                                        break
                                                     }
 
                                                     // 2. Caso estándar otpauth:// o JSON sin cifrar
@@ -362,12 +406,19 @@ fun QrScannerScreen(
                         ),
                         shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                     ) {
-                        Text(
-                            text = if (totalImportedAccountsCount > 0) {
-                                stringResource(R.string.scan_transfer_batch_success, totalImportedAccountsCount)
-                            } else {
+                        val statusText = when {
+                            totalExpectedChunks > 1 && sessionChunks.size < totalExpectedChunks -> {
+                                stringResource(R.string.scan_transfer_chunk_progress, sessionChunks.size, totalExpectedChunks)
+                            }
+                            totalImportedAccountsCount > 0 -> {
+                                stringResource(R.string.scan_transfer_import_success, totalImportedAccountsCount)
+                            }
+                            else -> {
                                 stringResource(R.string.scan_hint)
-                            },
+                            }
+                        }
+                        Text(
+                            text = statusText,
                             color = Color.White,
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.Center,
@@ -503,16 +554,23 @@ fun QrScannerScreen(
                         isVerifyingPin = true
                         scope.launch {
                             try {
-                                val result = repository.importAccountsFromTransfer(payload, pinChars)
+                                val result = if (sessionChunks.isNotEmpty() && sessionChunks.size == totalExpectedChunks) {
+                                    repository.importAccountsFromChunks(sessionChunks.values.toList(), pinChars)
+                                } else {
+                                    repository.importAccountsFromTransfer(payload, pinChars)
+                                }
                                 result.onSuccess { count ->
                                     appHaptics.success()
                                     cachedSessionPin = enteredPin
                                     totalImportedAccountsCount += count
                                     pendingEncryptedPayload = null
+                                    sessionChunks.clear()
+                                    totalExpectedChunks = 0
+                                    currentSessionId = 0L
                                     transferPinInput = ""
                                     pinErrorMessage = null
                                     snackbarHostState.showSnackbar(
-                                        context.getString(R.string.scan_transfer_batch_success, count)
+                                        context.getString(R.string.scan_transfer_import_success, count)
                                     )
                                     delay(1000L)
                                     isProcessingQr = false
@@ -521,6 +579,7 @@ fun QrScannerScreen(
                                     pinErrorMessage = when (error) {
                                         is TransferCrypto.ExpiredTransferException -> expiredQrErrorText
                                         is TransferCrypto.InvalidPinException -> incorrectPinErrorText
+                                        is TransferCrypto.IncompleteTransferException -> error.message ?: incorrectPinErrorText
                                         else -> incorrectPinErrorText
                                     }
                                 }

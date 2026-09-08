@@ -107,7 +107,14 @@
     <string name="settings_transfer_batch_range">Servicios %1$d–%2$d de %3$d</string>
     <string name="settings_transfer_prev_code">Anterior</string>
     <string name="settings_transfer_next_code">Siguiente</string>
+    <string name="settings_transfer_pin_toggle_show">Mostrar PIN</string>
+    <string name="settings_transfer_pin_toggle_hide">Ocultar PIN</string>
+    <string name="settings_transfer_qr_blurred_hint">Código QR protegido mientras el PIN está visible</string>
+    <string name="settings_transfer_pin_masked_value">• • •   • • •</string>
     <string name="scan_transfer_batch_success">Se importaron %1$d servicios. Puedes escanear el siguiente código.</string>
+    <string name="scan_transfer_chunk_progress">Lote %1$d de %2$d escaneado. Escanea el código restante.</string>
+    <string name="scan_transfer_chunk_complete">Todos los lotes fueron escaneados. Ingresa el PIN.</string>
+    <string name="scan_transfer_session_mismatch">Este código pertenece a otra sesión de transferencia.</string>
 
     <!-- Copia de Seguridad en Google Drive -->
     <string name="settings_drive_title">Copia de seguridad en Google Drive</string>

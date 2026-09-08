@@ -3,6 +3,7 @@ package com.example.appopt.domain.repository
 import com.example.appopt.domain.model.OtpAlgorithm
 import com.example.appopt.domain.model.OtpType
 import com.example.appopt.domain.model.TotpAccount
+import com.example.appopt.security.TransferQrChunk
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -124,6 +125,18 @@ interface AccountRepository {
     suspend fun importAccountsFromTransfer(
         transferPayload: String,
         pin: CharArray? = null
+    ): Result<Int>
+
+    /**
+     * Importa y fusiona cuentas a partir de un conjunto completo de fragmentos "Todo o Nada" (v2).
+     *
+     * @param chunks Colección completa de fragmentos QR escaneados.
+     * @param pin PIN de 6 dígitos en [CharArray] para descifrar el texto cifrado ensamblado.
+     * @return [Result] con la cantidad de cuentas importadas exitosamente.
+     */
+    suspend fun importAccountsFromChunks(
+        chunks: List<TransferQrChunk>,
+        pin: CharArray
     ): Result<Int>
 
     /**

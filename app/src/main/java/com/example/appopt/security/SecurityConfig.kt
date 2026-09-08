@@ -112,13 +112,24 @@ object SecurityConfig {
     const val TRANSFER_QR_PBKDF2_ITERATIONS = 10_000
 
     /**
-     * Versión del esquema del sobre criptográfico de transferencia por código QR.
+     * Versión 1 (legada / mono-código) del esquema del sobre criptográfico de transferencia por código QR.
      */
     const val TRANSFER_QR_VERSION = 1
+
+    /**
+     * Versión 2 (Todo o Nada / Multi-lote ensamblado) del sobre criptográfico de transferencia.
+     */
+    const val TRANSFER_QR_VERSION_V2 = 2
 
     /**
      * Cantidad máxima de cuentas por código QR en transferencias por lotes (Multi-QR).
      * Garantiza una densidad visual óptima y lectura instantánea sin importar el tamaño total de la bóveda.
      */
     const val TRANSFER_QR_BATCH_SIZE = 10
+
+    /**
+     * Tamaño máximo en bytes de carga útil de texto cifrado por fragmento QR (Todo o Nada).
+     * Mantiene los códigos QR con baja densidad de puntos para escaneo instantáneo.
+     */
+    const val TRANSFER_QR_CHUNK_MAX_BYTES = 220
 }

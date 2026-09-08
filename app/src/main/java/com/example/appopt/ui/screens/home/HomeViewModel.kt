@@ -93,7 +93,7 @@ class HomeViewModel : ViewModel() {
                 Pair(reactiveList, periodicList)
             }.collect { (reactiveList, periodicList) ->
                 val isReactiveActive = reactiveList.any {
-                    it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.BLOCKED
+                    it.state == WorkInfo.State.RUNNING
                 }
                 val isPeriodicActive = periodicList.any {
                     it.state == WorkInfo.State.RUNNING

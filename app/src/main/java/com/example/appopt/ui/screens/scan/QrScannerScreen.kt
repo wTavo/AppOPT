@@ -18,18 +18,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Keyboard
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -38,12 +35,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -63,9 +58,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -75,6 +67,7 @@ import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
 import com.example.appopt.security.TransferCrypto
 import com.example.appopt.security.TransferQrChunk
+import com.example.appopt.ui.screens.scan.components.TransferPinPromptDialog
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
@@ -291,7 +284,7 @@ fun QrScannerScreen(
                                                                 totalExpectedChunks = parsedChunk.total
                                                             }
 
-                                                            sessionChunks[parsedChunk.index] = parsedChunk
+                                                             sessionChunks[parsedChunk.index] = parsedChunk
 
                                                             if (parsedChunk.total > 1 && sessionChunks.size < parsedChunk.total) {
                                                                 // Faltan fragmentos por escanear
@@ -503,125 +496,58 @@ fun QrScannerScreen(
 
     // Modal: Solicitud de PIN para Transferencia Cifrada (AES-256-GCM)
     if (isUnlocked && pendingEncryptedPayload != null) {
-        AlertDialog(
-            onDismissRequest = {
-                if (!isVerifyingPin) {
-                    pendingEncryptedPayload = null
-                    transferPinInput = ""
-                    pinErrorMessage = null
-                    isProcessingQr = false
-                }
-            },
-            shape = RoundedCornerShape(Dimensions.CornerRadius.large),
-            title = {
-                Text(
-                    text = stringResource(R.string.scan_transfer_pin_dialog_title),
-                    style = MaterialTheme.typography.titleLarge
-                )
-            },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
-                ) {
-                    Text(
-                        text = stringResource(R.string.scan_transfer_pin_dialog_desc),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    OutlinedTextField(
-                        value = transferPinInput,
-                        onValueChange = { input ->
-                            if (input.length <= 6 && input.all { it.isDigit() }) {
-                                transferPinInput = input
-                                pinErrorMessage = null
-                            }
-                        },
-                        label = { Text(stringResource(R.string.scan_transfer_pin_input_label)) },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                        modifier = Modifier.fillMaxWidth(),
-                        textStyle = MaterialTheme.typography.headlineSmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center
-                        )
-                    )
-
-                    if (pinErrorMessage != null) {
-                        Text(
-                            text = pinErrorMessage!!,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val payload = pendingEncryptedPayload ?: return@Button
-                        val enteredPin = transferPinInput
-                        val pinChars = enteredPin.toCharArray()
-                        isVerifyingPin = true
-                        scope.launch {
-                            try {
-                                val result = if (sessionChunks.isNotEmpty() && sessionChunks.size == totalExpectedChunks) {
-                                    repository.importAccountsFromChunks(sessionChunks.values.toList(), pinChars)
-                                } else {
-                                    repository.importAccountsFromTransfer(payload, pinChars)
-                                }
-                                result.onSuccess { count ->
-                                    appHaptics.success()
-                                    cachedSessionPin = enteredPin
-                                    totalImportedAccountsCount += count
-                                    pendingEncryptedPayload = null
-                                    sessionChunks.clear()
-                                    totalExpectedChunks = 0
-                                    currentSessionId = 0L
-                                    transferPinInput = ""
-                                    pinErrorMessage = null
-                                    snackbarHostState.showSnackbar(
-                                        context.getString(R.string.scan_transfer_import_success, count)
-                                    )
-                                    delay(1000L)
-                                    isProcessingQr = false
-                                }.onFailure { error ->
-                                    appHaptics.error()
-                                    pinErrorMessage = when (error) {
-                                        is TransferCrypto.ExpiredTransferException -> expiredQrErrorText
-                                        is TransferCrypto.InvalidPinException -> incorrectPinErrorText
-                                        is TransferCrypto.IncompleteTransferException -> error.message ?: incorrectPinErrorText
-                                        else -> incorrectPinErrorText
-                                    }
-                                }
-                            } finally {
-                                pinChars.fill('0')
-                                isVerifyingPin = false
-                            }
+        TransferPinPromptDialog(
+            pinInput = transferPinInput,
+            onPinChange = { transferPinInput = it; pinErrorMessage = null },
+            pinErrorMessage = pinErrorMessage,
+            isVerifying = isVerifyingPin,
+            onConfirm = {
+                val payload = pendingEncryptedPayload ?: return@TransferPinPromptDialog
+                val enteredPin = transferPinInput
+                val pinChars = enteredPin.toCharArray()
+                isVerifyingPin = true
+                scope.launch {
+                    try {
+                        val result = if (sessionChunks.isNotEmpty() && sessionChunks.size == totalExpectedChunks) {
+                            repository.importAccountsFromChunks(sessionChunks.values.toList(), pinChars)
+                        } else {
+                            repository.importAccountsFromTransfer(payload, pinChars)
                         }
-                    },
-                    enabled = transferPinInput.length == 6 && !isVerifyingPin,
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                ) {
-                    Text(stringResource(R.string.scan_transfer_pin_confirm_button), style = MaterialTheme.typography.labelLarge)
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        if (!isVerifyingPin) {
+                        result.onSuccess { count ->
+                            appHaptics.success()
+                            cachedSessionPin = enteredPin
+                            totalImportedAccountsCount += count
                             pendingEncryptedPayload = null
+                            sessionChunks.clear()
+                            totalExpectedChunks = 0
+                            currentSessionId = 0L
                             transferPinInput = ""
                             pinErrorMessage = null
+                            snackbarHostState.showSnackbar(
+                                context.getString(R.string.scan_transfer_import_success, count)
+                            )
+                            delay(1000L)
                             isProcessingQr = false
+                        }.onFailure { error ->
+                            appHaptics.error()
+                            pinErrorMessage = when (error) {
+                                is TransferCrypto.ExpiredTransferException -> expiredQrErrorText
+                                is TransferCrypto.InvalidPinException -> incorrectPinErrorText
+                                is TransferCrypto.IncompleteTransferException -> error.message ?: incorrectPinErrorText
+                                else -> incorrectPinErrorText
+                            }
                         }
+                    } finally {
+                        pinChars.fill('0')
+                        isVerifyingPin = false
                     }
-                ) {
-                    Text(stringResource(R.string.action_cancel), style = MaterialTheme.typography.labelLarge)
                 }
+            },
+            onDismiss = {
+                pendingEncryptedPayload = null
+                transferPinInput = ""
+                pinErrorMessage = null
+                isProcessingQr = false
             }
         )
     }

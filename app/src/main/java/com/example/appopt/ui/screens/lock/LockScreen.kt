@@ -54,6 +54,9 @@ fun LockScreen(
     val promptTitle = stringResource(R.string.lock_biometric_prompt_title)
     val promptSubtitle = stringResource(R.string.lock_biometric_prompt_subtitle)
 
+    /**
+     * Inicia el diálogo de autenticación biométrica del sistema operativo.
+     */
     fun triggerAuth() {
         val activity = context as? FragmentActivity ?: return
         biometricAuthManager.authenticate(

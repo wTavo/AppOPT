@@ -231,6 +231,11 @@ fun SettingsScreen(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted -> isNotificationPermissionGranted = granted }
 
+    /**
+     * Solicita autorización OAuth2 de Google Drive al cliente de identidad y gestiona la resolución con IntentSender.
+     *
+     * @param onAuthorized Callback ejecutado una vez obtenido el token de acceso válido.
+     */
     fun requestGoogleAuthorization(onAuthorized: (String) -> Unit) {
         pendingAuthAction = onAuthorized
         authClient.authorize(GoogleDriveManager.getAuthorizationRequest())

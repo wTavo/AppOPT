@@ -23,14 +23,18 @@ object MnemonicManager {
     fun generate12WordPhrase(): List<String> {
         val words = ArrayList<String>(12)
         val entropy = ByteArray(16) // 128 bits de entropía
-        secureRandom.nextBytes(entropy)
+        try {
+            secureRandom.nextBytes(entropy)
 
-        // Cada palabra se selecciona a partir de 11 bits de entropía (2^11 = 2048 palabras)
-        (0 until 12).forEach { _ ->
-            val randomIndex = secureRandom.nextInt(BIP39_WORDLIST.size)
-            words.add(BIP39_WORDLIST[randomIndex])
+            // Cada palabra se selecciona a partir de 11 bits de entropía (2^11 = 2048 palabras)
+            (0 until 12).forEach { _ ->
+                val randomIndex = secureRandom.nextInt(BIP39_WORDLIST.size)
+                words.add(BIP39_WORDLIST[randomIndex])
+            }
+            return words
+        } finally {
+            entropy.fill(0)
         }
-        return words
     }
 
     /**

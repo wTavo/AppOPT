@@ -122,10 +122,6 @@ object ManualSyncManager {
             val repository = AuthenticatorApp.instance.accountRepository
             val prefsManager = AuthenticatorApp.instance.preferencesManager
 
-            // Cancelamos inmediatamente cualquier tarea reactiva pendiente en WorkManager para evitar doble subida
-            androidx.work.WorkManager.getInstance(context.applicationContext)
-                .cancelUniqueWork(CloudVaultSyncManager.REACTIVE_WORK_NAME)
-
             _isSyncing.value = true
             try {
                 SyncNotificationHelper.showSyncProgressNotification(context.applicationContext)

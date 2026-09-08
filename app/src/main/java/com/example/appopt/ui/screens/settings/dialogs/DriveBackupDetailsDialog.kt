@@ -142,7 +142,7 @@ fun DriveBackupDetailsDialog(
                     val pendingTarget = pendingRestoreBackup!!
                     val isPendingActual = lastSyncTimestamp > 0L &&
                             !hasUnsyncedChanges &&
-                            (pendingTarget.modifiedTimeMillis == lastSyncTimestamp || Math.abs(pendingTarget.modifiedTimeMillis - lastSyncTimestamp) < 3000L)
+                            pendingTarget.isMostRecent
                     DriveBackupDecryptForm(
                         targetBackup = pendingTarget,
                         isActual = isPendingActual,
@@ -259,7 +259,7 @@ fun DriveBackupDetailsDialog(
                                     }
                                     val isActual = lastSyncTimestamp > 0L &&
                                             !hasUnsyncedChanges &&
-                                            (item.modifiedTimeMillis == lastSyncTimestamp || Math.abs(item.modifiedTimeMillis - lastSyncTimestamp) < 3000L)
+                                            item.isMostRecent
 
                                     DriveBackupItemCard(
                                         item = item,

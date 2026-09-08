@@ -1,5 +1,6 @@
 package com.example.appopt.ui.screens.settings.dialogs
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -47,6 +48,7 @@ import com.example.appopt.security.SecurityConfig
 import com.example.appopt.ui.screens.settings.dialogs.components.DriveBackupDecryptForm
 import com.example.appopt.ui.screens.settings.dialogs.components.DriveBackupItemCard
 import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.util.DateTimeFormatter
 import kotlinx.coroutines.delay
@@ -137,8 +139,13 @@ fun DriveBackupDetailsDialog(
             )
         },
         text = {
-            when {
-                pendingRestoreBackup != null -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .animateContentSize(animationSpec = Motion.Spec.modalResizeSpec())
+            ) {
+                when {
+                    pendingRestoreBackup != null -> {
                     val pendingTarget = pendingRestoreBackup!!
                     val isPendingActual = lastSyncTimestamp > 0L &&
                             !hasUnsyncedChanges &&
@@ -282,8 +289,9 @@ fun DriveBackupDetailsDialog(
                     }
                 }
             }
-        },
-        confirmButton = {
+        }
+    },
+    confirmButton = {
             when {
                 pendingRestoreBackup != null -> {
                     var isProcessing by remember { mutableStateOf(false) }

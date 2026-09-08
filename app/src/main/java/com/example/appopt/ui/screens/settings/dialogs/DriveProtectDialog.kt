@@ -2,6 +2,7 @@ package com.example.appopt.ui.screens.settings.dialogs
 
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -56,6 +57,7 @@ import com.example.appopt.ui.screens.settings.dialogs.components.DriveProtectSte
 import com.example.appopt.ui.screens.settings.dialogs.components.DriveProtectStepMnemonic
 import com.example.appopt.ui.screens.settings.dialogs.components.DriveProtectStepQuiz
 import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.util.EmergencyKitPdfGenerator
 
@@ -124,7 +126,9 @@ fun DriveProtectDialog(
         },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .animateContentSize(animationSpec = Motion.Spec.modalResizeSpec()),
                 verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
             ) {
                 when (step) {

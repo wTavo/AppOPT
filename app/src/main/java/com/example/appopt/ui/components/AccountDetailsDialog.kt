@@ -1,10 +1,12 @@
 package com.example.appopt.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -173,12 +175,17 @@ fun AccountDetailsDialog(
             }
         },
         text = {
-            if (showDeleteConfirm) {
-                Text(
-                    text = stringResource(R.string.account_details_delete_to_trash_hint),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .animateContentSize(animationSpec = Motion.Spec.modalResizeSpec())
+            ) {
+                if (showDeleteConfirm) {
+                    Text(
+                        text = stringResource(R.string.account_details_delete_to_trash_hint),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                } else {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
@@ -309,8 +316,9 @@ fun AccountDetailsDialog(
                     }
                 }
             }
-        },
-        confirmButton = {
+        }
+    },
+    confirmButton = {
             if (showDeleteConfirm) {
                 var isDeleting by remember { mutableStateOf(false) }
                 Button(

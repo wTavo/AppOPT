@@ -1,9 +1,11 @@
 package com.example.appopt.ui.screens.settings.dialogs
 
 import android.graphics.Bitmap
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -62,6 +64,7 @@ import com.example.appopt.security.SecurityConfig
 import com.example.appopt.security.TransferCrypto
 import com.example.appopt.ui.components.ServiceBrandAvatar
 import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.appSwitchColors
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.ui.util.QrCodeGenerator
@@ -176,11 +179,16 @@ fun ExportServicesDialog(
             )
         },
         text = {
-            if (!isShowingQr) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
-                ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .animateContentSize(animationSpec = Motion.Spec.modalResizeSpec())
+            ) {
+                if (!isShowingQr) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                    ) {
                     Text(
                         text = stringResource(R.string.settings_export_services_dialog_description),
                         style = MaterialTheme.typography.bodyMedium,
@@ -527,8 +535,9 @@ fun ExportServicesDialog(
                     }
                 }
             }
-        },
-        confirmButton = {
+        }
+    },
+    confirmButton = {
             var isProcessing by remember { mutableStateOf(false) }
             if (!isShowingQr) {
                 Button(

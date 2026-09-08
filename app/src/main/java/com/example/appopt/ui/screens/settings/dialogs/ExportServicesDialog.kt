@@ -502,13 +502,7 @@ fun ExportServicesDialog(
                             color = if (secondsRemaining <= 20) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                         )
 
-                        val expirationLabel = if (secondsRemaining >= 60) {
-                            val minutes = secondsRemaining / 60
-                            val seconds = secondsRemaining % 60
-                            stringResource(R.string.settings_transfer_expires_in_minutes, minutes, seconds)
-                        } else {
-                            stringResource(R.string.settings_transfer_expires_in, secondsRemaining)
-                        }
+                        val expirationLabel = stringResource(R.string.settings_transfer_expires_in, secondsRemaining)
 
                         Text(
                             text = expirationLabel,

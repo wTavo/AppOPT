@@ -120,7 +120,6 @@ fun SettingsScreen(
     val driveSyncSuccessText = stringResource(R.string.settings_drive_sync_success)
     val driveDecryptErrorText = stringResource(R.string.settings_drive_decrypt_error)
     val driveDeleteSingleSuccessText = stringResource(R.string.settings_drive_delete_single_success)
-    val driveDeleteAllSuccessText = stringResource(R.string.settings_drive_delete_all_success)
 
     // Diagnóstico en tiempo real de permisos y reloj del sistema
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -543,19 +542,6 @@ fun SettingsScreen(
                         scope.launch {
                             snackbarHostState.showSnackbar(
                                 if (success) driveDeleteSingleSuccessText else driveErrorText
-                            )
-                        }
-                    }
-                }
-            },
-            onDeleteAllConfirmed = {
-                showBackupDetailsDialog = false
-                val token = driveAccessToken ?: GoogleDriveManager.currentAccessToken
-                if (token != null) {
-                    viewModel.deleteAllBackups(token) { success ->
-                        scope.launch {
-                            snackbarHostState.showSnackbar(
-                                if (success) driveDeleteAllSuccessText else driveErrorText
                             )
                         }
                     }

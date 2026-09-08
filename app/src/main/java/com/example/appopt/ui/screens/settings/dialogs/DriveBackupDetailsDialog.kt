@@ -1,7 +1,5 @@
 package com.example.appopt.ui.screens.settings.dialogs
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,16 +13,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudDone
-import androidx.compose.material.icons.filled.CloudQueue
-import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -33,7 +24,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -49,9 +39,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
 import com.example.appopt.R
 import com.example.appopt.data.cloud.DriveBackupItem
@@ -60,7 +47,6 @@ import com.example.appopt.security.SecurityConfig
 import com.example.appopt.ui.screens.settings.dialogs.components.DriveBackupDecryptForm
 import com.example.appopt.ui.screens.settings.dialogs.components.DriveBackupItemCard
 import com.example.appopt.ui.theme.Dimensions
-import com.example.appopt.ui.theme.SafeGreen
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.util.DateTimeFormatter
 import kotlinx.coroutines.delay
@@ -70,7 +56,7 @@ import kotlin.time.Duration.Companion.milliseconds
 /**
  * Diálogo modal con máquina de estados unificada (Single-Dialog State Machine) para inspeccionar el historial
  * de versiones de respaldo en Google Drive (Point-in-Time Recovery), restaurar versiones específicas mediante
- * descifrado directo en el modal, o eliminarlas de forma granular/total.
+ * descifrado directo en el modal, o eliminarlas de forma individual.
  *
  * Cumple con la Directiva 14 (navegación modal defensiva sin desmontaje/parpadeo de ventanas) y estandarización
  * de nomenclatura de botones («Cerrar» para vista principal, «Volver» para sub-estados).
@@ -83,7 +69,6 @@ import kotlin.time.Duration.Companion.milliseconds
  * @param onForceRefresh Callback invocado para forzar una consulta fresca a Google Drive al presionar el botón de refresco.
  * @param onRestoreBackup Callback invocado para restaurar una versión específica con sus caracteres de descifrado.
  * @param onDeleteSpecificBackup Callback invocado para eliminar una versión específica.
- * @param onDeleteAllConfirmed Callback invocado para eliminar todas las copias de seguridad de la nube.
  * @param onDismiss Callback invocado para cerrar el modal.
  * @param modifier Modificador de diseño Compose opcional.
  */
@@ -97,7 +82,6 @@ fun DriveBackupDetailsDialog(
     onForceRefresh: () -> Unit = {},
     onRestoreBackup: (DriveBackupItem, CharArray) -> Unit,
     onDeleteSpecificBackup: (DriveBackupItem) -> Unit,
-    onDeleteAllConfirmed: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -109,7 +93,6 @@ fun DriveBackupDetailsDialog(
     var isRestoreSecretVisible by remember { mutableStateOf(false) }
 
     var pendingDeleteBackup by remember { mutableStateOf<DriveBackupItem?>(null) }
-    var isConfirmingDeleteAll by remember { mutableStateOf(false) }
     var currentTick by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
     LaunchedEffect(Unit) {
@@ -131,8 +114,6 @@ fun DriveBackupDetailsDialog(
                 restoreSecretText = ""
             } else if (pendingDeleteBackup != null) {
                 pendingDeleteBackup = null
-            } else if (isConfirmingDeleteAll) {
-                isConfirmingDeleteAll = false
             } else {
                 onDismiss()
             }
@@ -142,10 +123,9 @@ fun DriveBackupDetailsDialog(
             val titleText = when {
                 pendingRestoreBackup != null -> stringResource(R.string.settings_drive_decrypt_title)
                 pendingDeleteBackup != null -> stringResource(R.string.settings_drive_delete_version_confirm_title)
-                isConfirmingDeleteAll -> stringResource(R.string.settings_drive_delete_all_confirm_title)
                 else -> stringResource(R.string.settings_drive_history_title)
             }
-            val titleColor = if (pendingDeleteBackup != null || isConfirmingDeleteAll) {
+            val titleColor = if (pendingDeleteBackup != null) {
                 MaterialTheme.colorScheme.error
             } else {
                 MaterialTheme.colorScheme.onSurface
@@ -175,13 +155,6 @@ fun DriveBackupDetailsDialog(
                 pendingDeleteBackup != null -> {
                     Text(
                         text = stringResource(R.string.settings_drive_delete_version_confirm_desc),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                isConfirmingDeleteAll -> {
-                    Text(
-                        text = stringResource(R.string.settings_drive_delete_all_confirm_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -365,24 +338,6 @@ fun DriveBackupDetailsDialog(
                         )
                     }
                 }
-                isConfirmingDeleteAll -> {
-                    Button(
-                        onClick = {
-                            isConfirmingDeleteAll = false
-                            onDeleteAllConfirmed()
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error,
-                            contentColor = MaterialTheme.colorScheme.onError
-                        ),
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.settings_drive_delete_confirm_btn),
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                    }
-                }
                 else -> {
                     TextButton(onClick = onDismiss) {
                         Text(
@@ -394,43 +349,16 @@ fun DriveBackupDetailsDialog(
             }
         },
         dismissButton = {
-            when {
-                pendingRestoreBackup != null || pendingDeleteBackup != null || isConfirmingDeleteAll -> {
-                    TextButton(onClick = {
-                        pendingRestoreBackup = null
-                        restoreSecretText = ""
-                        pendingDeleteBackup = null
-                        isConfirmingDeleteAll = false
-                    }) {
-                        Text(
-                            text = stringResource(R.string.settings_drive_details_back),
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                    }
-                }
-                backupItems.isNotEmpty() -> {
-                    Button(
-                        onClick = {
-                            appHaptics.click()
-                            isConfirmingDeleteAll = true
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
-                            contentColor = MaterialTheme.colorScheme.error
-                        ),
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.DeleteOutline,
-                            contentDescription = null,
-                            modifier = Modifier.size(Dimensions.IconSize.small)
-                        )
-                        Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                        Text(
-                            text = stringResource(R.string.settings_drive_delete_all_action),
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                    }
+            if (pendingRestoreBackup != null || pendingDeleteBackup != null) {
+                TextButton(onClick = {
+                    pendingRestoreBackup = null
+                    restoreSecretText = ""
+                    pendingDeleteBackup = null
+                }) {
+                    Text(
+                        text = stringResource(R.string.settings_drive_details_back),
+                        style = MaterialTheme.typography.labelLarge
+                    )
                 }
             }
         },

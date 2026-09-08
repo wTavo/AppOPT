@@ -113,7 +113,6 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
   - **«Cerrar» (`R.string.action_close` / `account_modal_close_button`):** Para el botón de descarte del estado/diálogo principal (*Main Dialog*).
   - **«Volver» (`R.string.settings_drive_details_back`):** Para regresar de un sub-paso, pantalla secundaria o confirmación al estado anterior dentro del modal.
   - **«Cancelar» (`R.string.action_cancel`):** Exclusivo para abortar una acción destructiva irreversible antes de confirmarla.
-- **OBLIGATORIO la transición fluida de tamaño entre estados:** Todo diálogo modal dinámico con variación de altura entre estados debe encapsular su contenido (`text`) en un contenedor con `Modifier.fillMaxWidth().animateContentSize(animationSpec = Motion.Spec.modalResizeSpec())` (180ms con `EasingCurve.Standard`), garantizando una transición suave y veloz sin saltos bruscos de re-centrado vertical ni animaciones lentas no responsivas.
 - **OBLIGATORIO** implementar navegación defensiva hacia atrás en `onDismissRequest`: presionar afuera o el botón atrás del sistema debe revertir al estado/paso anterior antes de cerrar el modal por completo.
 
 ---

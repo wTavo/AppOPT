@@ -56,9 +56,6 @@ object Motion {
 
         /** Duración del bucle de brillo ambiental (*ambient shine*) en estado de sincronización exitosa (4000ms). */
         const val AMBIENT_SHINE_LOOP = 4000
-
-        /** Duración estándar para transiciones de cambio de tamaño y estado en diálogos modales (180ms). */
-        const val MODAL_TRANSITION = 180
     }
 
     /**
@@ -108,12 +105,6 @@ object Motion {
             durationMillis = Duration.STAGGER_ITEM,
             delayMillis = delayMillis,
             easing = EasingCurve.Emphasized
-        )
-
-        /** Especificación de transición de tamaño y altura para cambios de estado en diálogos modales (180ms). */
-        fun <T> modalResizeSpec() = tween<T>(
-            durationMillis = Duration.MODAL_TRANSITION,
-            easing = EasingCurve.Standard
         )
 
         /** Especificación física con amortiguación elástica para elevaciones y escalas táctiles. */

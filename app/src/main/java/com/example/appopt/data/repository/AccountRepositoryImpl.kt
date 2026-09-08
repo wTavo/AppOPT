@@ -484,9 +484,14 @@ class AccountRepositoryImpl(
         }
 
         val plainJson = rootObject.toString()
-        val estimatedBatches = maxOf(1, (entities.size + SecurityConfig.TRANSFER_QR_BATCH_SIZE - 1) / SecurityConfig.TRANSFER_QR_BATCH_SIZE)
-        val durationSeconds = SecurityConfig.calculateTransferExpirationSeconds(estimatedBatches)
-        return TransferCrypto.encryptTransferPayloadInChunks(plainJson, pin, durationSeconds = durationSeconds)
+        val targetBatches = maxOf(1, (entities.size + SecurityConfig.TRANSFER_QR_BATCH_SIZE - 1) / SecurityConfig.TRANSFER_QR_BATCH_SIZE)
+        val durationSeconds = SecurityConfig.calculateTransferExpirationSeconds(targetBatches)
+        return TransferCrypto.encryptTransferPayloadInChunks(
+            accountsJson = plainJson,
+            pin = pin,
+            durationSeconds = durationSeconds,
+            targetChunkCount = targetBatches
+        )
     }
 
     /**

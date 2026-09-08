@@ -184,13 +184,15 @@ object TransferCrypto {
      * @param pin PIN de 6 dígitos en arreglo [CharArray].
      * @param durationSeconds Duración en segundos de validez de la sesión (por defecto 90s).
      * @param maxChunkBytes Tamaño máximo en bytes de ciphertext por fragmento QR.
+     * @param targetChunkCount Cantidad exacta deseada de fragmentos QR (calculada en base a lotes de 10 cuentas).
      * @return Lista de cadenas formateadas con prefijo [QR_TRANSFER_PREFIX], una por cada fragmento.
      */
     fun encryptTransferPayloadInChunks(
         accountsJson: String,
         pin: CharArray,
         durationSeconds: Int = SecurityConfig.TRANSFER_QR_EXPIRATION_SECONDS,
-        maxChunkBytes: Int = SecurityConfig.TRANSFER_QR_CHUNK_MAX_BYTES
+        maxChunkBytes: Int = SecurityConfig.TRANSFER_QR_CHUNK_MAX_BYTES,
+        targetChunkCount: Int? = null
     ): List<String> {
         val salt = ByteArray(SALT_LENGTH_BYTES)
         secureRandom.nextBytes(salt)
@@ -224,10 +226,16 @@ object TransferCrypto {
 
             val sessionId = secureRandom.nextLong()
 
+            val effectiveChunkBytes = if (targetChunkCount != null && targetChunkCount > 0) {
+                maxOf(1, (fullCiphertext.size + targetChunkCount - 1) / targetChunkCount)
+            } else {
+                maxChunkBytes
+            }
+
             val chunkList = mutableListOf<ByteArray>()
             var offset = 0
             while (offset < fullCiphertext.size) {
-                val length = minOf(maxChunkBytes, fullCiphertext.size - offset)
+                val length = minOf(effectiveChunkBytes, fullCiphertext.size - offset)
                 val chunk = fullCiphertext.copyOfRange(offset, offset + length)
                 chunkList.add(chunk)
                 offset += length

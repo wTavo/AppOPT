@@ -199,4 +199,48 @@ class TransferCryptoTest {
         assertTrue(decryptResult.isFailure)
         assertTrue(decryptResult.exceptionOrNull() is TransferCrypto.InvalidPinException)
     }
+
+    /**
+     * Valida que hasta 10 servicios generen exactamente 1 código QR cuando targetChunkCount es 1,
+     * y que se descifren correctamente.
+     */
+    @Test
+    fun testTargetChunkCountProducesExactNumberOfChunks() {
+        val nineAccounts = (1..9).joinToString(",") { i ->
+            """{"i":"Service $i","a":"user$i@example.com","s":"JBSWY3DPEHPK3PXP"}"""
+        }
+        val json9 = """{"v":1,"a":[$nineAccounts]}"""
+
+        val qrStrings1 = TransferCrypto.encryptTransferPayloadInChunks(
+            accountsJson = json9,
+            pin = correctPin,
+            durationSeconds = 90,
+            targetChunkCount = 1
+        )
+        assertEquals(1, qrStrings1.size)
+
+        val chunks1 = qrStrings1.map { TransferCrypto.parseTransferChunk(it) }
+        val result1 = TransferCrypto.decryptAssembledChunks(chunks1, correctPin)
+        assertTrue(result1.isSuccess)
+        assertEquals(json9, result1.getOrThrow())
+
+        // 11 cuentas con targetChunkCount = 2
+        val elevenAccounts = (1..11).joinToString(",") { i ->
+            """{"i":"Service $i","a":"user$i@example.com","s":"JBSWY3DPEHPK3PXP"}"""
+        }
+        val json11 = """{"v":1,"a":[$elevenAccounts]}"""
+
+        val qrStrings2 = TransferCrypto.encryptTransferPayloadInChunks(
+            accountsJson = json11,
+            pin = correctPin,
+            durationSeconds = 120,
+            targetChunkCount = 2
+        )
+        assertEquals(2, qrStrings2.size)
+
+        val chunks2 = qrStrings2.map { TransferCrypto.parseTransferChunk(it) }
+        val result2 = TransferCrypto.decryptAssembledChunks(chunks2, correctPin)
+        assertTrue(result2.isSuccess)
+        assertEquals(json11, result2.getOrThrow())
+    }
 }

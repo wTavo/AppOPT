@@ -317,6 +317,13 @@ class SettingsViewModel : ViewModel() {
     }
 
     /**
+     * Activa de forma inmediata y síncrona el estado de carga del historial de versiones en la UI.
+     */
+    fun startBackupHistoryLoading() {
+        _internalState.update { it.copy(isFetchingBackupHistory = true) }
+    }
+
+    /**
      * Consulta el historial de versiones aplicando caché TTL (20 segundos) para evitar saturación de red.
      * Solo realiza la petición si la caché en memoria expiró o está vacía.
      *
@@ -332,10 +339,14 @@ class SettingsViewModel : ViewModel() {
         val hasCachedItems = _internalState.value.backupHistoryList.isNotEmpty()
         val isCacheFresh = (now - lastFetch < SecurityConfig.BACKUP_HISTORY_CACHE_TTL_MILLIS) && hasCachedItems
 
-        if (isCacheFresh) return
+        if (isCacheFresh) {
+            _internalState.update { it.copy(isFetchingBackupHistory = false) }
+            return
+        }
+
+        _internalState.update { it.copy(isFetchingBackupHistory = true) }
 
         viewModelScope.launch(Dispatchers.IO) {
-            _internalState.update { it.copy(isFetchingBackupHistory = true) }
             try {
                 val historyResult = ManualSyncManager.fetchBackupHistory(token)
                 if (historyResult.isSuccess) {
@@ -374,8 +385,8 @@ class SettingsViewModel : ViewModel() {
         token: String,
         onAuthExpired: () -> Unit
     ) {
+        _internalState.update { it.copy(isFetchingBackupHistory = true, isRefreshingBackupHistory = true) }
         viewModelScope.launch(Dispatchers.IO) {
-            _internalState.update { it.copy(isFetchingBackupHistory = true, isRefreshingBackupHistory = true) }
             try {
                 val historyResult = ManualSyncManager.fetchBackupHistory(token)
                 if (historyResult.isSuccess) {

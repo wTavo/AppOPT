@@ -50,6 +50,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.appopt.R
 import com.example.appopt.data.cloud.GoogleDriveManager
+import com.example.appopt.security.SecurityConfig
 import com.example.appopt.ui.screens.settings.components.DriveSyncSettingsCard
 import com.example.appopt.ui.screens.settings.components.PerformanceSettingsCard
 import com.example.appopt.ui.screens.settings.components.PermissionsSettingsCard
@@ -372,6 +373,12 @@ fun SettingsScreen(
                     }
                 },
                 onBackupDetailsClick = {
+                    val now = System.currentTimeMillis()
+                    val lastFetch = uiState.lastHistoryFetchTimestamp
+                    val isCacheFresh = (now - lastFetch < SecurityConfig.BACKUP_HISTORY_CACHE_TTL_MILLIS) && uiState.backupHistoryList.isNotEmpty()
+                    if (!isCacheFresh) {
+                        viewModel.startBackupHistoryLoading()
+                    }
                     showBackupDetailsDialog = true
                     val executeFetch: (String) -> Unit = { token ->
                         viewModel.fetchBackupHistoryIfNeeded(

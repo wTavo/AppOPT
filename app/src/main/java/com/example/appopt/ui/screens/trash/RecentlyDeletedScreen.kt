@@ -453,7 +453,7 @@ private fun DeletedAccountCard(
                 }
             }
 
-            // Acciones compactas y alineadas: Eliminar definitivamente y Restaurar
+            // Acciones: Eliminar definitivamente y Restaurar
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
@@ -463,8 +463,7 @@ private fun DeletedAccountCard(
                     onClick = onPermanentDelete,
                     modifier = Modifier
                         .weight(1f)
-                        .height(Dimensions.ComponentHeight.buttonCompact),
-                    contentPadding = PaddingValues(horizontal = Dimensions.Spacing.sm, vertical = 0.dp),
+                        .height(Dimensions.ComponentHeight.buttonDefault),
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.error
@@ -477,12 +476,12 @@ private fun DeletedAccountCard(
                     Icon(
                         imageVector = Icons.Filled.DeleteForever,
                         contentDescription = null,
-                        modifier = Modifier.size(Dimensions.IconSize.small)
+                        modifier = Modifier.size(Dimensions.IconSize.medium)
                     )
                     Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
                     Text(
                         text = stringResource(R.string.trash_permanent_delete_button),
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.labelLarge,
                         maxLines = 1
                     )
                 }
@@ -490,7 +489,7 @@ private fun DeletedAccountCard(
                 AppAnimatedButton(
                     text = stringResource(R.string.trash_restore_button),
                     leadingIcon = Icons.Filled.Restore,
-                    height = Dimensions.ComponentHeight.buttonCompact,
+                    height = Dimensions.ComponentHeight.buttonDefault,
                     onClick = {
                         onRestore()
                         true

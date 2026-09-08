@@ -103,6 +103,11 @@
     <string name="settings_transfer_expired_title">Código QR expirado</string>
     <string name="settings_transfer_expired_desc">Por seguridad, el código QR y el PIN han caducado tras 90 segundos.</string>
     <string name="settings_transfer_regenerate_button">Generar nuevo código</string>
+    <string name="settings_transfer_page_indicator">Código %1$d de %2$d</string>
+    <string name="settings_transfer_batch_range">Servicios %1$d–%2$d de %3$d</string>
+    <string name="settings_transfer_prev_code">Anterior</string>
+    <string name="settings_transfer_next_code">Siguiente</string>
+    <string name="scan_transfer_batch_success">Se importaron %1$d servicios. Puedes escanear el siguiente código.</string>
 
     <!-- Copia de Seguridad en Google Drive -->
     <string name="settings_drive_title">Copia de seguridad en Google Drive</string>

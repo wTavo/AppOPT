@@ -115,4 +115,10 @@ object SecurityConfig {
      * Versión del esquema del sobre criptográfico de transferencia por código QR.
      */
     const val TRANSFER_QR_VERSION = 1
+
+    /**
+     * Cantidad máxima de cuentas por código QR en transferencias por lotes (Multi-QR).
+     * Garantiza una densidad visual óptima y lectura instantánea sin importar el tamaño total de la bóveda.
+     */
+    const val TRANSFER_QR_BATCH_SIZE = 10
 }

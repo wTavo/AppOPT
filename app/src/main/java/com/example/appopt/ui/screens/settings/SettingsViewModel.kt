@@ -629,6 +629,20 @@ class SettingsViewModel : ViewModel() {
     }
 
     /**
+     * Exporta las cuentas seleccionadas divididas en lotes cifrados para transferencia multi-QR.
+     *
+     * @param selectedIds Conjunto de identificadores de cuentas a exportar.
+     * @param pin PIN de 6 dígitos en [CharArray] para cifrar cada lote con AES-256-GCM.
+     * @return Lista de cadenas cifradas correspondientes a cada código QR.
+     */
+    suspend fun exportAccountsInBatches(
+        selectedIds: Set<String>,
+        pin: CharArray
+    ): List<String> = withContext(Dispatchers.IO) {
+        repository.exportAccountsInBatches(selectedIds, pin)
+    }
+
+    /**
      * Elimina localmente las cuentas que fueron exportadas tras una transferencia completada.
      *
      * @param ids Identificadores de las cuentas a eliminar.

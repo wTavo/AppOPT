@@ -101,6 +101,20 @@ interface AccountRepository {
     ): String
 
     /**
+     * Exporta las cuentas seleccionadas divididas en lotes de tamaño configurable para transferencias multi-QR.
+     *
+     * @param selectedAccountIds Conjunto opcional de identificadores de cuentas a exportar.
+     * @param pin PIN de 6 dígitos en [CharArray] para cifrar cada lote con AES-256-GCM.
+     * @param batchSize Cantidad máxima de cuentas por código QR (por defecto [SecurityConfig.TRANSFER_QR_BATCH_SIZE]).
+     * @return Lista de cadenas cifradas, una por cada lote.
+     */
+    suspend fun exportAccountsInBatches(
+        selectedAccountIds: Set<String>? = null,
+        pin: CharArray,
+        batchSize: Int = com.example.appopt.security.SecurityConfig.TRANSFER_QR_BATCH_SIZE
+    ): List<String>
+
+    /**
      * Importa una o múltiples cuentas a partir de los datos escaneados de un código QR de transferencia.
      *
      * @param transferPayload Cadena de texto obtenida del código QR.

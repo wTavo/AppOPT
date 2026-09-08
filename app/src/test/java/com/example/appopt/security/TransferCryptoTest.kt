@@ -116,4 +116,24 @@ class TransferCryptoTest {
         val decryptResult = TransferCrypto.decryptTransferPayload(corruptedPayload, correctPin)
         assertTrue(decryptResult.isFailure)
     }
+
+    /**
+     * Valida que múltiples lotes independientes cifrados con el mismo PIN se descifren correctamente.
+     */
+    @Test
+    fun testBatchingMultiplePayloadsSharePin() {
+        val batch1Json = """{"v":1,"a":[{"i":"Google","s":"JBSWY3DPEHPK3PXP"}]}"""
+        val batch2Json = """{"v":1,"a":[{"i":"GitHub","s":"JBSWY3DPEHPK3PXP"}]}"""
+
+        val enc1 = TransferCrypto.encryptTransferPayload(batch1Json, correctPin, 90)
+        val enc2 = TransferCrypto.encryptTransferPayload(batch2Json, correctPin, 90)
+
+        val dec1 = TransferCrypto.decryptTransferPayload(enc1, correctPin)
+        val dec2 = TransferCrypto.decryptTransferPayload(enc2, correctPin)
+
+        assertTrue(dec1.isSuccess)
+        assertTrue(dec2.isSuccess)
+        assertEquals(batch1Json, dec1.getOrThrow())
+        assertEquals(batch2Json, dec2.getOrThrow())
+    }
 }

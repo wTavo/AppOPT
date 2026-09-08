@@ -27,6 +27,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -49,6 +50,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -75,18 +77,19 @@ import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
 
 /**
- * Pantalla de escaneo de códigos QR 2FA con CameraX, Google ML Kit y soporte para transferencias cifradas con PIN.
+ * Pantalla de escaneo de códigos QR 2FA con CameraX, Google ML Kit y soporte para transferencias multi-QR con PIN.
  *
  * Principio de privacidad y seguridad:
  * - El procesamiento de la imagen del código QR se realiza exclusivamente en el hardware local.
- * - Soporta códigos QR cifrados con AES-256-GCM solicitando un PIN de 6 dígitos antes de descifrar.
+ * - Soporta códigos QR cifrados con AES-256-GCM y paginación por lotes, cacheando el PIN en la sesión actual.
  * - No se guardan fotografías ni se envían datos a ningún servidor externo.
  *
- * @param onScanSuccess Callback invocado al escanear e importar exitosamente una cuenta.
+ * @param onScanSuccess Callback invocado al terminar el escaneo e importación de servicios.
  * @param onNavigateToManual Callback para navegar a la pantalla de adición manual.
  * @param onNavigateBack Callback para regresar a la pantalla anterior.
  * @param modifier Modificador de layout.
@@ -131,8 +134,11 @@ fun QrScannerScreen(
     }
 
     var isProcessingQr by remember { mutableStateOf(false) }
+    var totalImportedAccountsCount by remember { mutableIntStateOf(0) }
+    var lastScannedPayload by remember { mutableStateOf<String?>(null) }
 
     // Estado del modal de ingreso de PIN para transferencias cifradas
+    var cachedSessionPin by remember { mutableStateOf<String?>(null) }
     var pendingEncryptedPayload by remember { mutableStateOf<String?>(null) }
     var transferPinInput by remember { mutableStateOf("") }
     var pinErrorMessage by remember { mutableStateOf<String?>(null) }
@@ -152,11 +158,20 @@ fun QrScannerScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = onNavigateToManual) {
-                        Icon(
-                            Icons.Filled.Keyboard,
-                            contentDescription = stringResource(R.string.home_add_manual_option)
-                        )
+                    if (totalImportedAccountsCount > 0) {
+                        IconButton(onClick = onScanSuccess) {
+                            Icon(
+                                Icons.Filled.Check,
+                                contentDescription = stringResource(R.string.action_close)
+                            )
+                        }
+                    } else {
+                        IconButton(onClick = onNavigateToManual) {
+                            Icon(
+                                Icons.Filled.Keyboard,
+                                contentDescription = stringResource(R.string.home_add_manual_option)
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -230,17 +245,53 @@ fun QrScannerScreen(
                                                     val rawValue = barcode.rawValue ?: continue
                                                     val trimmed = rawValue.trim()
 
+                                                    // Evitar re-escanear inmediatamente el mismo código en ráfaga
+                                                    if (trimmed == lastScannedPayload && (now - lastAnalysisTimestamp < 1500L)) {
+                                                        continue
+                                                    }
+
                                                     // 1. Caso QR Cifrado con PIN
                                                     if (trimmed.startsWith(TransferCrypto.QR_TRANSFER_PREFIX, ignoreCase = true) && !isProcessingQr && pendingEncryptedPayload == null) {
-                                                        appHaptics.click()
-                                                        pendingEncryptedPayload = trimmed
-                                                        transferPinInput = ""
-                                                        pinErrorMessage = null
+                                                        lastScannedPayload = trimmed
+                                                        val activePin = cachedSessionPin
+                                                        if (activePin != null && activePin.length == 6) {
+                                                            // Descifrado automático con el PIN de la sesión
+                                                            isProcessingQr = true
+                                                            scope.launch {
+                                                                val pinChars = activePin.toCharArray()
+                                                                try {
+                                                                    val result = repository.importAccountsFromTransfer(trimmed, pinChars)
+                                                                    result.onSuccess { count ->
+                                                                        appHaptics.success()
+                                                                        totalImportedAccountsCount += count
+                                                                        snackbarHostState.showSnackbar(
+                                                                            context.getString(R.string.scan_transfer_batch_success, count)
+                                                                        )
+                                                                        delay(1200L)
+                                                                        isProcessingQr = false
+                                                                    }.onFailure {
+                                                                        cachedSessionPin = null
+                                                                        pendingEncryptedPayload = trimmed
+                                                                        transferPinInput = ""
+                                                                        pinErrorMessage = null
+                                                                        isProcessingQr = false
+                                                                    }
+                                                                } finally {
+                                                                    pinChars.fill('0')
+                                                                }
+                                                            }
+                                                        } else {
+                                                            appHaptics.click()
+                                                            pendingEncryptedPayload = trimmed
+                                                            transferPinInput = ""
+                                                            pinErrorMessage = null
+                                                        }
                                                         break
                                                     }
 
-                                                    // 2. Caso estándar otpauth:// o JSON legado
+                                                    // 2. Caso estándar otpauth:// o JSON sin cifrar
                                                     if ((trimmed.startsWith("otpauth://", ignoreCase = true) || trimmed.startsWith("{")) && !isProcessingQr && pendingEncryptedPayload == null) {
+                                                        lastScannedPayload = trimmed
                                                         isProcessingQr = true
                                                         scope.launch {
                                                             val importResult = repository.importAccountsFromTransfer(trimmed)
@@ -312,7 +363,11 @@ fun QrScannerScreen(
                         shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                     ) {
                         Text(
-                            text = stringResource(R.string.scan_hint),
+                            text = if (totalImportedAccountsCount > 0) {
+                                stringResource(R.string.scan_transfer_batch_success, totalImportedAccountsCount)
+                            } else {
+                                stringResource(R.string.scan_hint)
+                            },
                             color = Color.White,
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.Center,
@@ -443,17 +498,24 @@ fun QrScannerScreen(
                 Button(
                     onClick = {
                         val payload = pendingEncryptedPayload ?: return@Button
-                        val pinChars = transferPinInput.toCharArray()
+                        val enteredPin = transferPinInput
+                        val pinChars = enteredPin.toCharArray()
                         isVerifyingPin = true
                         scope.launch {
                             try {
                                 val result = repository.importAccountsFromTransfer(payload, pinChars)
-                                result.onSuccess {
+                                result.onSuccess { count ->
                                     appHaptics.success()
+                                    cachedSessionPin = enteredPin
+                                    totalImportedAccountsCount += count
                                     pendingEncryptedPayload = null
                                     transferPinInput = ""
                                     pinErrorMessage = null
-                                    onScanSuccess()
+                                    snackbarHostState.showSnackbar(
+                                        context.getString(R.string.scan_transfer_batch_success, count)
+                                    )
+                                    delay(1000L)
+                                    isProcessingQr = false
                                 }.onFailure { error ->
                                     appHaptics.error()
                                     pinErrorMessage = when (error) {

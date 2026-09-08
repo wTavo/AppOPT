@@ -413,6 +413,79 @@ class AccountRepositoryImpl(
     }
 
     /**
+     * Exporta las cuentas seleccionadas divididas en lotes de tamaño configurable para transferencias multi-QR.
+     *
+     * @param selectedAccountIds Conjunto opcional de identificadores de cuentas a exportar.
+     * @param pin PIN de 6 dígitos en [CharArray] para cifrar cada lote con AES-256-GCM.
+     * @param batchSize Cantidad máxima de cuentas por código QR (por defecto [SecurityConfig.TRANSFER_QR_BATCH_SIZE]).
+     * @return Lista de cadenas cifradas, una por cada lote.
+     */
+    override suspend fun exportAccountsInBatches(
+        selectedAccountIds: Set<String>?,
+        pin: CharArray,
+        batchSize: Int
+    ): List<String> {
+        val allEntities = accountDao.getAllAccounts().first()
+        val entities = if (selectedAccountIds != null) {
+            allEntities.filter { it.id in selectedAccountIds }
+        } else {
+            allEntities
+        }
+
+        if (entities.isEmpty()) return emptyList()
+
+        val chunks = entities.chunked(batchSize)
+        val resultBatches = mutableListOf<String>()
+
+        for (chunk in chunks) {
+            val jsonArray = JSONArray()
+            for (entity in chunk) {
+                var secretBytes: ByteArray? = null
+                try {
+                    secretBytes = cryptoManager.decrypt(entity.encryptedSecret, entity.iv)
+                    val secretBase32 = Base32.encode(secretBytes)
+                    val item = JSONObject().apply {
+                        put("i", entity.issuer)
+                        if (entity.accountName.isNotBlank()) {
+                            put("a", entity.accountName)
+                        }
+                        put("s", secretBase32)
+                        if (entity.algorithm != "SHA1") {
+                            put("alg", entity.algorithm)
+                        }
+                        if (entity.digits != 6) {
+                            put("d", entity.digits)
+                        }
+                        if (entity.period != 30) {
+                            put("p", entity.period)
+                        }
+                        if (entity.type != "TOTP") {
+                            put("t", entity.type)
+                        }
+                        if (entity.counter > 0) {
+                            put("c", entity.counter)
+                        }
+                    }
+                    jsonArray.put(item)
+                } finally {
+                    secretBytes?.let { CryptoManager.zeroize(it) }
+                }
+            }
+
+            val rootObject = JSONObject().apply {
+                put("v", 1)
+                put("a", jsonArray)
+            }
+
+            val plainJson = rootObject.toString()
+            val encryptedChunk = TransferCrypto.encryptTransferPayload(plainJson, pin)
+            resultBatches.add(encryptedChunk)
+        }
+
+        return resultBatches
+    }
+
+    /**
      * Importa una o múltiples cuentas a partir de los datos escaneados de un código QR de transferencia.
      *
      * Soporta:

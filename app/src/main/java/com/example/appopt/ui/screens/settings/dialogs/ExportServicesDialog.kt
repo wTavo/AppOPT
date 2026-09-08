@@ -17,6 +17,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.TimerOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -25,6 +27,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -60,15 +63,15 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * Diálogo modal para la exportación y transferencia offline de cuentas OTP mediante código QR cifrado con PIN efímero.
+ * Diálogo modal para la exportación y transferencia offline de cuentas OTP mediante lotes de códigos QR cifrados con PIN efímero.
  *
  * Máquina de estado:
  * 1. Selección de cuentas y preferencia de conservación en el dispositivo.
- * 2. Visualización del PIN de 6 dígitos, código QR cifrado y temporizador regresivo de 90 segundos.
- * 3. Estado expirado con posibilidad de regenerar un nuevo código si se agota el tiempo.
+ * 2. Visualización del PIN de 6 dígitos, código(s) QR cifrado(s), paginación por lotes y temporizador regresivo de 90 segundos.
+ * 3. Estado expirado con posibilidad de regenerar los códigos si se agota el tiempo.
  *
  * @param accounts Lista de cuentas OTP disponibles para transferir.
- * @param onExportPayload Lambda que genera el payload cifrado a partir de los IDs seleccionados y el PIN efímero.
+ * @param onExportBatchesPayload Lambda que genera la lista de payloads cifrados por lotes a partir de los IDs seleccionados y el PIN efímero.
  * @param onCompleteExport Callback invocado al terminar la exportación con la lista de IDs exportados y la preferencia de mantener en dispositivo.
  * @param onDismiss Callback invocado para cerrar el modal.
  * @param modifier Modificador de diseño Compose opcional.
@@ -76,7 +79,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun ExportServicesDialog(
     accounts: List<TotpAccount>,
-    onExportPayload: suspend (selectedIds: Set<String>, pinChars: CharArray) -> String,
+    onExportBatchesPayload: suspend (selectedIds: Set<String>, pinChars: CharArray) -> List<String>,
     onCompleteExport: (exportedIds: Set<String>, keepOnDevice: Boolean) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
@@ -85,7 +88,8 @@ fun ExportServicesDialog(
     val selectedServiceIds = remember { mutableStateListOf<String>().apply { addAll(accounts.map { it.id }) } }
     var keepServicesOnDevice by remember { mutableStateOf(true) }
     var isShowingQr by remember { mutableStateOf(false) }
-    var transferQrBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var transferQrBitmaps by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
+    var currentQrIndex by remember { mutableIntStateOf(0) }
     var transferPin by remember { mutableStateOf("") }
     var exportedServiceIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var secondsRemaining by remember { mutableIntStateOf(SecurityConfig.TRANSFER_QR_EXPIRATION_SECONDS) }
@@ -104,7 +108,7 @@ fun ExportServicesDialog(
             }
             if (secondsRemaining <= 0) {
                 isExpired = true
-                transferQrBitmap = null
+                transferQrBitmaps = emptyList()
             }
         }
     }
@@ -116,8 +120,10 @@ fun ExportServicesDialog(
         val pinChars = pin.toCharArray()
         scope.launch {
             try {
-                val payload = onExportPayload(idsToExport, pinChars)
-                transferQrBitmap = QrCodeGenerator.generateQrBitmap(payload, size = 600)
+                val payloads = onExportBatchesPayload(idsToExport, pinChars)
+                val bitmaps = payloads.mapNotNull { QrCodeGenerator.generateQrBitmap(it, size = 600) }
+                transferQrBitmaps = bitmaps
+                currentQrIndex = 0
                 exportedServiceIds = idsToExport
                 isShowingQr = true
                 generationCount++
@@ -131,7 +137,7 @@ fun ExportServicesDialog(
         onDismissRequest = {
             if (isShowingQr) {
                 isShowingQr = false
-                transferQrBitmap = null
+                transferQrBitmaps = emptyList()
                 transferPin = ""
             } else {
                 onDismiss()
@@ -273,7 +279,7 @@ fun ExportServicesDialog(
                     )
                 }
             } else {
-                // Estado: QR Cifrado + PIN + Temporizador regresivo
+                // Estado: QR(s) Cifrado(s) + PIN + Paginación por lotes + Temporizador
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -317,14 +323,69 @@ fun ExportServicesDialog(
                         }
                     }
 
-                    if (transferQrBitmap != null) {
+                    // Paginación por lotes (si hay más de 1 código QR)
+                    if (transferQrBitmaps.size > 1) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            IconButton(
+                                onClick = { if (currentQrIndex > 0) currentQrIndex-- },
+                                enabled = currentQrIndex > 0
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = stringResource(R.string.settings_transfer_prev_code)
+                                )
+                            }
+
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = stringResource(
+                                        R.string.settings_transfer_page_indicator,
+                                        currentQrIndex + 1,
+                                        transferQrBitmaps.size
+                                    ),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+
+                                val startIdx = currentQrIndex * SecurityConfig.TRANSFER_QR_BATCH_SIZE + 1
+                                val endIdx = minOf((currentQrIndex + 1) * SecurityConfig.TRANSFER_QR_BATCH_SIZE, exportedServiceIds.size)
+                                Text(
+                                    text = stringResource(
+                                        R.string.settings_transfer_batch_range,
+                                        startIdx,
+                                        endIdx,
+                                        exportedServiceIds.size
+                                    ),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            IconButton(
+                                onClick = { if (currentQrIndex < transferQrBitmaps.size - 1) currentQrIndex++ },
+                                enabled = currentQrIndex < transferQrBitmaps.size - 1
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = stringResource(R.string.settings_transfer_next_code)
+                                )
+                            }
+                        }
+                    }
+
+                    val currentBitmap = transferQrBitmaps.getOrNull(currentQrIndex)
+                    if (currentBitmap != null) {
                         Surface(
                             shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                             color = Color.White,
                             modifier = Modifier.padding(Dimensions.Spacing.xs)
                         ) {
                             Image(
-                                bitmap = transferQrBitmap!!.asImageBitmap(),
+                                bitmap = currentBitmap.asImageBitmap(),
                                 contentDescription = null,
                                 modifier = Modifier
                                     .size(Dimensions.ComponentSize.qrCodeDisplay)
@@ -394,7 +455,7 @@ fun ExportServicesDialog(
                             onCompleteExport(exportedServiceIds, keepServicesOnDevice)
                         }
                     },
-                    enabled = (transferQrBitmap != null || keepServicesOnDevice) && !isProcessing,
+                    enabled = (transferQrBitmaps.isNotEmpty() || keepServicesOnDevice) && !isProcessing,
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                 ) {
                     Text(
@@ -416,7 +477,7 @@ fun ExportServicesDialog(
             } else {
                 TextButton(onClick = {
                     isShowingQr = false
-                    transferQrBitmap = null
+                    transferQrBitmaps = emptyList()
                     transferPin = ""
                 }) {
                     Text(stringResource(R.string.settings_drive_details_back), style = MaterialTheme.typography.labelLarge)

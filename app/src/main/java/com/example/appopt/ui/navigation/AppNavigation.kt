@@ -26,6 +26,12 @@ import androidx.compose.ui.zIndex
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.util.PerformanceFpsOverlay
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import com.example.appopt.ui.theme.Motion
+
 /**
  * Grafo principal de navegación y control de acceso de la aplicación.
  *
@@ -34,6 +40,7 @@ import com.example.appopt.util.PerformanceFpsOverlay
  * - [LockScreen] se sitúa como una capa opaca superior (*Z-Index Overlay*) cuando la bóveda está bloqueada.
  * - Al autenticar exitosamente, la capa de bloqueo se retira de inmediato mostrando los servicios sin pausas ni pantallas vacías.
  * - Incorpora la superposición de diagnóstico [PerformanceFpsOverlay] en la capa superior si está activada.
+ * - Transiciones optimizadas de Material 3 con salida acelerada (150ms) para garantizar reactividad táctil inmediata al regresar.
  */
 @Composable
 fun AppNavigation() {
@@ -44,7 +51,35 @@ fun AppNavigation() {
     Box(modifier = Modifier.fillMaxSize()) {
         NavHost(
             navController = navController,
-            startDestination = Screen.Home.route
+            startDestination = Screen.Home.route,
+            enterTransition = {
+                fadeIn(animationSpec = tween(Motion.Duration.FAST, easing = Motion.EasingCurve.Standard)) +
+                    slideIntoContainer(
+                        towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                        animationSpec = tween(Motion.Duration.MEDIUM, easing = Motion.EasingCurve.Emphasized)
+                    )
+            },
+            exitTransition = {
+                fadeOut(animationSpec = tween(Motion.Duration.FAST, easing = Motion.EasingCurve.Standard)) +
+                    slideOutOfContainer(
+                        towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                        animationSpec = tween(Motion.Duration.MEDIUM, easing = Motion.EasingCurve.Emphasized)
+                    )
+            },
+            popEnterTransition = {
+                fadeIn(animationSpec = tween(Motion.Duration.FAST, easing = Motion.EasingCurve.Standard)) +
+                    slideIntoContainer(
+                        towards = AnimatedContentTransitionScope.SlideDirection.End,
+                        animationSpec = tween(Motion.Duration.MEDIUM, easing = Motion.EasingCurve.Emphasized)
+                    )
+            },
+            popExitTransition = {
+                fadeOut(animationSpec = tween(Motion.Duration.FAST, easing = Motion.EasingCurve.Standard)) +
+                    slideOutOfContainer(
+                        towards = AnimatedContentTransitionScope.SlideDirection.End,
+                        animationSpec = tween(Motion.Duration.FAST, easing = Motion.EasingCurve.Standard)
+                    )
+            }
         ) {
             composable(Screen.Home.route) {
                 val homeViewModel: HomeViewModel = viewModel()

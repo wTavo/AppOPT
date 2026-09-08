@@ -21,13 +21,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.TimerOff
 import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -35,6 +33,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -377,10 +376,11 @@ fun ExportServicesDialog(
                     val currentBitmap = transferQrBitmaps.getOrNull(currentQrIndex)
                     if (currentBitmap != null) {
                         if (isPinVisible) {
-                            // Superficie de protección: oculta el QR mientras el PIN está expuesto
+                            val formattedPin = if (transferPin.length == 6) "${transferPin.substring(0, 3)} ${transferPin.substring(3)}" else transferPin
+                            // Superficie conmutable: Muestra el PIN dentro del mismo cuadro del QR
                             Surface(
                                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
                                 modifier = Modifier
                                     .size(Dimensions.ComponentSize.qrCodeDisplay)
                                     .padding(Dimensions.Spacing.xs)
@@ -400,24 +400,41 @@ fun ExportServicesDialog(
                                     )
                                     Spacer(modifier = Modifier.height(Dimensions.Spacing.sm))
                                     Text(
-                                        text = stringResource(R.string.settings_transfer_qr_blurred_hint),
+                                        text = stringResource(R.string.settings_transfer_pin_label),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
+                                    Text(
+                                        text = formattedPin,
+                                        style = MaterialTheme.typography.headlineLarge,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    Spacer(modifier = Modifier.height(Dimensions.Spacing.sm))
+                                    Text(
+                                        text = stringResource(R.string.settings_transfer_pin_hint),
                                         style = MaterialTheme.typography.bodySmall,
-                                        textAlign = TextAlign.Center,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Center
                                     )
                                 }
                             }
                         } else {
+                            // Superficie conmutable: Muestra el código QR nítido
                             Surface(
                                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                                 color = Color.White,
-                                modifier = Modifier.padding(Dimensions.Spacing.xs)
+                                modifier = Modifier
+                                    .size(Dimensions.ComponentSize.qrCodeDisplay)
+                                    .padding(Dimensions.Spacing.xs)
                             ) {
                                 Image(
                                     bitmap = currentBitmap.asImageBitmap(),
                                     contentDescription = null,
                                     modifier = Modifier
-                                        .size(Dimensions.ComponentSize.qrCodeDisplay)
+                                        .fillMaxSize()
                                         .padding(Dimensions.Spacing.xs)
                                 )
                             }
@@ -442,73 +459,30 @@ fun ExportServicesDialog(
                             textAlign = TextAlign.Center
                         )
 
-                        // Tarjeta de PIN de transferencia
-                        if (transferPin.length == 6) {
-                            val formattedPin = "${transferPin.substring(0, 3)} ${transferPin.substring(3)}"
-                            Card(
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-                                ),
+                        // Botón de alternancia entre Código QR y PIN
+                        if (transferPin.isNotBlank()) {
+                            OutlinedButton(
+                                onClick = {
+                                    haptics.click()
+                                    isPinVisible = !isPinVisible
+                                },
                                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = Dimensions.Spacing.sm, horizontal = Dimensions.Spacing.md),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text(
-                                            text = stringResource(R.string.settings_transfer_pin_label),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-
-                                        IconButton(
-                                            onClick = {
-                                                haptics.click()
-                                                isPinVisible = !isPinVisible
-                                            },
-                                            modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
-                                        ) {
-                                            Icon(
-                                                imageVector = if (isPinVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                                contentDescription = if (isPinVisible) {
-                                                    stringResource(R.string.settings_transfer_pin_toggle_hide)
-                                                } else {
-                                                    stringResource(R.string.settings_transfer_pin_toggle_show)
-                                                },
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(Dimensions.IconSize.small)
-                                            )
-                                        }
-                                    }
-
-                                    Text(
-                                        text = if (isPinVisible) formattedPin else stringResource(R.string.settings_transfer_pin_masked_value),
-                                        style = MaterialTheme.typography.headlineMedium,
-                                        fontFamily = FontFamily.Monospace,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-
-                                    Text(
-                                        text = if (isPinVisible) {
-                                            stringResource(R.string.settings_transfer_pin_hint)
-                                        } else {
-                                            stringResource(R.string.settings_transfer_pin_toggle_show)
-                                        },
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        textAlign = TextAlign.Center
-                                    )
-                                }
+                                Icon(
+                                    imageVector = if (isPinVisible) Icons.Default.QrCodeScanner else Icons.Default.Visibility,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(Dimensions.IconSize.small)
+                                )
+                                Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                                Text(
+                                    text = if (isPinVisible) {
+                                        stringResource(R.string.settings_transfer_view_qr)
+                                    } else {
+                                        stringResource(R.string.settings_transfer_view_pin)
+                                    },
+                                    style = MaterialTheme.typography.labelLarge
+                                )
                             }
                         }
                     } else {

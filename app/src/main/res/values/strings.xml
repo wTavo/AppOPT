@@ -109,6 +109,8 @@
     <string name="settings_transfer_next_code">Siguiente</string>
     <string name="settings_transfer_pin_toggle_show">Mostrar PIN</string>
     <string name="settings_transfer_pin_toggle_hide">Ocultar PIN</string>
+    <string name="settings_transfer_view_pin">Ver PIN de transferencia</string>
+    <string name="settings_transfer_view_qr">Ver código QR</string>
     <string name="settings_transfer_qr_blurred_hint">Código QR protegido mientras el PIN está visible</string>
     <string name="settings_transfer_pin_masked_value">• • •   • • •</string>
     <string name="scan_transfer_batch_success">Se importaron %1$d servicios. Puedes escanear el siguiente código.</string>

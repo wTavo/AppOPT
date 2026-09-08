@@ -133,6 +133,11 @@ object CloudVaultSyncManager {
     const val KEY_SYNC_PERFORMED = "key_sync_performed"
 
     /**
+     * Clave de entrada enviada a [AutoSyncWorker] para indicar una sincronización manual forzada por el usuario.
+     */
+    const val KEY_FORCE_MANUAL_SYNC = "key_force_manual_sync"
+
+    /**
      * Calcula la firma hash determinística de una lista de entidades [AccountEntity] sin requerir descifrado de secretos.
      *
      * @param entities Lista de entidades activas en la base de datos Room.
@@ -174,6 +179,7 @@ object CloudVaultSyncManager {
             .build()
 
         val immediateRequest = OneTimeWorkRequestBuilder<AutoSyncWorker>()
+            .setInputData(androidx.work.workDataOf(KEY_FORCE_MANUAL_SYNC to true))
             .setInitialDelay(0L, TimeUnit.SECONDS)
             .setConstraints(constraints)
             .build()

@@ -162,8 +162,9 @@ class SettingsViewModel : ViewModel() {
                 workManager.getWorkInfosForUniqueWorkFlow(CloudVaultSyncManager.REACTIVE_WORK_NAME),
                 workManager.getWorkInfosForUniqueWorkFlow(CloudVaultSyncManager.PERIODIC_WORK_NAME)
             ) { reactiveList, periodicList ->
-                val isRunning = reactiveList.any { it.state == WorkInfo.State.RUNNING } ||
-                        periodicList.any { it.state == WorkInfo.State.RUNNING }
+                val isRunning = reactiveList.any {
+                    it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.BLOCKED
+                } || periodicList.any { it.state == WorkInfo.State.RUNNING }
                 val hasSucceeded = reactiveList.any {
                     it.state == WorkInfo.State.SUCCEEDED && it.outputData.getBoolean(CloudVaultSyncManager.KEY_SYNC_PERFORMED, false)
                 }

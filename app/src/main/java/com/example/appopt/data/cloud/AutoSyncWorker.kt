@@ -29,9 +29,17 @@ class AutoSyncWorker(
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val prefsManager = AuthenticatorApp.instance.preferencesManager
+        val isForceManualSync = inputData.getBoolean(CloudVaultSyncManager.KEY_FORCE_MANUAL_SYNC, false)
 
-        // 1. Validar si la sincronización automática está habilitada y la cuenta conectada
-        if (!prefsManager.isGoogleDriveConnected() || !prefsManager.isAutoSyncEnabled()) {
+        // 1. Validar conexión activa con Google Drive
+        if (!prefsManager.isGoogleDriveConnected()) {
+            return@withContext Result.success(
+                workDataOf(CloudVaultSyncManager.KEY_SYNC_PERFORMED to false)
+            )
+        }
+
+        // 2. Si es sincronización automática en segundo plano, validar que esté habilitada
+        if (!isForceManualSync && !prefsManager.isAutoSyncEnabled()) {
             return@withContext Result.success(
                 workDataOf(CloudVaultSyncManager.KEY_SYNC_PERFORMED to false)
             )
@@ -40,7 +48,7 @@ class AutoSyncWorker(
         val repository = AuthenticatorApp.instance.accountRepository
 
         try {
-            // 2. Obtener token OAuth2 (en memoria o solicitar a Google Identity Services)
+            // 3. Obtener token OAuth2 (en memoria o solicitar a Google Identity Services)
             val token = GoogleDriveManager.currentAccessToken ?: run {
                 val authClient = GoogleDriveManager.getAuthorizationClient(applicationContext)
                 val authResult = Tasks.await(authClient.authorize(GoogleDriveManager.getAuthorizationRequest()))
@@ -51,19 +59,19 @@ class AutoSyncWorker(
                 authResult.accessToken!!.also { GoogleDriveManager.currentAccessToken = it }
             }
 
-            // 3. Comparar huella digital SHA-256 para evitar subidas redundantes
+            // 4. Si es auto-sincronización en segundo plano, comparar huella digital para evitar subidas redundantes
             val accounts = repository.getAccounts().first()
             val currentVaultHash = CloudVaultSyncManager.computeAccountsSignature(accounts)
             val lastSyncedVaultHash = prefsManager.getLastSyncedVaultHash()
 
-            if (currentVaultHash == lastSyncedVaultHash) {
+            if (!isForceManualSync && currentVaultHash == lastSyncedVaultHash) {
                 // El contenido de las credenciales es idéntico: 0 subidas necesarias
                 return@withContext Result.success(
                     workDataOf(CloudVaultSyncManager.KEY_SYNC_PERFORMED to false)
                 )
             }
 
-            // 4. Ejecutar la canalización de subida unificada
+            // 5. Ejecutar la canalización de subida unificada
             val uploadResult = ManualSyncManager.syncNow(applicationContext, token)
 
             if (uploadResult.isSuccess) {

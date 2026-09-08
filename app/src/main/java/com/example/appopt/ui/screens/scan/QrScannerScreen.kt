@@ -70,6 +70,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
 import com.example.appopt.security.TransferCrypto
@@ -151,6 +152,19 @@ fun QrScannerScreen(
     var transferPinInput by remember { mutableStateOf("") }
     var pinErrorMessage by remember { mutableStateOf<String?>(null) }
     var isVerifyingPin by remember { mutableStateOf(false) }
+
+    val appLockManager = remember { AuthenticatorApp.instance.appLockManager }
+    val isUnlocked by appLockManager.isUnlocked.collectAsStateWithLifecycle()
+
+    // Cierre defensivo de modales de escaneo al bloquearse la bóveda
+    LaunchedEffect(isUnlocked) {
+        if (!isUnlocked) {
+            pendingEncryptedPayload = null
+            transferPinInput = ""
+            pinErrorMessage = null
+            isProcessingQr = false
+        }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -488,7 +502,7 @@ fun QrScannerScreen(
     }
 
     // Modal: Solicitud de PIN para Transferencia Cifrada (AES-256-GCM)
-    if (pendingEncryptedPayload != null) {
+    if (isUnlocked && pendingEncryptedPayload != null) {
         AlertDialog(
             onDismissRequest = {
                 if (!isVerifyingPin) {

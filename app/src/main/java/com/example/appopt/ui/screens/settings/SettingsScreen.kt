@@ -115,6 +115,21 @@ fun SettingsScreen(
     var showDriveDecryptDialog by remember { mutableStateOf(false) }
     var showOverwriteWarningDialog by remember { mutableStateOf(false) }
 
+    val appLockManager = remember { AuthenticatorApp.instance.appLockManager }
+    val isUnlocked by appLockManager.isUnlocked.collectAsStateWithLifecycle()
+
+    // Cierre defensivo de todos los diálogos al bloquearse la bóveda
+    LaunchedEffect(isUnlocked) {
+        if (!isUnlocked) {
+            showExportDialog = false
+            showBackupDetailsDialog = false
+            showDisconnectConfirmDialog = false
+            showDriveProtectDialog = false
+            showDriveDecryptDialog = false
+            showOverwriteWarningDialog = false
+        }
+    }
+
     // Gestor de autenticación biométrica
     val biometricAuthManager = remember { AuthenticatorApp.instance.biometricAuthManager }
 
@@ -466,7 +481,7 @@ fun SettingsScreen(
     }
 
     // Modal: Confirmación de Desvinculación de Google Drive
-    if (showDisconnectConfirmDialog) {
+    if (isUnlocked && showDisconnectConfirmDialog) {
         DriveDisconnectConfirmDialog(
             onConfirm = {
                 showDisconnectConfirmDialog = false
@@ -479,7 +494,7 @@ fun SettingsScreen(
     }
 
     // Modal: Selección y Exportación por Código QR
-    if (showExportDialog) {
+    if (isUnlocked && showExportDialog) {
         ExportServicesDialog(
             accounts = uiState.accounts,
             onExportBatchesPayload = { selectedIds, pinChars -> viewModel.exportAccountsInBatches(selectedIds, pinChars) },
@@ -495,7 +510,7 @@ fun SettingsScreen(
     }
 
     // Modal: Configuración de Protección E2EE (3 Pasos)
-    if (showDriveProtectDialog) {
+    if (isUnlocked && showDriveProtectDialog) {
         DriveProtectDialog(
             onProtectAndSync = { primaryPassChars, emergencyMnemonicChars ->
                 showDriveProtectDialog = false
@@ -513,7 +528,7 @@ fun SettingsScreen(
     }
 
     // Modal: Descifrado y Restauración Directa desde la Tarjeta Principal
-    if (showDriveDecryptDialog) {
+    if (isUnlocked && showDriveDecryptDialog) {
         DriveDecryptDialog(
             backupDateMillis = uiState.driveBackupInfo?.modifiedTimeMillis,
             deviceName = uiState.driveBackupInfo?.deviceName,
@@ -544,7 +559,7 @@ fun SettingsScreen(
     }
 
     // Modal: Historial de Versiones (Point-in-Time), Restauración In-Situ y Borrado Granular / Total
-    if (showBackupDetailsDialog) {
+    if (isUnlocked && showBackupDetailsDialog) {
         DriveBackupDetailsDialog(
             backupItems = uiState.backupHistoryList,
             isLoading = uiState.isFetchingBackupHistory || uiState.isRefreshingBackupHistory,
@@ -612,7 +627,7 @@ fun SettingsScreen(
     }
 
     // Modal: Advertencia de Sobrescritura de Respaldo Remoto
-    if (showOverwriteWarningDialog) {
+    if (isUnlocked && showOverwriteWarningDialog) {
         DriveOverwriteWarningDialog(
             backupInfo = uiState.driveBackupInfo,
             formattedLastSync = formattedLastSync,

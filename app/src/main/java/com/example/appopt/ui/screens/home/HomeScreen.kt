@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.appopt.AuthenticatorApp
 import com.example.appopt.domain.repository.AccountWithCode
 import com.example.appopt.ui.common.UiState
 import com.example.appopt.ui.components.AccountDetailsDialog
@@ -82,6 +83,18 @@ fun HomeScreen(
     var isSearchActive by remember { mutableStateOf(false) }
     var selectedAccountId by remember { mutableStateOf<String?>(null) }
     var showAddOptionsDialog by remember { mutableStateOf(false) }
+
+    val appLockManager = remember { AuthenticatorApp.instance.appLockManager }
+    val isUnlocked by appLockManager.isUnlocked.collectAsStateWithLifecycle()
+
+    // Cierre defensivo de modales y estados transitorios al bloquearse la bóveda
+    LaunchedEffect(isUnlocked) {
+        if (!isUnlocked) {
+            selectedAccountId = null
+            showAddOptionsDialog = false
+            isSearchActive = false
+        }
+    }
 
     val appHaptics = rememberAppHaptics()
 
@@ -377,21 +390,23 @@ fun HomeScreen(
     }
 
     // Modal / Popup de Edición y Detalles de la Cuenta seleccionada
-    selectedAccountWithCode?.let { item ->
-        AccountDetailsDialog(
-            accountWithCode = item,
-            onDismiss = { selectedAccountId = null },
-            onCopyCode = { code -> viewModel.copyCode(code, item.account.issuer) },
-            onUpdateAccount = { id, issuer, name -> viewModel.updateAccount(id, issuer, name) },
-            onDeleteAccount = {
-                viewModel.deleteAccount(it)
-                selectedAccountId = null
-            }
-        )
+    if (isUnlocked) {
+        selectedAccountWithCode?.let { item ->
+            AccountDetailsDialog(
+                accountWithCode = item,
+                onDismiss = { selectedAccountId = null },
+                onCopyCode = { code -> viewModel.copyCode(code, item.account.issuer) },
+                onUpdateAccount = { id, issuer, name -> viewModel.updateAccount(id, issuer, name) },
+                onDeleteAccount = {
+                    viewModel.deleteAccount(it)
+                    selectedAccountId = null
+                }
+            )
+        }
     }
 
     // Modal de selección de método de adición (QR o Manual)
-    if (showAddOptionsDialog) {
+    if (isUnlocked && showAddOptionsDialog) {
         AddAccountOptionsDialog(
             onScanQr = {
                 showAddOptionsDialog = false

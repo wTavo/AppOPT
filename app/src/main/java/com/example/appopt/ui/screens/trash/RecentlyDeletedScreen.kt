@@ -42,6 +42,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -88,6 +89,17 @@ fun RecentlyDeletedScreen(
     // Estados para modales de confirmación
     var showEmptyTrashConfirmDialog by remember { mutableStateOf(false) }
     var accountPendingPermanentDelete by remember { mutableStateOf<TotpAccount?>(null) }
+
+    val appLockManager = remember { AuthenticatorApp.instance.appLockManager }
+    val isUnlocked by appLockManager.isUnlocked.collectAsStateWithLifecycle()
+
+    // Cierre defensivo de modales de eliminación al bloquearse la bóveda
+    LaunchedEffect(isUnlocked) {
+        if (!isUnlocked) {
+            showEmptyTrashConfirmDialog = false
+            accountPendingPermanentDelete = null
+        }
+    }
 
     // Textos centralizados
     val restoreSuccessText = stringResource(R.string.trash_restore_success)
@@ -249,7 +261,7 @@ fun RecentlyDeletedScreen(
     }
 
     // Modal: Confirmación de vaciado total de papelera
-    if (showEmptyTrashConfirmDialog) {
+    if (isUnlocked && showEmptyTrashConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showEmptyTrashConfirmDialog = false },
             shape = RoundedCornerShape(Dimensions.CornerRadius.large),
@@ -315,30 +327,31 @@ fun RecentlyDeletedScreen(
     }
 
     // Modal: Confirmación de eliminación definitiva de 1 cuenta
-    accountPendingPermanentDelete?.let { account ->
-        AlertDialog(
-            onDismissRequest = { accountPendingPermanentDelete = null },
-            shape = RoundedCornerShape(Dimensions.CornerRadius.large),
-            icon = {
-                Icon(
-                    imageVector = Icons.Filled.DeleteForever,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(Dimensions.IconSize.large)
-                )
-            },
-            title = {
-                Text(
-                    text = stringResource(R.string.trash_permanent_delete_title),
-                    style = MaterialTheme.typography.titleLarge
-                )
-            },
-            text = {
-                Text(
-                    text = stringResource(R.string.trash_permanent_delete_confirm_msg),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            },
+    if (isUnlocked) {
+        accountPendingPermanentDelete?.let { account ->
+            AlertDialog(
+                onDismissRequest = { accountPendingPermanentDelete = null },
+                shape = RoundedCornerShape(Dimensions.CornerRadius.large),
+                icon = {
+                    Icon(
+                        imageVector = Icons.Filled.DeleteForever,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(Dimensions.IconSize.large)
+                    )
+                },
+                title = {
+                    Text(
+                        text = stringResource(R.string.trash_permanent_delete_title),
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                },
+                text = {
+                    Text(
+                        text = stringResource(R.string.trash_permanent_delete_confirm_msg),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                },
             confirmButton = {
                 var isProcessing by remember { mutableStateOf(false) }
                 Button(
@@ -379,6 +392,7 @@ fun RecentlyDeletedScreen(
             }
         )
     }
+}
 }
 
 /**

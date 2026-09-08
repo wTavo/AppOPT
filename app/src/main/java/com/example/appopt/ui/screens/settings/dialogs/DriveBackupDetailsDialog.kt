@@ -409,14 +409,16 @@ fun DriveBackupDetailsDialog(
                     }
                 }
                 backupItems.isNotEmpty() -> {
-                    TextButton(
+                    Button(
                         onClick = {
                             appHaptics.click()
                             isConfirmingDeleteAll = true
                         },
-                        colors = ButtonDefaults.textButtonColors(
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
                             contentColor = MaterialTheme.colorScheme.error
-                        )
+                        ),
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.DeleteOutline,

@@ -127,7 +127,14 @@ fun DriveOverwriteWarningDialog(
                         style = MaterialTheme.typography.labelLarge
                     )
                 }
-                TextButton(onClick = onRestoreInstead) {
+                Button(
+                    onClick = onRestoreInstead,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                        contentColor = MaterialTheme.colorScheme.primary
+                    ),
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                ) {
                     Text(
                         text = stringResource(R.string.settings_drive_overwrite_restore_btn),
                         style = MaterialTheme.typography.labelLarge

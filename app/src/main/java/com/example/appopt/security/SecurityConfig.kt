@@ -101,9 +101,26 @@ object SecurityConfig {
     const val TRANSFER_QR_PIN_LENGTH = 6
 
     /**
-     * Tiempo de expiración en segundos para la validez del código QR de transferencia cifrado (90 segundos).
+     * Tiempo de expiración en segundos para la validez del código QR de transferencia cifrado (90 segundos base).
      */
     const val TRANSFER_QR_EXPIRATION_SECONDS = 90
+
+    /**
+     * Tiempo adicional en segundos asignado por cada lote o código QR complementario en transferencias multi-QR.
+     */
+    const val TRANSFER_QR_EXTRA_SECONDS_PER_BATCH = 30
+
+    /**
+     * Calcula el tiempo total de expiración en segundos proporcional a la cantidad de fragmentos QR.
+     * Base: 90 segundos para 1 código + 30 segundos por cada lote adicional.
+     *
+     * @param batchCount Cantidad total de fragmentos o códigos QR generados.
+     * @return Tiempo de validez en segundos.
+     */
+    fun calculateTransferExpirationSeconds(batchCount: Int): Int {
+        val safeCount = maxOf(1, batchCount)
+        return TRANSFER_QR_EXPIRATION_SECONDS + (safeCount - 1) * TRANSFER_QR_EXTRA_SECONDS_PER_BATCH
+    }
 
     /**
      * Número de iteraciones PBKDF2 para la derivación de clave a partir del PIN de transferencia QR.

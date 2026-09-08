@@ -100,6 +100,7 @@
     <string name="settings_transfer_pin_label">PIN de transferencia:</string>
     <string name="settings_transfer_pin_hint">Ingresa este PIN en el otro teléfono para descifrar tus servicios.</string>
     <string name="settings_transfer_expires_in">Expira en %1$d s</string>
+    <string name="settings_transfer_expires_in_minutes">Expira en %1$d min %2$d s</string>
     <string name="settings_transfer_expired_title">Código QR expirado</string>
     <string name="settings_transfer_expired_desc">Por seguridad, el código QR y el PIN han caducado tras 90 segundos.</string>
     <string name="settings_transfer_regenerate_button">Generar nuevo código</string>

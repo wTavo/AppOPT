@@ -99,15 +99,16 @@ fun ExportServicesDialog(
     var transferPin by remember { mutableStateOf("") }
     var isPinVisible by remember { mutableStateOf(false) }
     var exportedServiceIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var totalSessionDuration by remember { mutableIntStateOf(SecurityConfig.TRANSFER_QR_EXPIRATION_SECONDS) }
     var secondsRemaining by remember { mutableIntStateOf(SecurityConfig.TRANSFER_QR_EXPIRATION_SECONDS) }
     var isExpired by remember { mutableStateOf(false) }
     var generationCount by remember { mutableIntStateOf(0) }
     val scrollState = rememberScrollState()
 
-    // Temporizador regresivo de expiración del código QR y PIN (90 segundos)
+    // Temporizador regresivo de expiración del código QR y PIN (dinámico proporcional a los lotes)
     LaunchedEffect(isShowingQr, generationCount) {
         if (isShowingQr) {
-            secondsRemaining = SecurityConfig.TRANSFER_QR_EXPIRATION_SECONDS
+            secondsRemaining = totalSessionDuration
             isExpired = false
             while (secondsRemaining > 0 && isShowingQr) {
                 delay(1000L)
@@ -131,6 +132,8 @@ fun ExportServicesDialog(
             try {
                 val payloads = onExportBatchesPayload(idsToExport, pinChars)
                 val bitmaps = payloads.mapNotNull { QrCodeGenerator.generateQrBitmap(it, size = 600) }
+                totalSessionDuration = SecurityConfig.calculateTransferExpirationSeconds(bitmaps.size)
+                secondsRemaining = totalSessionDuration
                 transferQrBitmaps = bitmaps
                 currentQrIndex = 0
                 exportedServiceIds = idsToExport
@@ -478,20 +481,28 @@ fun ExportServicesDialog(
                             }
                         }
 
-                        // Barra y etiqueta de tiempo restante
-                        val progress = secondsRemaining.toFloat() / SecurityConfig.TRANSFER_QR_EXPIRATION_SECONDS.toFloat()
+                        // Barra y etiqueta de tiempo restante proporcional
+                        val progress = secondsRemaining.toFloat() / maxOf(1, totalSessionDuration).toFloat()
                         LinearProgressIndicator(
                             progress = { progress },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(Dimensions.Spacing.xs),
-                            color = if (secondsRemaining <= 15) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                            color = if (secondsRemaining <= 20) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                         )
 
+                        val expirationLabel = if (secondsRemaining >= 60) {
+                            val minutes = secondsRemaining / 60
+                            val seconds = secondsRemaining % 60
+                            stringResource(R.string.settings_transfer_expires_in_minutes, minutes, seconds)
+                        } else {
+                            stringResource(R.string.settings_transfer_expires_in, secondsRemaining)
+                        }
+
                         Text(
-                            text = stringResource(R.string.settings_transfer_expires_in, secondsRemaining),
+                            text = expirationLabel,
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (secondsRemaining <= 15) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (secondsRemaining <= 20) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
                     } else {

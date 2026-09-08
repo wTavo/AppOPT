@@ -11,6 +11,7 @@ import com.example.appopt.domain.totp.Base32
 import com.example.appopt.domain.totp.OtpUriParser
 import com.example.appopt.domain.totp.TotpEngine
 import com.example.appopt.security.CryptoManager
+import com.example.appopt.security.SecurityConfig
 import com.example.appopt.security.TransferCrypto
 import com.example.appopt.security.TransferQrChunk
 import kotlinx.coroutines.CoroutineScope
@@ -483,7 +484,9 @@ class AccountRepositoryImpl(
         }
 
         val plainJson = rootObject.toString()
-        return TransferCrypto.encryptTransferPayloadInChunks(plainJson, pin)
+        val estimatedBatches = maxOf(1, (entities.size + SecurityConfig.TRANSFER_QR_BATCH_SIZE - 1) / SecurityConfig.TRANSFER_QR_BATCH_SIZE)
+        val durationSeconds = SecurityConfig.calculateTransferExpirationSeconds(estimatedBatches)
+        return TransferCrypto.encryptTransferPayloadInChunks(plainJson, pin, durationSeconds = durationSeconds)
     }
 
     /**

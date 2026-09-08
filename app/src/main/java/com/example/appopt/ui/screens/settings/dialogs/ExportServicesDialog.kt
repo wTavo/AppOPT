@@ -1,9 +1,11 @@
 package com.example.appopt.ui.screens.settings.dialogs
 
 import android.graphics.Bitmap
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -29,6 +31,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -61,6 +64,7 @@ import com.example.appopt.security.SecurityConfig
 import com.example.appopt.security.TransferCrypto
 import com.example.appopt.ui.components.ServiceBrandAvatar
 import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.appSwitchColors
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.ui.util.QrCodeGenerator
@@ -102,6 +106,7 @@ fun ExportServicesDialog(
     var totalSessionDuration by remember { mutableIntStateOf(SecurityConfig.TRANSFER_QR_EXPIRATION_SECONDS) }
     var secondsRemaining by remember { mutableIntStateOf(SecurityConfig.TRANSFER_QR_EXPIRATION_SECONDS) }
     var isExpired by remember { mutableStateOf(false) }
+    var isGenerating by remember { mutableStateOf(false) }
     var generationCount by remember { mutableIntStateOf(0) }
     val scrollState = rememberScrollState()
 
@@ -128,6 +133,7 @@ fun ExportServicesDialog(
         transferPin = pin
         isPinVisible = false
         val pinChars = pin.toCharArray()
+        isGenerating = true
         scope.launch {
             try {
                 val payloads = onExportBatchesPayload(idsToExport, pinChars)
@@ -138,9 +144,11 @@ fun ExportServicesDialog(
                 currentQrIndex = 0
                 exportedServiceIds = idsToExport
                 isShowingQr = true
+                isExpired = false
                 generationCount++
             } finally {
                 pinChars.fill('0')
+                isGenerating = false
             }
         }
     }
@@ -171,11 +179,16 @@ fun ExportServicesDialog(
             )
         },
         text = {
-            if (!isShowingQr) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
-                ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .animateContentSize(animationSpec = Motion.Spec.privacyCollapseSpec())
+            ) {
+                if (!isShowingQr) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                    ) {
                     Text(
                         text = stringResource(R.string.settings_export_services_dialog_description),
                         style = MaterialTheme.typography.bodyMedium,
@@ -516,8 +529,9 @@ fun ExportServicesDialog(
                     }
                 }
             }
-        },
-        confirmButton = {
+        }
+    },
+    confirmButton = {
             var isProcessing by remember { mutableStateOf(false) }
             if (!isShowingQr) {
                 Button(
@@ -538,10 +552,24 @@ fun ExportServicesDialog(
                 }
             } else if (isExpired) {
                 Button(
-                    onClick = { generateTransferQr() },
+                    onClick = {
+                        if (!isGenerating) {
+                            haptics.click()
+                            generateTransferQr()
+                        }
+                    },
+                    enabled = !isGenerating,
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                 ) {
-                    Text(stringResource(R.string.settings_transfer_regenerate_button), style = MaterialTheme.typography.labelLarge)
+                    if (isGenerating) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(Dimensions.IconSize.small),
+                            strokeWidth = Dimensions.Spacing.xs,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Text(stringResource(R.string.settings_transfer_regenerate_button), style = MaterialTheme.typography.labelLarge)
+                    }
                 }
             } else {
                 Button(

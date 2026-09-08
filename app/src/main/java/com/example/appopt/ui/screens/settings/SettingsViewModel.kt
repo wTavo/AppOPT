@@ -375,7 +375,7 @@ class SettingsViewModel : ViewModel() {
         onAuthExpired: () -> Unit
     ) {
         viewModelScope.launch(Dispatchers.IO) {
-            _internalState.update { it.copy(isRefreshingBackupHistory = true) }
+            _internalState.update { it.copy(isFetchingBackupHistory = true, isRefreshingBackupHistory = true) }
             try {
                 val historyResult = ManualSyncManager.fetchBackupHistory(token)
                 if (historyResult.isSuccess) {
@@ -398,7 +398,7 @@ class SettingsViewModel : ViewModel() {
                     }
                 }
             } finally {
-                _internalState.update { it.copy(isRefreshingBackupHistory = false) }
+                _internalState.update { it.copy(isFetchingBackupHistory = false, isRefreshingBackupHistory = false) }
             }
         }
     }
@@ -436,7 +436,7 @@ class SettingsViewModel : ViewModel() {
      */
     fun deleteSpecificBackup(token: String, fileId: String, onComplete: (Boolean) -> Unit) {
         viewModelScope.launch {
-            _internalState.update { it.copy(isRefreshingBackupHistory = true) }
+            _internalState.update { it.copy(isFetchingBackupHistory = true, isRefreshingBackupHistory = true) }
             try {
                 val result = withContext(Dispatchers.IO) {
                     ManualSyncManager.deleteSpecificBackup(token, fileId)
@@ -460,7 +460,7 @@ class SettingsViewModel : ViewModel() {
                     onComplete(false)
                 }
             } finally {
-                _internalState.update { it.copy(isRefreshingBackupHistory = false) }
+                _internalState.update { it.copy(isFetchingBackupHistory = false, isRefreshingBackupHistory = false) }
             }
         }
     }
@@ -473,7 +473,7 @@ class SettingsViewModel : ViewModel() {
      */
     fun deleteAllBackups(token: String, onComplete: (Boolean) -> Unit) {
         viewModelScope.launch {
-            _internalState.update { it.copy(isRefreshingBackupHistory = true) }
+            _internalState.update { it.copy(isFetchingBackupHistory = true, isRefreshingBackupHistory = true) }
             try {
                 val result = withContext(Dispatchers.IO) {
                     ManualSyncManager.deleteAllBackups(token)
@@ -495,7 +495,7 @@ class SettingsViewModel : ViewModel() {
                     onComplete(false)
                 }
             } finally {
-                _internalState.update { it.copy(isRefreshingBackupHistory = false) }
+                _internalState.update { it.copy(isFetchingBackupHistory = false, isRefreshingBackupHistory = false) }
             }
         }
     }

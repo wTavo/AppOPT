@@ -481,7 +481,7 @@ fun SettingsScreen(
     if (showBackupDetailsDialog) {
         DriveBackupDetailsDialog(
             backupItems = uiState.backupHistoryList,
-            isLoading = uiState.isFetchingBackupHistory,
+            isLoading = uiState.isFetchingBackupHistory || uiState.isRefreshingBackupHistory,
             lastFetchTimestamp = uiState.lastHistoryFetchTimestamp,
             lastSyncTimestamp = uiState.effectiveLastSyncTimestamp,
             hasUnsyncedChanges = uiState.hasUnsyncedChanges,

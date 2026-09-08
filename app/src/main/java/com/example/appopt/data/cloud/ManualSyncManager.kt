@@ -8,6 +8,20 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+
+/**
+ * Evento sellado que representa el resultado terminal de una operación de sincronización en la nube.
+ */
+sealed interface SyncEvent {
+    /** Indica que la subida a la nube se completó exitosamente. */
+    data class Success(val timestamp: Long = System.currentTimeMillis()) : SyncEvent
+    /** Indica que la subida falló debido a un error de red o criptográfico. */
+    data class Failure(val timestamp: Long = System.currentTimeMillis(), val error: Throwable? = null) : SyncEvent
+}
+
 /**
  * Gestor centralizado y dedicado para la ejecución de sincronizaciones manuales y operaciones de respaldo en la nube.
  *
@@ -17,6 +31,21 @@ import kotlinx.coroutines.withContext
  * - Emite notificaciones de sistema y actualiza el estado de persistencia de forma idempotente y atómica.
  */
 object ManualSyncManager {
+
+    private val syncMutex = Mutex()
+    private val _isSyncing = kotlinx.coroutines.flow.MutableStateFlow(false)
+
+    /**
+     * Flujo reactivo global que indica si una operación de subida o sincronización con Google Drive está en curso.
+     */
+    val isSyncing: kotlinx.coroutines.flow.StateFlow<Boolean> = _isSyncing.asStateFlow()
+
+    private val _lastSyncEvent = kotlinx.coroutines.flow.MutableStateFlow<SyncEvent?>(null)
+
+    /**
+     * Flujo reactivo del último evento terminal de sincronización manual.
+     */
+    val lastSyncEvent: kotlinx.coroutines.flow.StateFlow<SyncEvent?> = _lastSyncEvent.asStateFlow()
 
     /**
      * Ejecuta una sincronización manual inmediata de la bóveda local hacia Google Drive.
@@ -70,18 +99,11 @@ object ManualSyncManager {
         }
     }
 
-    private val _isSyncing = kotlinx.coroutines.flow.MutableStateFlow(false)
-
     /**
-     * Flujo reactivo global que indica si una operación de subida o sincronización con Google Drive está en curso.
-     */
-    val isSyncing: kotlinx.coroutines.flow.StateFlow<Boolean> = _isSyncing
-
-    /**
-     * Canalización unificada de subida a Google Drive.
+     * Canalización unificada de subida a Google Drive con bloqueo de concurrencia y cancelación defensiva.
      *
-     * Extrae las credenciales, computa la huella SHA-256, transmite a Google Drive,
-     * actualiza la marca de tiempo de última copia en [com.example.appopt.data.local.PreferencesManager]
+     * Extrae las credenciales, computa la huella SHA-256, cancela tareas reactivas pendientes en WorkManager,
+     * transmite a Google Drive, actualiza la marca de tiempo de última copia en [com.example.appopt.data.local.PreferencesManager]
      * y emite la notificación del sistema correspondiente.
      *
      * @param context Contexto de la aplicación.
@@ -96,40 +118,50 @@ object ManualSyncManager {
         secretKeyPass: CharArray,
         emergencyMnemonic: CharArray? = null
     ): Result<Unit> = withContext(Dispatchers.IO) {
-        val repository = AuthenticatorApp.instance.accountRepository
-        val prefsManager = AuthenticatorApp.instance.preferencesManager
+        syncMutex.withLock {
+            val repository = AuthenticatorApp.instance.accountRepository
+            val prefsManager = AuthenticatorApp.instance.preferencesManager
 
-        _isSyncing.value = true
-        try {
-            SyncNotificationHelper.showSyncProgressNotification(context.applicationContext)
+            // Cancelamos inmediatamente cualquier tarea reactiva pendiente en WorkManager para evitar doble subida
+            androidx.work.WorkManager.getInstance(context.applicationContext)
+                .cancelUniqueWork(CloudVaultSyncManager.REACTIVE_WORK_NAME)
 
-            val accounts = repository.getAccounts().first()
-            val payload = repository.exportAccountsForTransfer()
-            val currentVaultHash = CloudVaultSyncManager.computeAccountsSignature(accounts)
+            _isSyncing.value = true
+            try {
+                SyncNotificationHelper.showSyncProgressNotification(context.applicationContext)
 
-            val uploadResult = GoogleDriveManager.uploadBackup(
-                accessToken = accessToken,
-                rawBackupJson = payload,
-                secretKeyPass = secretKeyPass,
-                emergencyMnemonic = emergencyMnemonic
-            )
+                val accounts = repository.getAccounts().first()
+                val payload = repository.exportAccountsForTransfer()
+                val currentVaultHash = CloudVaultSyncManager.computeAccountsSignature(accounts)
 
-            if (uploadResult.isSuccess) {
-                val now = System.currentTimeMillis()
-                prefsManager.setLastSyncTimestamp(now)
-                prefsManager.setLastSyncedVaultHash(currentVaultHash)
-                GoogleDriveManager.currentAccessToken = accessToken
-                SyncNotificationHelper.showSyncSuccessNotification(context.applicationContext, accounts.size)
-                Result.success(Unit)
-            } else {
+                val uploadResult = GoogleDriveManager.uploadBackup(
+                    accessToken = accessToken,
+                    rawBackupJson = payload,
+                    secretKeyPass = secretKeyPass,
+                    emergencyMnemonic = emergencyMnemonic
+                )
+
+                if (uploadResult.isSuccess) {
+                    val now = System.currentTimeMillis()
+                    prefsManager.setLastSyncTimestamp(now)
+                    prefsManager.setLastSyncedVaultHash(currentVaultHash)
+                    GoogleDriveManager.currentAccessToken = accessToken
+                    SyncNotificationHelper.showSyncSuccessNotification(context.applicationContext, accounts.size)
+                    _lastSyncEvent.value = SyncEvent.Success(now)
+                    Result.success(Unit)
+                } else {
+                    SyncNotificationHelper.showSyncFailureNotification(context.applicationContext)
+                    val error = uploadResult.exceptionOrNull() ?: IllegalStateException("Error al subir copia de seguridad")
+                    _lastSyncEvent.value = SyncEvent.Failure(error = error)
+                    Result.failure(error)
+                }
+            } catch (e: Exception) {
                 SyncNotificationHelper.showSyncFailureNotification(context.applicationContext)
-                Result.failure(uploadResult.exceptionOrNull() ?: IllegalStateException("Error al subir copia de seguridad"))
+                _lastSyncEvent.value = SyncEvent.Failure(error = e)
+                Result.failure(e)
+            } finally {
+                _isSyncing.value = false
             }
-        } catch (e: Exception) {
-            SyncNotificationHelper.showSyncFailureNotification(context.applicationContext)
-            Result.failure(e)
-        } finally {
-            _isSyncing.value = false
         }
     }
 

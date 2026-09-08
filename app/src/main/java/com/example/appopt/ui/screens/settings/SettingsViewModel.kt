@@ -541,9 +541,6 @@ class SettingsViewModel : ViewModel() {
                 if (result.isSuccess) {
                     _internalState.update { it.copy(driveBackupExists = true) }
                     refreshBackupHistory(token)
-                    if (uiState.value.isAutoSyncEnabled) {
-                        CloudVaultSyncManager.triggerReactiveSync(context, 0L)
-                    }
                     onComplete(true)
                 } else {
                     onComplete(false)

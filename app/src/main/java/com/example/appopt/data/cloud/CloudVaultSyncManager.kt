@@ -14,6 +14,9 @@ import java.util.concurrent.TimeUnit
 
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /**
  * Frecuencia configurable de la copia de seguridad automática en Google Drive.
@@ -125,15 +128,36 @@ object CloudVaultSyncManager {
     const val DEFAULT_DEBOUNCE_SECONDS = 30L
 
     /**
+     * Clave del resultado devuelto por [AutoSyncWorker] indicando si se realizó una subida efectiva a Google Drive.
+     */
+    const val KEY_SYNC_PERFORMED = "key_sync_performed"
+
+    /**
+     * Calcula la firma hash determinística de una lista de entidades [AccountEntity] sin requerir descifrado de secretos.
+     *
+     * @param entities Lista de entidades activas en la base de datos Room.
+     * @return Huella SHA-256 representativa del conjunto de credenciales.
+     */
+    fun computeEntitiesSignature(entities: List<com.example.appopt.data.local.AccountEntity>): String {
+        val raw = entities.sortedBy { it.id }.joinToString("|") {
+            "${it.id}:${it.accountName}:${it.issuer}:${it.period}:${it.digits}:${it.algorithm}:${it.type}:${it.counter}"
+        }
+        return computeVaultHash(raw)
+    }
+
+    /**
      * Dispara una tarea única de sincronización en segundo plano con retardo de consolidación (*Debouncing*).
      *
-     * Principio de consolidación:
-     * - Si el usuario realiza múltiples modificaciones consecutivas, cada cambio cancela y reemplaza
-     *   la tarea pendiente mediante [ExistingWorkPolicy.REPLACE], reiniciando el temporizador de [debounceSeconds].
-     * - Solo cuando el usuario pasa [debounceSeconds] sin realizar modificaciones, se ejecuta una única subida consolidada.
+     * Principio de consolidación y verificación de paridad:
+     * - Si las credenciales locales son idénticas a la última versión subida a Google Drive
+     *   (ej. el usuario envió una cuenta a la papelera y la restauró de inmediato), cancela
+     *   cualquier tarea pendiente en cola para evitar subidas o animaciones redundantes.
+     * - Si existen cambios reales, cancela y reemplaza la tarea pendiente mediante [ExistingWorkPolicy.REPLACE],
+     *   reiniciando el temporizador de [debounceSeconds].
+     * - Solo cuando el usuario pasa [debounceSeconds] sin realizar modificaciones, se ejecuta la subida consolidada.
      *
      * @param context Contexto de la aplicación.
-     * @param debounceSeconds Retardo en segundos antes de iniciar la subida (por defecto 30 segundos).
+     * @param debounceSeconds Retardo en segundos antes de iniciar la subida (por defecto 30 segundos, 0 para ejecución inmediata).
      */
     fun triggerReactiveSync(
         context: Context,
@@ -145,27 +169,41 @@ object CloudVaultSyncManager {
         }
 
         val workManager = WorkManager.getInstance(context)
-        val allowMobileData = prefsManager.isSyncMobileDataAllowed()
 
-        val networkType = if (allowMobileData) {
-            NetworkType.CONNECTED
-        } else {
-            NetworkType.UNMETERED
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            val lastSyncedVaultHash = prefsManager.getLastSyncedVaultHash()
+            val db = com.example.appopt.data.local.AppDatabase.getInstance(context)
+            val entities = db.accountDao().getAllAccountsSync()
+            val currentVaultHash = computeEntitiesSignature(entities)
+
+            if (!lastSyncedVaultHash.isNullOrEmpty() && currentVaultHash == lastSyncedVaultHash) {
+                // La bóveda regresó a paridad exacta con la nube (o no tiene cambios).
+                // Cancelamos cualquier tarea pendiente en cola y evitamos sincronizaciones innecesarias.
+                workManager.cancelUniqueWork(REACTIVE_WORK_NAME)
+                return@launch
+            }
+
+            val allowMobileData = prefsManager.isSyncMobileDataAllowed()
+            val networkType = if (allowMobileData) {
+                NetworkType.CONNECTED
+            } else {
+                NetworkType.UNMETERED
+            }
+
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(networkType)
+                .build()
+
+            val reactiveRequest = OneTimeWorkRequestBuilder<AutoSyncWorker>()
+                .setInitialDelay(debounceSeconds, TimeUnit.SECONDS)
+                .setConstraints(constraints)
+                .build()
+
+            workManager.enqueueUniqueWork(
+                REACTIVE_WORK_NAME,
+                ExistingWorkPolicy.REPLACE,
+                reactiveRequest
+            )
         }
-
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(networkType)
-            .build()
-
-        val reactiveRequest = OneTimeWorkRequestBuilder<AutoSyncWorker>()
-            .setInitialDelay(debounceSeconds, TimeUnit.SECONDS)
-            .setConstraints(constraints)
-            .build()
-
-        workManager.enqueueUniqueWork(
-            REACTIVE_WORK_NAME,
-            ExistingWorkPolicy.REPLACE,
-            reactiveRequest
-        )
     }
 }

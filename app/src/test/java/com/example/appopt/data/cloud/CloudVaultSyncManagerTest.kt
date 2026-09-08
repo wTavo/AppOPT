@@ -97,4 +97,47 @@ class CloudVaultSyncManagerTest {
 
         assertNotEquals("La firma debe cambiar cuando se edita el nombre de usuario o emisor", hashOriginal, hashModified)
     }
+
+    @Test
+    fun computeEntitiesSignature_matchesAccountsSignatureEquivalently() {
+        val entity1 = com.example.appopt.data.local.AccountEntity(
+            id = account1.id,
+            issuer = account1.issuer,
+            accountName = account1.accountName,
+            encryptedSecret = byteArrayOf(1, 2, 3),
+            iv = byteArrayOf(4, 5, 6),
+            algorithm = account1.algorithm.name,
+            digits = account1.digits,
+            period = account1.period,
+            type = account1.type.name,
+            counter = account1.counter,
+            isFavorite = account1.isFavorite,
+            orderIndex = account1.orderIndex,
+            createdAt = account1.createdAt,
+            updatedAt = account1.updatedAt
+        )
+
+        val entity2 = com.example.appopt.data.local.AccountEntity(
+            id = account2.id,
+            issuer = account2.issuer,
+            accountName = account2.accountName,
+            encryptedSecret = byteArrayOf(7, 8, 9),
+            iv = byteArrayOf(10, 11, 12),
+            algorithm = account2.algorithm.name,
+            digits = account2.digits,
+            period = account2.period,
+            type = account2.type.name,
+            counter = account2.counter,
+            isFavorite = account2.isFavorite,
+            orderIndex = account2.orderIndex,
+            createdAt = account2.createdAt,
+            updatedAt = account2.updatedAt
+        )
+
+        val accountsHash = CloudVaultSyncManager.computeAccountsSignature(listOf(account1, account2))
+        val entitiesHash = CloudVaultSyncManager.computeEntitiesSignature(listOf(entity1, entity2))
+
+        assertEquals("La huella de entidades Room debe ser idéntica a la huella de modelos de dominio", accountsHash, entitiesHash)
+    }
 }
+

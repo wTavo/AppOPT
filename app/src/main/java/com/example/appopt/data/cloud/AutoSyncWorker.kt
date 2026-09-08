@@ -3,6 +3,7 @@ package com.example.appopt.data.cloud
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.data.local.PreferencesManager
 import com.example.appopt.security.SecurityConfig
@@ -18,8 +19,8 @@ import kotlinx.coroutines.withContext
  * Principios de diseño y optimización:
  * - Descarga y fusiona de forma no destructiva cualquier cambio proveniente de otros dispositivos en Google Drive.
  * - Calcula la huella SHA-256 de la bóveda local consolidada y la compara con la última copia en la nube.
- * - Si no hubo modificaciones reales, finaliza en 0 ms con 0 peticiones de subida redundantes.
- * - Si existen cambios legítimos, solicita el token de forma silenciosa, cifra con AES-256-GCM y actualiza el respaldo.
+ * - Si no hubo modificaciones reales, finaliza en 0 ms con 0 peticiones de subida redundantes ([CloudVaultSyncManager.KEY_SYNC_PERFORMED] = false).
+ * - Si existen cambios legítimos, solicita el token de forma silenciosa, cifra con AES-256-GCM y actualiza el respaldo ([CloudVaultSyncManager.KEY_SYNC_PERFORMED] = true).
  */
 class AutoSyncWorker(
     appContext: Context,
@@ -31,7 +32,9 @@ class AutoSyncWorker(
 
         // 1. Validar si la sincronización automática está habilitada y la cuenta conectada
         if (!prefsManager.isGoogleDriveConnected() || !prefsManager.isAutoSyncEnabled()) {
-            return@withContext Result.success()
+            return@withContext Result.success(
+                workDataOf(CloudVaultSyncManager.KEY_SYNC_PERFORMED to false)
+            )
         }
 
         val repository = AuthenticatorApp.instance.accountRepository
@@ -55,14 +58,18 @@ class AutoSyncWorker(
 
             if (currentVaultHash == lastSyncedVaultHash) {
                 // El contenido de las credenciales es idéntico: 0 subidas necesarias
-                return@withContext Result.success()
+                return@withContext Result.success(
+                    workDataOf(CloudVaultSyncManager.KEY_SYNC_PERFORMED to false)
+                )
             }
 
             // 4. Ejecutar la canalización de subida unificada
             val uploadResult = ManualSyncManager.syncNow(applicationContext, token)
 
             if (uploadResult.isSuccess) {
-                Result.success()
+                Result.success(
+                    workDataOf(CloudVaultSyncManager.KEY_SYNC_PERFORMED to true)
+                )
             } else {
                 Result.failure()
             }

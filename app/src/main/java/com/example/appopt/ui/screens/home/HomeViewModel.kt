@@ -76,7 +76,8 @@ class HomeViewModel : ViewModel() {
      *
      * Mapea reactivamente las transiciones a [CloudSyncUiState]:
      * - Si hay una tarea reactiva en cola (retardo de consolidación) o en ejecución: [CloudSyncUiState.SYNCING].
-     * - Al completar una tarea activa: [CloudSyncUiState.SUCCESS] por 2.5s y vuelve a [CloudSyncUiState.IDLE].
+     * - Al completar una tarea con subida efectiva a Google Drive: [CloudSyncUiState.SUCCESS] por 2.5s y vuelve a [CloudSyncUiState.IDLE].
+     * - Si la tarea fue cancelada (ej. paridad de huella al restaurar) o finalizó sin subida requerida: vuelve inmediatamente a [CloudSyncUiState.IDLE].
      * - Si falla una tarea activa: [CloudSyncUiState.ERROR] por 3s y vuelve a [CloudSyncUiState.IDLE].
      * - En cualquier otro caso: [CloudSyncUiState.IDLE].
      */
@@ -108,18 +109,25 @@ class HomeViewModel : ViewModel() {
                         wasSyncing = false
                         syncFeedbackJob?.cancel()
                         val hasFailed = allInfos.any { it.state == WorkInfo.State.FAILED }
+                        val hasSucceededWithUpload = allInfos.any { info ->
+                            info.state == WorkInfo.State.SUCCEEDED &&
+                                info.outputData.getBoolean(CloudVaultSyncManager.KEY_SYNC_PERFORMED, false)
+                        }
+
                         if (hasFailed) {
                             syncFeedbackJob = viewModelScope.launch {
                                 _cloudSyncState.value = CloudSyncUiState.ERROR
                                 delay(3000.milliseconds)
                                 _cloudSyncState.value = CloudSyncUiState.IDLE
                             }
-                        } else {
+                        } else if (hasSucceededWithUpload) {
                             syncFeedbackJob = viewModelScope.launch {
                                 _cloudSyncState.value = CloudSyncUiState.SUCCESS
                                 delay(2500.milliseconds)
                                 _cloudSyncState.value = CloudSyncUiState.IDLE
                             }
+                        } else {
+                            _cloudSyncState.value = CloudSyncUiState.IDLE
                         }
                     } else if (syncFeedbackJob?.isActive != true) {
                         _cloudSyncState.value = CloudSyncUiState.IDLE

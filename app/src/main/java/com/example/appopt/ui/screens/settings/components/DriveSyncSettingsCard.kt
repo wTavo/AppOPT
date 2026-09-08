@@ -55,7 +55,7 @@ import com.example.appopt.ui.theme.appSwitchColors
  * @param hasUnsyncedChanges Indica si existen cambios locales no sincronizados con la nube.
  * @param lastSyncTimestamp Marca de tiempo en milisegundos de la última sincronización.
  * @param isAutoSyncEnabled Indica si la copia automática al hacer cambios está activada.
- * @param isSyncMobileDataAllowed Indica si se permite sincronizar con conexión de datos móviles.
+ * @param hasLocalAccounts Indica si existen cuentas o servicios 2FA locales registrados en la bóveda.
  * @param onConnectClick Callback para conectar la cuenta de Google.
  * @param onManualSyncClick Callback para disparar la sincronización inmediata.
  * @param onRestoreClick Callback para iniciar el descifrado y restauración.
@@ -77,6 +77,7 @@ fun DriveSyncSettingsCard(
     lastSyncTimestamp: Long,
     isAutoSyncEnabled: Boolean,
     isSyncMobileDataAllowed: Boolean,
+    hasLocalAccounts: Boolean = true,
     onConnectClick: () -> Unit,
     onManualSyncClick: () -> Unit,
     onRestoreClick: () -> Unit,
@@ -292,7 +293,7 @@ fun DriveSyncSettingsCard(
                 }
             } else if (!isCheckingDriveBackup) {
                 if (lastSyncTimestamp > 0L) {
-                    if (hasUnsyncedChanges && !isDriveLoading) {
+                    if (hasUnsyncedChanges && !isDriveLoading && hasLocalAccounts) {
                         Button(
                             onClick = onManualSyncClick,
                             enabled = true,
@@ -306,14 +307,40 @@ fun DriveSyncSettingsCard(
                         }
                     }
                 } else if (driveBackupExists) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
-                    ) {
+                    if (hasLocalAccounts) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                        ) {
+                            Button(
+                                onClick = onRestoreClick,
+                                enabled = !isDriveLoading,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.settings_drive_restore_button),
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
+
+                            OutlinedButton(
+                                onClick = onCreateBackupClick,
+                                enabled = !isDriveLoading,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.settings_drive_create_button),
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
+                        }
+                    } else {
                         Button(
                             onClick = onRestoreClick,
                             enabled = !isDriveLoading,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                         ) {
                             Text(
@@ -321,20 +348,8 @@ fun DriveSyncSettingsCard(
                                 style = MaterialTheme.typography.labelLarge
                             )
                         }
-
-                        OutlinedButton(
-                            onClick = onCreateBackupClick,
-                            enabled = !isDriveLoading,
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.settings_drive_create_button),
-                                style = MaterialTheme.typography.labelLarge
-                            )
-                        }
                     }
-                } else {
+                } else if (hasLocalAccounts) {
                     Button(
                         onClick = onCreateBackupClick,
                         enabled = !isDriveLoading,

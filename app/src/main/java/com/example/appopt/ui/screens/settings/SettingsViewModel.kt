@@ -42,7 +42,8 @@ import kotlinx.coroutines.withContext
  * @param isFpsOverlayEnabled Indica si la superposición diagnóstica de FPS está activa.
  * @param isAutoSyncEnabled Indica si la sincronización periódica en segundo plano está activada.
  * @param isSyncMobileDataAllowed Indica si se permite la sincronización a través de datos móviles.
- * @param isFetchingBackupHistory Indica si se está consultando el historial de versiones en la nube.
+ * @param isFetchingBackupHistory Indica si se está consultando el historial de versiones en la nube en segundo plano.
+ * @param isRefreshingBackupHistory Indica si el usuario solicitó un refresco manual explícito con animación de carga.
  * @param isAutoSyncRunning Indica si hay un worker de WorkManager ejecutando sincronización reactiva o periódica.
  */
 @Immutable
@@ -61,7 +62,9 @@ data class SettingsUiState(
     val isAutoSyncEnabled: Boolean = false,
     val isSyncMobileDataAllowed: Boolean = false,
     val isFetchingBackupHistory: Boolean = false,
-    val isAutoSyncRunning: Boolean = false
+    val isRefreshingBackupHistory: Boolean = false,
+    val isAutoSyncRunning: Boolean = false,
+    val lastHistoryFetchTimestamp: Long = 0L
 ) {
     /** Indica si cualquier proceso de sincronización local, global o en segundo plano está en curso. */
     val isSyncActive: Boolean
@@ -95,25 +98,35 @@ class SettingsViewModel : ViewModel() {
     private val appInstance = AuthenticatorApp.instance
 
     private val _internalState = MutableStateFlow(
-        SettingsUiState(
-            isFpsOverlayEnabled = prefsManager.isFpsOverlayEnabled(),
-            isAutoSyncEnabled = prefsManager.isAutoSyncEnabled(),
-            isSyncMobileDataAllowed = prefsManager.isSyncMobileDataAllowed()
-        )
+        run {
+            val cachedHistory = prefsManager.getCachedBackupHistory()
+            val mostRecent = cachedHistory.firstOrNull()
+            SettingsUiState(
+                isFpsOverlayEnabled = prefsManager.isFpsOverlayEnabled(),
+                isAutoSyncEnabled = prefsManager.isAutoSyncEnabled(),
+                isSyncMobileDataAllowed = prefsManager.isSyncMobileDataAllowed(),
+                backupHistoryList = cachedHistory,
+                driveBackupExists = cachedHistory.isNotEmpty(),
+                driveBackupInfo = mostRecent?.let { m ->
+                    DriveBackupInfo(m.fileId, m.modifiedTimeMillis, m.deviceName)
+                }
+            )
+        }
     )
-
-    /** Marca de tiempo de la última consulta exitosa de historial de versiones para throttling. */
-    private var lastBackupHistoryFetchTimestamp = 0L
 
     /** Estado reactivo unificado de la pantalla de Ajustes. */
     val uiState: StateFlow<SettingsUiState> = combine(
         _internalState,
         repository.getAccounts(),
         prefsManager.isGoogleDriveConnectedFlow,
-        prefsManager.lastSyncTimestampFlow,
-        prefsManager.lastSyncedVaultHashFlow
-    ) { internal, accounts, isConnected, lastSync, lastHash ->
-        val safeLastHash = lastHash.orEmpty()
+        combine(
+            prefsManager.lastSyncTimestampFlow,
+            prefsManager.lastSyncedVaultHashFlow,
+            prefsManager.lastBackupHistoryFetchTimestampFlow
+        ) { lastSync, lastHash, lastFetch ->
+            Triple(lastSync, lastHash.orEmpty(), lastFetch)
+        }
+    ) { internal, accounts, isConnected, (lastSync, safeLastHash, lastFetch) ->
         val currentVaultHash = CloudVaultSyncManager.computeAccountsSignature(accounts)
         val hasChanges = if (!isConnected || (lastSync == 0L && internal.driveBackupInfo == null)) {
             false
@@ -126,7 +139,8 @@ class SettingsViewModel : ViewModel() {
             isDriveConnected = isConnected,
             lastSyncTimestamp = lastSync,
             lastSyncedHash = safeLastHash,
-            hasUnsyncedChanges = hasChanges
+            hasUnsyncedChanges = hasChanges,
+            lastHistoryFetchTimestamp = lastFetch
         )
     }.stateIn(
         scope = viewModelScope,
@@ -201,7 +215,8 @@ class SettingsViewModel : ViewModel() {
      */
     fun disconnectGoogleDrive(context: Context) {
         GoogleDriveManager.clearSession()
-        lastBackupHistoryFetchTimestamp = 0L
+        prefsManager.setLastBackupHistoryFetchTimestamp(0L)
+        prefsManager.setCachedBackupHistory(emptyList())
         _internalState.update {
             it.copy(
                 driveBackupExists = false,
@@ -229,17 +244,26 @@ class SettingsViewModel : ViewModel() {
 
     /**
      * Verifica de forma asíncrona la existencia del respaldo remoto en Google Drive al entrar a la pantalla.
+     * Respeta la caché persistente si el tiempo transcurrido es menor a 20 segundos.
      *
      * @param token Token de acceso OAuth2 vigente.
      */
     fun checkRemoteBackupOnStartup(token: String) {
+        val now = System.currentTimeMillis()
+        val lastFetch = prefsManager.getLastBackupHistoryFetchTimestamp()
+        val hasCachedItems = _internalState.value.backupHistoryList.isNotEmpty()
+        val isCacheFresh = (now - lastFetch < SecurityConfig.BACKUP_HISTORY_CACHE_TTL_MILLIS) && hasCachedItems
+
+        if (isCacheFresh) return
+
         viewModelScope.launch(Dispatchers.IO) {
             _internalState.update { it.copy(isCheckingDriveBackup = true) }
             try {
                 val historyResult = ManualSyncManager.fetchBackupHistory(token)
                 if (historyResult.isSuccess) {
                     val items = historyResult.getOrNull().orEmpty()
-                    lastBackupHistoryFetchTimestamp = System.currentTimeMillis()
+                    prefsManager.setLastBackupHistoryFetchTimestamp(System.currentTimeMillis())
+                    prefsManager.setCachedBackupHistory(items)
                     val mostRecent = items.firstOrNull()
                     val accounts = repository.getAccounts().first()
                     val currentVaultHash = CloudVaultSyncManager.computeAccountsSignature(accounts)
@@ -294,22 +318,21 @@ class SettingsViewModel : ViewModel() {
 
     /**
      * Consulta el historial de versiones aplicando caché TTL (20 segundos) para evitar saturación de red.
+     * Solo realiza la petición si la caché en memoria expiró o está vacía.
      *
      * @param token Token de acceso de Google Drive.
-     * @param forceRefresh Verdadero si se desea omitir la caché y consultar obligatoriamente.
      * @param onAuthExpired Callback invocado si el token ha expirado y requiere reautenticación silenciosa.
      */
     fun fetchBackupHistoryIfNeeded(
         token: String,
-        forceRefresh: Boolean = false,
         onAuthExpired: () -> Unit
     ) {
         val now = System.currentTimeMillis()
-        val isCacheStale = forceRefresh ||
-                _internalState.value.backupHistoryList.isEmpty() ||
-                (now - lastBackupHistoryFetchTimestamp > SecurityConfig.BACKUP_HISTORY_CACHE_TTL_MILLIS)
+        val lastFetch = prefsManager.getLastBackupHistoryFetchTimestamp()
+        val hasCachedItems = _internalState.value.backupHistoryList.isNotEmpty()
+        val isCacheFresh = (now - lastFetch < SecurityConfig.BACKUP_HISTORY_CACHE_TTL_MILLIS) && hasCachedItems
 
-        if (!isCacheStale) return
+        if (isCacheFresh) return
 
         viewModelScope.launch(Dispatchers.IO) {
             _internalState.update { it.copy(isFetchingBackupHistory = true) }
@@ -317,7 +340,8 @@ class SettingsViewModel : ViewModel() {
                 val historyResult = ManualSyncManager.fetchBackupHistory(token)
                 if (historyResult.isSuccess) {
                     val items = historyResult.getOrNull().orEmpty()
-                    lastBackupHistoryFetchTimestamp = System.currentTimeMillis()
+                    prefsManager.setLastBackupHistoryFetchTimestamp(System.currentTimeMillis())
+                    prefsManager.setCachedBackupHistory(items)
                     val mostRecent = items.firstOrNull()
                     _internalState.update {
                         it.copy(
@@ -340,14 +364,55 @@ class SettingsViewModel : ViewModel() {
     }
 
     /**
-     * Refresca la lista de versiones en segundo plano.
+     * Fuerza la actualización inmediata del historial de versiones desde Google Drive,
+     * omitiendo el tiempo de enfriamiento, mostrando la animación de carga y reiniciando el temporizador.
+     *
+     * @param token Token de acceso de Google Drive.
+     * @param onAuthExpired Callback invocado si el token ha expirado.
+     */
+    fun forceRefreshBackupHistory(
+        token: String,
+        onAuthExpired: () -> Unit
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _internalState.update { it.copy(isRefreshingBackupHistory = true) }
+            try {
+                val historyResult = ManualSyncManager.fetchBackupHistory(token)
+                if (historyResult.isSuccess) {
+                    val items = historyResult.getOrNull().orEmpty()
+                    prefsManager.setLastBackupHistoryFetchTimestamp(System.currentTimeMillis())
+                    prefsManager.setCachedBackupHistory(items)
+                    val mostRecent = items.firstOrNull()
+                    _internalState.update {
+                        it.copy(
+                            backupHistoryList = items,
+                            driveBackupExists = items.isNotEmpty(),
+                            driveBackupInfo = mostRecent?.let { m ->
+                                DriveBackupInfo(m.fileId, m.modifiedTimeMillis, m.deviceName)
+                            }
+                        )
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        onAuthExpired()
+                    }
+                }
+            } finally {
+                _internalState.update { it.copy(isRefreshingBackupHistory = false) }
+            }
+        }
+    }
+
+    /**
+     * Refresca la lista de versiones en segundo plano tras una mutación.
      */
     private fun refreshBackupHistory(token: String) {
         viewModelScope.launch(Dispatchers.IO) {
             val historyResult = ManualSyncManager.fetchBackupHistory(token)
             if (historyResult.isSuccess) {
                 val items = historyResult.getOrNull().orEmpty()
-                lastBackupHistoryFetchTimestamp = System.currentTimeMillis()
+                prefsManager.setLastBackupHistoryFetchTimestamp(System.currentTimeMillis())
+                prefsManager.setCachedBackupHistory(items)
                 val mostRecent = items.firstOrNull()
                 _internalState.update {
                     it.copy(
@@ -371,14 +436,15 @@ class SettingsViewModel : ViewModel() {
      */
     fun deleteSpecificBackup(token: String, fileId: String, onComplete: (Boolean) -> Unit) {
         viewModelScope.launch {
-            _internalState.update { it.copy(isFetchingBackupHistory = true) }
+            _internalState.update { it.copy(isRefreshingBackupHistory = true) }
             try {
                 val result = withContext(Dispatchers.IO) {
                     ManualSyncManager.deleteSpecificBackup(token, fileId)
                 }
                 if (result.isSuccess) {
                     val updated = _internalState.value.backupHistoryList.filterNot { it.fileId == fileId }
-                    lastBackupHistoryFetchTimestamp = System.currentTimeMillis()
+                    prefsManager.setLastBackupHistoryFetchTimestamp(System.currentTimeMillis())
+                    prefsManager.setCachedBackupHistory(updated)
                     val mostRecent = updated.firstOrNull()
                     _internalState.update {
                         it.copy(
@@ -394,7 +460,7 @@ class SettingsViewModel : ViewModel() {
                     onComplete(false)
                 }
             } finally {
-                _internalState.update { it.copy(isFetchingBackupHistory = false) }
+                _internalState.update { it.copy(isRefreshingBackupHistory = false) }
             }
         }
     }
@@ -407,13 +473,14 @@ class SettingsViewModel : ViewModel() {
      */
     fun deleteAllBackups(token: String, onComplete: (Boolean) -> Unit) {
         viewModelScope.launch {
-            _internalState.update { it.copy(isFetchingBackupHistory = true) }
+            _internalState.update { it.copy(isRefreshingBackupHistory = true) }
             try {
                 val result = withContext(Dispatchers.IO) {
                     ManualSyncManager.deleteAllBackups(token)
                 }
                 if (result.isSuccess) {
-                    lastBackupHistoryFetchTimestamp = 0L
+                    prefsManager.setLastBackupHistoryFetchTimestamp(0L)
+                    prefsManager.setCachedBackupHistory(emptyList())
                     _internalState.update {
                         it.copy(
                             backupHistoryList = emptyList(),
@@ -428,7 +495,7 @@ class SettingsViewModel : ViewModel() {
                     onComplete(false)
                 }
             } finally {
-                _internalState.update { it.copy(isFetchingBackupHistory = false) }
+                _internalState.update { it.copy(isRefreshingBackupHistory = false) }
             }
         }
     }
@@ -497,7 +564,7 @@ class SettingsViewModel : ViewModel() {
                     ManualSyncManager.restoreFromBackup(context, token, passChars)
                 }
                 if (result.isSuccess) {
-                    lastBackupHistoryFetchTimestamp = 0L
+                    prefsManager.setLastBackupHistoryFetchTimestamp(0L)
                     if (uiState.value.isAutoSyncEnabled) {
                         CloudVaultSyncManager.triggerReactiveSync(context, 0L)
                     }
@@ -532,7 +599,7 @@ class SettingsViewModel : ViewModel() {
                     ManualSyncManager.restoreSpecificBackup(context, token, fileId, passChars)
                 }
                 if (result.isSuccess) {
-                    lastBackupHistoryFetchTimestamp = 0L
+                    prefsManager.setLastBackupHistoryFetchTimestamp(0L)
                     if (uiState.value.isAutoSyncEnabled) {
                         CloudVaultSyncManager.triggerReactiveSync(context, 0L)
                     }

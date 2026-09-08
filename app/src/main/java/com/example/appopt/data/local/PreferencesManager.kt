@@ -2,12 +2,15 @@ package com.example.appopt.data.local
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
+import com.example.appopt.data.cloud.DriveBackupItem
 import com.example.appopt.data.cloud.SyncFrequency
 import com.example.appopt.util.PerformanceMonitor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import androidx.core.content.edit
+import org.json.JSONArray
+import org.json.JSONObject
 
 /**
  * Gestor de preferencias de usuario persistentes (modo de privacidad, etc.).
@@ -42,6 +45,9 @@ class PreferencesManager(context: Context) {
     private val _isFpsOverlayEnabled = MutableStateFlow(sharedPreferences.getBoolean(KEY_FPS_OVERLAY, true))
     val isFpsOverlayEnabledFlow: StateFlow<Boolean> = _isFpsOverlayEnabled.asStateFlow()
 
+    private val _lastBackupHistoryFetchTimestamp = MutableStateFlow(sharedPreferences.getLong(KEY_LAST_BACKUP_HISTORY_FETCH, 0L))
+    val lastBackupHistoryFetchTimestampFlow: StateFlow<Long> = _lastBackupHistoryFetchTimestamp.asStateFlow()
+
     private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
         when (key) {
             KEY_HIDE_CODES -> _isHideCodesEnabled.value = prefs.getBoolean(KEY_HIDE_CODES, false)
@@ -51,6 +57,7 @@ class PreferencesManager(context: Context) {
             KEY_AUTO_SYNC_ENABLED -> _isAutoSyncEnabled.value = prefs.getBoolean(KEY_AUTO_SYNC_ENABLED, true)
             KEY_SYNC_MOBILE_DATA -> _isSyncMobileData.value = prefs.getBoolean(KEY_SYNC_MOBILE_DATA, false)
             KEY_FPS_OVERLAY -> _isFpsOverlayEnabled.value = prefs.getBoolean(KEY_FPS_OVERLAY, true)
+            KEY_LAST_BACKUP_HISTORY_FETCH -> _lastBackupHistoryFetchTimestamp.value = prefs.getLong(KEY_LAST_BACKUP_HISTORY_FETCH, 0L)
         }
     }
 
@@ -190,6 +197,75 @@ class PreferencesManager(context: Context) {
         }
     }
 
+    /**
+     * Retorna la marca de tiempo de la última consulta de historial de copias de seguridad de Google Drive.
+     */
+    fun getLastBackupHistoryFetchTimestamp(): Long {
+        return _lastBackupHistoryFetchTimestamp.value
+    }
+
+    /**
+     * Guarda la marca de tiempo de la última consulta de historial de copias de seguridad.
+     */
+    fun setLastBackupHistoryFetchTimestamp(timestamp: Long) {
+        _lastBackupHistoryFetchTimestamp.value = timestamp
+        sharedPreferences.edit { putLong(KEY_LAST_BACKUP_HISTORY_FETCH, timestamp) }
+    }
+
+    /**
+     * Recupera la lista de versiones de respaldo de Google Drive almacenadas localmente en caché.
+     *
+     * @return Lista de [DriveBackupItem] o lista vacía si no hay caché persistida.
+     */
+    fun getCachedBackupHistory(): List<DriveBackupItem> {
+        val jsonStr = sharedPreferences.getString(KEY_CACHED_BACKUP_HISTORY, null) ?: return emptyList()
+        return try {
+            val jsonArray = JSONArray(jsonStr)
+            val list = mutableListOf<DriveBackupItem>()
+            for (i in 0 until jsonArray.length()) {
+                val obj = jsonArray.getJSONObject(i)
+                list.add(
+                    DriveBackupItem(
+                        fileId = obj.getString("fileId"),
+                        fileName = obj.getString("fileName"),
+                        modifiedTimeMillis = obj.getLong("modifiedTimeMillis"),
+                        sizeBytes = obj.getLong("sizeBytes"),
+                        deviceName = obj.optString("deviceName", ""),
+                        isMostRecent = obj.optBoolean("isMostRecent", false)
+                    )
+                )
+            }
+            list
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    /**
+     * Guarda de forma persistente la lista de versiones de respaldo de Google Drive en caché local JSON.
+     *
+     * @param items Lista de [DriveBackupItem] a guardar.
+     */
+    fun setCachedBackupHistory(items: List<DriveBackupItem>) {
+        try {
+            val jsonArray = JSONArray()
+            for (item in items) {
+                val obj = JSONObject().apply {
+                    put("fileId", item.fileId)
+                    put("fileName", item.fileName)
+                    put("modifiedTimeMillis", item.modifiedTimeMillis)
+                    put("sizeBytes", item.sizeBytes)
+                    put("deviceName", item.deviceName)
+                    put("isMostRecent", item.isMostRecent)
+                }
+                jsonArray.put(obj)
+            }
+            sharedPreferences.edit { putString(KEY_CACHED_BACKUP_HISTORY, jsonArray.toString()) }
+        } catch (_: Exception) {
+            // Ignorar errores no críticos de persistencia de caché
+        }
+    }
+
     companion object {
         private const val PREFS_NAME = "authenticator_user_preferences"
         private const val KEY_HIDE_CODES = "key_hide_codes"
@@ -200,5 +276,7 @@ class PreferencesManager(context: Context) {
         private const val KEY_LAST_VAULT_HASH = "key_last_vault_hash"
         private const val KEY_SYNC_FREQUENCY = "key_sync_frequency"
         private const val KEY_FPS_OVERLAY = "key_fps_overlay"
+        private const val KEY_LAST_BACKUP_HISTORY_FETCH = "key_last_backup_history_fetch"
+        private const val KEY_CACHED_BACKUP_HISTORY = "key_cached_backup_history"
     }
 }

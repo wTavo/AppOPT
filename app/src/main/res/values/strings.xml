@@ -135,6 +135,8 @@
     <string name="settings_drive_details_back">Volver</string>
     <string name="settings_drive_history_title">Historial de copias de seguridad</string>
     <string name="settings_drive_history_subtitle">Se conservan automáticamente las últimas 3 versiones de tu bóveda.</string>
+    <string name="settings_drive_history_refresh_action">Actualizar</string>
+    <string name="settings_drive_history_cooldown_badge">%1$d s</string>
     <string name="settings_drive_history_empty">No hay copias de seguridad disponibles en Google Drive.</string>
     <string name="settings_drive_history_loading">Cargando versiones de respaldo…</string>
     <string name="settings_drive_restore_version_action">Restaurar</string>
@@ -144,7 +146,7 @@
     <string name="settings_drive_delete_all_confirm_desc">Se borrarán permanentemente todas las versiones de la nube. Esta acción no se puede deshacer.</string>
     <string name="settings_drive_delete_version_confirm_title">¿Eliminar esta versión?</string>
     <string name="settings_drive_delete_version_confirm_desc">Esta versión de la copia de seguridad será eliminada de forma irreversible.</string>
-    <string name="settings_drive_version_most_recent_badge">Más reciente</string>
+    <string name="settings_drive_version_actual_badge">Actual</string>
     <string name="settings_drive_delete_single_success">Versión eliminada correctamente</string>
     <string name="settings_drive_delete_all_success">Todas las copias de seguridad fueron eliminadas</string>
     <string name="settings_drive_overwrite_title">Sobrescribir copia existente</string>

@@ -138,9 +138,10 @@ fun DriveDecryptDialog(
                                             color = SafeGreen.copy(alpha = 0.15f)
                                         ) {
                                             Text(
-                                                text = stringResource(R.string.settings_drive_version_most_recent_badge),
+                                                text = stringResource(R.string.settings_drive_version_actual_badge),
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = SafeGreen,
+                                                maxLines = 1,
                                                 modifier = Modifier.padding(horizontal = Dimensions.Spacing.xs, vertical = Dimensions.Spacing.xs)
                                             )
                                         }

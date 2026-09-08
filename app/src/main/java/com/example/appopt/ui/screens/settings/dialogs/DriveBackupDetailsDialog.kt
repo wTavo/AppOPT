@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudQueue
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -30,12 +31,14 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -49,9 +52,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.Dp
 import com.example.appopt.R
 import com.example.appopt.data.cloud.DriveBackupItem
 import com.example.appopt.security.MnemonicManager
+import com.example.appopt.security.SecurityConfig
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.SafeGreen
 import com.example.appopt.ui.theme.rememberAppHaptics
@@ -69,7 +74,11 @@ import kotlin.time.Duration.Companion.milliseconds
  * de nomenclatura de botones («Cerrar» para vista principal, «Volver» para sub-estados).
  *
  * @param backupItems Lista de versiones de respaldo disponibles ordenadas por fecha.
- * @param isLoading Indica si hay una operación asíncrona de carga o borrado en curso.
+ * @param isLoading Indica si hay una operación asíncrona de consulta, recarga o borrado en curso.
+ * @param lastFetchTimestamp Marca de tiempo de la última consulta al historial para cálculo del enfriamiento.
+ * @param lastSyncTimestamp Marca de tiempo de la última sincronización local confirmada.
+ * @param hasUnsyncedChanges Indica si hay cambios locales sin sincronizar en este dispositivo.
+ * @param onForceRefresh Callback invocado para forzar una consulta fresca a Google Drive al presionar el botón de refresco.
  * @param onRestoreBackup Callback invocado para restaurar una versión específica con sus caracteres de descifrado.
  * @param onDeleteSpecificBackup Callback invocado para eliminar una versión específica.
  * @param onDeleteAllConfirmed Callback invocado para eliminar todas las copias de seguridad de la nube.
@@ -80,6 +89,10 @@ import kotlin.time.Duration.Companion.milliseconds
 fun DriveBackupDetailsDialog(
     backupItems: List<DriveBackupItem>,
     isLoading: Boolean,
+    lastFetchTimestamp: Long = 0L,
+    lastSyncTimestamp: Long = 0L,
+    hasUnsyncedChanges: Boolean = false,
+    onForceRefresh: () -> Unit = {},
     onRestoreBackup: (DriveBackupItem, CharArray) -> Unit,
     onDeleteSpecificBackup: (DriveBackupItem) -> Unit,
     onDeleteAllConfirmed: () -> Unit,
@@ -99,12 +112,15 @@ fun DriveBackupDetailsDialog(
 
     LaunchedEffect(Unit) {
         while (isActive) {
-            val now = System.currentTimeMillis()
-            currentTick = now
-            val millisUntilNextMinute = 60_000L - (now % 60_000L)
-            delay(millisUntilNextMinute.coerceAtLeast(1_000L).milliseconds)
+            currentTick = System.currentTimeMillis()
+            delay(1_000L.milliseconds)
         }
     }
+
+    val elapsed = (currentTick - lastFetchTimestamp).coerceAtLeast(0L)
+    val remainingMillis = (SecurityConfig.BACKUP_HISTORY_CACHE_TTL_MILLIS - elapsed).coerceAtLeast(0L)
+    val secondsRemaining = (remainingMillis + 999L) / 1000L
+    val isCooldownActive = secondsRemaining > 0L
 
     AlertDialog(
         onDismissRequest = {
@@ -141,8 +157,13 @@ fun DriveBackupDetailsDialog(
         text = {
             when {
                 pendingRestoreBackup != null -> {
+                    val pendingTarget = pendingRestoreBackup!!
+                    val isPendingActual = lastSyncTimestamp > 0L &&
+                            !hasUnsyncedChanges &&
+                            (pendingTarget.modifiedTimeMillis == lastSyncTimestamp || Math.abs(pendingTarget.modifiedTimeMillis - lastSyncTimestamp) < 3000L)
                     DriveBackupDecryptForm(
-                        targetBackup = pendingRestoreBackup!!,
+                        targetBackup = pendingTarget,
+                        isActual = isPendingActual,
                         restoreSecretText = restoreSecretText,
                         onRestoreSecretChange = { restoreSecretText = it },
                         isRestoreSecretVisible = isRestoreSecretVisible,
@@ -168,13 +189,67 @@ fun DriveBackupDetailsDialog(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
                     ) {
-                        Text(
-                            text = stringResource(R.string.settings_drive_history_subtitle),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(Dimensions.IconSize.large),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.settings_drive_history_subtitle),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                                Box(
+                                    modifier = Modifier.height(Dimensions.IconSize.large),
+                                    contentAlignment = Alignment.CenterEnd
+                                ) {
+                                    if (isLoading) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(Dimensions.IconSize.small),
+                                            strokeWidth = Dimensions.Stroke.thin
+                                        )
+                                    } else if (isCooldownActive) {
+                                        Surface(
+                                            shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
+                                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                        ) {
+                                            Text(
+                                                text = stringResource(R.string.settings_drive_history_cooldown_badge, secondsRemaining),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                modifier = Modifier.padding(
+                                                    horizontal = Dimensions.Spacing.xs,
+                                                    vertical = Dimensions.Spacing.xs / 2
+                                                )
+                                            )
+                                        }
+                                    } else {
+                                        IconButton(
+                                            onClick = {
+                                                appHaptics.click()
+                                                onForceRefresh()
+                                            },
+                                            modifier = Modifier.size(Dimensions.IconSize.large)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.Refresh,
+                                                contentDescription = stringResource(R.string.settings_drive_history_refresh_action),
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(Dimensions.IconSize.small)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
 
-                        if (isLoading && backupItems.isEmpty()) {
+                        if (isLoading) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -207,9 +282,13 @@ fun DriveBackupDetailsDialog(
                                     val formattedDate = remember(item.modifiedTimeMillis, currentTick) {
                                         DateTimeFormatter.formatRelativeSyncTime(context, item.modifiedTimeMillis)
                                     }
+                                    val isActual = lastSyncTimestamp > 0L &&
+                                            !hasUnsyncedChanges &&
+                                            (item.modifiedTimeMillis == lastSyncTimestamp || Math.abs(item.modifiedTimeMillis - lastSyncTimestamp) < 3000L)
 
                                     DriveBackupItemCard(
                                         item = item,
+                                        isActual = isActual,
                                         formattedDate = formattedDate,
                                         onDeleteClick = {
                                             appHaptics.click()
@@ -361,6 +440,7 @@ fun DriveBackupDetailsDialog(
 @Composable
 private fun DriveBackupDecryptForm(
     targetBackup: DriveBackupItem,
+    isActual: Boolean,
     restoreSecretText: String,
     onRestoreSecretChange: (String) -> Unit,
     isRestoreSecretVisible: Boolean,
@@ -380,7 +460,7 @@ private fun DriveBackupDecryptForm(
             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
             border = BorderStroke(
                 Dimensions.Stroke.thin,
-                if (targetBackup.isMostRecent) SafeGreen.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+                if (isActual) SafeGreen.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
             ),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -395,15 +475,15 @@ private fun DriveBackupDecryptForm(
                     modifier = Modifier
                         .size(Dimensions.IconSize.hero)
                         .background(
-                            color = (if (targetBackup.isMostRecent) SafeGreen else MaterialTheme.colorScheme.primary).copy(alpha = 0.12f),
+                            color = (if (isActual) SafeGreen else MaterialTheme.colorScheme.primary).copy(alpha = 0.12f),
                             shape = CircleShape
                         ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = if (targetBackup.isMostRecent) Icons.Filled.CloudDone else Icons.Filled.Restore,
+                        imageVector = if (isActual) Icons.Filled.CloudDone else Icons.Filled.Restore,
                         contentDescription = null,
-                        tint = if (targetBackup.isMostRecent) SafeGreen else MaterialTheme.colorScheme.primary,
+                        tint = if (isActual) SafeGreen else MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(Dimensions.IconSize.small)
                     )
                 }
@@ -419,17 +499,19 @@ private fun DriveBackupDecryptForm(
                         Text(
                             text = formattedDate,
                             style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1
                         )
-                        if (targetBackup.isMostRecent) {
+                        if (isActual) {
                             Surface(
                                 shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
                                 color = SafeGreen.copy(alpha = 0.15f)
                             ) {
                                 Text(
-                                    text = stringResource(R.string.settings_drive_version_most_recent_badge),
+                                    text = stringResource(R.string.settings_drive_version_actual_badge),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = SafeGreen,
+                                    maxLines = 1,
                                     modifier = Modifier.padding(
                                         horizontal = Dimensions.Spacing.xs,
                                         vertical = Dimensions.Spacing.xs / 2
@@ -443,7 +525,8 @@ private fun DriveBackupDecryptForm(
                         Text(
                             text = stringResource(R.string.settings_drive_decrypt_device, targetBackup.deviceName),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
                         )
                     }
                 }
@@ -482,20 +565,21 @@ private fun DriveBackupDecryptForm(
 @Composable
 private fun DriveBackupItemCard(
     item: DriveBackupItem,
+    isActual: Boolean,
     formattedDate: String,
     onDeleteClick: () -> Unit,
     onRestoreClick: () -> Unit
 ) {
     Surface(
         shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-        color = if (item.isMostRecent) {
+        color = if (isActual) {
             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
         } else {
             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
         },
         border = BorderStroke(
             Dimensions.Stroke.thin,
-            if (item.isMostRecent) SafeGreen.copy(alpha = 0.45f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)
+            if (isActual) SafeGreen.copy(alpha = 0.45f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)
         ),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -519,15 +603,15 @@ private fun DriveBackupItemCard(
                         modifier = Modifier
                             .size(Dimensions.IconSize.hero)
                             .background(
-                                color = (if (item.isMostRecent) SafeGreen else MaterialTheme.colorScheme.primary).copy(alpha = 0.12f),
+                                color = (if (isActual) SafeGreen else MaterialTheme.colorScheme.primary).copy(alpha = 0.12f),
                                 shape = CircleShape
                             ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = if (item.isMostRecent) Icons.Filled.CloudDone else Icons.Filled.CloudQueue,
+                            imageVector = if (isActual) Icons.Filled.CloudDone else Icons.Filled.CloudQueue,
                             contentDescription = null,
-                            tint = if (item.isMostRecent) SafeGreen else MaterialTheme.colorScheme.primary,
+                            tint = if (isActual) SafeGreen else MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(Dimensions.IconSize.small)
                         )
                     }
@@ -543,19 +627,21 @@ private fun DriveBackupItemCard(
                             Text(
                                 text = formattedDate,
                                 style = MaterialTheme.typography.titleSmall,
-                                fontWeight = if (item.isMostRecent) FontWeight.Bold else FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                fontWeight = if (isActual) FontWeight.Bold else FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1
                             )
-                            if (item.isMostRecent) {
+                            if (isActual) {
                                 Surface(
                                     shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
                                     color = SafeGreen.copy(alpha = 0.15f)
                                 ) {
                                     Text(
-                                        text = stringResource(R.string.settings_drive_version_most_recent_badge),
+                                        text = stringResource(R.string.settings_drive_version_actual_badge),
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Medium,
                                         color = SafeGreen,
+                                        maxLines = 1,
                                         modifier = Modifier.padding(
                                             horizontal = Dimensions.Spacing.xs,
                                             vertical = Dimensions.Spacing.xs / 2
@@ -569,7 +655,8 @@ private fun DriveBackupItemCard(
                             Text(
                                 text = item.deviceName,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1
                             )
                         }
                     }
@@ -588,7 +675,7 @@ private fun DriveBackupItemCard(
                 }
             }
 
-            if (!item.isMostRecent) {
+            if (!isActual) {
                 Button(
                     onClick = onRestoreClick,
                     shape = RoundedCornerShape(Dimensions.CornerRadius.small),

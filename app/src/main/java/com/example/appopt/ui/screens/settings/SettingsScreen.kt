@@ -380,7 +380,7 @@ fun SettingsScreen(
                                 driveAccessToken = null
                                 GoogleDriveManager.currentAccessToken = null
                                 requestGoogleAuthorization { freshToken ->
-                                    viewModel.fetchBackupHistoryIfNeeded(freshToken, forceRefresh = true) {}
+                                    viewModel.fetchBackupHistoryIfNeeded(freshToken) {}
                                 }
                             }
                         )
@@ -482,6 +482,31 @@ fun SettingsScreen(
         DriveBackupDetailsDialog(
             backupItems = uiState.backupHistoryList,
             isLoading = uiState.isFetchingBackupHistory,
+            lastFetchTimestamp = uiState.lastHistoryFetchTimestamp,
+            lastSyncTimestamp = uiState.effectiveLastSyncTimestamp,
+            hasUnsyncedChanges = uiState.hasUnsyncedChanges,
+            onForceRefresh = {
+                val token = driveAccessToken ?: GoogleDriveManager.currentAccessToken
+                if (token == null) {
+                    requestGoogleAuthorization { freshToken ->
+                        viewModel.forceRefreshBackupHistory(freshToken) {
+                            driveAccessToken = null
+                            GoogleDriveManager.currentAccessToken = null
+                        }
+                    }
+                } else {
+                    viewModel.forceRefreshBackupHistory(
+                        token = token,
+                        onAuthExpired = {
+                            driveAccessToken = null
+                            GoogleDriveManager.currentAccessToken = null
+                            requestGoogleAuthorization { freshToken ->
+                                viewModel.forceRefreshBackupHistory(freshToken) {}
+                            }
+                        }
+                    )
+                }
+            },
             onRestoreBackup = { item, passChars ->
                 showBackupDetailsDialog = false
                 val token = driveAccessToken ?: GoogleDriveManager.currentAccessToken

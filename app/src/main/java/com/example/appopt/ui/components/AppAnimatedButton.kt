@@ -38,6 +38,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+
 /**
  * Estados visuales de interacción para [AppAnimatedButton].
  */
@@ -67,6 +75,8 @@ enum class AnimatedButtonState {
  * @param modifier Modificador de layout Compose.
  * @param enabled Si es falso, el botón queda deshabilitado visual y funcionalmente.
  * @param containerColor Color de fondo opcional en estado normal (por defecto [MaterialTheme.colorScheme.primary]).
+ * @param height Altura estandarizada del botón (por defecto [Dimensions.ComponentHeight.buttonDefault]).
+ * @param leadingIcon Icono vectorial opcional colocado a la izquierda del texto.
  */
 @Composable
 fun AppAnimatedButton(
@@ -75,7 +85,9 @@ fun AppAnimatedButton(
     onActionConfirmed: () -> Unit = {},
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    containerColor: Color? = null
+    containerColor: Color? = null,
+    height: Dp = Dimensions.ComponentHeight.buttonDefault,
+    leadingIcon: ImageVector? = null
 ) {
     val coroutineScope = rememberCoroutineScope()
     val appHaptics = rememberAppHaptics()
@@ -97,6 +109,7 @@ fun AppAnimatedButton(
     )
 
     val isButtonInteractive = enabled && !isProcessing && buttonState == AnimatedButtonState.IDLE
+    val isCompact = height == Dimensions.ComponentHeight.buttonCompact
 
     Button(
         onClick = {
@@ -128,6 +141,7 @@ fun AppAnimatedButton(
             }
         },
         enabled = isButtonInteractive || buttonState != AnimatedButtonState.IDLE,
+        contentPadding = if (isCompact) PaddingValues(horizontal = Dimensions.Spacing.sm, vertical = 0.dp) else ButtonDefaults.ContentPadding,
         colors = ButtonDefaults.buttonColors(
             containerColor = animatedContainerColor,
             contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -144,7 +158,7 @@ fun AppAnimatedButton(
         shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
         modifier = modifier
             .fillMaxWidth()
-            .height(Dimensions.ComponentHeight.buttonDefault)
+            .height(height)
     ) {
         AnimatedContent(
             targetState = buttonState,
@@ -161,7 +175,7 @@ fun AppAnimatedButton(
                             imageVector = Icons.Filled.Check,
                             contentDescription = stringResource(R.string.home_sync_success),
                             tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(Dimensions.IconSize.large)
+                            modifier = Modifier.size(if (isCompact) Dimensions.IconSize.medium else Dimensions.IconSize.large)
                         )
                     }
                 }
@@ -171,16 +185,30 @@ fun AppAnimatedButton(
                             imageVector = Icons.Filled.Close,
                             contentDescription = stringResource(R.string.home_sync_error),
                             tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(Dimensions.IconSize.large)
+                            modifier = Modifier.size(if (isCompact) Dimensions.IconSize.medium else Dimensions.IconSize.large)
                         )
                     }
                 }
                 AnimatedButtonState.IDLE -> {
-                    Text(
-                        text = text,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                    ) {
+                        if (leadingIcon != null) {
+                            Icon(
+                                imageVector = leadingIcon,
+                                contentDescription = null,
+                                modifier = Modifier.size(if (isCompact) Dimensions.IconSize.small else Dimensions.IconSize.medium),
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+                        Text(
+                            text = text,
+                            style = if (isCompact) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            maxLines = 1
+                        )
+                    }
                 }
             }
         }

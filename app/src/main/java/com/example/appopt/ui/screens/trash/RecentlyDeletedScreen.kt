@@ -1,5 +1,6 @@
 package com.example.appopt.ui.screens.trash
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +21,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoDelete
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Restore
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -56,7 +59,6 @@ import com.example.appopt.security.SecurityConfig
 import com.example.appopt.ui.components.AppAnimatedButton
 import com.example.appopt.ui.components.ServiceBrandAvatar
 import com.example.appopt.ui.theme.Dimensions
-import com.example.appopt.ui.theme.UrgentRed
 import com.example.appopt.ui.theme.rememberAppHaptics
 import kotlinx.coroutines.launch
 
@@ -451,27 +453,44 @@ private fun DeletedAccountCard(
                 }
             }
 
-            // Acciones: Restaurar y Eliminar definitivamente
+            // Acciones compactas y alineadas: Eliminar definitivamente y Restaurar
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedButton(
                     onClick = onPermanentDelete,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(Dimensions.ComponentHeight.buttonCompact),
+                    contentPadding = PaddingValues(horizontal = Dimensions.Spacing.sm, vertical = 0.dp),
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = UrgentRed
+                        contentColor = MaterialTheme.colorScheme.error
+                    ),
+                    border = BorderStroke(
+                        Dimensions.Stroke.thin,
+                        MaterialTheme.colorScheme.error.copy(alpha = 0.4f)
                     )
                 ) {
+                    Icon(
+                        imageVector = Icons.Filled.DeleteForever,
+                        contentDescription = null,
+                        modifier = Modifier.size(Dimensions.IconSize.small)
+                    )
+                    Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
                     Text(
                         text = stringResource(R.string.trash_permanent_delete_button),
-                        style = MaterialTheme.typography.labelMedium
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1
                     )
                 }
 
                 AppAnimatedButton(
                     text = stringResource(R.string.trash_restore_button),
+                    leadingIcon = Icons.Filled.Restore,
+                    height = Dimensions.ComponentHeight.buttonCompact,
                     onClick = {
                         onRestore()
                         true

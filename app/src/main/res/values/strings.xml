@@ -278,8 +278,8 @@
     <string name="emergency_kit_print_error">No se pudo generar el documento para impresión. Comprueba el almacenamiento disponible e inténtalo de nuevo.</string>
     <string name="emergency_kit_descriptor_error">El servicio de impresión del sistema no devolvió un destino válido.</string>
 
-    <!-- Papelera de Reciclaje y Eliminados Recientemente (30 Días) -->
-    <string name="trash_nav_title">Eliminados recientemente</string>
+    <!-- Papelera de Reciclaje (30 Días) -->
+    <string name="trash_nav_title">Papelera de reciclaje</string>
     <string name="trash_title">Papelera de reciclaje</string>
     <string name="trash_description">Los servicios eliminados se conservan aquí durante 30 días antes de su eliminación permanente.</string>
     <string name="trash_badge_count">%1$d en papelera</string>
@@ -298,7 +298,7 @@
     <string name="trash_permanent_delete_success">Servicio eliminado definitivamente</string>
     <string name="trash_empty_state_title">La papelera está vacía</string>
     <string name="trash_empty_state_desc">Los servicios que elimines se guardarán aquí durante 30 días por si necesitas recuperarlos.</string>
-    <string name="account_details_delete_to_trash_hint">Este servicio se trasladará a \"Eliminados recientemente\". Podrás restaurarlo durante los próximos 30 días antes de su eliminación definitiva.</string>
+    <string name="account_details_delete_to_trash_hint">Este servicio se trasladará a la papelera de reciclaje. Podrás restaurarlo durante los próximos 30 días antes de su eliminación definitiva.</string>
     <string name="account_details_move_to_trash_btn">Mover a la papelera</string>
     <string name="account_details_moved_to_trash_success">Servicio movido a la papelera</string>
 

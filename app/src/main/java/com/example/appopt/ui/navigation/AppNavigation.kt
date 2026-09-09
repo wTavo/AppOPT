@@ -55,13 +55,13 @@ fun AppNavigation() {
                 scaleOut(
                     targetScale = Motion.Scale.NAV_BACKGROUND_SHRINK,
                     animationSpec = Motion.Spec.navButtonExpandScaleSpec()
-                ) + fadeOut(animationSpec = Motion.Spec.navButtonExpandFadeSpec())
+                )
             },
             popEnterTransition = {
                 scaleIn(
                     initialScale = Motion.Scale.NAV_BACKGROUND_SHRINK,
                     animationSpec = Motion.Spec.navButtonExpandScaleSpec()
-                ) + fadeIn(animationSpec = Motion.Spec.navButtonExpandFadeSpec())
+                )
             }
         ) {
             composable(Screen.Home.route) {

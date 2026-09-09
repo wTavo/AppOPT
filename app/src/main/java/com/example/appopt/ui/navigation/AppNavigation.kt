@@ -39,7 +39,7 @@ import com.example.appopt.util.PerformanceFpsOverlay
  * - [LockScreen] se sitúa como una capa opaca superior (*Z-Index Overlay*) cuando la bóveda está bloqueada.
  * - Al autenticar exitosamente, la capa de bloqueo se retira de inmediato mostrando los servicios sin pausas ni pantallas vacías.
  * - Incorpora la superposición de diagnóstico [PerformanceFpsOverlay] en la capa superior si está activada.
- * - Transición de Esquina (Variación A): Expansión y repliegue focalizado desde el anclaje de botones en la esquina superior derecha.
+ * - Transiciones Contextuales: Expansión y repliegue focalizados desde el botón de invocación específico en el dock inferior.
  */
 @Composable
 fun AppNavigation() {
@@ -51,13 +51,6 @@ fun AppNavigation() {
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
-            enterTransition = {
-                scaleIn(
-                    initialScale = Motion.Scale.NAV_CORNER_COLLAPSE,
-                    transformOrigin = Motion.Anchor.TopRight,
-                    animationSpec = Motion.Spec.navCornerScaleSpec()
-                ) + fadeIn(animationSpec = Motion.Spec.navCornerFadeSpec())
-            },
             exitTransition = {
                 scaleOut(
                     targetScale = Motion.Scale.NAV_BACKGROUND_SHRINK,
@@ -69,13 +62,6 @@ fun AppNavigation() {
                     initialScale = Motion.Scale.NAV_BACKGROUND_SHRINK,
                     animationSpec = Motion.Spec.navCornerScaleSpec()
                 ) + fadeIn(animationSpec = Motion.Spec.navCornerFadeSpec())
-            },
-            popExitTransition = {
-                scaleOut(
-                    targetScale = Motion.Scale.NAV_CORNER_COLLAPSE,
-                    transformOrigin = Motion.Anchor.TopRight,
-                    animationSpec = Motion.Spec.navCornerScaleSpec()
-                ) + fadeOut(animationSpec = Motion.Spec.navCornerFadeSpec())
             }
         ) {
             composable(Screen.Home.route) {
@@ -89,7 +75,23 @@ fun AppNavigation() {
                 )
             }
 
-            composable(Screen.ScanQr.route) {
+            composable(
+                route = Screen.ScanQr.route,
+                enterTransition = {
+                    scaleIn(
+                        initialScale = Motion.Scale.NAV_CORNER_COLLAPSE,
+                        transformOrigin = Motion.Anchor.DockCenterFab,
+                        animationSpec = Motion.Spec.navCornerScaleSpec()
+                    ) + fadeIn(animationSpec = Motion.Spec.navCornerFadeSpec())
+                },
+                popExitTransition = {
+                    scaleOut(
+                        targetScale = Motion.Scale.NAV_CORNER_COLLAPSE,
+                        transformOrigin = Motion.Anchor.DockCenterFab,
+                        animationSpec = Motion.Spec.navCornerScaleSpec()
+                    ) + fadeOut(animationSpec = Motion.Spec.navCornerFadeSpec())
+                }
+            ) {
                 QrScannerScreen(
                     onScanSuccess = {
                         navController.popBackStack(Screen.Home.route, false)
@@ -105,7 +107,23 @@ fun AppNavigation() {
                 )
             }
 
-            composable(Screen.AddManual.route) {
+            composable(
+                route = Screen.AddManual.route,
+                enterTransition = {
+                    scaleIn(
+                        initialScale = Motion.Scale.NAV_CORNER_COLLAPSE,
+                        transformOrigin = Motion.Anchor.DockCenterFab,
+                        animationSpec = Motion.Spec.navCornerScaleSpec()
+                    ) + fadeIn(animationSpec = Motion.Spec.navCornerFadeSpec())
+                },
+                popExitTransition = {
+                    scaleOut(
+                        targetScale = Motion.Scale.NAV_CORNER_COLLAPSE,
+                        transformOrigin = Motion.Anchor.DockCenterFab,
+                        animationSpec = Motion.Spec.navCornerScaleSpec()
+                    ) + fadeOut(animationSpec = Motion.Spec.navCornerFadeSpec())
+                }
+            ) {
                 val addViewModel: AddAccountViewModel = viewModel()
                 AddAccountScreen(
                     viewModel = addViewModel,
@@ -113,14 +131,46 @@ fun AppNavigation() {
                 )
             }
 
-            composable(Screen.Settings.route) {
+            composable(
+                route = Screen.Settings.route,
+                enterTransition = {
+                    scaleIn(
+                        initialScale = Motion.Scale.NAV_CORNER_COLLAPSE,
+                        transformOrigin = Motion.Anchor.DockSettings,
+                        animationSpec = Motion.Spec.navCornerScaleSpec()
+                    ) + fadeIn(animationSpec = Motion.Spec.navCornerFadeSpec())
+                },
+                popExitTransition = {
+                    scaleOut(
+                        targetScale = Motion.Scale.NAV_CORNER_COLLAPSE,
+                        transformOrigin = Motion.Anchor.DockSettings,
+                        animationSpec = Motion.Spec.navCornerScaleSpec()
+                    ) + fadeOut(animationSpec = Motion.Spec.navCornerFadeSpec())
+                }
+            ) {
                 SettingsScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToScanQr = { navController.navigate(Screen.ScanQr.route) }
                 )
             }
 
-            composable(Screen.RecentlyDeleted.route) {
+            composable(
+                route = Screen.RecentlyDeleted.route,
+                enterTransition = {
+                    scaleIn(
+                        initialScale = Motion.Scale.NAV_CORNER_COLLAPSE,
+                        transformOrigin = Motion.Anchor.DockTrash,
+                        animationSpec = Motion.Spec.navCornerScaleSpec()
+                    ) + fadeIn(animationSpec = Motion.Spec.navCornerFadeSpec())
+                },
+                popExitTransition = {
+                    scaleOut(
+                        targetScale = Motion.Scale.NAV_CORNER_COLLAPSE,
+                        transformOrigin = Motion.Anchor.DockTrash,
+                        animationSpec = Motion.Spec.navCornerScaleSpec()
+                    ) + fadeOut(animationSpec = Motion.Spec.navCornerFadeSpec())
+                }
+            ) {
                 RecentlyDeletedScreen(
                     onNavigateBack = { navController.popBackStack() }
                 )

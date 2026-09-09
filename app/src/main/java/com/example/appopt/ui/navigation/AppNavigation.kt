@@ -1,8 +1,9 @@
 package com.example.appopt.ui.navigation
 
-import androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -38,7 +39,7 @@ import com.example.appopt.util.PerformanceFpsOverlay
  * - [LockScreen] se sitúa como una capa opaca superior (*Z-Index Overlay*) cuando la bóveda está bloqueada.
  * - Al autenticar exitosamente, la capa de bloqueo se retira de inmediato mostrando los servicios sin pausas ni pantallas vacías.
  * - Incorpora la superposición de diagnóstico [PerformanceFpsOverlay] en la capa superior si está activada.
- * - Transiciones Material 3 Shared X-Axis: Desplazamiento horizontal con efecto de paralaje suave del 20% en la pantalla de fondo.
+ * - Transición de Esquina (Variación A): Expansión y repliegue focalizado desde el anclaje de botones en la esquina superior derecha.
  */
 @Composable
 fun AppNavigation() {
@@ -51,30 +52,30 @@ fun AppNavigation() {
             navController = navController,
             startDestination = Screen.Home.route,
             enterTransition = {
-                slideIntoContainer(
-                    towards = SlideDirection.Start,
-                    animationSpec = Motion.Spec.navSharedXSlideSpec()
-                ) + fadeIn(animationSpec = Motion.Spec.navSharedXFadeSpec())
+                scaleIn(
+                    initialScale = Motion.Scale.NAV_CORNER_COLLAPSE,
+                    transformOrigin = Motion.Anchor.TopRight,
+                    animationSpec = Motion.Spec.navCornerScaleSpec()
+                ) + fadeIn(animationSpec = Motion.Spec.navCornerFadeSpec())
             },
             exitTransition = {
-                slideOutOfContainer(
-                    towards = SlideDirection.Start,
-                    targetOffset = { (it * Motion.Parallax.NAV_SHARED_X_FACTOR).toInt() },
-                    animationSpec = Motion.Spec.navSharedXSlideSpec()
-                ) + fadeOut(animationSpec = Motion.Spec.navSharedXFadeSpec())
+                scaleOut(
+                    targetScale = Motion.Scale.NAV_BACKGROUND_SHRINK,
+                    animationSpec = Motion.Spec.navCornerScaleSpec()
+                ) + fadeOut(animationSpec = Motion.Spec.navCornerFadeSpec())
             },
             popEnterTransition = {
-                slideIntoContainer(
-                    towards = SlideDirection.End,
-                    initialOffset = { (it * Motion.Parallax.NAV_SHARED_X_FACTOR).toInt() },
-                    animationSpec = Motion.Spec.navSharedXSlideSpec()
-                ) + fadeIn(animationSpec = Motion.Spec.navSharedXFadeSpec())
+                scaleIn(
+                    initialScale = Motion.Scale.NAV_BACKGROUND_SHRINK,
+                    animationSpec = Motion.Spec.navCornerScaleSpec()
+                ) + fadeIn(animationSpec = Motion.Spec.navCornerFadeSpec())
             },
             popExitTransition = {
-                slideOutOfContainer(
-                    towards = SlideDirection.End,
-                    animationSpec = Motion.Spec.navSharedXSlideSpec()
-                ) + fadeOut(animationSpec = Motion.Spec.navSharedXFadeSpec())
+                scaleOut(
+                    targetScale = Motion.Scale.NAV_CORNER_COLLAPSE,
+                    transformOrigin = Motion.Anchor.TopRight,
+                    animationSpec = Motion.Spec.navCornerScaleSpec()
+                ) + fadeOut(animationSpec = Motion.Spec.navCornerFadeSpec())
             }
         ) {
             composable(Screen.Home.route) {

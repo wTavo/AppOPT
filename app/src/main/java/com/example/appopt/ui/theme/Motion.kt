@@ -8,6 +8,8 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 
+import androidx.compose.ui.graphics.TransformOrigin
+
 /**
  * Sistema centralizado de movimiento y animaciones (Material Design 3 Motion System).
  *
@@ -68,6 +70,12 @@ object Motion {
 
         /** Duración del desvanecimiento sutil en transición Shared X-Axis (180ms). */
         const val NAV_SHARED_X_FADE = 180
+
+        /** Duración de la animación de escala para transición de esquina (280ms). */
+        const val NAV_CORNER_SCALE = 280
+
+        /** Duración del desvanecimiento de opacidad para transición de esquina (200ms). */
+        const val NAV_CORNER_FADE = 200
     }
 
     /**
@@ -87,6 +95,20 @@ object Motion {
 
         /** Escala final reducida para transición de salida Fade Through (96%). */
         const val NAV_FADE_THROUGH_EXIT = 0.96f
+
+        /** Escala inicial/final replegada hacia el icono o esquina superior derecha (10%). */
+        const val NAV_CORNER_COLLAPSE = 0.10f
+
+        /** Escala de contracción en profundidad para la pantalla de fondo en transición de esquina (94%). */
+        const val NAV_BACKGROUND_SHRINK = 0.94f
+    }
+
+    /**
+     * Puntos de anclaje y pivotes normalizados para transformaciones visuales.
+     */
+    object Anchor {
+        /** Punto de anclaje relativo a la esquina superior derecha donde se sitúan las acciones de cabecera. */
+        val TopRight = TransformOrigin(pivotFractionX = 0.90f, pivotFractionY = 0.06f)
     }
 
     /**
@@ -172,6 +194,18 @@ object Motion {
         /** Especificación de desvanecimiento para transición Shared X-Axis de Material Design 3. */
         fun <T> navSharedXFadeSpec() = tween<T>(
             durationMillis = Duration.NAV_SHARED_X_FADE,
+            easing = EasingCurve.Standard
+        )
+
+        /** Especificación de escalado para transición de pantalla desde esquina (Variación A). */
+        fun <T> navCornerScaleSpec() = tween<T>(
+            durationMillis = Duration.NAV_CORNER_SCALE,
+            easing = EasingCurve.Emphasized
+        )
+
+        /** Especificación de desvanecimiento para transición de pantalla desde esquina (Variación A). */
+        fun <T> navCornerFadeSpec() = tween<T>(
+            durationMillis = Duration.NAV_CORNER_FADE,
             easing = EasingCurve.Standard
         )
     }

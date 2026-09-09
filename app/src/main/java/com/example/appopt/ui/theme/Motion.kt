@@ -62,6 +62,20 @@ object Motion {
 
         /** Duración de salida para transición Fade Through entre pantallas (90ms). */
         const val NAV_FADE_THROUGH_EXIT = 90
+
+        /** Duración del desplazamiento en transición Shared X-Axis (280ms). */
+        const val NAV_SHARED_X_SLIDE = 280
+
+        /** Duración del desvanecimiento sutil en transición Shared X-Axis (180ms). */
+        const val NAV_SHARED_X_FADE = 180
+    }
+
+    /**
+     * Factores de paralaje y proporciones de desplazamiento en fondo.
+     */
+    object Parallax {
+        /** Factor de desplazamiento sutil de la pantalla de fondo en Shared X-Axis (20%). */
+        const val NAV_SHARED_X_FACTOR = 0.20f
     }
 
     /**
@@ -146,6 +160,18 @@ object Motion {
         /** Especificación de escalado dimensional para transición de pantalla Fade Through. */
         fun <T> navScaleSpec() = tween<T>(
             durationMillis = Duration.NAV_FADE_THROUGH_ENTER + Duration.NAV_FADE_THROUGH_EXIT,
+            easing = EasingCurve.Standard
+        )
+
+        /** Especificación de desplazamiento para transición Shared X-Axis de Material Design 3. */
+        fun <T> navSharedXSlideSpec() = tween<T>(
+            durationMillis = Duration.NAV_SHARED_X_SLIDE,
+            easing = EasingCurve.Emphasized
+        )
+
+        /** Especificación de desvanecimiento para transición Shared X-Axis de Material Design 3. */
+        fun <T> navSharedXFadeSpec() = tween<T>(
+            durationMillis = Duration.NAV_SHARED_X_FADE,
             easing = EasingCurve.Standard
         )
     }

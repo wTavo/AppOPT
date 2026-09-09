@@ -54,14 +54,14 @@ fun AppNavigation() {
             exitTransition = {
                 scaleOut(
                     targetScale = Motion.Scale.NAV_BACKGROUND_SHRINK,
-                    animationSpec = Motion.Spec.navCornerScaleSpec()
-                ) + fadeOut(animationSpec = Motion.Spec.navCornerFadeSpec())
+                    animationSpec = Motion.Spec.navButtonExpandScaleSpec()
+                ) + fadeOut(animationSpec = Motion.Spec.navButtonExpandFadeSpec())
             },
             popEnterTransition = {
                 scaleIn(
                     initialScale = Motion.Scale.NAV_BACKGROUND_SHRINK,
-                    animationSpec = Motion.Spec.navCornerScaleSpec()
-                ) + fadeIn(animationSpec = Motion.Spec.navCornerFadeSpec())
+                    animationSpec = Motion.Spec.navButtonExpandScaleSpec()
+                ) + fadeIn(animationSpec = Motion.Spec.navButtonExpandFadeSpec())
             }
         ) {
             composable(Screen.Home.route) {
@@ -79,17 +79,17 @@ fun AppNavigation() {
                 route = Screen.ScanQr.route,
                 enterTransition = {
                     scaleIn(
-                        initialScale = Motion.Scale.NAV_CORNER_COLLAPSE,
+                        initialScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
                         transformOrigin = Motion.Anchor.DockCenterFab,
-                        animationSpec = Motion.Spec.navCornerScaleSpec()
-                    ) + fadeIn(animationSpec = Motion.Spec.navCornerFadeSpec())
+                        animationSpec = Motion.Spec.navButtonExpandScaleSpec()
+                    ) + fadeIn(animationSpec = Motion.Spec.navButtonExpandFadeSpec())
                 },
                 popExitTransition = {
                     scaleOut(
-                        targetScale = Motion.Scale.NAV_CORNER_COLLAPSE,
+                        targetScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
                         transformOrigin = Motion.Anchor.DockCenterFab,
-                        animationSpec = Motion.Spec.navCornerScaleSpec()
-                    ) + fadeOut(animationSpec = Motion.Spec.navCornerFadeSpec())
+                        animationSpec = Motion.Spec.navButtonExpandScaleSpec()
+                    ) + fadeOut(animationSpec = Motion.Spec.navButtonCollapseFadeSpec())
                 }
             ) {
                 QrScannerScreen(
@@ -111,17 +111,17 @@ fun AppNavigation() {
                 route = Screen.AddManual.route,
                 enterTransition = {
                     scaleIn(
-                        initialScale = Motion.Scale.NAV_CORNER_COLLAPSE,
+                        initialScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
                         transformOrigin = Motion.Anchor.DockCenterFab,
-                        animationSpec = Motion.Spec.navCornerScaleSpec()
-                    ) + fadeIn(animationSpec = Motion.Spec.navCornerFadeSpec())
+                        animationSpec = Motion.Spec.navButtonExpandScaleSpec()
+                    ) + fadeIn(animationSpec = Motion.Spec.navButtonExpandFadeSpec())
                 },
                 popExitTransition = {
                     scaleOut(
-                        targetScale = Motion.Scale.NAV_CORNER_COLLAPSE,
+                        targetScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
                         transformOrigin = Motion.Anchor.DockCenterFab,
-                        animationSpec = Motion.Spec.navCornerScaleSpec()
-                    ) + fadeOut(animationSpec = Motion.Spec.navCornerFadeSpec())
+                        animationSpec = Motion.Spec.navButtonExpandScaleSpec()
+                    ) + fadeOut(animationSpec = Motion.Spec.navButtonCollapseFadeSpec())
                 }
             ) {
                 val addViewModel: AddAccountViewModel = viewModel()
@@ -135,17 +135,17 @@ fun AppNavigation() {
                 route = Screen.Settings.route,
                 enterTransition = {
                     scaleIn(
-                        initialScale = Motion.Scale.NAV_CORNER_COLLAPSE,
+                        initialScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
                         transformOrigin = Motion.Anchor.DockSettings,
-                        animationSpec = Motion.Spec.navCornerScaleSpec()
-                    ) + fadeIn(animationSpec = Motion.Spec.navCornerFadeSpec())
+                        animationSpec = Motion.Spec.navButtonExpandScaleSpec()
+                    ) + fadeIn(animationSpec = Motion.Spec.navButtonExpandFadeSpec())
                 },
                 popExitTransition = {
                     scaleOut(
-                        targetScale = Motion.Scale.NAV_CORNER_COLLAPSE,
+                        targetScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
                         transformOrigin = Motion.Anchor.DockSettings,
-                        animationSpec = Motion.Spec.navCornerScaleSpec()
-                    ) + fadeOut(animationSpec = Motion.Spec.navCornerFadeSpec())
+                        animationSpec = Motion.Spec.navButtonExpandScaleSpec()
+                    ) + fadeOut(animationSpec = Motion.Spec.navButtonCollapseFadeSpec())
                 }
             ) {
                 SettingsScreen(
@@ -158,17 +158,17 @@ fun AppNavigation() {
                 route = Screen.RecentlyDeleted.route,
                 enterTransition = {
                     scaleIn(
-                        initialScale = Motion.Scale.NAV_CORNER_COLLAPSE,
+                        initialScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
                         transformOrigin = Motion.Anchor.DockTrash,
-                        animationSpec = Motion.Spec.navCornerScaleSpec()
-                    ) + fadeIn(animationSpec = Motion.Spec.navCornerFadeSpec())
+                        animationSpec = Motion.Spec.navButtonExpandScaleSpec()
+                    ) + fadeIn(animationSpec = Motion.Spec.navButtonExpandFadeSpec())
                 },
                 popExitTransition = {
                     scaleOut(
-                        targetScale = Motion.Scale.NAV_CORNER_COLLAPSE,
+                        targetScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
                         transformOrigin = Motion.Anchor.DockTrash,
-                        animationSpec = Motion.Spec.navCornerScaleSpec()
-                    ) + fadeOut(animationSpec = Motion.Spec.navCornerFadeSpec())
+                        animationSpec = Motion.Spec.navButtonExpandScaleSpec()
+                    ) + fadeOut(animationSpec = Motion.Spec.navButtonCollapseFadeSpec())
                 }
             ) {
                 RecentlyDeletedScreen(

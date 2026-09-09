@@ -71,11 +71,14 @@ object Motion {
         /** Duración del desvanecimiento sutil en transición Shared X-Axis (180ms). */
         const val NAV_SHARED_X_FADE = 180
 
-        /** Duración de la animación de escala para transición de esquina (280ms). */
-        const val NAV_CORNER_SCALE = 280
+        /** Duración de la animación de escala para expansión y colapso desde botón (320ms). */
+        const val NAV_EXPAND_SCALE = 320
 
-        /** Duración del desvanecimiento de opacidad para transición de esquina (200ms). */
-        const val NAV_CORNER_FADE = 200
+        /** Duración del desvanecimiento rápido de opacidad en la entrada para visibilidad inmediata desde el botón (100ms). */
+        const val NAV_EXPAND_FADE = 100
+
+        /** Duración del desvanecimiento final de opacidad en la salida al replegarse al botón (100ms). */
+        const val NAV_COLLAPSE_FADE = 100
     }
 
     /**
@@ -96,8 +99,8 @@ object Motion {
         /** Escala final reducida para transición de salida Fade Through (96%). */
         const val NAV_FADE_THROUGH_EXIT = 0.96f
 
-        /** Escala inicial/final replegada hacia el icono o esquina superior derecha (10%). */
-        const val NAV_CORNER_COLLAPSE = 0.10f
+        /** Escala inicial y final replegada al punto cero del icono del botón (0%). */
+        const val NAV_BUTTON_COLLAPSE = 0.0f
 
         /** Escala de contracción en profundidad para la pantalla de fondo en transición de esquina (94%). */
         const val NAV_BACKGROUND_SHRINK = 0.94f
@@ -107,14 +110,14 @@ object Motion {
      * Puntos de anclaje y pivotes normalizados para transformaciones visuales contextuales.
      */
     object Anchor {
-        /** Punto de anclaje contextual para el botón de Ajustes en el dock inferior derecho (85% X, 92% Y). */
-        val DockSettings = TransformOrigin(pivotFractionX = 0.85f, pivotFractionY = 0.92f)
+        /** Punto de anclaje contextual para el botón de Ajustes en el dock inferior derecho (85% X, 94% Y). */
+        val DockSettings = TransformOrigin(pivotFractionX = 0.85f, pivotFractionY = 0.94f)
 
-        /** Punto de anclaje contextual para el botón de Papelera en el dock inferior (70% X, 92% Y). */
-        val DockTrash = TransformOrigin(pivotFractionX = 0.70f, pivotFractionY = 0.92f)
+        /** Punto de anclaje contextual para el botón de Papelera en el dock inferior (70% X, 94% Y). */
+        val DockTrash = TransformOrigin(pivotFractionX = 0.70f, pivotFractionY = 0.94f)
 
-        /** Punto de anclaje contextual para el botón Hero (+) y acciones de adición en el dock inferior central (50% X, 90% Y). */
-        val DockCenterFab = TransformOrigin(pivotFractionX = 0.50f, pivotFractionY = 0.90f)
+        /** Punto de anclaje contextual para el botón Hero (+) y acciones de adición en el dock inferior central (50% X, 93% Y). */
+        val DockCenterFab = TransformOrigin(pivotFractionX = 0.50f, pivotFractionY = 0.93f)
     }
 
     /**
@@ -203,15 +206,22 @@ object Motion {
             easing = EasingCurve.Standard
         )
 
-        /** Especificación de escalado para transición de pantalla desde esquina (Variación A). */
-        fun <T> navCornerScaleSpec() = tween<T>(
-            durationMillis = Duration.NAV_CORNER_SCALE,
+        /** Especificación de escalado para transición de pantalla que nace y se expande desde el botón. */
+        fun <T> navButtonExpandScaleSpec() = tween<T>(
+            durationMillis = Duration.NAV_EXPAND_SCALE,
             easing = EasingCurve.Emphasized
         )
 
-        /** Especificación de desvanecimiento para transición de pantalla desde esquina (Variación A). */
-        fun <T> navCornerFadeSpec() = tween<T>(
-            durationMillis = Duration.NAV_CORNER_FADE,
+        /** Especificación de desvanecimiento rápido para visibilidad inmediata desde el punto cero del botón. */
+        fun <T> navButtonExpandFadeSpec() = tween<T>(
+            durationMillis = Duration.NAV_EXPAND_FADE,
+            easing = EasingCurve.Standard
+        )
+
+        /** Especificación de desvanecimiento en salida retrasado para desvanecerse solo al final del colapso en el botón. */
+        fun <T> navButtonCollapseFadeSpec() = tween<T>(
+            durationMillis = Duration.NAV_COLLAPSE_FADE,
+            delayMillis = Duration.NAV_EXPAND_SCALE - Duration.NAV_COLLAPSE_FADE,
             easing = EasingCurve.Standard
         )
     }

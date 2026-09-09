@@ -36,10 +36,10 @@ import com.example.appopt.domain.repository.AccountWithCode
 import com.example.appopt.ui.common.UiState
 import com.example.appopt.ui.components.AccountDetailsDialog
 import com.example.appopt.ui.components.OtpCodeCard
+import com.example.appopt.ui.screens.home.components.AddAccountSpeedDialOverlay
 import com.example.appopt.ui.screens.home.components.EmptyAccountsState
 import com.example.appopt.ui.screens.home.components.HomeFloatingDock
 import com.example.appopt.ui.screens.home.components.HomeTopHeader
-import com.example.appopt.ui.screens.home.dialogs.AddAccountOptionsDialog
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.rememberAppHaptics
@@ -54,7 +54,8 @@ import kotlin.time.Duration.Companion.milliseconds
  * - Barra superior modular: Búsqueda interactiva y alternador de modo de privacidad con animaciones fluidas ([HomeTopHeader]).
  * - Lista reactiva: Cuentas 2FA con arrastre, favoritos, filtrado y actualización en tiempo real de códigos OTP.
  * - Dock flotante inferior: Acciones rápidas ergonómicas inferiores accesibles con una sola mano ([HomeFloatingDock]).
- * - Diálogos modales atómicos: Visualización de detalles, edición y selector de adición de cuentas.
+ * - Menú Speed Dial contextual: Despliegue de opciones directamente sobre el botón (+) con rotación animada a 'x'.
+ * - Diálogos modales atómicos: Visualización de detalles y edición de cuentas.
  *
  * @param viewModel ViewModel reactivo que suministra el flujo de cuentas y operaciones de bóveda.
  * @param onNavigateToScanQr Callback para navegar hacia la cámara para escanear QR.
@@ -82,7 +83,7 @@ fun HomeScreen(
 
     var isSearchActive by remember { mutableStateOf(false) }
     var selectedAccountId by remember { mutableStateOf<String?>(null) }
-    var showAddOptionsDialog by remember { mutableStateOf(false) }
+    var isAddMenuOpen by remember { mutableStateOf(false) }
 
     val appLockManager = remember { AuthenticatorApp.instance.appLockManager }
     val isUnlocked by appLockManager.isUnlocked.collectAsStateWithLifecycle()
@@ -91,7 +92,7 @@ fun HomeScreen(
     LaunchedEffect(isUnlocked) {
         if (!isUnlocked) {
             selectedAccountId = null
-            showAddOptionsDialog = false
+            isAddMenuOpen = false
             isSearchActive = false
         }
     }
@@ -360,9 +361,10 @@ fun HomeScreen(
         // 2. Dock Flotante Inferior Ergonómico
         HomeFloatingDock(
             onLockVault = { viewModel.lockVault() },
-            onAddAccountClick = { showAddOptionsDialog = true },
+            onAddAccountClick = { isAddMenuOpen = !isAddMenuOpen },
             onNavigateToRecentlyDeleted = onNavigateToRecentlyDeleted,
             onNavigateToSettings = onNavigateToSettings,
+            isAddMenuOpen = isAddMenuOpen,
             deletedAccountsCount = deletedAccountsCount,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -405,18 +407,19 @@ fun HomeScreen(
         }
     }
 
-    // Modal de selección de método de adición (QR o Manual)
-    if (isUnlocked && showAddOptionsDialog) {
-        AddAccountOptionsDialog(
+    // Menú flotante Speed Dial contextual para agregar cuentas (situado directamente sobre el botón +)
+    if (isUnlocked) {
+        AddAccountSpeedDialOverlay(
+            isOpen = isAddMenuOpen,
+            onDismiss = { isAddMenuOpen = false },
             onScanQr = {
-                showAddOptionsDialog = false
+                isAddMenuOpen = false
                 onNavigateToScanQr()
             },
             onAddManual = {
-                showAddOptionsDialog = false
+                isAddMenuOpen = false
                 onNavigateToAddManual()
-            },
-            onDismiss = { showAddOptionsDialog = false }
+            }
         )
     }
 }

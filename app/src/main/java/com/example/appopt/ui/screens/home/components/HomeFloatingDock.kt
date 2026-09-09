@@ -25,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -34,13 +35,18 @@ import com.example.appopt.R
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
+import com.example.appopt.ui.theme.Motion
+
 /**
  * Barra dock de control flotante ergonómica e interactiva para la pantalla principal.
  *
  * Contiene accesos rápidos con respuesta háptica para:
  * 1. Bloquear bóveda.
  * 2. Gestor de contraseñas.
- * 3. Botón Hero (+) para agregar nuevas cuentas OTP.
+ * 3. Botón Hero (+) para desplegar el menú de adición de cuentas (con rotación animada a 'x').
  * 4. Papelera de reciclaje y servicios eliminados recientemente (con badge).
  * 5. Navegación hacia Ajustes.
  *
@@ -48,6 +54,7 @@ import com.example.appopt.ui.theme.rememberAppHaptics
  * @param onAddAccountClick Callback invocado al presionar el botón Hero (+) de adición.
  * @param onNavigateToRecentlyDeleted Callback invocado al presionar la papelera de reciclaje.
  * @param onNavigateToSettings Callback invocado al presionar el botón de ajustes.
+ * @param isAddMenuOpen Indica si el menú de adición Speed Dial está abierto para rotar el botón (+).
  * @param deletedAccountsCount Cantidad de servicios en papelera de reciclaje para mostrar badge.
  * @param modifier Modificador de diseño Compose opcional.
  */
@@ -57,11 +64,21 @@ fun HomeFloatingDock(
     onAddAccountClick: () -> Unit,
     onNavigateToRecentlyDeleted: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    isAddMenuOpen: Boolean = false,
     deletedAccountsCount: Int = 0,
     modifier: Modifier = Modifier
 ) {
     val appHaptics = rememberAppHaptics()
     val context: Context = LocalContext.current
+
+    val fabRotationAngle by animateFloatAsState(
+        targetValue = if (isAddMenuOpen) 45f else 0f,
+        animationSpec = tween(
+            durationMillis = Motion.Duration.MEDIUM,
+            easing = Motion.EasingCurve.Emphasized
+        ),
+        label = "fab_rotation"
+    )
 
     Surface(
         shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
@@ -109,7 +126,7 @@ fun HomeFloatingDock(
                 )
             }
 
-            // 3. Hero (+) FAB para agregar cuentas
+            // 3. Hero (+) FAB para agregar cuentas con rotación animada
             FloatingActionButton(
                 onClick = {
                     appHaptics.click()
@@ -126,8 +143,10 @@ fun HomeFloatingDock(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Add,
-                    contentDescription = stringResource(R.string.home_add_account),
-                    modifier = Modifier.size(Dimensions.IconSize.large)
+                    contentDescription = stringResource(if (isAddMenuOpen) R.string.action_close else R.string.home_add_account),
+                    modifier = Modifier
+                        .size(Dimensions.IconSize.large)
+                        .graphicsLayer { rotationZ = fabRotationAngle }
                 )
             }
 

@@ -358,7 +358,23 @@ fun HomeScreen(
             }
         }
 
-        // 2. Dock Flotante Inferior Ergonómico
+        // 2. Menú flotante Speed Dial contextual para agregar cuentas (scrim en z=10f, tarjeta en z=25f)
+        if (isUnlocked) {
+            AddAccountSpeedDialOverlay(
+                isOpen = isAddMenuOpen,
+                onDismiss = { isAddMenuOpen = false },
+                onScanQr = {
+                    isAddMenuOpen = false
+                    onNavigateToScanQr()
+                },
+                onAddManual = {
+                    isAddMenuOpen = false
+                    onNavigateToAddManual()
+                }
+            )
+        }
+
+        // 3. Dock Flotante Inferior Ergonómico (z=20f, por encima del scrim para que el botón (X) permanezca brillante e interactivo)
         HomeFloatingDock(
             onLockVault = { viewModel.lockVault() },
             onAddAccountClick = { isAddMenuOpen = !isAddMenuOpen },
@@ -373,7 +389,7 @@ fun HomeScreen(
                 .zIndex(20f)
         )
 
-        // 3. Header Flotante Superior
+        // 4. Header Flotante Superior
         HomeTopHeader(
             isSearchActive = isSearchActive,
             searchQuery = searchQuery,
@@ -405,21 +421,5 @@ fun HomeScreen(
                 }
             )
         }
-    }
-
-    // Menú flotante Speed Dial contextual para agregar cuentas (situado directamente sobre el botón +)
-    if (isUnlocked) {
-        AddAccountSpeedDialOverlay(
-            isOpen = isAddMenuOpen,
-            onDismiss = { isAddMenuOpen = false },
-            onScanQr = {
-                isAddMenuOpen = false
-                onNavigateToScanQr()
-            },
-            onAddManual = {
-                isAddMenuOpen = false
-                onNavigateToAddManual()
-            }
-        )
     }
 }

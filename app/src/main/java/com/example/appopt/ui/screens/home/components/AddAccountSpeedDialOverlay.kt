@@ -69,17 +69,17 @@ fun AddAccountSpeedDialOverlay(
 ) {
     val appHaptics = rememberAppHaptics()
 
-    // 1. Capa Scrim translúcida de fondo para descartar
+    // 1. Capa Scrim translúcida de fondo para descartar (detrás del dock inferior)
     AnimatedVisibility(
         visible = isOpen,
         enter = fadeIn(animationSpec = tween(durationMillis = Motion.Duration.FAST, easing = Motion.EasingCurve.Standard)),
         exit = fadeOut(animationSpec = tween(durationMillis = Motion.Duration.FAST, easing = Motion.EasingCurve.Standard)),
-        modifier = Modifier.fillMaxSize().zIndex(15f)
+        modifier = Modifier.fillMaxSize().zIndex(10f)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.35f))
+                .background(Color.Black.copy(alpha = 0.40f))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -106,7 +106,7 @@ fun AddAccountSpeedDialOverlay(
         ) + fadeOut(animationSpec = tween(durationMillis = Motion.Duration.FAST, easing = Motion.EasingCurve.Standard)),
         modifier = modifier
             .fillMaxSize()
-            .zIndex(16f)
+            .zIndex(25f)
     ) {
         Box(
             modifier = Modifier

@@ -40,10 +40,17 @@ import androidx.compose.animation.core.tween
 import androidx.compose.ui.graphics.graphicsLayer
 import com.example.appopt.ui.theme.Motion
 
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
+import com.example.appopt.ui.navigation.NavigationOriginTracker
+
 /**
  * Barra dock de control flotante ergonómica e interactiva para la pantalla principal.
  *
- * Contiene accesos rápidos con respuesta háptica para:
+ * Contiene accesos rápidos con respuesta háptica y captura dinámica de coordenadas para:
  * 1. Bloquear bóveda.
  * 2. Gestor de contraseñas.
  * 3. Botón Hero (+) para desplegar el menú de adición de cuentas (con rotación animada a 'x').
@@ -70,6 +77,10 @@ fun HomeFloatingDock(
 ) {
     val appHaptics = rememberAppHaptics()
     val context: Context = LocalContext.current
+
+    var fabCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var trashCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var settingsCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
     val fabRotationAngle by animateFloatAsState(
         targetValue = if (isAddMenuOpen) 45f else 0f,
@@ -126,9 +137,10 @@ fun HomeFloatingDock(
                 )
             }
 
-            // 3. Hero (+) FAB para agregar cuentas con rotación animada
+            // 3. Hero (+) FAB para agregar cuentas con rotación animada y captura de coordenadas
             FloatingActionButton(
                 onClick = {
+                    NavigationOriginTracker.updateFromCoordinates(fabCoordinates)
                     appHaptics.click()
                     onAddAccountClick()
                 },
@@ -139,7 +151,9 @@ fun HomeFloatingDock(
                     defaultElevation = Dimensions.Elevation.cardDefault,
                     pressedElevation = Dimensions.Elevation.cardDragging
                 ),
-                modifier = Modifier.size(Dimensions.ComponentSize.heroFab)
+                modifier = Modifier
+                    .size(Dimensions.ComponentSize.heroFab)
+                    .onGloballyPositioned { fabCoordinates = it }
             ) {
                 Icon(
                     imageVector = Icons.Filled.Add,
@@ -150,12 +164,14 @@ fun HomeFloatingDock(
                 )
             }
 
-            // 4. Papelera de reciclaje / Eliminados recientemente
+            // 4. Papelera de reciclaje / Eliminados recientemente con captura de coordenadas
             IconButton(
                 onClick = {
+                    NavigationOriginTracker.updateFromCoordinates(trashCoordinates)
                     appHaptics.click()
                     onNavigateToRecentlyDeleted()
-                }
+                },
+                modifier = Modifier.onGloballyPositioned { trashCoordinates = it }
             ) {
                 BadgedBox(
                     badge = {
@@ -180,12 +196,14 @@ fun HomeFloatingDock(
                 }
             }
 
-            // 5. Ajustes y Configuración
+            // 5. Ajustes y Configuración con captura de coordenadas
             IconButton(
                 onClick = {
+                    NavigationOriginTracker.updateFromCoordinates(settingsCoordinates)
                     appHaptics.click()
                     onNavigateToSettings()
-                }
+                },
+                modifier = Modifier.onGloballyPositioned { settingsCoordinates = it }
             ) {
                 Icon(
                     imageVector = Icons.Filled.Settings,

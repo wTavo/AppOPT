@@ -80,14 +80,14 @@ fun AppNavigation() {
                 enterTransition = {
                     scaleIn(
                         initialScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
-                        transformOrigin = Motion.Anchor.DockCenterFab,
+                        transformOrigin = NavigationOriginTracker.currentOrigin,
                         animationSpec = Motion.Spec.navButtonExpandScaleSpec()
                     )
                 },
                 popExitTransition = {
                     scaleOut(
                         targetScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
-                        transformOrigin = Motion.Anchor.DockCenterFab,
+                        transformOrigin = NavigationOriginTracker.currentOrigin,
                         animationSpec = Motion.Spec.navButtonExpandScaleSpec()
                     ) + fadeOut(animationSpec = Motion.Spec.navButtonCollapseFadeSpec())
                 }
@@ -112,14 +112,14 @@ fun AppNavigation() {
                 enterTransition = {
                     scaleIn(
                         initialScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
-                        transformOrigin = Motion.Anchor.DockCenterFab,
+                        transformOrigin = NavigationOriginTracker.currentOrigin,
                         animationSpec = Motion.Spec.navButtonExpandScaleSpec()
                     )
                 },
                 popExitTransition = {
                     scaleOut(
                         targetScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
-                        transformOrigin = Motion.Anchor.DockCenterFab,
+                        transformOrigin = NavigationOriginTracker.currentOrigin,
                         animationSpec = Motion.Spec.navButtonExpandScaleSpec()
                     ) + fadeOut(animationSpec = Motion.Spec.navButtonCollapseFadeSpec())
                 }
@@ -136,14 +136,14 @@ fun AppNavigation() {
                 enterTransition = {
                     scaleIn(
                         initialScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
-                        transformOrigin = Motion.Anchor.DockSettings,
+                        transformOrigin = NavigationOriginTracker.currentOrigin,
                         animationSpec = Motion.Spec.navButtonExpandScaleSpec()
                     )
                 },
                 popExitTransition = {
                     scaleOut(
                         targetScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
-                        transformOrigin = Motion.Anchor.DockSettings,
+                        transformOrigin = NavigationOriginTracker.currentOrigin,
                         animationSpec = Motion.Spec.navButtonExpandScaleSpec()
                     ) + fadeOut(animationSpec = Motion.Spec.navButtonCollapseFadeSpec())
                 }
@@ -159,14 +159,14 @@ fun AppNavigation() {
                 enterTransition = {
                     scaleIn(
                         initialScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
-                        transformOrigin = Motion.Anchor.DockTrash,
+                        transformOrigin = NavigationOriginTracker.currentOrigin,
                         animationSpec = Motion.Spec.navButtonExpandScaleSpec()
                     )
                 },
                 popExitTransition = {
                     scaleOut(
                         targetScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
-                        transformOrigin = Motion.Anchor.DockTrash,
+                        transformOrigin = NavigationOriginTracker.currentOrigin,
                         animationSpec = Motion.Spec.navButtonExpandScaleSpec()
                     ) + fadeOut(animationSpec = Motion.Spec.navButtonCollapseFadeSpec())
                 }

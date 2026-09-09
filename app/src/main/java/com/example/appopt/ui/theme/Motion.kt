@@ -56,6 +56,23 @@ object Motion {
 
         /** Duración del bucle de brillo ambiental (*ambient shine*) en estado de sincronización exitosa (4000ms). */
         const val AMBIENT_SHINE_LOOP = 4000
+
+        /** Duración de entrada para transición Fade Through entre pantallas (210ms). */
+        const val NAV_FADE_THROUGH_ENTER = 210
+
+        /** Duración de salida para transición Fade Through entre pantallas (90ms). */
+        const val NAV_FADE_THROUGH_EXIT = 90
+    }
+
+    /**
+     * Escalas y factores de proporción para transformaciones dimensionales.
+     */
+    object Scale {
+        /** Escala inicial reducida para transición de entrada Fade Through (96%). */
+        const val NAV_FADE_THROUGH_INITIAL = 0.96f
+
+        /** Escala final reducida para transición de salida Fade Through (96%). */
+        const val NAV_FADE_THROUGH_EXIT = 0.96f
     }
 
     /**
@@ -111,6 +128,25 @@ object Motion {
         fun <T> springFeedbackSpec() = spring<T>(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
+        )
+
+        /** Especificación de desvanecimiento entrante para transición de pantalla Fade Through. */
+        fun <T> navFadeInSpec() = tween<T>(
+            durationMillis = Duration.NAV_FADE_THROUGH_ENTER,
+            delayMillis = Duration.NAV_FADE_THROUGH_EXIT,
+            easing = EasingCurve.Decelerate
+        )
+
+        /** Especificación de desvanecimiento saliente para transición de pantalla Fade Through. */
+        fun <T> navFadeOutSpec() = tween<T>(
+            durationMillis = Duration.NAV_FADE_THROUGH_EXIT,
+            easing = EasingCurve.Standard
+        )
+
+        /** Especificación de escalado dimensional para transición de pantalla Fade Through. */
+        fun <T> navScaleSpec() = tween<T>(
+            durationMillis = Duration.NAV_FADE_THROUGH_ENTER + Duration.NAV_FADE_THROUGH_EXIT,
+            easing = EasingCurve.Standard
         )
     }
 }

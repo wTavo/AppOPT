@@ -1,5 +1,9 @@
 package com.example.appopt.ui.navigation
 
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -24,16 +28,18 @@ import com.example.appopt.ui.screens.scan.QrScannerScreen
 import com.example.appopt.ui.screens.settings.SettingsScreen
 import com.example.appopt.ui.screens.trash.RecentlyDeletedScreen
 import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.Motion
 import com.example.appopt.util.PerformanceFpsOverlay
 
 /**
  * Grafo principal de navegación y control de acceso de la aplicación.
  *
  * Principio de compuerta de seguridad (*Security Gate Layer*):
- * - Mantiene el grafo [NavHost] pre-renderizado en segundo plano para respuesta en 0ms con las transiciones nativas estándar.
+ * - Mantiene el grafo [NavHost] pre-renderizado en segundo plano para respuesta en 0ms.
  * - [LockScreen] se sitúa como una capa opaca superior (*Z-Index Overlay*) cuando la bóveda está bloqueada.
  * - Al autenticar exitosamente, la capa de bloqueo se retira de inmediato mostrando los servicios sin pausas ni pantallas vacías.
  * - Incorpora la superposición de diagnóstico [PerformanceFpsOverlay] en la capa superior si está activada.
+ * - Transiciones Material 3 Fade Through: Desvanecimiento suave con micro-escala de profundidad (96% -> 100%), sin desplazamientos laterales bruscos.
  */
 @Composable
 fun AppNavigation() {
@@ -44,7 +50,31 @@ fun AppNavigation() {
     Box(modifier = Modifier.fillMaxSize()) {
         NavHost(
             navController = navController,
-            startDestination = Screen.Home.route
+            startDestination = Screen.Home.route,
+            enterTransition = {
+                fadeIn(animationSpec = Motion.Spec.navFadeInSpec()) +
+                    scaleIn(
+                        initialScale = Motion.Scale.NAV_FADE_THROUGH_INITIAL,
+                        animationSpec = Motion.Spec.navScaleSpec()
+                    )
+            },
+            exitTransition = {
+                fadeOut(animationSpec = Motion.Spec.navFadeOutSpec())
+            },
+            popEnterTransition = {
+                fadeIn(animationSpec = Motion.Spec.navFadeInSpec()) +
+                    scaleIn(
+                        initialScale = Motion.Scale.NAV_FADE_THROUGH_INITIAL,
+                        animationSpec = Motion.Spec.navScaleSpec()
+                    )
+            },
+            popExitTransition = {
+                fadeOut(animationSpec = Motion.Spec.navFadeOutSpec()) +
+                    scaleOut(
+                        targetScale = Motion.Scale.NAV_FADE_THROUGH_EXIT,
+                        animationSpec = Motion.Spec.navScaleSpec()
+                    )
+            }
         ) {
             composable(Screen.Home.route) {
                 val homeViewModel: HomeViewModel = viewModel()

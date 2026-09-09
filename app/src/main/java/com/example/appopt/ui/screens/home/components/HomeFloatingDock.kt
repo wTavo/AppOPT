@@ -91,12 +91,24 @@ fun HomeFloatingDock(
         label = "fab_rotation"
     )
 
+    val dockRestAlpha by animateFloatAsState(
+        targetValue = if (isAddMenuOpen) 0.25f else 1.0f,
+        animationSpec = tween(
+            durationMillis = Motion.Duration.FAST,
+            easing = Motion.EasingCurve.Standard
+        ),
+        label = "dock_rest_alpha"
+    )
+
     Surface(
         shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = Dimensions.Elevation.cardDefault,
-        shadowElevation = Dimensions.Elevation.cardDragging,
-        border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = if (isAddMenuOpen) 0.60f else 1.0f),
+        tonalElevation = if (isAddMenuOpen) Dimensions.Elevation.none else Dimensions.Elevation.cardDefault,
+        shadowElevation = if (isAddMenuOpen) Dimensions.Elevation.none else Dimensions.Elevation.cardDragging,
+        border = BorderStroke(
+            Dimensions.Stroke.thin,
+            MaterialTheme.colorScheme.outline.copy(alpha = if (isAddMenuOpen) 0.05f else 0.15f)
+        ),
         modifier = modifier.wrapContentWidth()
     ) {
         Row(
@@ -104,12 +116,17 @@ fun HomeFloatingDock(
             horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 1. Bloquear bóveda manualmente
+            // 1. Bloquear bóveda manualmente (atenuado si el menú está abierto)
             IconButton(
                 onClick = {
-                    appHaptics.click()
-                    onLockVault()
-                }
+                    if (isAddMenuOpen) {
+                        onAddAccountClick()
+                    } else {
+                        appHaptics.click()
+                        onLockVault()
+                    }
+                },
+                modifier = Modifier.graphicsLayer { alpha = dockRestAlpha }
             ) {
                 Icon(
                     imageVector = Icons.Filled.Lock,
@@ -118,17 +135,22 @@ fun HomeFloatingDock(
                 )
             }
 
-            // 2. Gestor de Contraseñas (Próximamente)
+            // 2. Gestor de Contraseñas (Próximamente, atenuado si el menú está abierto)
             val passwordsComingSoonText = stringResource(R.string.passwords_coming_soon)
             IconButton(
                 onClick = {
-                    appHaptics.click()
-                    Toast.makeText(
-                        context,
-                        passwordsComingSoonText,
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
+                    if (isAddMenuOpen) {
+                        onAddAccountClick()
+                    } else {
+                        appHaptics.click()
+                        Toast.makeText(
+                            context,
+                            passwordsComingSoonText,
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                },
+                modifier = Modifier.graphicsLayer { alpha = dockRestAlpha }
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_key),
@@ -137,7 +159,7 @@ fun HomeFloatingDock(
                 )
             }
 
-            // 3. Hero (+) FAB para agregar cuentas con rotación animada y captura de coordenadas
+            // 3. Hero (+) / (X) FAB: 100% brillante y elevado en primer plano
             FloatingActionButton(
                 onClick = {
                     NavigationOriginTracker.updateFromCoordinates(fabCoordinates)
@@ -164,14 +186,20 @@ fun HomeFloatingDock(
                 )
             }
 
-            // 4. Papelera de reciclaje / Eliminados recientemente con captura de coordenadas
+            // 4. Papelera de reciclaje (atenuado si el menú está abierto)
             IconButton(
                 onClick = {
-                    NavigationOriginTracker.updateFromCoordinates(trashCoordinates)
-                    appHaptics.click()
-                    onNavigateToRecentlyDeleted()
+                    if (isAddMenuOpen) {
+                        onAddAccountClick()
+                    } else {
+                        NavigationOriginTracker.updateFromCoordinates(trashCoordinates)
+                        appHaptics.click()
+                        onNavigateToRecentlyDeleted()
+                    }
                 },
-                modifier = Modifier.onGloballyPositioned { trashCoordinates = it }
+                modifier = Modifier
+                    .onGloballyPositioned { trashCoordinates = it }
+                    .graphicsLayer { alpha = dockRestAlpha }
             ) {
                 BadgedBox(
                     badge = {
@@ -196,14 +224,20 @@ fun HomeFloatingDock(
                 }
             }
 
-            // 5. Ajustes y Configuración con captura de coordenadas
+            // 5. Ajustes y Configuración (atenuado si el menú está abierto)
             IconButton(
                 onClick = {
-                    NavigationOriginTracker.updateFromCoordinates(settingsCoordinates)
-                    appHaptics.click()
-                    onNavigateToSettings()
+                    if (isAddMenuOpen) {
+                        onAddAccountClick()
+                    } else {
+                        NavigationOriginTracker.updateFromCoordinates(settingsCoordinates)
+                        appHaptics.click()
+                        onNavigateToSettings()
+                    }
                 },
-                modifier = Modifier.onGloballyPositioned { settingsCoordinates = it }
+                modifier = Modifier
+                    .onGloballyPositioned { settingsCoordinates = it }
+                    .graphicsLayer { alpha = dockRestAlpha }
             ) {
                 Icon(
                     imageVector = Icons.Filled.Settings,

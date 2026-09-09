@@ -110,14 +110,14 @@ object Motion {
      * Puntos de anclaje y pivotes normalizados para transformaciones visuales contextuales.
      */
     object Anchor {
-        /** Punto de anclaje contextual para el botón de Ajustes en el dock inferior derecho (75% X, 90% Y). */
-        val DockSettings = TransformOrigin(pivotFractionX = 0.75f, pivotFractionY = 0.90f)
+        /** Punto de anclaje contextual para el botón de Ajustes en el dock inferior derecho (82% X, 91% Y). */
+        val DockSettings = TransformOrigin(pivotFractionX = 0.82f, pivotFractionY = 0.91f)
 
-        /** Punto de anclaje contextual para el botón de Papelera en el dock inferior (62% X, 90% Y). */
-        val DockTrash = TransformOrigin(pivotFractionX = 0.62f, pivotFractionY = 0.90f)
+        /** Punto de anclaje contextual para el botón de Papelera en el dock inferior (66% X, 91% Y). */
+        val DockTrash = TransformOrigin(pivotFractionX = 0.66f, pivotFractionY = 0.91f)
 
-        /** Punto de anclaje contextual para el botón Hero (+) y acciones de adición en el dock inferior central (50% X, 90% Y). */
-        val DockCenterFab = TransformOrigin(pivotFractionX = 0.50f, pivotFractionY = 0.90f)
+        /** Punto de anclaje contextual para el botón Hero (+) y acciones de adición en el dock inferior central (50% X, 91% Y). */
+        val DockCenterFab = TransformOrigin(pivotFractionX = 0.50f, pivotFractionY = 0.91f)
     }
 
     /**

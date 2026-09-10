@@ -52,7 +52,7 @@ abstract class AppDatabase : RoomDatabase() {
                     SecurityConfig.ROOM_DATABASE_NAME
                 )
                     .addMigrations(MIGRATION_1_2)
-                    .fallbackToDestructiveMigrationOnDowngrade()
+                    .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
                     .build()
                 INSTANCE = instance
                 instance

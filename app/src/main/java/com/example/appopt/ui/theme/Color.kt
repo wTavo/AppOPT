@@ -7,9 +7,11 @@ val PrimaryBlue = Color(0xFF2563EB)
 val PrimaryBlueLight = Color(0xFF60A5FA)
 val AccentCyan = Color(0xFF06B6D4)
 
-/** Colores semánticos de estado (Urgencia, Advertencia, Éxito). */
+/** Colores semánticos de estado (Urgencia, Advertencia, Éxito, Espera). */
 val UrgentRed = Color(0xFFEF4444)
 val WarningOrange = Color(0xFFF59E0B)
+val WarningYellow = Color(0xFFEAB308)
+val WarningYellowLight = Color(0xFFFDE047)
 val SafeGreen = Color(0xFF10B981)
 
 /** Colores para el tema oscuro (Dark Theme) con alto contraste. */

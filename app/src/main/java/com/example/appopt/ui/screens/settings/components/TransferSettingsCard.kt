@@ -1,29 +1,21 @@
 package com.example.appopt.ui.screens.settings.components
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.example.appopt.R
 import com.example.appopt.domain.model.TotpAccount
+import com.example.appopt.ui.components.SettingsSectionCard
 import com.example.appopt.ui.theme.Dimensions
 
 /**
@@ -41,72 +33,31 @@ fun TransferSettingsCard(
     onImportClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        shape = RoundedCornerShape(Dimensions.CornerRadius.large)
+    SettingsSectionCard(
+        title = stringResource(R.string.settings_transfer_title),
+        description = stringResource(R.string.settings_transfer_description),
+        icon = Icons.Filled.QrCodeScanner,
+        modifier = modifier
     ) {
-        Column(
-            modifier = Modifier.padding(Dimensions.Spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
-        ) {
+        if (accounts.isNotEmpty()) {
             Row(
-                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
             ) {
-                Icon(
-                    imageVector = Icons.Filled.QrCodeScanner,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(Dimensions.IconSize.medium)
-                )
-                Text(
-                    text = stringResource(R.string.settings_transfer_title),
-                    style = MaterialTheme.typography.titleMedium
-                )
-            }
-
-            Text(
-                text = stringResource(R.string.settings_transfer_description),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
-
-            if (accounts.isNotEmpty()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
-                ) {
-                    Button(
-                        onClick = onExportClick,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.settings_export_services_button),
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                    }
-
-                    OutlinedButton(
-                        onClick = onImportClick,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.settings_import_services_button),
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                    }
-                }
-            } else {
                 Button(
+                    onClick = onExportClick,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_export_services_button),
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+
+                OutlinedButton(
                     onClick = onImportClick,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                 ) {
                     Text(
@@ -114,6 +65,17 @@ fun TransferSettingsCard(
                         style = MaterialTheme.typography.labelLarge
                     )
                 }
+            }
+        } else {
+            Button(
+                onClick = onImportClick,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_import_services_button),
+                    style = MaterialTheme.typography.labelLarge
+                )
             }
         }
     }

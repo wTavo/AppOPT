@@ -42,8 +42,12 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 ---
 
 ## 5. Reutilización de Componentes de Interfaz (*DRY Principle*)
-- **PROHIBIDO** duplicar lógica de interacción o animaciones complejas entre pantallas o diálogos.
-- **OBLIGATORIO** encapsular y reutilizar componentes en `ui/components/` (ej. `AppAnimatedButton` para acciones con confirmación animada a verde).
+- **PROHIBIDO** duplicar contenedores de sección, filas de estado, animaciones complejas o sub-formularios entre pantallas o diálogos.
+- **OBLIGATORIO** encapsular y reutilizar componentes modulares en `ui/components/` y sub-paquetes de componentes:
+  - `SettingsSectionCard`: Para encapsular el diseño, geometría, cabeceras y paddings de las secciones de ajustes.
+  - `SettingsStatusTile`: Para estandarizar las filas informativas, diagnósticos y estados del sistema.
+  - `AppAnimatedButton`: Para acciones con confirmación animada e idempotencia.
+  - Sub-formularios modales compartidos (ej. `DriveBackupDecryptForm`, `ServiceBrandAvatar`, `CircularTimeProgress`).
 
 ---
 
@@ -100,13 +104,14 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 ## 14. Gestión Unificada de Diálogos Modales, Navegación Defensiva y Espaciados Estándar (*Single-Dialog State Machine & Modal Design Standard*)
 - **PROHIBIDO** superponer o apilar múltiples diálogos modales en pantalla (*Stacked Modals*).
 - **PROHIBIDO** cerrar un diálogo modal y abrir otro diálogo separado en su lugar para flujos encadenados, restauraciones, sub-pasos o confirmaciones (antipatrón de parpadeo y desmontaje de modales).
-- **PROHIBIDO** quemar espaciados o dimensiones arbitrarias dentro de los diálogos, o permitir que listas internas desborden la pantalla sin límite de altura.
+- **PROHIBIDO** restringir filas, columnas o contenedores con textos mediante alturas fijas (`.height(...)` o `.size(...)`) que provoquen recorte vertical (*text clipping*) al saltar de línea o envolver texto. Todo contenedor de texto en modales debe usar `wrapContentHeight()`, `heightIn(min = ...)` o flujo natural con `Modifier.fillMaxWidth()`.
+- **PROHIBIDO** quemar espaciados o dimensiones arbitrarias dentro de los diálogos, o permitir que listas internas desborden la pantalla sin límite de altura o sin scroll vertical.
 - **OBLIGATORIO** unificar flujos encadenados (confirmaciones destructivas, modo edición, sub-pasos de descifrado/restauración) dentro de un único diálogo modal dinámico mediante una máquina de estados interna con transición fluida de contenido (idéntico al patrón de `AccountDetailsDialog.kt`).
 - **OBLIGATORIO el estándar uniforme de geometría y espaciados en diálogos:**
   - **Forma del modal:** `shape = RoundedCornerShape(Dimensions.CornerRadius.large)` (16.dp).
   - **Tipografía de encabezado:** `style = MaterialTheme.typography.titleLarge` (en color `onSurface` o `error` para destructivos).
   - **Espaciado vertical del contenido:** `Arrangement.spacedBy(Dimensions.Spacing.md)` (12.dp) para formularios/bloques y `Dimensions.Spacing.sm` (8.dp) para listas o subtítulos compactos.
-  - **Límite de listas internas:** `heightIn(max = Dimensions.ComponentSize.modalListMaxHeight)` (240.dp) con scroll vertical (`LazyColumn` o `verticalScroll`).
+  - **Límite y respiro de listas internas:** `heightIn(max = Dimensions.ComponentSize.modalListMaxHeight)` (320.dp) con scroll vertical (`LazyColumn` o `verticalScroll`) y `contentPadding = PaddingValues(bottom = Dimensions.Spacing.xs)`.
   - **Tarjetas y superficies internas:** `shape = RoundedCornerShape(Dimensions.CornerRadius.medium)` y padding `Dimensions.Spacing.md`.
   - **Botones interactivos y modales:** `shape = RoundedCornerShape(Dimensions.CornerRadius.medium)` con tipografía `MaterialTheme.typography.labelLarge`.
 - **OBLIGATORIO el estándar uniforme de nomenclatura en botones de diálogos:**

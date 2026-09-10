@@ -37,7 +37,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.example.appopt.R
 import com.example.appopt.ui.theme.Dimensions
@@ -122,7 +121,7 @@ fun AddAccountSpeedDialOverlay(
                 shadowElevation = Dimensions.Elevation.modal,
                 border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
                 modifier = Modifier
-                    .widthIn(min = 220.dp, max = 280.dp)
+                    .widthIn(min = Dimensions.ComponentSize.speedDialMinWidth, max = Dimensions.ComponentSize.speedDialMaxWidth)
                     .padding(horizontal = Dimensions.Spacing.lg)
             ) {
                 Column(

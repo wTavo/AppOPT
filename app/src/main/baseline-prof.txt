@@ -1,0 +1,21 @@
+# Baseline Profile Rules for AppOPT Authenticator
+# Pre-compiles hot paths for zero-jank startup and smooth 60/120fps scrolling
+
+# 1. Cryptography & TOTP Engine (Pure Domain)
+HSPLcom/example/appopt/domain/crypto/TotpCalculator;->calculateTotp(Ljava/lang/String;JIILjava/lang/String;)Ljava/lang/String;
+HSPLcom/example/appopt/domain/crypto/HotpCalculator;->calculateHotp(Ljava/lang/String;JILjava/lang/String;)Ljava/lang/String;
+HSPLcom/example/appopt/domain/crypto/Base32;->decode(Ljava/lang/String;)[B
+HSPLcom/example/appopt/security/TransferCrypto;->decryptTransferPayload(Ljava/lang/String;[C)Ljava/lang/String;
+HSPLcom/example/appopt/security/TransferCrypto;->parseTransferChunk(Ljava/lang/String;)Lcom/example/appopt/security/TransferQrChunk;
+HSPLcom/example/appopt/security/AndroidKeystoreManager;->decryptSecret([B[B)[C
+
+# 2. Database & Room Models
+HSPLcom/example/appopt/data/local/AccountDao;->getAllAccountsFlow()Lkotlinx/coroutines/flow/Flow;
+HSPLcom/example/appopt/data/local/AccountEntity;-><init>(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;[B[BLjava/lang/String;IILjava/lang/String;JZZLjava/lang/Long;JJ)V
+HSPLcom/example/appopt/data/repository/AccountRepositoryImpl;->getAccounts()Lkotlinx/coroutines/flow/Flow;
+
+# 3. Main Jetpack Compose UI
+HSPLcom/example/appopt/ui/screens/home/HomeScreenKt;->HomeScreen(Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lcom/example/appopt/ui/screens/home/HomeViewModel;Landroidx/compose/ui/Modifier;Landroidx/compose/runtime/Composer;II)V
+HSPLcom/example/appopt/ui/components/OtpCodeCardKt;->OtpCodeCard(Lcom/example/appopt/domain/model/TotpAccount;Ljava/lang/String;FLjava/lang/String;ZZLkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Landroidx/compose/runtime/Composer;III)V
+HSPLcom/example/appopt/ui/theme/HapticsKt;->rememberAppHaptics(Landroidx/compose/runtime/Composer;I)Lcom/example/appopt/ui/theme/AppHaptics;
+HSPLcom/example/appopt/util/DateTimeFormatter;->formatRelativeSyncTime(Landroid/content/Context;J)Ljava/lang/String;

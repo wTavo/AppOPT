@@ -27,61 +27,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Estado inmutable de la pantalla de Ajustes y sincronización en la nube.
- *
- * @param accounts Lista de cuentas OTP activas en la bóveda local.
- * @param isDriveConnected Indica si la cuenta de Google Drive está vinculada.
- * @param isDriveLoading Indica si hay una operación de red o sincronización en curso iniciada localmente.
- * @param isCheckingDriveBackup Indica si se está verificando el estado de copias remotas al iniciar.
- * @param driveBackupExists Indica si existe al menos una copia de seguridad en Google Drive.
- * @param driveBackupInfo Información de metadatos de la copia más reciente.
- * @param backupHistoryList Lista de versiones históricas en Google Drive ordenadas por fecha descendente.
- * @param lastSyncTimestamp Marca de tiempo Unix de la última sincronización confirmada.
- * @param lastSyncedHash Huella digital SHA-256 de las cuentas en el momento de la última sincronización.
- * @param hasUnsyncedChanges Indica si hay cambios locales pendientes de sincronizar con la nube.
- * @param isFpsOverlayEnabled Indica si la superposición diagnóstica de FPS está activa.
- * @param isAutoSyncEnabled Indica si la sincronización periódica en segundo plano está activada.
- * @param isSyncMobileDataAllowed Indica si se permite la sincronización a través de datos móviles.
- * @param isFetchingBackupHistory Indica si se está consultando el historial de versiones en la nube en segundo plano.
- * @param isRefreshingBackupHistory Indica si el usuario solicitó un refresco manual explícito con animación de carga.
- * @param isAutoSyncRunning Indica si hay un worker de WorkManager ejecutando sincronización reactiva o periódica.
- */
-@Immutable
-data class SettingsUiState(
-    val accounts: List<TotpAccount> = emptyList(),
-    val isDriveConnected: Boolean = false,
-    val isDriveLoading: Boolean = false,
-    val isCheckingDriveBackup: Boolean = false,
-    val driveBackupExists: Boolean = false,
-    val driveBackupInfo: DriveBackupInfo? = null,
-    val backupHistoryList: List<DriveBackupItem> = emptyList(),
-    val lastSyncTimestamp: Long = 0L,
-    val lastSyncedHash: String = "",
-    val hasUnsyncedChanges: Boolean = false,
-    val isFpsOverlayEnabled: Boolean = false,
-    val isAutoSyncEnabled: Boolean = false,
-    val isSyncMobileDataAllowed: Boolean = false,
-    val isFetchingBackupHistory: Boolean = false,
-    val isRefreshingBackupHistory: Boolean = false,
-    val isAutoSyncRunning: Boolean = false,
-    val lastHistoryFetchTimestamp: Long = 0L
-) {
-    /** Indica si cualquier proceso de sincronización local, global o en segundo plano está en curso. */
-    val isSyncActive: Boolean
-        get() = isDriveLoading || isAutoSyncRunning
-
-    /** Marca de tiempo efectiva para mostrar la última sincronización relativa. */
-    val effectiveLastSyncTimestamp: Long
-        get() = if (lastSyncTimestamp > 0L) {
-            lastSyncTimestamp
-        } else {
-            backupHistoryList.firstOrNull()?.modifiedTimeMillis
-                ?: driveBackupInfo?.modifiedTimeMillis
-                ?: 0L
-        }
-}
-
-/**
  * ViewModel para gestionar de forma centralizada la lógica de configuración, diagnóstico,
  * transferencia por QR y sincronización cifrada E2EE con Google Drive.
  *
@@ -128,10 +73,10 @@ class SettingsViewModel : ViewModel() {
         }
     ) { internal, accounts, isConnected, (lastSync, safeLastHash, lastFetch) ->
         val currentVaultHash = CloudVaultSyncManager.computeAccountsSignature(accounts)
-        val hasChanges = if (!isConnected || (lastSync == 0L && internal.driveBackupInfo == null)) {
+        val hasChanges = if (!isConnected || lastSync == 0L || safeLastHash.isEmpty()) {
             false
         } else {
-            safeLastHash.isNotEmpty() && currentVaultHash != safeLastHash
+            currentVaultHash != safeLastHash
         }
 
         internal.copy(
@@ -240,7 +185,7 @@ class SettingsViewModel : ViewModel() {
     }
 
     /**
-     * Notifica que la autorización OAuth2 fue exitosa y consulta el estado del respaldo.
+     * Notifica que la autorización OAuth2 fue exitosa.
      *
      * @param token Token OAuth2 de Google Drive.
      */
@@ -248,54 +193,6 @@ class SettingsViewModel : ViewModel() {
         prefsManager.setGoogleDriveConnected(true)
         GoogleDriveManager.currentAccessToken = token
         _internalState.update { it.copy(isDriveLoading = false) }
-        refreshBackupHistory(token)
-    }
-
-    /**
-     * Verifica de forma asíncrona la existencia del respaldo remoto en Google Drive al entrar a la pantalla.
-     * Respeta la caché persistente si el tiempo transcurrido es menor a 20 segundos.
-     *
-     * @param token Token de acceso OAuth2 vigente.
-     */
-    fun checkRemoteBackupOnStartup(token: String) {
-        val now = System.currentTimeMillis()
-        val lastFetch = prefsManager.getLastBackupHistoryFetchTimestamp()
-        val hasCachedItems = _internalState.value.backupHistoryList.isNotEmpty()
-        val isCacheFresh = (now - lastFetch < SecurityConfig.BACKUP_HISTORY_CACHE_TTL_MILLIS) && hasCachedItems
-
-        if (isCacheFresh) return
-
-        viewModelScope.launch(Dispatchers.IO) {
-            _internalState.update { it.copy(isCheckingDriveBackup = true) }
-            try {
-                val historyResult = ManualSyncManager.fetchBackupHistory(token)
-                if (historyResult.isSuccess) {
-                    val items = historyResult.getOrNull().orEmpty()
-                    prefsManager.setLastBackupHistoryFetchTimestamp(System.currentTimeMillis())
-                    prefsManager.setCachedBackupHistory(items)
-                    val mostRecent = items.firstOrNull()
-                    val accounts = repository.getAccounts().first()
-                    val currentVaultHash = CloudVaultSyncManager.computeAccountsSignature(accounts)
-
-                    _internalState.update {
-                        it.copy(
-                            backupHistoryList = items,
-                            driveBackupExists = items.isNotEmpty(),
-                            driveBackupInfo = mostRecent?.let { m ->
-                                DriveBackupInfo(m.fileId, m.modifiedTimeMillis, m.deviceName)
-                            }
-                        )
-                    }
-
-                    if (accounts.isNotEmpty() && prefsManager.getLastSyncTimestamp() == 0L && mostRecent != null) {
-                        prefsManager.setLastSyncTimestamp(mostRecent.modifiedTimeMillis)
-                        prefsManager.setLastSyncedVaultHash(currentVaultHash)
-                    }
-                }
-            } finally {
-                _internalState.update { it.copy(isCheckingDriveBackup = false) }
-            }
-        }
     }
 
     /**
@@ -434,18 +331,24 @@ class SettingsViewModel : ViewModel() {
     }
 
     /**
-     * Elimina una versión de respaldo específica en Google Drive.
+     * Elimina una versión de respaldo específica en Google Drive tras validar la autenticación criptográfica.
      *
      * @param token Token de acceso de Google Drive.
      * @param fileId Identificador único del archivo en Drive.
+     * @param passChars Contraseña o frase de descifrado requerida para autorizar la eliminación.
      * @param onComplete Callback con el resultado booleano.
      */
-    fun deleteSpecificBackup(token: String, fileId: String, onComplete: (Boolean) -> Unit) {
+    fun deleteSpecificBackup(
+        token: String,
+        fileId: String,
+        passChars: CharArray,
+        onComplete: (Boolean) -> Unit
+    ) {
         viewModelScope.launch {
             _internalState.update { it.copy(isFetchingBackupHistory = true, isRefreshingBackupHistory = true) }
             try {
                 val result = withContext(Dispatchers.IO) {
-                    ManualSyncManager.deleteSpecificBackup(token, fileId)
+                    ManualSyncManager.deleteSpecificBackupWithAuth(token, fileId, passChars)
                 }
                 if (result.isSuccess) {
                     val updated = _internalState.value.backupHistoryList.filterNot { it.fileId == fileId }
@@ -466,23 +369,29 @@ class SettingsViewModel : ViewModel() {
                     onComplete(false)
                 }
             } finally {
+                passChars.fill('0')
                 _internalState.update { it.copy(isFetchingBackupHistory = false, isRefreshingBackupHistory = false) }
             }
         }
     }
 
     /**
-     * Elimina la totalidad de copias de seguridad de la aplicación en Google Drive.
+     * Elimina la totalidad de copias de seguridad de la aplicación en Google Drive tras validar la autenticación criptográfica.
      *
      * @param token Token de acceso de Google Drive.
+     * @param passChars Contraseña o frase de descifrado requerida para autorizar la eliminación.
      * @param onComplete Callback con el resultado booleano.
      */
-    fun deleteAllBackups(token: String, onComplete: (Boolean) -> Unit) {
+    fun deleteAllBackups(
+        token: String,
+        passChars: CharArray,
+        onComplete: (Boolean) -> Unit
+    ) {
         viewModelScope.launch {
             _internalState.update { it.copy(isFetchingBackupHistory = true, isRefreshingBackupHistory = true) }
             try {
                 val result = withContext(Dispatchers.IO) {
-                    ManualSyncManager.deleteAllBackups(token)
+                    ManualSyncManager.deleteAllBackupsWithAuth(token, passChars)
                 }
                 if (result.isSuccess) {
                     prefsManager.setLastBackupHistoryFetchTimestamp(0L)
@@ -501,6 +410,7 @@ class SettingsViewModel : ViewModel() {
                     onComplete(false)
                 }
             } finally {
+                passChars.fill('0')
                 _internalState.update { it.copy(isFetchingBackupHistory = false, isRefreshingBackupHistory = false) }
             }
         }

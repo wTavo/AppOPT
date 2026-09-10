@@ -80,6 +80,13 @@ class AuthenticatorApp : Application() {
         // Inicializa el canal de notificaciones para copias automáticas
         SyncNotificationHelper.createNotificationChannel(this)
 
+        // Inicializa el rastreador de crasheos y diagnóstico según la preferencia del usuario
+        val isPerfEnabled = preferencesManager.isFpsOverlayEnabled()
+        com.example.appopt.performance.AppCrashTracker.install(this, enabled = isPerfEnabled)
+        if (isPerfEnabled) {
+            com.example.appopt.performance.PerformanceMonitor.start()
+        }
+
         // Precalienta la caché de drawables vectoriales en segundo plano
         com.example.appopt.ui.brand.ServiceBrandProvider.preloadBrandIcons(this)
     }

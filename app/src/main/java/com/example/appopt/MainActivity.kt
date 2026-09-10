@@ -10,7 +10,7 @@ import androidx.fragment.app.FragmentActivity
 import com.example.appopt.ui.navigation.AppNavigation
 import com.example.appopt.ui.theme.AppTheme
 
-import com.example.appopt.util.PerformanceMonitor
+import com.example.appopt.performance.PerformanceMonitor
 
 /**
  * Actividad principal y único punto de entrada visual de la aplicación.

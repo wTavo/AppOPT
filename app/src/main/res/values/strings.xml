@@ -55,6 +55,9 @@
     <string name="lock_description">Tus secretos criptográficos están cifrados con hardware seguro. Autentícate para continuar.</string>
     <string name="lock_biometric_prompt_title">Desbloquear Authenticator</string>
     <string name="lock_biometric_prompt_subtitle">Confirma tu identidad para acceder a tus códigos</string>
+    <string name="lock_security_required_title">Se requiere bloqueo de pantalla</string>
+    <string name="lock_security_required_description">Para proteger tus claves de autenticación 2FA con el chip seguro de tu teléfono, debes configurar un PIN, patrón, contraseña o huella digital en tu dispositivo.</string>
+    <string name="lock_security_configure_action">Configurar seguridad</string>
 
     <!-- Pantalla Agregar Cuenta Manual (Add Account Screen) -->
     <string name="add_account_title">Ingresar clave manual</string>
@@ -127,7 +130,7 @@
     <string name="settings_drive_last_sync">Última copia: %1$s</string>
     <string name="settings_drive_last_sync_never">No hay copias de seguridad en Google Drive</string>
     <string name="settings_drive_backup_found">Copia de seguridad disponible en Google Drive</string>
-    <string name="settings_drive_checking_backup">Buscando copia de seguridad…</string>
+    <string name="settings_drive_press_to_search_backups">Presiona para buscar copias de seguridad</string>
     <string name="settings_drive_connect_button">Conectar cuenta de Google</string>
     <string name="settings_drive_sync_button">Sincronizar ahora</string>
     <string name="settings_drive_restore_button">Restaurar de Google Drive</string>
@@ -169,8 +172,10 @@
     <string name="settings_drive_delete_all_action">Eliminar todas las copias</string>
     <string name="settings_drive_delete_all_confirm_title">¿Eliminar todas las copias de seguridad?</string>
     <string name="settings_drive_delete_all_confirm_desc">Se borrarán permanentemente todas las versiones de la nube. Esta acción no se puede deshacer.</string>
+    <string name="settings_drive_delete_all_auth_hint">Ingresa tu contraseña maestra, clave de 64 dígitos o frase de 12 palabras para autorizar la eliminación de todas las copias de seguridad de Google Drive.</string>
     <string name="settings_drive_delete_version_confirm_title">¿Eliminar esta versión?</string>
     <string name="settings_drive_delete_version_confirm_desc">Esta versión de la copia de seguridad será eliminada de forma irreversible.</string>
+    <string name="settings_drive_delete_version_auth_hint">Ingresa tu contraseña maestra, clave de 64 dígitos o frase de 12 palabras para autorizar la eliminación de esta versión.</string>
     <string name="settings_drive_version_actual_badge">Actual</string>
     <string name="settings_drive_delete_single_success">Versión eliminada correctamente</string>
     <string name="settings_drive_delete_all_success">Todas las copias de seguridad fueron eliminadas</string>
@@ -240,10 +245,35 @@
 
     <!-- Monitor de Rendimiento y Diagnósticos -->
     <string name="settings_perf_title">Rendimiento y diagnósticos</string>
-    <string name="settings_perf_fps_description">Muestra los fotogramas por segundo (FPS) en tiempo real y registra métricas en Logcat.</string>
+    <string name="settings_perf_description">Supervisa la estabilidad técnica y el rendimiento gráfico de la aplicación.</string>
+    <string name="settings_perf_fps_monitor_title">Monitor de FPS y diagnóstico</string>
+    <string name="settings_perf_fps_description">Activa el monitor de FPS en tiempo real y el registro privado de métricas y errores técnicos para análisis del sistema.</string>
+    <string name="settings_perf_download_pdf">Descargar reporte en PDF</string>
+    <string name="settings_perf_clear_report">Borrar historial</string>
+    <string name="settings_perf_report_cleared">Historial de diagnóstico borrado</string>
+    <string name="settings_perf_diagnostics_status_ok">Sin eventos ni cierres registrados</string>
+    <string name="settings_perf_diagnostics_status_issues">%1$d evento(s) registrado(s)</string>
     <string name="perf_fps_format">%1$d FPS</string>
     <string name="perf_frame_time_format">%1$.1f ms</string>
     <string name="perf_janks_format">%1$d tirones</string>
+
+    <!-- Reporte de Diagnóstico PDF -->
+    <string name="diagnostic_pdf_title">AppOPT Authenticator</string>
+    <string name="diagnostic_pdf_subtitle">Informe de rendimiento y diagnóstico del sistema</string>
+    <string name="diagnostic_pdf_generated_at">Fecha de emisión</string>
+    <string name="diagnostic_pdf_device_title">Información del dispositivo y sistema</string>
+    <string name="diagnostic_pdf_device_model">Dispositivo</string>
+    <string name="diagnostic_pdf_android_version">Versión de Android</string>
+    <string name="diagnostic_pdf_perf_title">Métricas de rendimiento gráfico</string>
+    <string name="diagnostic_pdf_current_fps">Tasa actual de refresco</string>
+    <string name="diagnostic_pdf_avg_frame_time">Tiempo medio por fotograma</string>
+    <string name="diagnostic_pdf_janks_count">Tirones detectados (Janks)</string>
+    <string name="diagnostic_pdf_crash_title">Registro de cierres inesperados</string>
+    <string name="diagnostic_pdf_no_crashes">Sin cierres inesperados registrados en la aplicación.</string>
+    <string name="diagnostic_pdf_events_title">Registro de eventos y diagnóstico técnico</string>
+    <string name="diagnostic_pdf_no_events">No se registraron errores ni advertencias en la sesión actual.</string>
+    <string name="diagnostic_pdf_filename">AppOPT_Informe_Diagnostico.pdf</string>
+    <string name="diagnostic_pdf_privacy_note">Informe confidencial generado localmente. No contiene claves secretas, frases de recuperación ni contraseñas maestras.</string>
 
     <!-- Formato de Tiempo y Accesibilidad -->
     <string name="time_just_now">hace unos momentos</string>

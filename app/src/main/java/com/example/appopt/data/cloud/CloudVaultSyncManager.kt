@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit
 
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
+import com.example.appopt.security.SecurityConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -125,7 +126,7 @@ object CloudVaultSyncManager {
     }
 
     const val REACTIVE_WORK_NAME = "appopt_cloud_vault_reactive_sync"
-    const val DEFAULT_DEBOUNCE_SECONDS = 30L
+    const val DEFAULT_DEBOUNCE_SECONDS = SecurityConfig.REACTIVE_SYNC_DEBOUNCE_SECONDS
 
     /**
      * Clave del resultado devuelto por [AutoSyncWorker] indicando si se realizó una subida efectiva a Google Drive.

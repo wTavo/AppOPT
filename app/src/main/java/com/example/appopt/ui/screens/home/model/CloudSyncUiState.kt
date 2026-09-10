@@ -10,7 +10,12 @@ enum class CloudSyncUiState {
     IDLE,
 
     /**
-     * Sincronización en curso o retardo de consolidación activo. Muestra animación de carga.
+     * Intervalo de consolidación o espera de 20 segundos previo a la subida en la nube. Muestra el título en amarillo/ámbar.
+     */
+    PENDING,
+
+    /**
+     * Sincronización en curso activa. Muestra animación de carga y rotación.
      */
     SYNCING,
 

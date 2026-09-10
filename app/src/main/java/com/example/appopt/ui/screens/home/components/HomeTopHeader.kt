@@ -15,13 +15,11 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -55,6 +53,8 @@ import com.example.appopt.ui.screens.home.model.CloudSyncUiState
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.SafeGreen
+import com.example.appopt.ui.theme.WarningYellow
+import com.example.appopt.ui.theme.WarningYellowLight
 import com.example.appopt.ui.theme.rememberAppHaptics
 
 /**
@@ -66,6 +66,7 @@ import com.example.appopt.ui.theme.rememberAppHaptics
  *
  * Estados visuales del título central:
  * - [CloudSyncUiState.IDLE]: Muestra el título estándar "Authenticator". Si Google Drive está conectado ([isDriveConnected]), se muestra con contorno verde y animación de brillo (*shine*) en las letras.
+ * - [CloudSyncUiState.PENDING]: Muestra el título con brillo amarillo/ámbar indicando el intervalo de espera y consolidación de 20 segundos antes de la subida.
  * - [CloudSyncUiState.SYNCING]: Muestra icono de sincronización giratorio y texto descriptivo de carga.
  * - [CloudSyncUiState.SUCCESS]: Muestra la palomita verde de confirmación junto al título.
  * - [CloudSyncUiState.ERROR]: Muestra contorno rojo e icono de advertencia de error.
@@ -74,7 +75,7 @@ import com.example.appopt.ui.theme.rememberAppHaptics
  * @param searchQuery Texto de búsqueda actual.
  * @param isHideCodesEnabled Estado del modo de privacidad para ocultar dígitos OTP.
  * @param cloudSyncState Estado visual de la sincronización en la nube ([CloudSyncUiState]).
- * @param isDriveConnected Indica si la cuenta de Google Drive está conectada y sincronizada.
+ * @param isVaultSynced Indica si la bóveda local está sincronizada al 100% con la copia remota.
  * @param onSearchActiveChange Callback invocado al activar/desactivar el modo búsqueda.
  * @param onSearchQueryChange Callback invocado al escribir en el campo de búsqueda.
  * @param onToggleHideCodes Callback invocado al alternar el botón de privacidad de códigos.
@@ -86,7 +87,7 @@ fun HomeTopHeader(
     searchQuery: String,
     isHideCodesEnabled: Boolean,
     cloudSyncState: CloudSyncUiState,
-    isDriveConnected: Boolean = true,
+    isVaultSynced: Boolean = false,
     onSearchActiveChange: (Boolean) -> Unit,
     onSearchQueryChange: (String) -> Unit,
     onToggleHideCodes: () -> Unit,
@@ -136,11 +137,22 @@ fun HomeTopHeader(
         end = Offset(shineOffset + 180f, 0f)
     )
 
+    val pendingShineBrush = Brush.linearGradient(
+        colors = listOf(
+            WarningYellow,
+            WarningYellowLight,
+            WarningYellow
+        ),
+        start = Offset(shineOffset, 0f),
+        end = Offset(shineOffset + 180f, 0f)
+    )
+
     val targetBorderColor = when (cloudSyncState) {
+        CloudSyncUiState.PENDING -> WarningYellow
         CloudSyncUiState.SYNCING -> MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
         CloudSyncUiState.ERROR -> MaterialTheme.colorScheme.error
         CloudSyncUiState.SUCCESS -> SafeGreen
-        CloudSyncUiState.IDLE -> if (isDriveConnected) SafeGreen else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+        CloudSyncUiState.IDLE -> if (isVaultSynced) SafeGreen else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
     }
 
     val animatedBorderColor by animateColorAsState(
@@ -278,7 +290,7 @@ fun HomeTopHeader(
                                     CloudSyncUiState.IDLE -> {
                                         Text(
                                             text = stringResource(R.string.home_title),
-                                            style = if (isDriveConnected) {
+                                            style = if (isVaultSynced) {
                                                 MaterialTheme.typography.headlineSmall.copy(
                                                     fontWeight = FontWeight.ExtraBold,
                                                     brush = successShineBrush
@@ -288,7 +300,17 @@ fun HomeTopHeader(
                                                     fontWeight = FontWeight.ExtraBold
                                                 )
                                             },
-                                            color = if (isDriveConnected) Color.Unspecified else MaterialTheme.colorScheme.onSurface
+                                            color = if (isVaultSynced) Color.Unspecified else MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                    CloudSyncUiState.PENDING -> {
+                                        Text(
+                                            text = stringResource(R.string.home_title),
+                                            style = MaterialTheme.typography.headlineSmall.copy(
+                                                fontWeight = FontWeight.ExtraBold,
+                                                brush = pendingShineBrush
+                                            ),
+                                            color = Color.Unspecified
                                         )
                                     }
                                     CloudSyncUiState.SYNCING -> {

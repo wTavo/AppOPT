@@ -61,8 +61,32 @@ class HomeViewModel : ViewModel() {
     private val _cloudSyncState = MutableStateFlow(CloudSyncUiState.IDLE)
     val cloudSyncState: StateFlow<CloudSyncUiState> = _cloudSyncState.asStateFlow()
 
-    /** Indica si la cuenta de Google Drive está vinculada y la sincronización activa. */
-    val isDriveConnected: StateFlow<Boolean> = preferencesManager.isGoogleDriveConnectedFlow
+    /**
+     * Indica si la bóveda local está completamente sincronizada con la nube en estado Idle.
+     *
+     * Solo retorna `true` (iluminación verde) si:
+     * 1. Google Drive está conectado ([PreferencesManager.isGoogleDriveConnectedFlow]).
+     * 2. La copia automática o manual está confirmada con una marca de tiempo válida ([PreferencesManager.lastSyncTimestampFlow] > 0L).
+     * 3. Existen cuentas locales en la bóveda ([AccountRepository.getAccounts]).
+     * 4. La huella digital criptográfica de las cuentas locales coincide exactamente con la última sincronizada ([PreferencesManager.lastSyncedVaultHashFlow]).
+     */
+    val isVaultSynced: StateFlow<Boolean> = combine(
+        preferencesManager.isGoogleDriveConnectedFlow,
+        preferencesManager.lastSyncTimestampFlow,
+        preferencesManager.lastSyncedVaultHashFlow,
+        repository.getAccounts()
+    ) { isConnected, lastSync, lastHash, accounts ->
+        if (!isConnected || lastSync <= 0L || lastHash.isNullOrEmpty() || accounts.isEmpty()) {
+            false
+        } else {
+            val currentVaultHash = CloudVaultSyncManager.computeAccountsSignature(accounts)
+            currentVaultHash == lastHash
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false
+    )
 
     private var syncFeedbackJob: Job? = null
 
@@ -92,19 +116,20 @@ class HomeViewModel : ViewModel() {
             ) { reactiveList, periodicList ->
                 Pair(reactiveList, periodicList)
             }.collect { (reactiveList, periodicList) ->
-                val isReactiveActive = reactiveList.any {
-                    it.state == WorkInfo.State.RUNNING
-                }
-                val isPeriodicActive = periodicList.any {
-                    it.state == WorkInfo.State.RUNNING
-                }
-                val isSyncActive = isReactiveActive || isPeriodicActive
+                val isReactiveRunning = reactiveList.any { it.state == WorkInfo.State.RUNNING }
+                val isPeriodicRunning = periodicList.any { it.state == WorkInfo.State.RUNNING }
+                val isReactivePending = reactiveList.any { it.state == WorkInfo.State.ENQUEUED }
+                val isSyncRunning = isReactiveRunning || isPeriodicRunning
                 val allInfos = reactiveList + periodicList
 
-                if (isSyncActive) {
+                if (isSyncRunning) {
                     wasSyncing = true
                     syncFeedbackJob?.cancel()
                     _cloudSyncState.value = CloudSyncUiState.SYNCING
+                } else if (isReactivePending) {
+                    wasSyncing = true
+                    syncFeedbackJob?.cancel()
+                    _cloudSyncState.value = CloudSyncUiState.PENDING
                 } else {
                     if (wasSyncing) {
                         wasSyncing = false

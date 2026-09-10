@@ -11,7 +11,6 @@ import com.example.appopt.domain.totp.Base32
 import com.example.appopt.domain.totp.OtpUriParser
 import com.example.appopt.domain.totp.TotpEngine
 import com.example.appopt.security.CryptoManager
-import com.example.appopt.security.SecurityConfig
 import com.example.appopt.security.TransferCrypto
 import com.example.appopt.security.TransferQrChunk
 import kotlinx.coroutines.CoroutineScope
@@ -25,8 +24,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
 import java.util.UUID
 
 /**
@@ -366,62 +363,9 @@ class AccountRepositoryImpl(
         } else {
             allEntities
         }
-
-        val jsonArray = JSONArray()
-        for (entity in entities) {
-            var secretBytes: ByteArray? = null
-            try {
-                secretBytes = cryptoManager.decrypt(entity.encryptedSecret, entity.iv)
-                val secretBase32 = Base32.encode(secretBytes)
-                val item = JSONObject().apply {
-                    put("i", entity.issuer)
-                    if (entity.accountName.isNotBlank()) {
-                        put("a", entity.accountName)
-                    }
-                    put("s", secretBase32)
-                    if (entity.algorithm != "SHA1") {
-                        put("alg", entity.algorithm)
-                    }
-                    if (entity.digits != 6) {
-                        put("d", entity.digits)
-                    }
-                    if (entity.period != 30) {
-                        put("p", entity.period)
-                    }
-                    if (entity.type != "TOTP") {
-                        put("t", entity.type)
-                    }
-                    if (entity.counter > 0) {
-                        put("c", entity.counter)
-                    }
-                }
-                jsonArray.put(item)
-            } finally {
-                secretBytes?.let { CryptoManager.zeroize(it) }
-            }
-        }
-
-        val rootObject = JSONObject().apply {
-            put("v", 1)
-            put("a", jsonArray)
-        }
-
-        val plainJson = rootObject.toString()
-        return if (pin != null) {
-            TransferCrypto.encryptTransferPayload(plainJson, pin)
-        } else {
-            plainJson
-        }
+        return AccountBackupSerializer.serializeAccountsForTransfer(entities, cryptoManager, pin)
     }
 
-    /**
-     * Exporta las cuentas seleccionadas divididas en lotes de tamaño configurable para transferencias multi-QR.
-     *
-     * @param selectedAccountIds Conjunto opcional de identificadores de cuentas a exportar.
-     * @param pin PIN de 6 dígitos en [CharArray] para cifrar cada lote con AES-256-GCM.
-     * @param batchSize Cantidad máxima de cuentas por código QR (por defecto [SecurityConfig.TRANSFER_QR_BATCH_SIZE]).
-     * @return Lista de cadenas cifradas, una por cada lote.
-     */
     /**
      * Exporta las cuentas seleccionadas bajo el esquema criptográfico "Todo o Nada" (v2) divididas en lotes multi-QR.
      *
@@ -441,57 +385,7 @@ class AccountRepositoryImpl(
         } else {
             allEntities
         }
-
-        if (entities.isEmpty()) return emptyList()
-
-        val jsonArray = JSONArray()
-        for (entity in entities) {
-            var secretBytes: ByteArray? = null
-            try {
-                secretBytes = cryptoManager.decrypt(entity.encryptedSecret, entity.iv)
-                val secretBase32 = Base32.encode(secretBytes)
-                val item = JSONObject().apply {
-                    put("i", entity.issuer)
-                    if (entity.accountName.isNotBlank()) {
-                        put("a", entity.accountName)
-                    }
-                    put("s", secretBase32)
-                    if (entity.algorithm != "SHA1") {
-                        put("alg", entity.algorithm)
-                    }
-                    if (entity.digits != 6) {
-                        put("d", entity.digits)
-                    }
-                    if (entity.period != 30) {
-                        put("p", entity.period)
-                    }
-                    if (entity.type != "TOTP") {
-                        put("t", entity.type)
-                    }
-                    if (entity.counter > 0) {
-                        put("c", entity.counter)
-                    }
-                }
-                jsonArray.put(item)
-            } finally {
-                secretBytes?.let { CryptoManager.zeroize(it) }
-            }
-        }
-
-        val rootObject = JSONObject().apply {
-            put("v", 1)
-            put("a", jsonArray)
-        }
-
-        val plainJson = rootObject.toString()
-        val targetBatches = maxOf(1, (entities.size + SecurityConfig.TRANSFER_QR_BATCH_SIZE - 1) / SecurityConfig.TRANSFER_QR_BATCH_SIZE)
-        val durationSeconds = SecurityConfig.calculateTransferExpirationSeconds(targetBatches)
-        return TransferCrypto.encryptTransferPayloadInChunks(
-            accountsJson = plainJson,
-            pin = pin,
-            durationSeconds = durationSeconds,
-            targetChunkCount = targetBatches
-        )
+        return AccountBackupSerializer.serializeAndEncryptChunks(entities, cryptoManager, pin)
     }
 
     /**
@@ -545,7 +439,9 @@ class AccountRepositoryImpl(
         }
 
         // 3. Caso JSON estructurado multi-cuenta
-        return parseAndSaveAccountsJson(effectiveTrimmed)
+        return AccountBackupSerializer.parseAndSaveAccountsJson(effectiveTrimmed) { issuer, accountName, secretBytes, algorithm, digits, period, type, counter ->
+            saveAccount(issuer, accountName, secretBytes, algorithm, digits, period, type, counter)
+        }
     }
 
     /**
@@ -560,90 +456,8 @@ class AccountRepositoryImpl(
             return Result.failure(decryptResult.exceptionOrNull() ?: TransferCrypto.InvalidPinException())
         }
         val plainJson = decryptResult.getOrThrow().trim()
-        return parseAndSaveAccountsJson(plainJson)
-    }
-
-    /**
-     * Parsea un JSON multi-cuenta y persiste las cuentas cifradas en Room.
-     */
-    private suspend fun parseAndSaveAccountsJson(jsonString: String): Result<Int> {
-        return runCatching {
-            val root = JSONObject(jsonString)
-            val accountsArray = when {
-                root.has("a") -> root.getJSONArray("a")
-                root.has("accounts") -> root.getJSONArray("accounts")
-                else -> throw IllegalArgumentException("Estructura de cuentas no válida")
-            }
-
-            var count = 0
-            for (i in 0 until accountsArray.length()) {
-                val item = accountsArray.getJSONObject(i)
-                val rawSecret = when {
-                    item.has("s") -> item.getString("s")
-                    item.has("secret") -> item.getString("secret")
-                    else -> throw IllegalArgumentException("Falta clave secreta")
-                }
-                val secretBytes = Base32.decode(Base32.sanitize(rawSecret))
-
-                val issuer = when {
-                    item.has("i") -> item.getString("i")
-                    item.has("issuer") -> item.getString("issuer")
-                    else -> "Cuenta"
-                }
-
-                val accountName = when {
-                    item.has("a") -> item.getString("a")
-                    item.has("accountName") -> item.getString("accountName")
-                    else -> ""
-                }
-
-                val algorithmStr = when {
-                    item.has("alg") -> item.getString("alg")
-                    item.has("algorithm") -> item.getString("algorithm")
-                    else -> "SHA1"
-                }
-
-                val digits = when {
-                    item.has("d") -> item.getInt("d")
-                    item.has("digits") -> item.getInt("digits")
-                    else -> 6
-                }
-
-                val period = when {
-                    item.has("p") -> item.getInt("p")
-                    item.has("period") -> item.getInt("period")
-                    else -> 30
-                }
-
-                val typeStr = when {
-                    item.has("t") -> item.getString("t")
-                    item.has("type") -> item.getString("type")
-                    else -> "TOTP"
-                }
-
-                val counter = when {
-                    item.has("c") -> item.getLong("c")
-                    item.has("counter") -> item.getLong("counter")
-                    else -> 0L
-                }
-
-                try {
-                    saveAccount(
-                        issuer = issuer,
-                        accountName = accountName,
-                        secretBytes = secretBytes,
-                        algorithm = OtpAlgorithm.fromString(algorithmStr),
-                        digits = digits,
-                        period = period,
-                        type = OtpType.fromString(typeStr),
-                        counter = counter
-                    )
-                    count++
-                } finally {
-                    CryptoManager.zeroize(secretBytes)
-                }
-            }
-            count
+        return AccountBackupSerializer.parseAndSaveAccountsJson(plainJson) { issuer, accountName, secretBytes, algorithm, digits, period, type, counter ->
+            saveAccount(issuer, accountName, secretBytes, algorithm, digits, period, type, counter)
         }
     }
 
@@ -651,93 +465,12 @@ class AccountRepositoryImpl(
      * Fusiona de forma no destructiva las cuentas provenientes de una copia remota de Google Drive con la base de datos local.
      */
     override suspend fun mergeAccountsFromRemote(remoteBackupJson: String): Result<Int> = withContext(Dispatchers.IO) {
-        runCatching {
-            val trimmed = remoteBackupJson.trim()
-            if (trimmed.isBlank()) return@runCatching 0
-
-            val root = JSONObject(trimmed)
-            if (!root.has("accounts")) return@runCatching 0
-            val accountsArray = root.getJSONArray("accounts")
-            if (accountsArray.length() == 0) return@runCatching 0
-
-            val currentEntities = accountDao.getAllAccountsSync()
-            val localById = currentEntities.associateBy { it.id }
-            val localByCompositeKey = currentEntities.associateBy {
-                "${it.issuer.lowercase().trim()}:${it.accountName.lowercase().trim()}"
-            }
-
-            var changesCount = 0
-
-            for (i in 0 until accountsArray.length()) {
-                val item = accountsArray.getJSONObject(i)
-                val remoteId = item.optString("id", "")
-                val remoteIssuer = item.optString("issuer", "Cuenta").trim()
-                val remoteAccountName = item.optString("accountName", "Usuario").trim()
-                val remoteUpdatedAt = item.optLong("updatedAt", 0L)
-                val rawSecret = item.getString("secret")
-                val remoteAlgorithm = OtpAlgorithm.fromString(item.optString("algorithm", "SHA1"))
-                val remoteDigits = item.optInt("digits", 6)
-                val remotePeriod = item.optInt("period", 30)
-                val remoteType = OtpType.fromString(item.optString("type", "TOTP"))
-                val remoteCounter = item.optLong("counter", 0L)
-
-                val compositeKey = "${remoteIssuer.lowercase()}:${remoteAccountName.lowercase()}"
-                val existingEntity = (if (remoteId.isNotBlank()) localById[remoteId] else null) ?: localByCompositeKey[compositeKey]
-
-                if (existingEntity == null) {
-                    val secretBytes = Base32.decode(Base32.sanitize(rawSecret))
-                    try {
-                        val payload = cryptoManager.encrypt(secretBytes)
-                        val newId = if (remoteId.isNotBlank()) remoteId else UUID.randomUUID().toString()
-                        val now = if (remoteUpdatedAt > 0L) remoteUpdatedAt else System.currentTimeMillis()
-                        val newEntity = AccountEntity(
-                            id = newId,
-                            issuer = remoteIssuer,
-                            accountName = remoteAccountName,
-                            encryptedSecret = payload.ciphertext,
-                            iv = payload.iv,
-                            algorithm = remoteAlgorithm.name,
-                            digits = remoteDigits,
-                            period = remotePeriod,
-                            type = remoteType.name,
-                            counter = remoteCounter,
-                            createdAt = now,
-                            updatedAt = now
-                        )
-                        accountDao.insertAccount(newEntity)
-                        changesCount++
-                    } finally {
-                        CryptoManager.zeroize(secretBytes)
-                    }
-                } else {
-                    if (remoteUpdatedAt > existingEntity.updatedAt) {
-                        val secretBytes = Base32.decode(Base32.sanitize(rawSecret))
-                        try {
-                            val payload = cryptoManager.encrypt(secretBytes)
-                            val updatedEntity = existingEntity.copy(
-                                issuer = remoteIssuer,
-                                accountName = remoteAccountName,
-                                encryptedSecret = payload.ciphertext,
-                                iv = payload.iv,
-                                algorithm = remoteAlgorithm.name,
-                                digits = remoteDigits,
-                                period = remotePeriod,
-                                type = remoteType.name,
-                                counter = remoteCounter,
-                                updatedAt = remoteUpdatedAt
-                            )
-                            accountDao.updateAccount(updatedEntity)
-                            otpCodeCache.remove(existingEntity.id)
-                            changesCount++
-                        } finally {
-                            CryptoManager.zeroize(secretBytes)
-                        }
-                    }
-                }
-            }
-
-            changesCount
-        }
+        AccountBackupSerializer.mergeRemoteBackup(
+            remoteBackupJson = remoteBackupJson,
+            accountDao = accountDao,
+            cryptoManager = cryptoManager,
+            onInvalidateCache = { id -> otpCodeCache.remove(id) }
+        )
     }
 
     /**

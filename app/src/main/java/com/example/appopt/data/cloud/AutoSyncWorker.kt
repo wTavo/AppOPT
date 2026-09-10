@@ -5,8 +5,6 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.example.appopt.AuthenticatorApp
-import com.example.appopt.data.local.PreferencesManager
-import com.example.appopt.security.SecurityConfig
 import com.example.appopt.util.SyncNotificationHelper
 import com.google.android.gms.tasks.Tasks
 import kotlinx.coroutines.Dispatchers

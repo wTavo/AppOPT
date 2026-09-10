@@ -65,6 +65,11 @@ object SecurityConfig {
     const val APP_LOCK_TIMEOUT_MILLIS = 5_000L
 
     /**
+     * Retardo de consolidación (*Debounce*) en segundos antes de disparar la sincronización reactiva automática en la nube.
+     */
+    const val REACTIVE_SYNC_DEBOUNCE_SECONDS = 20L
+
+    /**
      * Semilla de derivación interna para la clave simétrica de sincronización automática en la nube.
      */
     const val AUTO_SYNC_VAULT_KEY = "AppOPT_AutoSync_Vault_E2EE_v1"
@@ -127,6 +132,11 @@ object SecurityConfig {
      * Optimizado para derivación instantánea en dispositivos móviles sin bloquear el renderizado de cámara.
      */
     const val TRANSFER_QR_PBKDF2_ITERATIONS = 10_000
+
+    /**
+     * Versión actual del esquema de datos para respaldos en la nube y transferencias JSON.
+     */
+    const val CURRENT_BACKUP_VERSION = 1
 
     /**
      * Versión 1 (legada / mono-código) del esquema del sobre criptográfico de transferencia por código QR.

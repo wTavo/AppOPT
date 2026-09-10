@@ -12,6 +12,23 @@ import com.example.appopt.security.SecurityConfig
  * - [encryptedSecret] almacena el ciphertext cifrado con AES-256-GCM.
  * - [iv] almacena el vector de inicialización único de 12 bytes requerido para descifrar y verificar autenticidad.
  * - Metadatos no sensibles ([issuer], [accountName]) se conservan en texto plano para búsquedas y listados eficientes.
+ *
+ * @param id Identificador único UUID de la cuenta.
+ * @param issuer Emisor o servicio al que pertenece la cuenta (ej. "Google", "GitHub").
+ * @param accountName Nombre de usuario o correo electrónico asociado.
+ * @param encryptedSecret Clave secreta cifrada con AES-256-GCM.
+ * @param iv Vector de inicialización único de 12 bytes para descifrado AES-GCM.
+ * @param algorithm Algoritmo criptográfico de hash (SHA1, SHA256, SHA512).
+ * @param digits Cantidad de dígitos generados (6 u 8).
+ * @param period Período de refresco en segundos para TOTP.
+ * @param type Tipo de token OTP (TOTP o HOTP).
+ * @param counter Contador secuencial para cuentas de tipo HOTP.
+ * @param isFavorite Indica si la cuenta está fijada como favorita en la parte superior.
+ * @param orderIndex Posición ordinal para ordenamiento personalizado por arrastre.
+ * @param isDeleted Bandera de borrado suave para la papelera de reciclaje.
+ * @param deletedAt Marca de tiempo Unix del momento en que fue enviada a la papelera.
+ * @param createdAt Marca de tiempo Unix de creación de la cuenta.
+ * @param updatedAt Marca de tiempo Unix de la última actualización de la cuenta.
  */
 @Entity(tableName = SecurityConfig.TABLE_ACCOUNTS_NAME)
 data class AccountEntity(

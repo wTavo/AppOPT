@@ -16,6 +16,9 @@ object Dimensions {
      * Escala estandarizada de espaciados y márgenes interiores (*Padding / Margins*).
      */
     object Spacing {
+        /** Sin espaciado ni margen (0.dp). */
+        val none: Dp = 0.dp
+
         /** Micro espaciado entre iconos y textos adyacentes (4.dp). */
         val xs: Dp = 4.dp
 
@@ -122,8 +125,14 @@ object Dimensions {
         /** Tamaño estándar de botones de acción en tarjetas o modales (36.dp). */
         val actionIconButton: Dp = 36.dp
 
-        /** Altura máxima para listas scrolleables dentro de modales (240.dp). */
-        val modalListMaxHeight: Dp = 240.dp
+        /** Altura máxima para listas scrolleables dentro de modales (320.dp). */
+        val modalListMaxHeight: Dp = 320.dp
+
+        /** Ancho mínimo para el menú flotante Speed Dial de creación de cuentas (220.dp). */
+        val speedDialMinWidth: Dp = 220.dp
+
+        /** Ancho máximo para el menú flotante Speed Dial de creación de cuentas (280.dp). */
+        val speedDialMaxWidth: Dp = 280.dp
     }
 
     /**

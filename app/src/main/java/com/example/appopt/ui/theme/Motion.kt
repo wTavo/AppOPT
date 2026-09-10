@@ -175,6 +175,18 @@ object Motion {
             stiffness = Spring.StiffnessLow
         )
 
+        /** Especificación suave y directa sin rebote residual para el desplazamiento y reordenamiento de tarjetas en lista. */
+        fun <T> itemPlacementSpec() = spring<T>(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMedium
+        )
+
+        /** Especificación rápida y sin rebote para el desplazamiento inmediato de tarjetas durante el arrastre activo. */
+        fun <T> dragItemPlacementSpec() = spring<T>(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessHigh
+        )
+
         /** Especificación de desvanecimiento entrante para transición de pantalla Fade Through. */
         fun <T> navFadeInSpec() = tween<T>(
             durationMillis = Duration.NAV_FADE_THROUGH_ENTER,

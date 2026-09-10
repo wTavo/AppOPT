@@ -1,6 +1,5 @@
 package com.example.appopt.ui.navigation
 
-import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
@@ -27,9 +26,9 @@ import com.example.appopt.ui.screens.lock.LockScreen
 import com.example.appopt.ui.screens.scan.QrScannerScreen
 import com.example.appopt.ui.screens.settings.SettingsScreen
 import com.example.appopt.ui.screens.trash.RecentlyDeletedScreen
+import com.example.appopt.performance.PerformanceFpsOverlay
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
-import com.example.appopt.util.PerformanceFpsOverlay
 
 /**
  * Grafo principal de navegación y control de acceso de la aplicación.

@@ -40,11 +40,8 @@ import kotlin.time.Duration.Companion.milliseconds
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 
 /**
  * Estados visuales de interacción para [AppAnimatedButton].
@@ -123,6 +120,8 @@ fun AppAnimatedButton(
                             buttonState = AnimatedButtonState.SUCCESS
                             delay(Motion.Duration.SUCCESS_ACTION.toLong().milliseconds)
                             onActionConfirmed()
+                            buttonState = AnimatedButtonState.IDLE
+                            isProcessing = false
                         } else {
                             appHaptics.error()
                             buttonState = AnimatedButtonState.ERROR
@@ -141,7 +140,7 @@ fun AppAnimatedButton(
             }
         },
         enabled = isButtonInteractive || buttonState != AnimatedButtonState.IDLE,
-        contentPadding = if (isCompact) PaddingValues(horizontal = Dimensions.Spacing.sm, vertical = 0.dp) else ButtonDefaults.ContentPadding,
+        contentPadding = if (isCompact) PaddingValues(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.none) else ButtonDefaults.ContentPadding,
         colors = ButtonDefaults.buttonColors(
             containerColor = animatedContainerColor,
             contentColor = MaterialTheme.colorScheme.onPrimary,

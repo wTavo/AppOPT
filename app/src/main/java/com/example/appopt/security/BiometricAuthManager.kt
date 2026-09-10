@@ -1,5 +1,8 @@
 package com.example.appopt.security
 
+import android.app.KeyguardManager
+import android.content.Context
+import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
 import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
@@ -13,8 +16,23 @@ import androidx.fragment.app.FragmentActivity
  * Características:
  * - Soporta sensores de huella digital y reconocimiento facial seguros.
  * - Permite fallback a PIN, patrón o contraseña del dispositivo si la biometría no está disponible.
+ * - Verifica proactivamente si el dispositivo cuenta con bloqueo de pantalla seguro configurado.
  */
 class BiometricAuthManager {
+
+    /**
+     * Comprueba si el dispositivo cuenta con algún mecanismo de seguridad activo (PIN, patrón, contraseña o biometría).
+     *
+     * @param context Contexto de la aplicación.
+     * @return `true` si el dispositivo está protegido con credenciales de pantalla o biometría, `false` en caso contrario.
+     */
+    fun isDeviceSecure(context: Context): Boolean {
+        val keyguardManager = context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+        val isKeyguardSecure = keyguardManager?.isDeviceSecure == true || keyguardManager?.isKeyguardSecure == true
+        val biometricManager = BiometricManager.from(context)
+        val canAuth = biometricManager.canAuthenticate(BIOMETRIC_STRONG or BIOMETRIC_WEAK or DEVICE_CREDENTIAL)
+        return isKeyguardSecure || canAuth == BiometricManager.BIOMETRIC_SUCCESS
+    }
 
     /**
      * Muestra el diálogo del sistema de autenticación biométrica o PIN.

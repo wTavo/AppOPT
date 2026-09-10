@@ -54,12 +54,16 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
+    implementation(libs.androidx.compose.runtime.tracing)
 
     // Navigation & Lifecycle
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.process)
+
+    // Reorderable Drag & Drop
+    implementation(libs.reorderable)
 
     // Room Database
     implementation(libs.androidx.room.runtime)
@@ -70,6 +74,10 @@ dependencies {
     implementation(libs.androidx.biometric)
     implementation(libs.google.play.services.auth)
     implementation(libs.androidx.work.runtime.ktx)
+
+    // Performance & Baseline Profiles
+    implementation(libs.androidx.profileinstaller)
+    implementation(libs.androidx.metrics.performance)
 
     // CameraX & ML Kit
     implementation(libs.androidx.camera.core)

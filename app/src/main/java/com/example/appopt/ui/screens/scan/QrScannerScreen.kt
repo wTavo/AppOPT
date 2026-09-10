@@ -67,6 +67,8 @@ import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
 import com.example.appopt.security.TransferCrypto
 import com.example.appopt.security.TransferQrChunk
+import com.example.appopt.ui.screens.scan.components.QrCameraPermissionView
+import com.example.appopt.ui.screens.scan.components.QrScannerOverlay
 import com.example.appopt.ui.screens.scan.components.TransferPinPromptDialog
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
@@ -390,106 +392,20 @@ fun QrScannerScreen(
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // Marco guía del escáner QR
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(Dimensions.Spacing.xl),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(Dimensions.ComponentSize.qrScannerBox)
-                            .clip(RoundedCornerShape(Dimensions.CornerRadius.large))
-                            .border(Dimensions.Stroke.thick, MaterialTheme.colorScheme.primary, RoundedCornerShape(Dimensions.CornerRadius.large))
-                    )
-
-                    Spacer(modifier = Modifier.height(Dimensions.Spacing.xl))
-
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color.Black.copy(alpha = 0.7f)
-                        ),
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                    ) {
-                        val statusText = when {
-                            totalExpectedChunks > 1 && sessionChunks.size < totalExpectedChunks -> {
-                                stringResource(R.string.scan_transfer_chunk_progress, sessionChunks.size, totalExpectedChunks)
-                            }
-                            totalImportedAccountsCount > 0 -> {
-                                stringResource(R.string.scan_transfer_import_success, totalImportedAccountsCount)
-                            }
-                            else -> {
-                                stringResource(R.string.scan_hint)
-                            }
-                        }
-                        Text(
-                            text = statusText,
-                            color = Color.White,
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(horizontal = Dimensions.Spacing.lg, vertical = Dimensions.Spacing.sm)
-                        )
-                    }
-                }
+                // Marco guía del escáner QR y estado de fragmentos
+                QrScannerOverlay(
+                    totalExpectedChunks = totalExpectedChunks,
+                    currentChunksCount = sessionChunks.size,
+                    totalImportedAccountsCount = totalImportedAccountsCount
+                )
             } else {
                 // Estado de permiso denegado
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(Dimensions.Spacing.xxl),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.CameraAlt,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(Dimensions.IconSize.hero)
-                    )
-
-                    Spacer(modifier = Modifier.height(Dimensions.Spacing.lg))
-
-                    Text(
-                        text = stringResource(R.string.scan_permission_required_title),
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleLarge
-                    )
-
-                    Spacer(modifier = Modifier.height(Dimensions.Spacing.sm))
-
-                    Text(
-                        text = stringResource(R.string.scan_permission_required_description),
-                        color = Color.LightGray,
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center
-                    )
-
-                    Spacer(modifier = Modifier.height(Dimensions.Spacing.xl))
-
-                    Button(
-                        onClick = {
-                            appHaptics.click()
-                            permissionLauncher.launch(Manifest.permission.CAMERA)
-                        },
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                    ) {
-                        Text(stringResource(R.string.action_grant_permission), style = MaterialTheme.typography.labelLarge)
-                    }
-
-                    Spacer(modifier = Modifier.height(Dimensions.Spacing.md))
-
-                    OutlinedButton(
-                        onClick = {
-                            appHaptics.click()
-                            onNavigateToManual()
-                        },
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                    ) {
-                        Text(stringResource(R.string.home_add_manual_option), style = MaterialTheme.typography.labelLarge)
-                    }
-                }
+                QrCameraPermissionView(
+                    onRequestPermission = {
+                        permissionLauncher.launch(Manifest.permission.CAMERA)
+                    },
+                    onNavigateToManual = onNavigateToManual
+                )
             }
         }
     }

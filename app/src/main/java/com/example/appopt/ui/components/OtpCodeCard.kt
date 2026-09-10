@@ -2,7 +2,6 @@ package com.example.appopt.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -35,9 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -70,9 +67,6 @@ import kotlin.time.Duration.Companion.milliseconds
  * @param onCopyCode Callback invocado al pulsar sobre los dígitos para copiar el código al portapapeles.
  * @param onToggleFavorite Callback para marcar o desmarcar como favorita.
  * @param onNextHotpCode Callback para avanzar el contador de una cuenta HOTP.
- * @param onStartDrag Callback invocado al iniciar el arrastre por la manija.
- * @param onDragDelta Callback con el desplazamiento vertical continuo durante el arrastre.
- * @param onEndDrag Callback invocado al soltar la tarjeta.
  */
 @Composable
 fun OtpCodeCard(
@@ -80,19 +74,14 @@ fun OtpCodeCard(
     hideCodes: Boolean,
     modifier: Modifier = Modifier,
     isDragging: Boolean = false,
-    isReorderEnabled: Boolean = true,
     onCardClick: () -> Unit,
     onCopyCode: (String) -> Unit,
     onToggleFavorite: (String) -> Unit,
-    onNextHotpCode: (String) -> Unit,
-    onStartDrag: () -> Unit = {},
-    onDragDelta: (Float, Float) -> Unit = { _, _ -> },
-    onEndDrag: () -> Unit = {}
+    onNextHotpCode: (String) -> Unit
 ) {
     val account = accountWithCode.account
     val appHaptics = rememberAppHaptics()
     val context = LocalContext.current
-    val density = LocalDensity.current
     val interactionSource = remember { MutableInteractionSource() }
 
     var copied by remember { mutableStateOf(false) }
@@ -114,34 +103,11 @@ fun OtpCodeCard(
         }
     }
 
-    val cardHeightPx = remember(density) {
-        with(density) { Dimensions.ComponentHeight.otpCardEstimatedHeight.toPx() + Dimensions.Spacing.md.toPx() }
-    }
-
-    val dragModifier = if (isReorderEnabled) {
-        Modifier.pointerInput(account.id) {
-            detectDragGesturesAfterLongPress(
-                onDragStart = {
-                    appHaptics.dragTick()
-                    onStartDrag()
-                },
-                onDrag = { change, dragAmount ->
-                    change.consume()
-                    onDragDelta(dragAmount.y, cardHeightPx)
-                },
-                onDragEnd = { onEndDrag() },
-                onDragCancel = { onEndDrag() }
-            )
-        }
-    } else {
-        Modifier
-    }
-
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .then(dragModifier)
             .clickable(
+                enabled = !isDragging,
                 interactionSource = interactionSource,
                 indication = ripple(),
                 onClick = {

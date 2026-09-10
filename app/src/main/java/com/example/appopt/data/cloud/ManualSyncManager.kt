@@ -270,6 +270,52 @@ object ManualSyncManager {
     }
 
     /**
+     * Elimina una versión específica de copia de seguridad en Google Drive tras validar la contraseña de descifrado.
+     *
+     * @param accessToken Token OAuth2 activo.
+     * @param fileId Identificador del archivo a eliminar.
+     * @param secretKeyPass Contraseña o clave de descifrado en [CharArray].
+     * @return [Result] con éxito o fallo de la eliminación.
+     */
+    suspend fun deleteSpecificBackupWithAuth(
+        accessToken: String,
+        fileId: String,
+        secretKeyPass: CharArray
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val verifyResult = GoogleDriveManager.downloadBackupById(accessToken, fileId, secretKeyPass)
+            if (verifyResult.isFailure) {
+                return@withContext Result.failure(verifyResult.exceptionOrNull() ?: IllegalStateException("Clave incorrecta"))
+            }
+            deleteSpecificBackup(accessToken, fileId)
+        } finally {
+            secretKeyPass.fill('0')
+        }
+    }
+
+    /**
+     * Elimina todas las versiones de copia de seguridad en Google Drive tras validar la contraseña de descifrado.
+     *
+     * @param accessToken Token OAuth2 activo.
+     * @param secretKeyPass Contraseña o clave de descifrado en [CharArray].
+     * @return [Result] con éxito o fallo de la eliminación.
+     */
+    suspend fun deleteAllBackupsWithAuth(
+        accessToken: String,
+        secretKeyPass: CharArray
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val verifyResult = GoogleDriveManager.downloadBackup(accessToken, secretKeyPass)
+            if (verifyResult.isFailure) {
+                return@withContext Result.failure(verifyResult.exceptionOrNull() ?: IllegalStateException("Clave incorrecta"))
+            }
+            deleteAllBackups(accessToken)
+        } finally {
+            secretKeyPass.fill('0')
+        }
+    }
+
+    /**
      * Elimina una versión específica de copia de seguridad en Google Drive.
      *
      * @param accessToken Token OAuth2 activo.

@@ -23,8 +23,6 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -40,6 +38,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import com.example.appopt.R
+import com.example.appopt.ui.components.SettingsSectionCard
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.SafeGreen
@@ -122,134 +121,104 @@ fun PermissionsSettingsCard(
     val pendingPermissions = permissions.filter { !it.isGranted }
     val grantedPermissions = permissions.filter { it.isGranted }
 
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        shape = RoundedCornerShape(Dimensions.CornerRadius.large)
+    SettingsSectionCard(
+        title = stringResource(R.string.settings_permissions_title),
+        description = stringResource(R.string.settings_permissions_description),
+        icon = Icons.Filled.Security,
+        modifier = modifier
     ) {
-        Column(
-            modifier = Modifier.padding(Dimensions.Spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
-        ) {
-            // 1. Cabecera limpia con icono y título estándar
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+        // 3. Permisos pendientes (fuera del desplegable, en tono rojo)
+        if (pendingPermissions.isNotEmpty()) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
             ) {
-                Icon(
-                    imageVector = Icons.Filled.Security,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(Dimensions.IconSize.medium)
-                )
-                Text(
-                    text = stringResource(R.string.settings_permissions_title),
-                    style = MaterialTheme.typography.titleMedium
-                )
-            }
-
-            // 2. Descripción explicativa
-            Text(
-                text = stringResource(R.string.settings_permissions_description),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            // 3. Permisos pendientes (fuera del desplegable, en tono rojo)
-            if (pendingPermissions.isNotEmpty()) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
-                ) {
-                    pendingPermissions.forEach { item ->
-                        PendingPermissionRow(
-                            icon = item.icon,
-                            title = stringResource(item.titleRes),
-                            description = stringResource(item.descriptionRes),
-                            onRequestPermission = item.onRequest
-                        )
-                    }
+                pendingPermissions.forEach { item ->
+                    PendingPermissionRow(
+                        icon = item.icon,
+                        title = stringResource(item.titleRes),
+                        description = stringResource(item.descriptionRes),
+                        onRequestPermission = item.onRequest
+                    )
                 }
             }
+        }
 
-            // 4. Permisos ya concedidos (dentro de contenedor desplegable)
-            if (grantedPermissions.isNotEmpty()) {
-                val arrowRotation by animateFloatAsState(
-                    targetValue = if (isGrantedSectionExpanded) 180f else 0f,
-                    animationSpec = Motion.Spec.privacyCollapseSpec(),
-                    label = "granted_permissions_arrow_rotation"
-                )
+        // 4. Permisos ya concedidos (dentro de contenedor desplegable)
+        if (grantedPermissions.isNotEmpty()) {
+            val arrowRotation by animateFloatAsState(
+                targetValue = if (isGrantedSectionExpanded) 180f else 0f,
+                animationSpec = Motion.Spec.privacyCollapseSpec(),
+                label = "granted_permissions_arrow_rotation"
+            )
 
-                Surface(
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
+            Surface(
+                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth()
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                appHaptics.click()
+                                isGrantedSectionExpanded = !isGrantedSectionExpanded
+                            }
+                            .padding(Dimensions.Spacing.md),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    appHaptics.click()
-                                    isGrantedSectionExpanded = !isGrantedSectionExpanded
-                                }
-                                .padding(Dimensions.Spacing.md),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.CheckCircle,
-                                    contentDescription = null,
-                                    tint = SafeGreen,
-                                    modifier = Modifier.size(Dimensions.IconSize.small)
-                                )
-                                Text(
-                                    text = stringResource(
-                                        R.string.settings_permissions_granted_count,
-                                        grantedPermissions.size
-                                    ),
-                                    style = MaterialTheme.typography.titleSmall
-                                )
-                            }
-
                             Icon(
-                                imageVector = Icons.Filled.KeyboardArrowDown,
+                                imageVector = Icons.Filled.CheckCircle,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier
-                                    .size(Dimensions.IconSize.medium)
-                                    .graphicsLayer { rotationZ = arrowRotation }
+                                tint = SafeGreen,
+                                modifier = Modifier.size(Dimensions.IconSize.small)
+                            )
+                            Text(
+                                text = stringResource(
+                                    R.string.settings_permissions_granted_count,
+                                    grantedPermissions.size
+                                ),
+                                style = MaterialTheme.typography.titleSmall
                             )
                         }
 
-                        AnimatedVisibility(
-                            visible = isGrantedSectionExpanded,
-                            enter = fadeIn(Motion.Spec.privacyCollapseSpec()) + expandVertically(Motion.Spec.privacyCollapseSpec()),
-                            exit = fadeOut(Motion.Spec.privacyCollapseSpec()) + shrinkVertically(Motion.Spec.privacyCollapseSpec())
+                        Icon(
+                            imageVector = Icons.Filled.KeyboardArrowDown,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .size(Dimensions.IconSize.medium)
+                                .graphicsLayer { rotationZ = arrowRotation }
+                        )
+                    }
+
+                    AnimatedVisibility(
+                        visible = isGrantedSectionExpanded,
+                        enter = fadeIn(Motion.Spec.privacyCollapseSpec()) + expandVertically(Motion.Spec.privacyCollapseSpec()),
+                        exit = fadeOut(Motion.Spec.privacyCollapseSpec()) + shrinkVertically(Motion.Spec.privacyCollapseSpec())
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .padding(
+                                    start = Dimensions.Spacing.md,
+                                    end = Dimensions.Spacing.md,
+                                    bottom = Dimensions.Spacing.md
+                                ),
+                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
                         ) {
-                            Column(
-                                modifier = Modifier
-                                    .padding(
-                                        start = Dimensions.Spacing.md,
-                                        end = Dimensions.Spacing.md,
-                                        bottom = Dimensions.Spacing.md
-                                    ),
-                                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
-                            ) {
-                                grantedPermissions.forEach { item ->
-                                    GrantedPermissionRow(
-                                        icon = item.icon,
-                                        title = stringResource(item.titleRes),
-                                        description = stringResource(item.descriptionRes)
-                                    )
-                                }
+                            grantedPermissions.forEach { item ->
+                                GrantedPermissionRow(
+                                    icon = item.icon,
+                                    title = stringResource(item.titleRes),
+                                    description = stringResource(item.descriptionRes)
+                                )
                             }
                         }
                     }

@@ -1,8 +1,10 @@
 package com.example.appopt.ui.screens.settings.dialogs
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -24,6 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -56,7 +60,7 @@ import kotlin.time.Duration.Companion.milliseconds
 /**
  * Diálogo modal con máquina de estados unificada (Single-Dialog State Machine) para inspeccionar el historial
  * de versiones de respaldo en Google Drive (Point-in-Time Recovery), restaurar versiones específicas mediante
- * descifrado directo en el modal, o eliminarlas de forma individual.
+ * descifrado directo en el modal, o eliminarlas individual o totalmente mediante autenticación criptográfica.
  *
  * Cumple con la Directiva 14 (navegación modal defensiva sin desmontaje/parpadeo de ventanas) y estandarización
  * de nomenclatura de botones («Cerrar» para vista principal, «Volver» para sub-estados).
@@ -65,10 +69,12 @@ import kotlin.time.Duration.Companion.milliseconds
  * @param isLoading Indica si hay una operación asíncrona de consulta, recarga o borrado en curso.
  * @param lastFetchTimestamp Marca de tiempo de la última consulta al historial para cálculo del enfriamiento.
  * @param lastSyncTimestamp Marca de tiempo de la última sincronización local confirmada.
+ * @param lastSyncedHash Huella digital criptográfica SHA-256 de la última sincronización confirmada en este dispositivo.
  * @param hasUnsyncedChanges Indica si hay cambios locales sin sincronizar en este dispositivo.
  * @param onForceRefresh Callback invocado para forzar una consulta fresca a Google Drive al presionar el botón de refresco.
  * @param onRestoreBackup Callback invocado para restaurar una versión específica con sus caracteres de descifrado.
- * @param onDeleteSpecificBackup Callback invocado para eliminar una versión específica.
+ * @param onDeleteSpecificBackup Callback invocado para eliminar una versión específica con sus caracteres de descifrado.
+ * @param onDeleteAllBackups Callback invocado para eliminar todas las versiones con sus caracteres de descifrado.
  * @param onDismiss Callback invocado para cerrar el modal.
  * @param modifier Modificador de diseño Compose opcional.
  */
@@ -78,10 +84,12 @@ fun DriveBackupDetailsDialog(
     isLoading: Boolean,
     lastFetchTimestamp: Long = 0L,
     lastSyncTimestamp: Long = 0L,
+    lastSyncedHash: String = "",
     hasUnsyncedChanges: Boolean = false,
     onForceRefresh: () -> Unit = {},
     onRestoreBackup: (DriveBackupItem, CharArray) -> Unit,
-    onDeleteSpecificBackup: (DriveBackupItem) -> Unit,
+    onDeleteSpecificBackup: (DriveBackupItem, CharArray) -> Unit,
+    onDeleteAllBackups: (CharArray) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -93,6 +101,10 @@ fun DriveBackupDetailsDialog(
     var isRestoreSecretVisible by remember { mutableStateOf(false) }
 
     var pendingDeleteBackup by remember { mutableStateOf<DriveBackupItem?>(null) }
+    var isPendingDeleteAll by remember { mutableStateOf(false) }
+    var deleteSecretText by remember { mutableStateOf("") }
+    var isDeleteSecretVisible by remember { mutableStateOf(false) }
+
     var currentTick by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
     LaunchedEffect(Unit) {
@@ -114,6 +126,10 @@ fun DriveBackupDetailsDialog(
                 restoreSecretText = ""
             } else if (pendingDeleteBackup != null) {
                 pendingDeleteBackup = null
+                deleteSecretText = ""
+            } else if (isPendingDeleteAll) {
+                isPendingDeleteAll = false
+                deleteSecretText = ""
             } else {
                 onDismiss()
             }
@@ -123,9 +139,10 @@ fun DriveBackupDetailsDialog(
             val titleText = when {
                 pendingRestoreBackup != null -> stringResource(R.string.settings_drive_decrypt_title)
                 pendingDeleteBackup != null -> stringResource(R.string.settings_drive_delete_version_confirm_title)
+                isPendingDeleteAll -> stringResource(R.string.settings_drive_delete_all_confirm_title)
                 else -> stringResource(R.string.settings_drive_history_title)
             }
-            val titleColor = if (pendingDeleteBackup != null) {
+            val titleColor = if (pendingDeleteBackup != null || isPendingDeleteAll) {
                 MaterialTheme.colorScheme.error
             } else {
                 MaterialTheme.colorScheme.onSurface
@@ -141,6 +158,7 @@ fun DriveBackupDetailsDialog(
                 pendingRestoreBackup != null -> {
                     val pendingTarget = pendingRestoreBackup!!
                     val isPendingActual = lastSyncTimestamp > 0L &&
+                            lastSyncedHash.isNotEmpty() &&
                             !hasUnsyncedChanges &&
                             pendingTarget.isMostRecent
                     DriveBackupDecryptForm(
@@ -149,14 +167,34 @@ fun DriveBackupDetailsDialog(
                         restoreSecretText = restoreSecretText,
                         onRestoreSecretChange = { restoreSecretText = it },
                         isRestoreSecretVisible = isRestoreSecretVisible,
-                        onToggleSecretVisibility = { isRestoreSecretVisible = !isRestoreSecretVisible }
+                        onToggleSecretVisibility = { isRestoreSecretVisible = !isRestoreSecretVisible },
+                        hintText = stringResource(R.string.settings_drive_decrypt_hint)
                     )
                 }
                 pendingDeleteBackup != null -> {
-                    Text(
-                        text = stringResource(R.string.settings_drive_delete_version_confirm_desc),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    val pendingTarget = pendingDeleteBackup!!
+                    val isPendingActual = lastSyncTimestamp > 0L &&
+                            lastSyncedHash.isNotEmpty() &&
+                            !hasUnsyncedChanges &&
+                            pendingTarget.isMostRecent
+                    DriveBackupDecryptForm(
+                        targetBackup = pendingTarget,
+                        isActual = isPendingActual,
+                        restoreSecretText = deleteSecretText,
+                        onRestoreSecretChange = { deleteSecretText = it },
+                        isRestoreSecretVisible = isDeleteSecretVisible,
+                        onToggleSecretVisibility = { isDeleteSecretVisible = !isDeleteSecretVisible },
+                        hintText = stringResource(R.string.settings_drive_delete_version_auth_hint)
+                    )
+                }
+                isPendingDeleteAll -> {
+                    DriveBackupDecryptForm(
+                        targetBackup = null,
+                        restoreSecretText = deleteSecretText,
+                        onRestoreSecretChange = { deleteSecretText = it },
+                        isRestoreSecretVisible = isDeleteSecretVisible,
+                        onToggleSecretVisibility = { isDeleteSecretVisible = !isDeleteSecretVisible },
+                        hintText = stringResource(R.string.settings_drive_delete_all_auth_hint)
                     )
                 }
                 else -> {
@@ -166,9 +204,7 @@ fun DriveBackupDetailsDialog(
                     ) {
                         CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(Dimensions.IconSize.large),
+                                modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
@@ -180,7 +216,6 @@ fun DriveBackupDetailsDialog(
                                 )
                                 Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
                                 Box(
-                                    modifier = Modifier.height(Dimensions.IconSize.large),
                                     contentAlignment = Alignment.CenterEnd
                                 ) {
                                     if (isLoading) {
@@ -251,13 +286,15 @@ fun DriveBackupDetailsDialog(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .heightIn(max = Dimensions.ComponentSize.modalListMaxHeight),
-                                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
+                                contentPadding = PaddingValues(bottom = Dimensions.Spacing.xs)
                             ) {
                                 items(backupItems, key = { it.fileId }) { item ->
                                     val formattedDate = remember(item.modifiedTimeMillis, currentTick) {
                                         DateTimeFormatter.formatRelativeSyncTime(context, item.modifiedTimeMillis)
                                     }
                                     val isActual = lastSyncTimestamp > 0L &&
+                                            lastSyncedHash.isNotEmpty() &&
                                             !hasUnsyncedChanges &&
                                             item.isMostRecent
 
@@ -267,6 +304,8 @@ fun DriveBackupDetailsDialog(
                                         formattedDate = formattedDate,
                                         onDeleteClick = {
                                             appHaptics.click()
+                                            deleteSecretText = ""
+                                            isDeleteSecretVisible = false
                                             pendingDeleteBackup = item
                                         },
                                         onRestoreClick = {
@@ -277,6 +316,37 @@ fun DriveBackupDetailsDialog(
                                         }
                                     )
                                 }
+                            }
+
+                            Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
+
+                            OutlinedButton(
+                                onClick = {
+                                    appHaptics.click()
+                                    deleteSecretText = ""
+                                    isDeleteSecretVisible = false
+                                    isPendingDeleteAll = true
+                                },
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.error
+                                ),
+                                border = BorderStroke(
+                                    Dimensions.Stroke.thin,
+                                    MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
+                                ),
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.DeleteSweep,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(Dimensions.IconSize.small)
+                                )
+                                Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                                Text(
+                                    text = stringResource(R.string.settings_drive_delete_all_action),
+                                    style = MaterialTheme.typography.labelMedium
+                                )
                             }
                         }
                     }
@@ -318,14 +388,29 @@ fun DriveBackupDetailsDialog(
                     }
                 }
                 pendingDeleteBackup != null -> {
+                    var isProcessing by remember { mutableStateOf(false) }
                     Button(
                         onClick = {
-                            val target = pendingDeleteBackup
-                            pendingDeleteBackup = null
-                            if (target != null) {
-                                onDeleteSpecificBackup(target)
+                            if (!isProcessing) {
+                                isProcessing = true
+                                val targetItem = pendingDeleteBackup!!
+                                val normalizedSecret = if (deleteSecretText.contains(" ")) {
+                                    MnemonicManager.normalizePhrase(deleteSecretText)
+                                } else {
+                                    deleteSecretText.trim()
+                                }
+                                val passChars = normalizedSecret.toCharArray()
+                                try {
+                                    onDeleteSpecificBackup(targetItem, passChars)
+                                } finally {
+                                    passChars.fill('0')
+                                    pendingDeleteBackup = null
+                                    deleteSecretText = ""
+                                    isProcessing = false
+                                }
                             }
                         },
+                        enabled = deleteSecretText.isNotBlank(),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.error,
                             contentColor = MaterialTheme.colorScheme.onError
@@ -334,6 +419,41 @@ fun DriveBackupDetailsDialog(
                     ) {
                         Text(
                             text = stringResource(R.string.settings_drive_delete_version_action),
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+                }
+                isPendingDeleteAll -> {
+                    var isProcessing by remember { mutableStateOf(false) }
+                    Button(
+                        onClick = {
+                            if (!isProcessing) {
+                                isProcessing = true
+                                val normalizedSecret = if (deleteSecretText.contains(" ")) {
+                                    MnemonicManager.normalizePhrase(deleteSecretText)
+                                } else {
+                                    deleteSecretText.trim()
+                                }
+                                val passChars = normalizedSecret.toCharArray()
+                                try {
+                                    onDeleteAllBackups(passChars)
+                                } finally {
+                                    passChars.fill('0')
+                                    isPendingDeleteAll = false
+                                    deleteSecretText = ""
+                                    isProcessing = false
+                                }
+                            }
+                        },
+                        enabled = deleteSecretText.isNotBlank(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError
+                        ),
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.settings_drive_delete_all_action),
                             style = MaterialTheme.typography.labelLarge
                         )
                     }
@@ -349,11 +469,13 @@ fun DriveBackupDetailsDialog(
             }
         },
         dismissButton = {
-            if (pendingRestoreBackup != null || pendingDeleteBackup != null) {
+            if (pendingRestoreBackup != null || pendingDeleteBackup != null || isPendingDeleteAll) {
                 TextButton(onClick = {
                     pendingRestoreBackup = null
                     restoreSecretText = ""
                     pendingDeleteBackup = null
+                    isPendingDeleteAll = false
+                    deleteSecretText = ""
                 }) {
                     Text(
                         text = stringResource(R.string.settings_drive_details_back),

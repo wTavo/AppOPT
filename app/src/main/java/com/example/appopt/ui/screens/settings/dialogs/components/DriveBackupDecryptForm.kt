@@ -52,103 +52,106 @@ import com.example.appopt.util.DateTimeFormatter
  */
 @Composable
 fun DriveBackupDecryptForm(
-    targetBackup: DriveBackupItem,
-    isActual: Boolean,
+    targetBackup: DriveBackupItem?,
+    isActual: Boolean = false,
     restoreSecretText: String,
     onRestoreSecretChange: (String) -> Unit,
     isRestoreSecretVisible: Boolean,
     onToggleSecretVisibility: () -> Unit,
+    hintText: String = stringResource(R.string.settings_drive_decrypt_hint),
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val formattedDate = remember(targetBackup.modifiedTimeMillis) {
-        DateTimeFormatter.formatRelativeSyncTime(context, targetBackup.modifiedTimeMillis)
+    val formattedDate = remember(targetBackup?.modifiedTimeMillis) {
+        targetBackup?.modifiedTimeMillis?.let { DateTimeFormatter.formatRelativeSyncTime(context, it) } ?: ""
     }
 
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
     ) {
-        Surface(
-            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-            border = BorderStroke(
-                Dimensions.Stroke.thin,
-                if (isActual) SafeGreen.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
-            ),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(Dimensions.Spacing.md),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+        if (targetBackup != null) {
+            Surface(
+                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                border = BorderStroke(
+                    Dimensions.Stroke.thin,
+                    if (isActual) SafeGreen.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+                ),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Box(
+                Row(
                     modifier = Modifier
-                        .size(Dimensions.IconSize.hero)
-                        .background(
-                            color = (if (isActual) SafeGreen else MaterialTheme.colorScheme.primary).copy(alpha = 0.12f),
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .padding(Dimensions.Spacing.md),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
                 ) {
-                    Icon(
-                        imageVector = if (isActual) Icons.Filled.CloudDone else Icons.Filled.Restore,
-                        contentDescription = null,
-                        tint = if (isActual) SafeGreen else MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(Dimensions.IconSize.small)
-                    )
-                }
-
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                    Box(
+                        modifier = Modifier
+                            .size(Dimensions.IconSize.hero)
+                            .background(
+                                color = (if (isActual) SafeGreen else MaterialTheme.colorScheme.primary).copy(alpha = 0.12f),
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = formattedDate,
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1
+                        Icon(
+                            imageVector = if (isActual) Icons.Filled.CloudDone else Icons.Filled.Restore,
+                            contentDescription = null,
+                            tint = if (isActual) SafeGreen else MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(Dimensions.IconSize.small)
                         )
-                        if (isActual) {
-                            Surface(
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
-                                color = SafeGreen.copy(alpha = 0.15f)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.settings_drive_version_actual_badge),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = SafeGreen,
-                                    maxLines = 1,
-                                    modifier = Modifier.padding(
-                                        horizontal = Dimensions.Spacing.xs,
-                                        vertical = Dimensions.Spacing.xs / 2
-                                    )
-                                )
-                            }
-                        }
                     }
 
-                    if (targetBackup.deviceName.isNotBlank()) {
-                        Text(
-                            text = stringResource(R.string.settings_drive_decrypt_device, targetBackup.deviceName),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1
-                        )
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                        ) {
+                            Text(
+                                text = formattedDate,
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1
+                            )
+                            if (isActual) {
+                                Surface(
+                                    shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
+                                    color = SafeGreen.copy(alpha = 0.15f)
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.settings_drive_version_actual_badge),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = SafeGreen,
+                                        maxLines = 1,
+                                        modifier = Modifier.padding(
+                                            horizontal = Dimensions.Spacing.xs,
+                                            vertical = Dimensions.Spacing.xs / 2
+                                        )
+                                    )
+                                }
+                            }
+                        }
+
+                        if (targetBackup.deviceName.isNotBlank()) {
+                            Text(
+                                text = stringResource(R.string.settings_drive_decrypt_device, targetBackup.deviceName),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1
+                            )
+                        }
                     }
                 }
             }
         }
 
         Text(
-            text = stringResource(R.string.settings_drive_decrypt_hint),
+            text = hintText,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

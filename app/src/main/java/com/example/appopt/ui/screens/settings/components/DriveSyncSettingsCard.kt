@@ -18,14 +18,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.SyncDisabled
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -39,9 +37,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import com.example.appopt.R
+import com.example.appopt.ui.components.SettingsSectionCard
+import com.example.appopt.ui.components.SettingsStatusTile
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.SafeGreen
-import com.example.appopt.ui.theme.WarningOrange
 import com.example.appopt.ui.theme.appSwitchColors
 
 /**
@@ -49,7 +48,6 @@ import com.example.appopt.ui.theme.appSwitchColors
  *
  * @param isDriveConnected Indica si la cuenta de Google Drive está autorizada y conectada.
  * @param isDriveLoading Indica si hay una operación asíncrona de Drive en curso.
- * @param isCheckingDriveBackup Indica si se está consultando el estado del respaldo remoto.
  * @param formattedLastSync Marca de tiempo relativa formateada de la última sincronización.
  * @param driveBackupExists Indica si se detectó una copia de seguridad remota existente en Google Drive.
  * @param hasUnsyncedChanges Indica si existen cambios locales no sincronizados con la nube.
@@ -58,7 +56,6 @@ import com.example.appopt.ui.theme.appSwitchColors
  * @param hasLocalAccounts Indica si existen cuentas o servicios 2FA locales registrados en la bóveda.
  * @param onConnectClick Callback para conectar la cuenta de Google.
  * @param onManualSyncClick Callback para disparar la sincronización inmediata.
- * @param onRestoreClick Callback para iniciar el descifrado y restauración.
  * @param onCreateBackupClick Callback para crear una nueva copia de seguridad.
  * @param onBackupDetailsClick Callback para ver detalles y gestionar la copia existente.
  * @param onDisconnectClick Callback para desvincular la cuenta de Google.
@@ -70,7 +67,6 @@ import com.example.appopt.ui.theme.appSwitchColors
 fun DriveSyncSettingsCard(
     isDriveConnected: Boolean,
     isDriveLoading: Boolean,
-    isCheckingDriveBackup: Boolean,
     formattedLastSync: String?,
     driveBackupExists: Boolean,
     hasUnsyncedChanges: Boolean,
@@ -80,7 +76,6 @@ fun DriveSyncSettingsCard(
     hasLocalAccounts: Boolean = true,
     onConnectClick: () -> Unit,
     onManualSyncClick: () -> Unit,
-    onRestoreClick: () -> Unit,
     onCreateBackupClick: () -> Unit,
     onBackupDetailsClick: () -> Unit,
     onDisconnectClick: () -> Unit,
@@ -88,181 +83,121 @@ fun DriveSyncSettingsCard(
     onMobileDataToggle: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        shape = RoundedCornerShape(Dimensions.CornerRadius.large)
-    ) {
-        Column(
-            modifier = Modifier.padding(Dimensions.Spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
-        ) {
-            val isSyncingActive = isDriveLoading && isDriveConnected
+    val isSyncingActive = isDriveLoading && isDriveConnected
 
-            // 1. Cabecera con icono, título y badge de estado
+    val badgeColor = when {
+        isSyncingActive -> MaterialTheme.colorScheme.primary
+        isDriveConnected -> SafeGreen
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val badgeBg = when {
+        isSyncingActive -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+        isDriveConnected -> SafeGreen.copy(alpha = 0.12f)
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
+    val badgeText = when {
+        isSyncingActive -> stringResource(R.string.settings_drive_status_syncing)
+        isDriveConnected -> stringResource(R.string.settings_drive_status_synced)
+        else -> stringResource(R.string.settings_drive_status_not_synced)
+    }
+
+    SettingsSectionCard(
+        title = stringResource(R.string.settings_drive_title),
+        description = stringResource(R.string.settings_drive_description),
+        icon = if (isDriveConnected) Icons.Filled.CloudDone else Icons.Filled.Sync,
+        iconTint = if (isDriveConnected) SafeGreen else MaterialTheme.colorScheme.primary,
+        headerTrailing = {
+            Surface(
+                shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
+                color = badgeBg
+            ) {
+                Text(
+                    text = badgeText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = badgeColor,
+                    modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs)
+                )
+            }
+        },
+        modifier = modifier
+    ) {
+        // 3. Fila con Contenedor de Estado de Copia y Desvinculación
+        if (isDriveConnected) {
+            val hasBackupInfo = !isSyncingActive && (formattedLastSync != null || driveBackupExists)
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
-                    modifier = Modifier.weight(1f, fill = false)
-                ) {
-                    Icon(
-                        imageVector = if (isDriveConnected) Icons.Filled.CloudDone else Icons.Filled.Sync,
-                        contentDescription = null,
-                        tint = if (isDriveConnected) SafeGreen else MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(Dimensions.IconSize.medium)
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_drive_title),
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                }
+                SettingsStatusTile(
+                    icon = when {
+                        isSyncingActive -> Icons.Filled.Sync
+                        hasBackupInfo -> Icons.Filled.CloudDone
+                        else -> Icons.Filled.Search
+                    },
+                    iconTint = when {
+                        isSyncingActive -> MaterialTheme.colorScheme.primary
+                        hasBackupInfo -> SafeGreen
+                        else -> MaterialTheme.colorScheme.primary
+                    },
+                    title = when {
+                        isSyncingActive -> stringResource(R.string.settings_drive_syncing)
+                        formattedLastSync != null -> stringResource(R.string.settings_drive_last_sync, formattedLastSync)
+                        driveBackupExists -> stringResource(R.string.settings_drive_backup_found)
+                        else -> stringResource(R.string.settings_drive_press_to_search_backups)
+                    },
+                    titleColor = when {
+                        isSyncingActive -> MaterialTheme.colorScheme.primary
+                        hasBackupInfo -> MaterialTheme.colorScheme.onSurface
+                        else -> MaterialTheme.colorScheme.primary
+                    },
+                    backgroundColor = when {
+                        isSyncingActive -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                        hasBackupInfo -> MaterialTheme.colorScheme.surfaceVariant
+                        else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                    },
+                    onClick = if (!isSyncingActive) {
+                        { onBackupDetailsClick() }
+                    } else null,
+                    trailingContent = if (!isSyncingActive) {
+                        {
+                            Icon(
+                                imageVector = Icons.Filled.ChevronRight,
+                                contentDescription = null,
+                                tint = if (hasBackupInfo) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(Dimensions.IconSize.small)
+                            )
+                        }
+                    } else null,
+                    modifier = Modifier.weight(1f)
+                )
 
-                val badgeColor = when {
-                    isSyncingActive -> MaterialTheme.colorScheme.primary
-                    isDriveConnected -> SafeGreen
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                }
-                val badgeBg = when {
-                    isSyncingActive -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                    isDriveConnected -> SafeGreen.copy(alpha = 0.12f)
-                    else -> MaterialTheme.colorScheme.surfaceVariant
-                }
-                val badgeText = when {
-                    isSyncingActive -> stringResource(R.string.settings_drive_status_syncing)
-                    isDriveConnected -> stringResource(R.string.settings_drive_status_synced)
-                    else -> stringResource(R.string.settings_drive_status_not_synced)
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
-                    color = badgeBg
-                ) {
-                    Text(
-                        text = badgeText,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = badgeColor,
-                        modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs)
-                    )
-                }
-            }
-
-            // 2. Descripción clara
-            Text(
-                text = stringResource(R.string.settings_drive_description),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            // 3. Fila con Contenedor de Estado de Copia y Desvinculación
-            if (isDriveConnected) {
-                val hasBackupInfo = !isCheckingDriveBackup && !isSyncingActive && (formattedLastSync != null || driveBackupExists)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
-                    verticalAlignment = Alignment.CenterVertically
+                val isDisconnectAllowed = !isDriveLoading
+                AnimatedVisibility(
+                    visible = isDisconnectAllowed,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
                 ) {
                     Surface(
-                        modifier = Modifier
-                            .weight(1f)
-                            .then(
-                                if (hasBackupInfo) {
-                                    Modifier.clickable { onBackupDetailsClick() }
-                                } else {
-                                    Modifier
-                                }
-                            ),
                         shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                        color = when {
-                            isCheckingDriveBackup -> WarningOrange.copy(alpha = 0.12f)
-                            isSyncingActive -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                            else -> MaterialTheme.colorScheme.surfaceVariant
-                        }
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        modifier = Modifier.clickable { onDisconnectClick() }
                     ) {
-                        Row(
-                            modifier = Modifier.padding(
-                                horizontal = Dimensions.Spacing.md,
-                                vertical = Dimensions.Spacing.sm
-                            ),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                        Box(
+                            modifier = Modifier.padding(Dimensions.Spacing.sm),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
-                                modifier = Modifier.weight(1f, fill = false)
-                            ) {
-                                Icon(
-                                    imageVector = if (isCheckingDriveBackup || isSyncingActive) Icons.Filled.Sync else Icons.Filled.CloudDone,
-                                    contentDescription = null,
-                                    tint = when {
-                                        isCheckingDriveBackup -> WarningOrange
-                                        isSyncingActive -> MaterialTheme.colorScheme.primary
-                                        hasBackupInfo -> SafeGreen
-                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
-                                    },
-                                    modifier = Modifier.size(Dimensions.IconSize.small)
-                                )
-                                Text(
-                                    text = when {
-                                        isCheckingDriveBackup -> stringResource(R.string.settings_drive_checking_backup)
-                                        isSyncingActive -> stringResource(R.string.settings_drive_syncing)
-                                        formattedLastSync != null -> stringResource(R.string.settings_drive_last_sync, formattedLastSync)
-                                        driveBackupExists -> stringResource(R.string.settings_drive_backup_found)
-                                        else -> stringResource(R.string.settings_drive_last_sync_never)
-                                    },
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = when {
-                                        isCheckingDriveBackup -> WarningOrange
-                                        isSyncingActive -> MaterialTheme.colorScheme.primary
-                                        else -> MaterialTheme.colorScheme.onSurface
-                                    }
-                                )
-                            }
-
-                            if (hasBackupInfo) {
-                                Icon(
-                                    imageVector = Icons.Filled.ChevronRight,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(Dimensions.IconSize.small)
-                                )
-                            }
-                        }
-                    }
-
-                    val isDisconnectAllowed = !isCheckingDriveBackup && !isDriveLoading
-                    AnimatedVisibility(
-                        visible = isDisconnectAllowed,
-                        enter = fadeIn() + expandVertically(),
-                        exit = fadeOut() + shrinkVertically()
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                            color = MaterialTheme.colorScheme.errorContainer,
-                            modifier = Modifier.clickable { onDisconnectClick() }
-                        ) {
-                            Box(
-                                modifier = Modifier.padding(Dimensions.Spacing.sm),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.SyncDisabled,
-                                    contentDescription = stringResource(R.string.settings_drive_disconnect_button),
-                                    tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(Dimensions.IconSize.medium)
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Filled.SyncDisabled,
+                                contentDescription = stringResource(R.string.settings_drive_disconnect_button),
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(Dimensions.IconSize.medium)
+                            )
                         }
                     }
                 }
             }
+        }
 
             // 4. Bloque de acciones
             if (!isDriveConnected) {
@@ -291,7 +226,7 @@ fun DriveSyncSettingsCard(
                         )
                     }
                 }
-            } else if (!isCheckingDriveBackup) {
+            } else {
                 if (lastSyncTimestamp > 0L) {
                     if (hasUnsyncedChanges && !isDriveLoading && hasLocalAccounts) {
                         Button(
@@ -302,49 +237,6 @@ fun DriveSyncSettingsCard(
                         ) {
                             Text(
                                 text = stringResource(R.string.settings_drive_sync_button),
-                                style = MaterialTheme.typography.labelLarge
-                            )
-                        }
-                    }
-                } else if (driveBackupExists) {
-                    if (hasLocalAccounts) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
-                        ) {
-                            Button(
-                                onClick = onRestoreClick,
-                                enabled = !isDriveLoading,
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.settings_drive_restore_button),
-                                    style = MaterialTheme.typography.labelLarge
-                                )
-                            }
-
-                            OutlinedButton(
-                                onClick = onCreateBackupClick,
-                                enabled = !isDriveLoading,
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.settings_drive_create_button),
-                                    style = MaterialTheme.typography.labelLarge
-                                )
-                            }
-                        }
-                    } else {
-                        Button(
-                            onClick = onRestoreClick,
-                            enabled = !isDriveLoading,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.settings_drive_restore_button),
                                 style = MaterialTheme.typography.labelLarge
                             )
                         }
@@ -438,7 +330,6 @@ fun DriveSyncSettingsCard(
                                     colors = appSwitchColors()
                                 )
                             }
-                        }
                     }
                 }
             }

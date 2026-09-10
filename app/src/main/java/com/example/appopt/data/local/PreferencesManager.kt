@@ -5,7 +5,7 @@ import android.content.SharedPreferences
 import androidx.core.content.edit
 import com.example.appopt.data.cloud.DriveBackupItem
 import com.example.appopt.data.cloud.SyncFrequency
-import com.example.appopt.util.PerformanceMonitor
+import com.example.appopt.performance.PerformanceMonitor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -185,11 +185,12 @@ class PreferencesManager(context: Context) {
     }
 
     /**
-     * Guarda el estado de la superposición visual de FPS y activa/detiene el monitor.
+     * Guarda el estado de la superposición visual de FPS y activa/detiene el monitor y rastreo de diagnóstico.
      */
     fun setFpsOverlayEnabled(enabled: Boolean) {
         _isFpsOverlayEnabled.value = enabled
         sharedPreferences.edit { putBoolean(KEY_FPS_OVERLAY, enabled) }
+        com.example.appopt.performance.AppCrashTracker.isEnabled = enabled
         if (enabled) {
             PerformanceMonitor.start()
         } else {

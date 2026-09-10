@@ -47,11 +47,11 @@ fun DriveProtectStepQuiz(
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
     ) {
         Text(
             text = stringResource(R.string.settings_drive_quiz_description),
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
@@ -61,17 +61,22 @@ fun DriveProtectStepQuiz(
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
                 border = BorderStroke(
                     Dimensions.Stroke.thin,
-                    if (isError) MaterialTheme.colorScheme.error.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+                    if (isError && selectedAnswers[qIdx] == null) {
+                        MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
+                    } else {
+                        MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+                    }
                 ),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
-                    modifier = Modifier.padding(Dimensions.Spacing.sm),
-                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                    modifier = Modifier.padding(Dimensions.Spacing.md),
+                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
                 ) {
                     Text(
                         text = stringResource(R.string.settings_drive_quiz_question_label, q.position),
-                        style = MaterialTheme.typography.titleSmall
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
 
                     Row(
@@ -92,22 +97,25 @@ fun DriveProtectStepQuiz(
                                     .clickable { onSelectAnswer(qIdx, option) }
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(vertical = Dimensions.Spacing.xs, horizontal = Dimensions.Spacing.xs),
+                                    modifier = Modifier.padding(
+                                        vertical = Dimensions.Spacing.sm,
+                                        horizontal = Dimensions.Spacing.xs
+                                    ),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.Center
                                 ) {
                                     if (isSelected) {
                                         Icon(
-                                            Icons.Filled.CheckCircle,
+                                            imageVector = Icons.Filled.CheckCircle,
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(Dimensions.IconSize.small / 1.4f)
+                                            modifier = Modifier.size(Dimensions.IconSize.small)
                                         )
-                                        Spacer(modifier = Modifier.width(Dimensions.Spacing.xs / 2))
+                                        Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
                                     }
                                     Text(
                                         text = option,
-                                        style = MaterialTheme.typography.labelSmall,
+                                        style = MaterialTheme.typography.labelLarge,
                                         fontFamily = FontFamily.Monospace,
                                         color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                                     )
@@ -120,3 +128,4 @@ fun DriveProtectStepQuiz(
         }
     }
 }
+

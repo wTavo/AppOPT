@@ -310,7 +310,10 @@ fun RecentlyDeletedScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showEmptyTrashConfirmDialog = false }) {
+                TextButton(onClick = {
+                    appHaptics.click()
+                    showEmptyTrashConfirmDialog = false
+                }) {
                     Text(
                         text = stringResource(R.string.action_cancel),
                         style = MaterialTheme.typography.labelLarge
@@ -377,7 +380,10 @@ fun RecentlyDeletedScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { accountPendingPermanentDelete = null }) {
+                TextButton(onClick = {
+                    appHaptics.click()
+                    accountPendingPermanentDelete = null
+                }) {
                     Text(
                         text = stringResource(R.string.action_cancel),
                         style = MaterialTheme.typography.labelLarge

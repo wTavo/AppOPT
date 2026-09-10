@@ -1,5 +1,9 @@
 package com.example.appopt.ui.screens.settings.dialogs
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.example.appopt.R
 import com.example.appopt.data.cloud.DriveBackupItem
 import com.example.appopt.security.MnemonicManager
@@ -51,11 +56,22 @@ import com.example.appopt.security.SecurityConfig
 import com.example.appopt.ui.screens.settings.dialogs.components.DriveBackupDecryptForm
 import com.example.appopt.ui.screens.settings.dialogs.components.DriveBackupItemCard
 import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.util.DateTimeFormatter
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlin.time.Duration.Companion.milliseconds
+
+/**
+ * Sub-estados internos del diálogo modal de historial de respaldos en la nube.
+ */
+private enum class DriveDetailsSubState {
+    HISTORY,
+    RESTORE_DECRYPT,
+    DELETE_SINGLE,
+    DELETE_ALL
+}
 
 /**
  * Diálogo modal con máquina de estados unificada (Single-Dialog State Machine) para inspeccionar el historial
@@ -119,6 +135,13 @@ fun DriveBackupDetailsDialog(
     val secondsRemaining = (remainingMillis + 999L) / 1000L
     val isCooldownActive = secondsRemaining > 0L
 
+    val currentSubState = when {
+        pendingRestoreBackup != null -> DriveDetailsSubState.RESTORE_DECRYPT
+        pendingDeleteBackup != null -> DriveDetailsSubState.DELETE_SINGLE
+        isPendingDeleteAll -> DriveDetailsSubState.DELETE_ALL
+        else -> DriveDetailsSubState.HISTORY
+    }
+
     AlertDialog(
         onDismissRequest = {
             if (pendingRestoreBackup != null) {
@@ -147,57 +170,73 @@ fun DriveBackupDetailsDialog(
             } else {
                 MaterialTheme.colorScheme.onSurface
             }
-            Text(
-                text = titleText,
-                style = MaterialTheme.typography.titleLarge,
-                color = titleColor
-            )
+            Crossfade(
+                targetState = titleText,
+                animationSpec = tween(Motion.Duration.FAST, easing = Motion.EasingCurve.Standard),
+                label = "driveBackupDetailsTitleCrossfade"
+            ) { text ->
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = titleColor
+                )
+            }
         },
         text = {
-            when {
-                pendingRestoreBackup != null -> {
-                    val pendingTarget = pendingRestoreBackup!!
-                    val isPendingActual = lastSyncTimestamp > 0L &&
-                            lastSyncedHash.isNotEmpty() &&
-                            !hasUnsyncedChanges &&
-                            pendingTarget.isMostRecent
-                    DriveBackupDecryptForm(
-                        targetBackup = pendingTarget,
-                        isActual = isPendingActual,
-                        restoreSecretText = restoreSecretText,
-                        onRestoreSecretChange = { restoreSecretText = it },
-                        isRestoreSecretVisible = isRestoreSecretVisible,
-                        onToggleSecretVisibility = { isRestoreSecretVisible = !isRestoreSecretVisible },
-                        hintText = stringResource(R.string.settings_drive_decrypt_hint)
-                    )
-                }
-                pendingDeleteBackup != null -> {
-                    val pendingTarget = pendingDeleteBackup!!
-                    val isPendingActual = lastSyncTimestamp > 0L &&
-                            lastSyncedHash.isNotEmpty() &&
-                            !hasUnsyncedChanges &&
-                            pendingTarget.isMostRecent
-                    DriveBackupDecryptForm(
-                        targetBackup = pendingTarget,
-                        isActual = isPendingActual,
-                        restoreSecretText = deleteSecretText,
-                        onRestoreSecretChange = { deleteSecretText = it },
-                        isRestoreSecretVisible = isDeleteSecretVisible,
-                        onToggleSecretVisibility = { isDeleteSecretVisible = !isDeleteSecretVisible },
-                        hintText = stringResource(R.string.settings_drive_delete_version_auth_hint)
-                    )
-                }
-                isPendingDeleteAll -> {
-                    DriveBackupDecryptForm(
-                        targetBackup = null,
-                        restoreSecretText = deleteSecretText,
-                        onRestoreSecretChange = { deleteSecretText = it },
-                        isRestoreSecretVisible = isDeleteSecretVisible,
-                        onToggleSecretVisibility = { isDeleteSecretVisible = !isDeleteSecretVisible },
-                        hintText = stringResource(R.string.settings_drive_delete_all_auth_hint)
-                    )
-                }
-                else -> {
+            Crossfade(
+                targetState = currentSubState,
+                animationSpec = tween(Motion.Duration.FAST, easing = Motion.EasingCurve.Standard),
+                modifier = Modifier.fillMaxWidth(),
+                label = "driveBackupDetailsStepTransition"
+            ) { subState ->
+                when (subState) {
+                    DriveDetailsSubState.RESTORE_DECRYPT -> {
+                        val pendingTarget = pendingRestoreBackup
+                        if (pendingTarget != null) {
+                            val isPendingActual = lastSyncTimestamp > 0L &&
+                                    lastSyncedHash.isNotEmpty() &&
+                                    !hasUnsyncedChanges &&
+                                    pendingTarget.isMostRecent
+                            DriveBackupDecryptForm(
+                                targetBackup = pendingTarget,
+                                isActual = isPendingActual,
+                                restoreSecretText = restoreSecretText,
+                                onRestoreSecretChange = { restoreSecretText = it },
+                                isRestoreSecretVisible = isRestoreSecretVisible,
+                                onToggleSecretVisibility = { isRestoreSecretVisible = !isRestoreSecretVisible },
+                                hintText = stringResource(R.string.settings_drive_decrypt_hint)
+                            )
+                        }
+                    }
+                    DriveDetailsSubState.DELETE_SINGLE -> {
+                        val pendingTarget = pendingDeleteBackup
+                        if (pendingTarget != null) {
+                            val isPendingActual = lastSyncTimestamp > 0L &&
+                                    lastSyncedHash.isNotEmpty() &&
+                                    !hasUnsyncedChanges &&
+                                    pendingTarget.isMostRecent
+                            DriveBackupDecryptForm(
+                                targetBackup = pendingTarget,
+                                isActual = isPendingActual,
+                                restoreSecretText = deleteSecretText,
+                                onRestoreSecretChange = { deleteSecretText = it },
+                                isRestoreSecretVisible = isDeleteSecretVisible,
+                                onToggleSecretVisibility = { isDeleteSecretVisible = !isDeleteSecretVisible },
+                                hintText = stringResource(R.string.settings_drive_delete_version_auth_hint)
+                            )
+                        }
+                    }
+                    DriveDetailsSubState.DELETE_ALL -> {
+                        DriveBackupDecryptForm(
+                            targetBackup = null,
+                            restoreSecretText = deleteSecretText,
+                            onRestoreSecretChange = { deleteSecretText = it },
+                            isRestoreSecretVisible = isDeleteSecretVisible,
+                            onToggleSecretVisibility = { isDeleteSecretVisible = !isDeleteSecretVisible },
+                            hintText = stringResource(R.string.settings_drive_delete_all_auth_hint)
+                        )
+                    }
+                    DriveDetailsSubState.HISTORY -> {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
@@ -352,30 +391,30 @@ fun DriveBackupDetailsDialog(
                     }
                 }
             }
-        },
+        }
+    },
         confirmButton = {
-            when {
-                pendingRestoreBackup != null -> {
+            when (currentSubState) {
+                DriveDetailsSubState.HISTORY -> {}
+                DriveDetailsSubState.RESTORE_DECRYPT -> {
                     var isProcessing by remember { mutableStateOf(false) }
                     Button(
                         onClick = {
                             if (!isProcessing) {
                                 isProcessing = true
-                                val targetItem = pendingRestoreBackup!!
-                                val normalizedSecret = if (restoreSecretText.contains(" ")) {
-                                    MnemonicManager.normalizePhrase(restoreSecretText)
-                                } else {
-                                    restoreSecretText.trim()
-                                }
-                                val passChars = normalizedSecret.toCharArray()
-                                try {
+                                val targetItem = pendingRestoreBackup
+                                if (targetItem != null) {
+                                    val normalizedSecret = if (restoreSecretText.contains(" ")) {
+                                        MnemonicManager.normalizePhrase(restoreSecretText)
+                                    } else {
+                                        restoreSecretText.trim()
+                                    }
+                                    val passChars = normalizedSecret.toCharArray()
                                     onRestoreBackup(targetItem, passChars)
-                                } finally {
-                                    passChars.fill('0')
                                     pendingRestoreBackup = null
                                     restoreSecretText = ""
-                                    isProcessing = false
                                 }
+                                isProcessing = false
                             }
                         },
                         enabled = restoreSecretText.isNotBlank(),
@@ -387,27 +426,25 @@ fun DriveBackupDetailsDialog(
                         )
                     }
                 }
-                pendingDeleteBackup != null -> {
+                DriveDetailsSubState.DELETE_SINGLE -> {
                     var isProcessing by remember { mutableStateOf(false) }
                     Button(
                         onClick = {
                             if (!isProcessing) {
                                 isProcessing = true
-                                val targetItem = pendingDeleteBackup!!
-                                val normalizedSecret = if (deleteSecretText.contains(" ")) {
-                                    MnemonicManager.normalizePhrase(deleteSecretText)
-                                } else {
-                                    deleteSecretText.trim()
-                                }
-                                val passChars = normalizedSecret.toCharArray()
-                                try {
+                                val targetItem = pendingDeleteBackup
+                                if (targetItem != null) {
+                                    val normalizedSecret = if (deleteSecretText.contains(" ")) {
+                                        MnemonicManager.normalizePhrase(deleteSecretText)
+                                    } else {
+                                        deleteSecretText.trim()
+                                    }
+                                    val passChars = normalizedSecret.toCharArray()
                                     onDeleteSpecificBackup(targetItem, passChars)
-                                } finally {
-                                    passChars.fill('0')
                                     pendingDeleteBackup = null
                                     deleteSecretText = ""
-                                    isProcessing = false
                                 }
+                                isProcessing = false
                             }
                         },
                         enabled = deleteSecretText.isNotBlank(),
@@ -423,7 +460,7 @@ fun DriveBackupDetailsDialog(
                         )
                     }
                 }
-                isPendingDeleteAll -> {
+                DriveDetailsSubState.DELETE_ALL -> {
                     var isProcessing by remember { mutableStateOf(false) }
                     Button(
                         onClick = {
@@ -435,14 +472,10 @@ fun DriveBackupDetailsDialog(
                                     deleteSecretText.trim()
                                 }
                                 val passChars = normalizedSecret.toCharArray()
-                                try {
-                                    onDeleteAllBackups(passChars)
-                                } finally {
-                                    passChars.fill('0')
-                                    isPendingDeleteAll = false
-                                    deleteSecretText = ""
-                                    isProcessing = false
-                                }
+                                onDeleteAllBackups(passChars)
+                                isPendingDeleteAll = false
+                                deleteSecretText = ""
+                                isProcessing = false
                             }
                         },
                         enabled = deleteSecretText.isNotBlank(),
@@ -458,30 +491,38 @@ fun DriveBackupDetailsDialog(
                         )
                     }
                 }
-                else -> {
-                    TextButton(onClick = onDismiss) {
-                        Text(
-                            text = stringResource(R.string.action_close),
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                    }
-                }
             }
         },
         dismissButton = {
-            if (pendingRestoreBackup != null || pendingDeleteBackup != null || isPendingDeleteAll) {
-                TextButton(onClick = {
-                    pendingRestoreBackup = null
-                    restoreSecretText = ""
-                    pendingDeleteBackup = null
-                    isPendingDeleteAll = false
-                    deleteSecretText = ""
-                }) {
-                    Text(
-                        text = stringResource(R.string.settings_drive_details_back),
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                }
+            TextButton(
+                onClick = {
+                    appHaptics.click()
+                    when (currentSubState) {
+                        DriveDetailsSubState.HISTORY -> onDismiss()
+                        DriveDetailsSubState.RESTORE_DECRYPT -> {
+                            pendingRestoreBackup = null
+                            restoreSecretText = ""
+                        }
+                        DriveDetailsSubState.DELETE_SINGLE -> {
+                            pendingDeleteBackup = null
+                            deleteSecretText = ""
+                        }
+                        DriveDetailsSubState.DELETE_ALL -> {
+                            isPendingDeleteAll = false
+                            deleteSecretText = ""
+                        }
+                    }
+                },
+                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+            ) {
+                Text(
+                    text = if (currentSubState == DriveDetailsSubState.HISTORY) {
+                        stringResource(R.string.action_close)
+                    } else {
+                        stringResource(R.string.settings_drive_details_back)
+                    },
+                    style = MaterialTheme.typography.labelLarge
+                )
             }
         },
         modifier = modifier

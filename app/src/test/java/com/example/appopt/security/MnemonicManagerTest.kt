@@ -40,6 +40,15 @@ class MnemonicManagerTest {
     }
 
     @Test
+    fun testNormalizePhraseWithNumberedListAndPunctuation() {
+        val raw = "1. abandon, 2. ability, 3. able\n4. about 5. above 6. absent 7. absorb 8. abstract 9. absurd 10. abuse 11. access 12. account"
+        val normalized = MnemonicManager.normalizePhrase(raw)
+        val expected = "abandon ability able about above absent absorb abstract absurd abuse access account"
+        assertEquals(expected, normalized)
+        assertTrue(MnemonicManager.isValid12WordPhrase(normalized))
+    }
+
+    @Test
     fun testEncryptAndDecryptWithMnemonicPhrase() {
         val sampleJson = """{"version":1,"accounts":[]}"""
         val words = MnemonicManager.generate12WordPhrase()

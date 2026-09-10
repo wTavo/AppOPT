@@ -29,8 +29,8 @@ class AutoSyncWorker(
         val prefsManager = AuthenticatorApp.instance.preferencesManager
         val isForceManualSync = inputData.getBoolean(CloudVaultSyncManager.KEY_FORCE_MANUAL_SYNC, false)
 
-        // 1. Validar conexión activa con Google Drive
-        if (!prefsManager.isGoogleDriveConnected()) {
+        // 1. Validar que la bóveda esté conectada e inicializada en este dispositivo
+        if (!prefsManager.isCloudVaultInitialized()) {
             return@withContext Result.success(
                 workDataOf(CloudVaultSyncManager.KEY_SYNC_PERFORMED to false)
             )

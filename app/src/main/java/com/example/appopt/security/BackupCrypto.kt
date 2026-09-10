@@ -197,6 +197,54 @@ object BackupCrypto {
                         recoveredVaultKey = unwrapVaultKey(slotSalt, slotIv, slotWrappedKey, password)
                     }
 
+                    // 3. Si falló, intentar abrir con clave de sincronización automática (compatibilidad con copias automáticas)
+                    if (recoveredVaultKey == null && mainSlotMatch != null) {
+                        val autoSyncKey = SecurityConfig.AUTO_SYNC_VAULT_KEY.toCharArray()
+                        try {
+                            val slotSalt = base64Decoder.decode(mainSlotMatch.groupValues[1])
+                            val slotIv = base64Decoder.decode(mainSlotMatch.groupValues[2])
+                            val slotWrappedKey = base64Decoder.decode(mainSlotMatch.groupValues[3])
+                            recoveredVaultKey = unwrapVaultKey(slotSalt, slotIv, slotWrappedKey, autoSyncKey)
+                        } finally {
+                            autoSyncKey.fill('0')
+                        }
+                    }
+
+                    // 4. Fallback defensivo para copias afectadas por zeroize previo
+                    if (recoveredVaultKey == null && mainSlotMatch != null) {
+                        val slotSalt = base64Decoder.decode(mainSlotMatch.groupValues[1])
+                        val slotIv = base64Decoder.decode(mainSlotMatch.groupValues[2])
+                        val slotWrappedKey = base64Decoder.decode(mainSlotMatch.groupValues[3])
+                        val lengthsToTry = intArrayOf(password.size, 10, 11, 12, 13, 14, 15, 16, 18, 20, 24, 32, 64)
+                        for (len in lengthsToTry) {
+                            if (len <= 0) continue
+                            val candidate = CharArray(len) { '0' }
+                            try {
+                                val key = unwrapVaultKey(slotSalt, slotIv, slotWrappedKey, candidate)
+                                if (key != null) {
+                                    recoveredVaultKey = key
+                                    break
+                                }
+                            } finally {
+                                candidate.fill('0')
+                            }
+                        }
+                    }
+
+                    if (recoveredVaultKey == null && emergencySlotMatch != null) {
+                        val slotSalt = base64Decoder.decode(emergencySlotMatch.groupValues[1])
+                        val slotIv = base64Decoder.decode(emergencySlotMatch.groupValues[2])
+                        val slotWrappedKey = base64Decoder.decode(emergencySlotMatch.groupValues[3])
+                        if (password.isNotEmpty()) {
+                            val candidate = CharArray(password.size) { '0' }
+                            try {
+                                recoveredVaultKey = unwrapVaultKey(slotSalt, slotIv, slotWrappedKey, candidate)
+                            } finally {
+                                candidate.fill('0')
+                            }
+                        }
+                    }
+
                     if (recoveredVaultKey == null) {
                         throw IllegalArgumentException("No se pudo descifrar ninguna de las ranuras de seguridad con la clave proporcionada.")
                     }

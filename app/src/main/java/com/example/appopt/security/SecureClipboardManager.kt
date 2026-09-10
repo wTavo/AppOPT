@@ -10,15 +10,32 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Gestor del portapapeles con protección contra filtraciones y limpieza automática.
+ * Estado inmutable que describe el elemento sensible actualmente copiado y su tiempo restante de retención.
+ *
+ * @property label Etiqueta identificadora del elemento copiado o `null` si el portapapeles no tiene contenido activo protegido.
+ * @property remainingSeconds Segundos restantes antes de la purga automática del portapapeles (0 cuando está inactivo).
+ */
+data class ClipboardItemState(
+    val label: String? = null,
+    val remainingSeconds: Int = 0
+)
+
+/**
+ * Gestor del portapapeles con protección contra filtraciones y limpieza automática determinista.
  *
  * Características de seguridad:
  * - En Android 13+ (API 33), marca los datos con `EXTRA_IS_SENSITIVE` para ocultar la previsualización del sistema.
- * - Inicia una tarea en segundo plano que elimina el código copiado tras el tiempo configurado (30 segundos).
+ * - Inicia una tarea en segundo plano en el ciclo de vida de la aplicación que elimina el dato copiado tras el tiempo configurado.
+ * - Expone un flujo reactivo [clipboardState] para que la interfaz sincronice temporizadores y estados de botones incluso al cerrar y reabrir diálogos.
+ *
+ * @param context Contexto de la aplicación para acceder al servicio del sistema [ClipboardManager].
+ * @param coroutineScope Ámbito de corrutinas para ejecutar la cuenta regresiva y la purga segura.
  */
 class SecureClipboardManager(
     context: Context,
@@ -27,6 +44,9 @@ class SecureClipboardManager(
     private val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
     private var clearJob: Job? = null
     private var lastCopiedText: String? = null
+
+    private val _clipboardState = MutableStateFlow(ClipboardItemState())
+    val clipboardState: StateFlow<ClipboardItemState> = _clipboardState.asStateFlow()
 
     /**
      * Copia un texto confidencial al portapapeles y programa su borrado automático.
@@ -55,11 +75,15 @@ class SecureClipboardManager(
         clipboard.setPrimaryClip(clip)
         lastCopiedText = text
 
-        // Programar limpieza automática
+        // Programar limpieza automática y emisión de cuenta regresiva
         clearJob?.cancel()
         clearJob = coroutineScope.launch {
-            delay((autoClearSeconds * 1000L).milliseconds)
+            for (sec in autoClearSeconds downTo 1) {
+                _clipboardState.value = ClipboardItemState(label = label, remainingSeconds = sec)
+                delay(1000L)
+            }
             clearIfMatches(text)
+            _clipboardState.value = ClipboardItemState()
         }
     }
 
@@ -73,6 +97,8 @@ class SecureClipboardManager(
         if (current == expectedText || expectedText == lastCopiedText) {
             clipboard?.clearPrimaryClip()
             lastCopiedText = null
+            _clipboardState.value = ClipboardItemState()
         }
     }
 }
+

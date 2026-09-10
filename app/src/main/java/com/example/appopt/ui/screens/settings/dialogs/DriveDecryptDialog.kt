@@ -87,11 +87,9 @@ fun DriveDecryptDialog(
                             restoreSecretText.trim()
                         }
                         val passChars = normalizedSecret.toCharArray()
-                        try {
-                            onRestore(passChars)
-                        } finally {
-                            passChars.fill('0')
-                        }
+                        onRestore(passChars)
+                        restoreSecretText = ""
+                        isProcessing = false
                     }
                 },
                 enabled = restoreSecretText.isNotBlank() && !isProcessing,
@@ -108,7 +106,8 @@ fun DriveDecryptDialog(
                 onClick = {
                     appHaptics.click()
                     onDismiss()
-                }
+                },
+                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
             ) {
                 Text(
                     text = stringResource(R.string.action_close),

@@ -106,6 +106,9 @@ object EmergencyKitPdfGenerator {
         val printManager = context.getSystemService(Context.PRINT_SERVICE) as? PrintManager ?: return
         val jobName = "${context.getString(R.string.app_name)}_Emergency_Kit"
 
+        // Suspender temporalmente el bloqueo por timeout para no desmontar el diálogo de protección al volver del visor de impresión
+        com.example.appopt.AuthenticatorApp.instance.appLockManager.suspendLockTemporarily()
+
         val printAdapter = object : PrintDocumentAdapter() {
             override fun onLayout(
                 oldAttributes: PrintAttributes?,

@@ -198,23 +198,30 @@ object ManualSyncManager {
             }
 
             val jsonPayload = downloadResult.getOrThrow()
-            val importResult = repository.importAccountsFromTransfer(jsonPayload)
-
-            if (importResult.isSuccess) {
-                val count = importResult.getOrThrow()
-                val now = System.currentTimeMillis()
-                val restoredAccounts = repository.getAccounts().first()
-                val currentHash = CloudVaultSyncManager.computeAccountsSignature(restoredAccounts)
-
-                prefsManager.setGoogleDriveConnected(true)
-                prefsManager.setLastSyncTimestamp(now)
-                prefsManager.setLastSyncedVaultHash(currentHash)
-                GoogleDriveManager.currentAccessToken = accessToken
-
-                Result.success(count)
+            val mergeResult = repository.mergeAccountsFromRemote(jsonPayload)
+            val count = if (mergeResult.isSuccess && mergeResult.getOrThrow() > 0) {
+                mergeResult.getOrThrow()
             } else {
-                Result.failure(importResult.exceptionOrNull() ?: IllegalStateException("Error al importar cuentas"))
+                val importResult = repository.importAccountsFromTransfer(jsonPayload)
+                if (importResult.isSuccess) {
+                    importResult.getOrThrow()
+                } else if (mergeResult.isSuccess) {
+                    mergeResult.getOrThrow()
+                } else {
+                    return@withContext Result.failure(importResult.exceptionOrNull() ?: IllegalStateException("Error al importar cuentas"))
+                }
             }
+
+            val now = System.currentTimeMillis()
+            val restoredAccounts = repository.getAccounts().first()
+            val currentHash = CloudVaultSyncManager.computeAccountsSignature(restoredAccounts)
+
+            prefsManager.setGoogleDriveConnected(true)
+            prefsManager.setLastSyncTimestamp(now)
+            prefsManager.setLastSyncedVaultHash(currentHash)
+            GoogleDriveManager.currentAccessToken = accessToken
+
+            Result.success(count)
         } catch (e: Exception) {
             Result.failure(e)
         } finally {
@@ -245,23 +252,30 @@ object ManualSyncManager {
             }
 
             val jsonPayload = downloadResult.getOrThrow()
-            val importResult = repository.importAccountsFromTransfer(jsonPayload)
-
-            if (importResult.isSuccess) {
-                val count = importResult.getOrThrow()
-                val now = System.currentTimeMillis()
-                val restoredAccounts = repository.getAccounts().first()
-                val currentHash = CloudVaultSyncManager.computeAccountsSignature(restoredAccounts)
-
-                prefsManager.setGoogleDriveConnected(true)
-                prefsManager.setLastSyncTimestamp(now)
-                prefsManager.setLastSyncedVaultHash(currentHash)
-                GoogleDriveManager.currentAccessToken = accessToken
-
-                Result.success(count)
+            val mergeResult = repository.mergeAccountsFromRemote(jsonPayload)
+            val count = if (mergeResult.isSuccess && mergeResult.getOrThrow() > 0) {
+                mergeResult.getOrThrow()
             } else {
-                Result.failure(importResult.exceptionOrNull() ?: IllegalStateException("Error al importar cuentas"))
+                val importResult = repository.importAccountsFromTransfer(jsonPayload)
+                if (importResult.isSuccess) {
+                    importResult.getOrThrow()
+                } else if (mergeResult.isSuccess) {
+                    mergeResult.getOrThrow()
+                } else {
+                    return@withContext Result.failure(importResult.exceptionOrNull() ?: IllegalStateException("Error al importar cuentas"))
+                }
             }
+
+            val now = System.currentTimeMillis()
+            val restoredAccounts = repository.getAccounts().first()
+            val currentHash = CloudVaultSyncManager.computeAccountsSignature(restoredAccounts)
+
+            prefsManager.setGoogleDriveConnected(true)
+            prefsManager.setLastSyncTimestamp(now)
+            prefsManager.setLastSyncedVaultHash(currentHash)
+            GoogleDriveManager.currentAccessToken = accessToken
+
+            Result.success(count)
         } catch (e: Exception) {
             Result.failure(e)
         } finally {

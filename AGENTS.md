@@ -51,9 +51,11 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 
 ---
 
-## 6. Centralización de Parámetros de Seguridad y Criptografía (`security/SecurityConfig.kt`)
-- **PROHIBIDO** definir tiempos de expiración de portapapeles o parámetros criptográficos dispersos en el código.
-- **OBLIGATORIO** declarar y consumir todas las constantes de seguridad en `security/SecurityConfig.kt` (tiempos de auto-clear de portapapeles, iteraciones PBKDF2, períodos TOTP, etc.).
+## 6. Centralización de Parámetros de Seguridad, Criptografía y Claves de Persistencia (*SecurityConfig & Storage Keys*)
+- **PROHIBIDO** definir tiempos de expiración de portapapeles, parámetros criptográficos o cadenas literales para tablas Room, DataStore, SharedPreferences o alias Keystore dispersos en el código.
+- **OBLIGATORIO** declarar y consumir todas las constantes inmutables (`const val`) en sus clases administradoras centralizadas:
+  - `security/SecurityConfig.kt`: Tiempos de auto-clear de portapapeles, etiquetas de portapapeles, iteraciones PBKDF2, períodos TOTP, alias del Android Keystore, etc.
+  - `PreferencesManager.kt` y `AppDatabase.kt`: Nombres de tablas, claves de persistencia y configuraciones locales.
 
 ---
 
@@ -71,9 +73,11 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 
 ---
 
-## 9. Principio de Cero Confianza (*Zero Trust*) y Seguridad de Memoria
+## 9. Principio de Cero Confianza (*Zero Trust*) y Gestión Segura de Memoria (*Memory Security & Lifecycle Purge*)
 - Validar siempre los datos ingresados por el usuario (claves Base32, URIs, longitudes).
 - Sobreescribir con ceros (*zeroize / fill('0')*) los arreglos de caracteres (`CharArray`) y bytes (`ByteArray`) que contengan secretos o contraseñas en memoria tras su uso.
+- **PROHIBIDO** mantener secretos o cachés de descifrado en memoria RAM indefinidamente cuando la aplicación entra en segundo plano.
+- **OBLIGATORIO** invocar la limpieza y sobrescritura de cachés volátiles (`clearMemoryCache()`) ante transiciones a segundo plano (`Lifecycle.Event.ON_STOP`) o eventos de advertencia de memoria del sistema (`ComponentCallbacks2.onTrimMemory()`).
 
 ---
 
@@ -104,7 +108,6 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 ## 14. Gestión Unificada de Diálogos Modales, Navegación Defensiva y Espaciados Estándar (*Single-Dialog State Machine & Modal Design Standard*)
 - **PROHIBIDO** superponer o apilar múltiples diálogos modales en pantalla (*Stacked Modals*).
 - **PROHIBIDO** cerrar un diálogo modal y abrir otro diálogo separado en su lugar para flujos encadenados, restauraciones, sub-pasos o confirmaciones (antipatrón de parpadeo y desmontaje de modales).
-- **PROHIBIDO** restringir filas, columnas o contenedores con textos mediante alturas fijas (`.height(...)` o `.size(...)`) que provoquen recorte vertical (*text clipping*) al saltar de línea o envolver texto. Todo contenedor de texto en modales debe usar `wrapContentHeight()`, `heightIn(min = ...)` o flujo natural con `Modifier.fillMaxWidth()`.
 - **PROHIBIDO** quemar espaciados o dimensiones arbitrarias dentro de los diálogos, o permitir que listas internas desborden la pantalla sin límite de altura o sin scroll vertical.
 - **OBLIGATORIO** unificar flujos encadenados (confirmaciones destructivas, modo edición, sub-pasos de descifrado/restauración) dentro de un único diálogo modal dinámico mediante una máquina de estados interna con transición fluida de contenido (idéntico al patrón de `AccountDetailsDialog.kt`).
 - **OBLIGATORIO el estándar uniforme de geometría y espaciados en diálogos:**
@@ -129,57 +132,51 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 
 ---
 
-## 16. Purga y Aislamiento de Memoria en el Ciclo de Vida (*Lifecycle-Aware Memory Purge*)
-- **PROHIBIDO** mantener secretos o cachés de descifrado en memoria RAM indefinidamente cuando la aplicación entra en segundo plano.
-- **OBLIGATORIO** invocar la limpieza y sobrescritura de cachés volátiles (`clearMemoryCache()`) ante transiciones a segundo plano (`Lifecycle.Event.ON_STOP`) o eventos de advertencia de memoria del sistema (`ComponentCallbacks2.onTrimMemory()`).
-
----
-
-## 17. Centralización de Claves de Persistencia y Alias Keystore (*Centralized Storage Keys*)
-- **PROHIBIDO** declarar cadenas mágicas literales para nombres de tablas Room, claves de `SharedPreferences`, preferencias de `DataStore` o alias del `AndroidKeyStore` dispersos en la lógica de negocio o vistas.
-- **OBLIGATORIO** declarar todas las claves de persistencia y alias criptográficos como constantes inmutables (`const val`) centralizadas en sus clases administradoras (`SecurityConfig.kt`, `PreferencesManager.kt` o `AppDatabase.kt`).
-
----
-
-## 18. Estándar de Pruebas Unitarias de Regresión Criptográfica (*Deterministic Crypto Testing*)
+## 16. Estándar de Pruebas Unitarias de Regresión Criptográfica (*Deterministic Crypto Testing*)
 - **PROHIBIDO** introducir nuevos motores de cálculo, algoritmos de derivación, parsers de URI o funciones de firma sin su correspondiente suite de pruebas unitarias automatizadas.
 - **OBLIGATORIO** incluir pruebas en `app/src/test/` con 100% de cobertura en escenarios límite (*edge cases*): cadenas vacías, entradas nulas, formatos Base32 con/sin padding, alteraciones de orden y marcas de tiempo extremas.
 
 ---
 
-## 19. Blindaje de Superficie y Prevención de Capturas (*FLAG_SECURE & App Switcher Masking*)
+## 17. Blindaje de Superficie y Prevención de Capturas (*FLAG_SECURE & App Switcher Masking*)
 - **PROHIBIDO** permitir capturas de pantalla, grabaciones de video o miniaturas legibles de secretos en la vista de aplicaciones recientes (*App Switcher*).
 - **OBLIGATORIO** mantener activa la bandera `WindowManager.LayoutParams.FLAG_SECURE` en la ventana principal de la aplicación para proteger la visibilidad de códigos 2FA y claves criptográficas.
 
 ---
 
-## 20. Aislamiento de Hilos para Operaciones Criptográficas y de E/S (*Thread Confinement / Coroutine Dispatchers*)
+## 18. Aislamiento de Hilos para Operaciones Criptográficas y de E/S (*Thread Confinement / Coroutine Dispatchers*)
 - **PROHIBIDO** ejecutar derivación de claves PBKDF2, cifrado/descifrado AES-256-GCM o consultas a base de datos en el hilo principal (`Dispatchers.Main`).
 - **OBLIGATORIO** confinar las operaciones intensivas de CPU criptográfica en `Dispatchers.Default` y las operaciones de base de datos/red en `Dispatchers.IO`, garantizando 60/120 FPS fluidos sin caídas de cuadros.
 
 ---
 
-## 21. Inmutabilidad Estricta y Estabilidad de Parámetros en Compose (*Compose Stability & UDF*)
+## 19. Inmutabilidad Estricta y Estabilidad de Parámetros en Compose (*Compose Stability & UDF*)
 - **PROHIBIDO** exponer modelos mutables o clases inestables en los estados de vista que provoquen recomposiciones innecesarias durante el scroll o la actualización de códigos.
 - **OBLIGATORIO** marcar las jerarquías de estado con `@Immutable` o `@Stable` y estructurar el flujo de eventos según el patrón unidireccional de datos (*UDF / MVI*).
 
 ---
 
-## 22. Versionado de Esquemas y Compatibilidad Hacia Adelante (*Schema Versioning & Compatibility*)
+## 20. Versionado de Esquemas y Compatibilidad Hacia Adelante (*Schema Versioning & Compatibility*)
 - **PROHIBIDO** generar respaldos en la nube o formatos de exportación sin declarar explícitamente su versión de esquema de datos.
 - **OBLIGATORIO** incluir una cabecera de versión (`version` / `schemaVersion`) en los formatos JSON de transferencia y sobre criptográfico (`CURRENT_BACKUP_VERSION`), garantizando compatibilidad hacia atrás y hacia adelante.
 
 ---
 
-## 23. Mensajes de Control de Versiones en Español (*Spanish Git Commits*)
+## 21. Mensajes de Control de Versiones en Español (*Spanish Git Commits*)
 - **PROHIBIDO** redactar mensajes de commit de Git en inglés u otros idiomas.
 - **OBLIGATORIO** escribir todos los mensajes de commit en **español**, utilizando la estructura de commits semánticos (ej. `feat: ...`, `fix: ...`, `refactor: ...`, `test: ...`, `docs: ...`) con descripciones claras y gramaticalmente correctas en español.
 
 ---
 
-## 24. Idempotencia, Bloqueo de Doble Pulsación y Retroalimentación en Botones (*Idempotent Animated Buttons*)
+## 22. Idempotencia, Bloqueo de Doble Pulsación y Retroalimentación en Botones (*Idempotent Animated Buttons*)
 - **PROHIBIDO** permitir pulsaciones múltiples o concurrentes en botones que ejecutan acciones asíncronas, mutantes o destructivas (guardado, edición, borrado, sincronización o transferencia).
 - **OBLIGATORIO** utilizar `AppAnimatedButton` o banderas atómicas de bloqueo (`isProcessing`) para congelar la interactividad al primer toque, proporcionando confirmación visual inmediata (palomita blanca sobre fondo `SafeGreen` en éxito o 'X' blanca sobre fondo `UrgentRed` en fallo) y respuesta háptica semántica (`AppHaptics`).
 
+---
 
-
+## 23. Simetría de Controles, Visibilidad Completa y Adaptación Dinámica de Textos (*Dynamic Sizing, Button Symmetry & Zero Clipping*)
+- **PROHIBIDO** que botones adyacentes o agrupados en una misma fila tengan alturas dispares, deformaciones visuales o anchos asimétricos debido a textos con diferentes longitudes.
+- **PROHIBIDO** el recorte, corte vertical o truncamiento de texto (*text clipping / ellipsis indeseado*) en cualquier contenedor (botones, tarjetas, modales, encabezados o listas) por forzar `maxLines = 1` o alturas fijas cuando el texto no quepa en una sola línea.
+- **OBLIGATORIO** fijar pesos simétricos (`Modifier.weight(1f)`) en filas de botones adyacentes para que compartan equitativamente el ancho disponible.
+- **OBLIGATORIO** sincronizar la altura de botones y contenedores hermanos utilizando `Modifier.height(IntrinsicSize.Min)` en la fila y `Modifier.fillMaxHeight().heightIn(min = Dimensions.ComponentHeight.buttonDefault)` (50.dp o 36.dp) en los botones, de modo que si un control requiere más altura por salto de línea, todos los controles adyacentes se adapten dinámicamente a la misma altura exacta.
+- **OBLIGATORIO** diseñar textos con flujo natural (`wrapContentHeight()`, `textAlign = TextAlign.Center`, `PaddingValues` calibrados), garantizando legibilidad total, simetría y cero truncamiento.

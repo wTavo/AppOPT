@@ -46,6 +46,17 @@ class AppLockManager : DefaultLifecycleObserver {
         _isUnlocked.value = false
     }
 
+    private var isTemporarilySuspended = false
+
+    /**
+     * Suspende temporalmente el bloqueo de la bóveda para flujos del sistema legítimos
+     * (como la vista previa de impresión PDF o selectores de archivos del sistema operativo).
+     */
+    fun suspendLockTemporarily() {
+        isTemporarilySuspended = true
+        backgroundTimestamp = 0L
+    }
+
     override fun onStop(owner: LifecycleOwner) {
         super.onStop(owner)
         backgroundTimestamp = System.currentTimeMillis()
@@ -53,6 +64,11 @@ class AppLockManager : DefaultLifecycleObserver {
 
     override fun onStart(owner: LifecycleOwner) {
         super.onStart(owner)
+        if (isTemporarilySuspended) {
+            isTemporarilySuspended = false
+            backgroundTimestamp = 0L
+            return
+        }
         if (backgroundTimestamp > 0L && (System.currentTimeMillis() - backgroundTimestamp) >= lockTimeoutMillis) {
             lock()
         }

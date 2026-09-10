@@ -1,6 +1,12 @@
 package com.example.appopt.ui.screens.settings.dialogs
 
 import android.graphics.Bitmap
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -20,6 +26,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import com.example.appopt.R
 import com.example.appopt.domain.model.TotpAccount
 import com.example.appopt.security.SecurityConfig
@@ -28,10 +35,20 @@ import com.example.appopt.ui.screens.settings.dialogs.components.ExportAccountSe
 import com.example.appopt.ui.screens.settings.dialogs.components.ExportExpiredStep
 import com.example.appopt.ui.screens.settings.dialogs.components.ExportQrCarouselStep
 import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.ui.util.QrCodeGenerator
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+/**
+ * Sub-estados del diálogo modal de exportación de servicios.
+ */
+private enum class ExportSubState {
+    ACCOUNT_SELECTION,
+    QR_CAROUSEL,
+    EXPIRED
+}
 
 /**
  * Diálogo modal para la exportación y transferencia offline de cuentas OTP mediante lotes de códigos QR cifrados con PIN efímero.
@@ -117,6 +134,12 @@ fun ExportServicesDialog(
         }
     }
 
+    val currentExportState = when {
+        !isShowingQr -> ExportSubState.ACCOUNT_SELECTION
+        isExpired -> ExportSubState.EXPIRED
+        else -> ExportSubState.QR_CAROUSEL
+    }
+
     AlertDialog(
         onDismissRequest = {
             if (isShowingQr) {
@@ -143,111 +166,144 @@ fun ExportServicesDialog(
             )
         },
         text = {
-            if (!isShowingQr) {
-                ExportAccountSelectionStep(
-                    accounts = accounts,
-                    selectedServiceIds = selectedServiceIds,
-                    onToggleSelection = { id ->
-                        if (id in selectedServiceIds) {
-                            selectedServiceIds.remove(id)
-                        } else {
-                            selectedServiceIds.add(id)
-                        }
-                    },
-                    keepServicesOnDevice = keepServicesOnDevice,
-                    onKeepServicesChanged = { keepServicesOnDevice = it }
-                )
-            } else if (isExpired) {
-                ExportExpiredStep()
-            } else {
-                ExportQrCarouselStep(
-                    transferQrBitmaps = transferQrBitmaps,
-                    currentQrIndex = currentQrIndex,
-                    onSelectQrIndex = { currentQrIndex = it; isPinVisible = false },
-                    transferPin = transferPin,
-                    isPinVisible = isPinVisible,
-                    onTogglePinVisibility = { isPinVisible = !isPinVisible },
-                    exportedCount = exportedServiceIds.size,
-                    secondsRemaining = secondsRemaining,
-                    totalSessionDuration = totalSessionDuration
-                )
+            Crossfade(
+                targetState = currentExportState,
+                animationSpec = tween(Motion.Duration.FAST, easing = Motion.EasingCurve.Standard),
+                modifier = Modifier.fillMaxWidth(),
+                label = "exportServicesStepTransition"
+            ) { state ->
+                when (state) {
+                    ExportSubState.ACCOUNT_SELECTION -> {
+                        ExportAccountSelectionStep(
+                            accounts = accounts,
+                            selectedServiceIds = selectedServiceIds,
+                            onToggleSelection = { id ->
+                                if (id in selectedServiceIds) {
+                                    selectedServiceIds.remove(id)
+                                } else {
+                                    selectedServiceIds.add(id)
+                                }
+                            },
+                            keepServicesOnDevice = keepServicesOnDevice,
+                            onKeepServicesChanged = { keepServicesOnDevice = it }
+                        )
+                    }
+                    ExportSubState.EXPIRED -> {
+                        ExportExpiredStep()
+                    }
+                    ExportSubState.QR_CAROUSEL -> {
+                        ExportQrCarouselStep(
+                            transferQrBitmaps = transferQrBitmaps,
+                            currentQrIndex = currentQrIndex,
+                            onSelectQrIndex = { currentQrIndex = it; isPinVisible = false },
+                            transferPin = transferPin,
+                            isPinVisible = isPinVisible,
+                            onTogglePinVisibility = { isPinVisible = !isPinVisible },
+                            exportedCount = exportedServiceIds.size,
+                            secondsRemaining = secondsRemaining,
+                            totalSessionDuration = totalSessionDuration
+                        )
+                    }
+                }
             }
         },
         confirmButton = {
-            var isProcessing by remember { mutableStateOf(false) }
-            if (!isShowingQr) {
-                Button(
-                    onClick = {
-                        if (!isProcessing) {
-                            isProcessing = true
-                            try {
-                                generateTransferQr()
-                            } finally {
-                                isProcessing = false
+            when (currentExportState) {
+                ExportSubState.ACCOUNT_SELECTION -> {
+                    var isProcessing by remember { mutableStateOf(false) }
+                    Button(
+                        onClick = {
+                            if (!isProcessing) {
+                                isProcessing = true
+                                try {
+                                    generateTransferQr()
+                                } finally {
+                                    isProcessing = false
+                                }
                             }
-                        }
-                    },
-                    enabled = selectedServiceIds.isNotEmpty() && !isProcessing,
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                ) {
-                    Text(stringResource(R.string.settings_generate_qr_button), style = MaterialTheme.typography.labelLarge)
-                }
-            } else if (isExpired) {
-                Button(
-                    onClick = {
-                        if (!isGenerating) {
-                            haptics.click()
-                            generateTransferQr()
-                        }
-                    },
-                    enabled = !isGenerating,
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                ) {
-                    if (isGenerating) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(Dimensions.IconSize.small),
-                            strokeWidth = Dimensions.Spacing.xs,
-                            color = MaterialTheme.colorScheme.onPrimary
+                        },
+                        enabled = selectedServiceIds.isNotEmpty() && !isProcessing,
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.settings_generate_qr_button),
+                            style = MaterialTheme.typography.labelLarge
                         )
-                    } else {
-                        Text(stringResource(R.string.settings_transfer_regenerate_button), style = MaterialTheme.typography.labelLarge)
                     }
                 }
-            } else {
-                Button(
-                    onClick = {
-                        if (!isProcessing) {
-                            isProcessing = true
-                            onCompleteExport(exportedServiceIds, keepServicesOnDevice)
-                        }
-                    },
-                    enabled = (transferQrBitmaps.isNotEmpty() || keepServicesOnDevice) && !isProcessing,
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                ) {
-                    Text(
-                        text = if (!keepServicesOnDevice) {
-                            stringResource(R.string.settings_export_confirm_done)
-                        } else {
-                            stringResource(R.string.account_modal_close_button)
+                ExportSubState.QR_CAROUSEL -> {
+                    var isProcessing by remember { mutableStateOf(false) }
+                    Button(
+                        onClick = {
+                            if (!isProcessing) {
+                                isProcessing = true
+                                onCompleteExport(exportedServiceIds, keepServicesOnDevice)
+                            }
                         },
-                        style = MaterialTheme.typography.labelLarge
-                    )
+                        enabled = (transferQrBitmaps.isNotEmpty() || keepServicesOnDevice) && !isProcessing,
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                    ) {
+                        Text(
+                            text = if (!keepServicesOnDevice) {
+                                stringResource(R.string.settings_export_confirm_done)
+                            } else {
+                                stringResource(R.string.account_modal_close_button)
+                            },
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+                }
+                ExportSubState.EXPIRED -> {
+                    Button(
+                        onClick = {
+                            if (!isGenerating) {
+                                haptics.click()
+                                generateTransferQr()
+                            }
+                        },
+                        enabled = !isGenerating,
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                    ) {
+                        if (isGenerating) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(Dimensions.IconSize.small),
+                                strokeWidth = Dimensions.Spacing.xs,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                        } else {
+                            Text(
+                                text = stringResource(R.string.settings_transfer_regenerate_button),
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+                    }
                 }
             }
         },
         dismissButton = {
-            if (!isShowingQr) {
-                TextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.action_close), style = MaterialTheme.typography.labelLarge)
-                }
-            } else {
-                TextButton(onClick = {
-                    isShowingQr = false
-                    transferQrBitmaps = emptyList()
-                    transferPin = ""
-                }) {
-                    Text(stringResource(R.string.settings_drive_details_back), style = MaterialTheme.typography.labelLarge)
-                }
+            TextButton(
+                onClick = {
+                    haptics.click()
+                    when (currentExportState) {
+                        ExportSubState.ACCOUNT_SELECTION -> onDismiss()
+                        ExportSubState.QR_CAROUSEL,
+                        ExportSubState.EXPIRED -> {
+                            isShowingQr = false
+                            transferQrBitmaps = emptyList()
+                            transferPin = ""
+                        }
+                    }
+                },
+                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+            ) {
+                Text(
+                    text = if (currentExportState == ExportSubState.ACCOUNT_SELECTION) {
+                        stringResource(R.string.action_close)
+                    } else {
+                        stringResource(R.string.settings_drive_details_back)
+                    },
+                    style = MaterialTheme.typography.labelLarge
+                )
             }
         },
         modifier = modifier

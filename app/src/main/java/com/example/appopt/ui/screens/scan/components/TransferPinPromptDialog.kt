@@ -21,6 +21,8 @@ import androidx.compose.ui.text.style.TextAlign
 import com.example.appopt.R
 import com.example.appopt.ui.theme.Dimensions
 
+import com.example.appopt.ui.theme.rememberAppHaptics
+
 /**
  * Diálogo modal para solicitar el PIN de 6 dígitos necesario para descifrar un paquete de transferencia OTP.
  *
@@ -42,6 +44,7 @@ fun TransferPinPromptDialog(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val appHaptics = rememberAppHaptics()
     AlertDialog(
         onDismissRequest = {
             if (!isVerifying) {
@@ -96,7 +99,10 @@ fun TransferPinPromptDialog(
         },
         confirmButton = {
             Button(
-                onClick = onConfirm,
+                onClick = {
+                    appHaptics.click()
+                    onConfirm()
+                },
                 enabled = pinInput.length == 6 && !isVerifying,
                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
             ) {
@@ -110,12 +116,14 @@ fun TransferPinPromptDialog(
             TextButton(
                 onClick = {
                     if (!isVerifying) {
+                        appHaptics.click()
                         onDismiss()
                     }
-                }
+                },
+                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
             ) {
                 Text(
-                    text = stringResource(R.string.action_cancel),
+                    text = stringResource(R.string.action_close),
                     style = MaterialTheme.typography.labelLarge
                 )
             }

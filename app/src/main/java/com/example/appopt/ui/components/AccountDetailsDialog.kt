@@ -1,6 +1,8 @@
 package com.example.appopt.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.clickable
@@ -9,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -51,6 +54,15 @@ import com.example.appopt.ui.theme.UrgentRed
 import com.example.appopt.ui.theme.rememberAppHaptics
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
+
+/**
+ * Sub-estados de visualización y edición del diálogo de detalles de cuenta.
+ */
+private enum class AccountDetailsSubState {
+    VIEW,
+    EDIT,
+    DELETE_CONFIRM
+}
 
 /**
  * Modal / Popup para visualizar o editar la información de una cuenta con escala tipográfica estandarizada y animaciones centralizadas.
@@ -107,6 +119,12 @@ fun AccountDetailsDialog(
         editedIssuer.trim() != account.issuer.trim() || editedAccountName.trim() != account.accountName.trim()
     }
     val isFormValid = editedIssuer.isNotBlank() && hasChanges
+
+    val currentDialogState = when {
+        showDeleteConfirm -> AccountDetailsSubState.DELETE_CONFIRM
+        isEditMode -> AccountDetailsSubState.EDIT
+        else -> AccountDetailsSubState.VIEW
+    }
 
     AlertDialog(
         onDismissRequest = {
@@ -172,175 +190,215 @@ fun AccountDetailsDialog(
             }
         },
         text = {
-            if (showDeleteConfirm) {
-                Text(
-                    text = stringResource(R.string.account_details_delete_to_trash_hint),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            } else {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
-                ) {
-                    if (!isEditMode) {
-                        // --- MODO VISUALIZACIÓN: Tipografía limpia con Avatar de Marca ---
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = Dimensions.Spacing.xs),
-                            verticalAlignment = Alignment.CenterVertically
+            Crossfade(
+                targetState = currentDialogState,
+                animationSpec = tween(Motion.Duration.FAST, easing = Motion.EasingCurve.Standard),
+                modifier = Modifier.fillMaxWidth(),
+                label = "accountDetailsStepTransition"
+            ) { subState ->
+                when (subState) {
+                    AccountDetailsSubState.DELETE_CONFIRM -> {
+                        Text(
+                            text = stringResource(R.string.account_details_delete_to_trash_hint),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                    AccountDetailsSubState.VIEW -> {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                         ) {
-                            ServiceBrandAvatar(
-                                issuer = account.issuer,
-                                size = Dimensions.IconSize.hero
-                            )
-
-                            Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
-
-                            Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)) {
-                                Text(
-                                    text = account.issuer.ifEmpty { stringResource(R.string.home_default_issuer) },
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-
-                                if (account.accountName.isNotBlank()) {
-                                    Text(
-                                        text = account.accountName,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-
-                        // Dígitos grandes abajo con el contador circular integrado
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(Dimensions.CornerRadius.large))
-                                .clickable {
-                                    appHaptics.copy()
-                                    onCopyCode(accountWithCode.code)
-                                    copied = true
-                                },
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant
-                            ),
-                            shape = RoundedCornerShape(Dimensions.CornerRadius.large)
-                        ) {
+                            // --- MODO VISUALIZACIÓN: Tipografía limpia con Avatar de Marca ---
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = Dimensions.Spacing.lg, horizontal = Dimensions.Spacing.lg),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                    .padding(vertical = Dimensions.Spacing.xs),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                ServiceBrandAvatar(
+                                    issuer = account.issuer,
+                                    size = Dimensions.IconSize.hero
+                                )
+
+                                Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
+
+                                Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)) {
                                     Text(
-                                        text = formattedCode,
-                                        style = MaterialTheme.typography.displayMedium,
-                                        color = MaterialTheme.colorScheme.primary
+                                        text = account.issuer.ifEmpty { stringResource(R.string.home_default_issuer) },
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
 
-                                    AnimatedVisibility(
-                                        visible = copied,
-                                        enter = fadeIn(animationSpec = Motion.Spec.quickFadeSpec()),
-                                        exit = fadeOut(animationSpec = Motion.Spec.quickFadeSpec())
-                                    ) {
-                                        Row {
-                                            Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
-                                            Icon(
-                                                imageVector = Icons.Filled.Check,
-                                                contentDescription = stringResource(R.string.action_copied),
-                                                tint = SafeGreen,
-                                                modifier = Modifier.size(Dimensions.IconSize.large)
-                                            )
-                                        }
+                                    if (account.accountName.isNotBlank()) {
+                                        Text(
+                                            text = account.accountName,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
                                     }
                                 }
+                            }
 
-                                if (account.type == OtpType.TOTP) {
-                                    CircularTimeProgress(
-                                        period = account.period
-                                    )
+                            // Dígitos grandes abajo con el contador circular integrado
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(Dimensions.CornerRadius.large))
+                                    .clickable {
+                                        appHaptics.copy()
+                                        onCopyCode(accountWithCode.code)
+                                        copied = true
+                                    },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                ),
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.large)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = Dimensions.Spacing.lg, horizontal = Dimensions.Spacing.lg),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = formattedCode,
+                                            style = MaterialTheme.typography.displayMedium,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+
+                                        AnimatedVisibility(
+                                            visible = copied,
+                                            enter = fadeIn(animationSpec = Motion.Spec.quickFadeSpec()),
+                                            exit = fadeOut(animationSpec = Motion.Spec.quickFadeSpec())
+                                        ) {
+                                            Row {
+                                                Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
+                                                Icon(
+                                                    imageVector = Icons.Filled.Check,
+                                                    contentDescription = stringResource(R.string.action_copied),
+                                                    tint = SafeGreen,
+                                                    modifier = Modifier.size(Dimensions.IconSize.large)
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    if (account.type == OtpType.TOTP) {
+                                        CircularTimeProgress(
+                                            period = account.period
+                                        )
+                                    }
                                 }
                             }
                         }
-                    } else {
+                    }
+                    AccountDetailsSubState.EDIT -> {
                         // --- MODO EDICIÓN: Campos de texto para modificar nombre del servicio y cuenta ---
-                        OutlinedTextField(
-                            value = editedIssuer,
-                            onValueChange = { editedIssuer = it },
-                            label = { Text(stringResource(R.string.account_modal_issuer_label), style = MaterialTheme.typography.bodyMedium) },
-                            singleLine = true,
-                            leadingIcon = {
-                                Icon(Icons.Filled.Business, contentDescription = null)
-                            },
-                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                        ) {
+                            OutlinedTextField(
+                                value = editedIssuer,
+                                onValueChange = { editedIssuer = it },
+                                label = { Text(stringResource(R.string.account_modal_issuer_label), style = MaterialTheme.typography.bodyMedium) },
+                                singleLine = true,
+                                leadingIcon = {
+                                    Icon(Icons.Filled.Business, contentDescription = null)
+                                },
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                modifier = Modifier.fillMaxWidth()
+                            )
 
-                        OutlinedTextField(
-                            value = editedAccountName,
-                            onValueChange = { editedAccountName = it },
-                            label = { Text(stringResource(R.string.account_modal_name_label), style = MaterialTheme.typography.bodyMedium) },
-                            singleLine = true,
-                            leadingIcon = {
-                                Icon(Icons.Filled.PersonOutline, contentDescription = null)
-                            },
-                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        // Botón animado reutilizable de Guardar cambios
-                        AppAnimatedButton(
-                            text = stringResource(R.string.action_save_changes),
-                            enabled = isFormValid,
-                            onClick = {
-                                onUpdateAccount(account.id, editedIssuer.trim(), editedAccountName.trim())
-                                true
-                            },
-                            onActionConfirmed = {
-                                isEditMode = false
-                            }
-                        )
+                            OutlinedTextField(
+                                value = editedAccountName,
+                                onValueChange = { editedAccountName = it },
+                                label = { Text(stringResource(R.string.account_modal_name_label), style = MaterialTheme.typography.bodyMedium) },
+                                singleLine = true,
+                                leadingIcon = {
+                                    Icon(Icons.Filled.PersonOutline, contentDescription = null)
+                                },
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
                 }
             }
         },
         confirmButton = {
-            if (showDeleteConfirm) {
-                var isDeleting by remember { mutableStateOf(false) }
-                Button(
-                    onClick = {
-                        if (!isDeleting) {
-                            isDeleting = true
-                            showDeleteConfirm = false
-                            onDeleteAccount(account.id)
-                            onDismiss()
-                        }
-                    },
-                    enabled = !isDeleting,
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError
-                    )
-                ) {
-                    Text(stringResource(R.string.account_details_move_to_trash_btn), style = MaterialTheme.typography.labelLarge)
+            when (currentDialogState) {
+                AccountDetailsSubState.VIEW -> {}
+                AccountDetailsSubState.EDIT -> {
+                    Button(
+                        onClick = {
+                            appHaptics.click()
+                            onUpdateAccount(account.id, editedIssuer.trim(), editedAccountName.trim())
+                            isEditMode = false
+                        },
+                        enabled = isFormValid,
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.action_save_changes),
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+                }
+                AccountDetailsSubState.DELETE_CONFIRM -> {
+                    var isDeleting by remember { mutableStateOf(false) }
+                    Button(
+                        onClick = {
+                            if (!isDeleting) {
+                                isDeleting = true
+                                showDeleteConfirm = false
+                                onDeleteAccount(account.id)
+                                onDismiss()
+                            }
+                        },
+                        enabled = !isDeleting,
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError
+                        )
+                    ) {
+                        Text(
+                            text = stringResource(R.string.account_details_move_to_trash_btn),
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
                 }
             }
         },
         dismissButton = {
-            if (showDeleteConfirm) {
-                TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text(stringResource(R.string.settings_drive_details_back), style = MaterialTheme.typography.labelLarge)
-                }
-            } else {
-                TextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.account_modal_close_button), style = MaterialTheme.typography.labelLarge)
-                }
+            TextButton(
+                onClick = {
+                    appHaptics.click()
+                    when (currentDialogState) {
+                        AccountDetailsSubState.VIEW -> onDismiss()
+                        AccountDetailsSubState.EDIT -> {
+                            editedIssuer = account.issuer
+                            editedAccountName = account.accountName
+                            isEditMode = false
+                        }
+                        AccountDetailsSubState.DELETE_CONFIRM -> {
+                            showDeleteConfirm = false
+                        }
+                    }
+                },
+                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+            ) {
+                Text(
+                    text = if (currentDialogState == AccountDetailsSubState.VIEW) {
+                        stringResource(R.string.account_modal_close_button)
+                    } else {
+                        stringResource(R.string.settings_drive_details_back)
+                    },
+                    style = MaterialTheme.typography.labelLarge
+                )
             }
         },
         modifier = modifier

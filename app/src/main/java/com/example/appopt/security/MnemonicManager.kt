@@ -98,7 +98,15 @@ object MnemonicManager {
      * @return Frase normalizada con palabras separadas por un único espacio.
      */
     fun normalizePhrase(phrase: String): String {
-        return phrase.trim().lowercase().split("\\s+".toRegex()).filter { it.isNotBlank() }.joinToString(" ")
+        return phrase.trim()
+            .lowercase()
+            .replace(",", " ")
+            .replace("\n", " ")
+            .replace("\r", " ")
+            .split("\\s+".toRegex())
+            .map { it.replace("^\\d+[.\\-:)]*".toRegex(), "").replace("[^a-z]".toRegex(), "").trim() }
+            .filter { it.isNotBlank() }
+            .joinToString(" ")
     }
 
     /**

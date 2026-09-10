@@ -257,7 +257,7 @@ fun DriveSyncSettingsCard(
             }
 
             // 5. Contenedor de automatización (Copia automática al hacer cambios y datos móviles)
-            if (isDriveConnected) {
+            if (isDriveConnected && lastSyncTimestamp > 0L) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium),

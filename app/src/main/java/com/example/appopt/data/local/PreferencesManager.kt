@@ -111,6 +111,18 @@ class PreferencesManager(context: Context) {
     }
 
     /**
+     * Indica si la bóveda local ha sido inicializada y sincronizada con Google Drive en este dispositivo.
+     *
+     * Una bóveda se considera inicializada cuando la cuenta de Google Drive está conectada
+     * y se ha creado o restaurado exitosamente al menos una copia de seguridad ([getLastSyncTimestamp] > 0).
+     *
+     * @return `true` si la bóveda está inicializada y lista para sincronización automática, `false` en caso contrario.
+     */
+    fun isCloudVaultInitialized(): Boolean {
+        return isGoogleDriveConnected() && getLastSyncTimestamp() > 0L
+    }
+
+    /**
      * Retorna si la copia de seguridad automática está activada (por defecto true).
      */
     fun isAutoSyncEnabled(): Boolean {

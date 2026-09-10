@@ -133,6 +133,9 @@ object Dimensions {
 
         /** Ancho máximo para el menú flotante Speed Dial de creación de cuentas (280.dp). */
         val speedDialMaxWidth: Dp = 280.dp
+
+        /** Altura de las tarjetas táctiles de selección de método (ej. contraseña vs clave de 64 dígitos, 68.dp). */
+        val methodSelectorCard: Dp = 68.dp
     }
 
     /**

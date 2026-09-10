@@ -319,7 +319,7 @@ fun SettingsScreen(
                         try {
                             val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                                 data = Uri.parse("package:${context.packageName}")
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_HISTORY or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
                             }
                             context.startActivity(intent)
                         } catch (_: Exception) {}
@@ -494,36 +494,67 @@ fun SettingsScreen(
         onDismissDriveProtect = { showDriveProtectDialog = false },
         onProtectAndSync = { primaryPassChars, emergencyMnemonicChars ->
             showDriveProtectDialog = false
-            val token = driveAccessToken ?: GoogleDriveManager.currentAccessToken
-            if (token != null) {
+            val executeProtect: (String) -> Unit = { token ->
                 viewModel.createProtectedBackup(context, token, primaryPassChars, emergencyMnemonicChars) { success ->
                     scope.launch {
                         snackbarHostState.showSnackbar(if (success) driveSyncSuccessText else driveErrorText)
                     }
                 }
             }
+            val token = driveAccessToken ?: GoogleDriveManager.currentAccessToken
+            if (token == null) {
+                requestGoogleAuthorization { executeProtect(it) }
+            } else {
+                executeProtect(token)
+            }
         },
         showDriveDecryptDialog = showDriveDecryptDialog,
         onDismissDriveDecrypt = { showDriveDecryptDialog = false },
         onRestoreDriveDecrypt = { passChars ->
             showDriveDecryptDialog = false
-            val token = driveAccessToken ?: GoogleDriveManager.currentAccessToken
-            if (token != null) {
-                viewModel.restoreFromBackup(context, token, passChars) { result ->
+            fun executeRestore(token: String) {
+                val passCharsCopy = passChars.clone()
+                viewModel.restoreFromBackup(context, token, passCharsCopy) { result ->
                     result.onSuccess { count ->
+                        passChars.fill('0')
                         scope.launch {
                             snackbarHostState.showSnackbar(
                                 context.applicationContext.getString(R.string.settings_drive_restore_success, count)
                             )
                         }
                     }.onFailure { error ->
-                        val isDecryptFailure = error.message?.contains("clave", ignoreCase = true) == true ||
-                                error.message?.contains("descargar", ignoreCase = true) == true
-                        scope.launch {
-                            snackbarHostState.showSnackbar(if (isDecryptFailure) driveDecryptErrorText else driveErrorText)
+                        val isAuthExpired = error.message?.contains("401", ignoreCase = true) == true ||
+                                error.message?.contains("403", ignoreCase = true) == true
+                        if (isAuthExpired) {
+                            driveAccessToken = null
+                            GoogleDriveManager.currentAccessToken = null
+                            requestGoogleAuthorization { freshToken ->
+                                executeRestore(freshToken)
+                            }
+                        } else {
+                            passChars.fill('0')
+                            val isDecryptFailure = error is java.security.GeneralSecurityException ||
+                                    error is IllegalArgumentException ||
+                                    error.cause is java.security.GeneralSecurityException ||
+                                    error.cause is IllegalArgumentException ||
+                                    error.message?.contains("clave", ignoreCase = true) == true ||
+                                    error.message?.contains("ranura", ignoreCase = true) == true ||
+                                    error.message?.contains("descifrar", ignoreCase = true) == true ||
+                                    error.message?.contains("tag", ignoreCase = true) == true ||
+                                    error.message?.contains("credenciales", ignoreCase = true) == true ||
+                                    error.message?.contains("padding", ignoreCase = true) == true
+                            scope.launch {
+                                snackbarHostState.showSnackbar(if (isDecryptFailure) driveDecryptErrorText else driveErrorText)
+                            }
                         }
                     }
                 }
+            }
+            val token = driveAccessToken ?: GoogleDriveManager.currentAccessToken
+            if (token == null) {
+                requestGoogleAuthorization { executeRestore(it) }
+            } else {
+                executeRestore(token)
             }
         },
         showBackupDetailsDialog = showBackupDetailsDialog,
@@ -552,28 +583,53 @@ fun SettingsScreen(
         },
         onRestoreBackupHistoryItem = { item, passChars ->
             showBackupDetailsDialog = false
-            val token = driveAccessToken ?: GoogleDriveManager.currentAccessToken
-            if (token != null) {
-                viewModel.restoreSpecificBackup(context, token, item.fileId, passChars) { result ->
+            fun executeRestore(token: String) {
+                val passCharsCopy = passChars.clone()
+                viewModel.restoreSpecificBackup(context, token, item.fileId, passCharsCopy) { result ->
                     result.onSuccess { count ->
+                        passChars.fill('0')
                         scope.launch {
                             snackbarHostState.showSnackbar(
                                 context.applicationContext.getString(R.string.settings_drive_restore_success, count)
                             )
                         }
                     }.onFailure { error ->
-                        val isDecryptFailure = error.message?.contains("clave", ignoreCase = true) == true ||
-                                error.message?.contains("descargar", ignoreCase = true) == true
-                        scope.launch {
-                            snackbarHostState.showSnackbar(if (isDecryptFailure) driveDecryptErrorText else driveErrorText)
+                        val isAuthExpired = error.message?.contains("401", ignoreCase = true) == true ||
+                                error.message?.contains("403", ignoreCase = true) == true
+                        if (isAuthExpired) {
+                            driveAccessToken = null
+                            GoogleDriveManager.currentAccessToken = null
+                            requestGoogleAuthorization { freshToken ->
+                                executeRestore(freshToken)
+                            }
+                        } else {
+                            passChars.fill('0')
+                            val isDecryptFailure = error is java.security.GeneralSecurityException ||
+                                    error is IllegalArgumentException ||
+                                    error.cause is java.security.GeneralSecurityException ||
+                                    error.cause is IllegalArgumentException ||
+                                    error.message?.contains("clave", ignoreCase = true) == true ||
+                                    error.message?.contains("ranura", ignoreCase = true) == true ||
+                                    error.message?.contains("descifrar", ignoreCase = true) == true ||
+                                    error.message?.contains("tag", ignoreCase = true) == true ||
+                                    error.message?.contains("credenciales", ignoreCase = true) == true ||
+                                    error.message?.contains("padding", ignoreCase = true) == true
+                            scope.launch {
+                                snackbarHostState.showSnackbar(if (isDecryptFailure) driveDecryptErrorText else driveErrorText)
+                            }
                         }
                     }
                 }
             }
+            val token = driveAccessToken ?: GoogleDriveManager.currentAccessToken
+            if (token == null) {
+                requestGoogleAuthorization { executeRestore(it) }
+            } else {
+                executeRestore(token)
+            }
         },
         onDeleteBackupHistoryItem = { item, passChars ->
-            val token = driveAccessToken ?: GoogleDriveManager.currentAccessToken
-            if (token != null) {
+            val executeDelete: (String) -> Unit = { token ->
                 viewModel.deleteSpecificBackup(token, item.fileId, passChars) { success ->
                     scope.launch {
                         snackbarHostState.showSnackbar(
@@ -582,10 +638,15 @@ fun SettingsScreen(
                     }
                 }
             }
+            val token = driveAccessToken ?: GoogleDriveManager.currentAccessToken
+            if (token == null) {
+                requestGoogleAuthorization { executeDelete(it) }
+            } else {
+                executeDelete(token)
+            }
         },
         onDeleteAllBackups = { passChars ->
-            val token = driveAccessToken ?: GoogleDriveManager.currentAccessToken
-            if (token != null) {
+            val executeDeleteAll: (String) -> Unit = { token ->
                 viewModel.deleteAllBackups(token, passChars) { success ->
                     scope.launch {
                         snackbarHostState.showSnackbar(
@@ -593,6 +654,12 @@ fun SettingsScreen(
                         )
                     }
                 }
+            }
+            val token = driveAccessToken ?: GoogleDriveManager.currentAccessToken
+            if (token == null) {
+                requestGoogleAuthorization { executeDeleteAll(it) }
+            } else {
+                executeDeleteAll(token)
             }
         },
         showOverwriteWarningDialog = showOverwriteWarningDialog,

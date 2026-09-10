@@ -20,6 +20,16 @@ object SecurityConfig {
     const val CLIPBOARD_RECOVERY_KEY_AUTO_CLEAR_SECONDS = 60
 
     /**
+     * Etiqueta para la copia de la clave de 64 dígitos en el portapapeles seguro.
+     */
+    const val CLIPBOARD_LABEL_RECOVERY_64KEY = "AppOPT_Recovery_64Key"
+
+    /**
+     * Etiqueta para la copia de la frase de emergencia (12 palabras) en el portapapeles seguro.
+     */
+    const val CLIPBOARD_LABEL_RECOVERY_MNEMONIC = "AppOPT_Recovery_Mnemonic"
+
+    /**
      * Período de rotación por defecto en segundos para tokens TOTP (RFC 6238).
      */
     const val DEFAULT_TOTP_PERIOD_SECONDS = 30

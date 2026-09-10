@@ -79,6 +79,12 @@ object Motion {
 
         /** Duración del desvanecimiento final de opacidad en la salida al replegarse al botón (100ms). */
         const val NAV_COLLAPSE_FADE = 100
+
+        /** Duración del desvanecimiento entrante suave para pasos internos de diálogos y modales (180ms). */
+        const val DIALOG_STEP_FADE_IN = 180
+
+        /** Duración del desvanecimiento rápido de salida en pasos de diálogo (90ms). */
+        const val DIALOG_STEP_FADE_OUT = 90
     }
 
     /**
@@ -87,6 +93,9 @@ object Motion {
     object Parallax {
         /** Factor de desplazamiento sutil de la pantalla de fondo en Shared X-Axis (20%). */
         const val NAV_SHARED_X_FACTOR = 0.20f
+
+        /** Proporción de desplazamiento sutil para transiciones de pasos dentro de diálogos modales (12%). */
+        const val DIALOG_SHARED_X_FACTOR = 0.12f
     }
 
     /**
@@ -234,6 +243,18 @@ object Motion {
         fun <T> navButtonCollapseFadeSpec() = tween<T>(
             durationMillis = Duration.NAV_COLLAPSE_FADE,
             delayMillis = Duration.NAV_EXPAND_SCALE - Duration.NAV_COLLAPSE_FADE,
+            easing = EasingCurve.Standard
+        )
+
+        /** Especificación de desvanecimiento entrante suave para pasos de diálogos modales (180ms con desaceleración). */
+        fun <T> dialogStepFadeInSpec() = tween<T>(
+            durationMillis = Duration.DIALOG_STEP_FADE_IN,
+            easing = EasingCurve.Decelerate
+        )
+
+        /** Especificación de desvanecimiento rápido de salida para pasos de diálogos modales (90ms). */
+        fun <T> dialogStepFadeOutSpec() = tween<T>(
+            durationMillis = Duration.DIALOG_STEP_FADE_OUT,
             easing = EasingCurve.Standard
         )
     }

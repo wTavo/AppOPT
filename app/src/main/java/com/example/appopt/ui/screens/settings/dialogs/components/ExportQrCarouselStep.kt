@@ -1,6 +1,8 @@
 package com.example.appopt.ui.screens.settings.dialogs.components
 
 import android.graphics.Bitmap
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -145,69 +147,82 @@ fun ExportQrCarouselStep(
         }
 
         val currentBitmap = transferQrBitmaps.getOrNull(currentQrIndex)
-        if (currentBitmap != null) {
-            if (isPinVisible) {
-                val formattedPin = if (transferPin.length == 6) "${transferPin.substring(0, 3)} ${transferPin.substring(3)}" else transferPin
-                // Superficie conmutable: Muestra el PIN dentro del mismo cuadro del QR
-                Surface(
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
-                    modifier = Modifier
-                        .size(Dimensions.ComponentSize.qrCodeDisplay)
-                        .padding(Dimensions.Spacing.xs)
-                ) {
-                    Column(
+        val imageBitmap = androidx.compose.runtime.remember(currentBitmap) { currentBitmap?.asImageBitmap() }
+        val formattedPin = androidx.compose.runtime.remember(transferPin) {
+            if (transferPin.length == 6) "${transferPin.substring(0, 3)} ${transferPin.substring(3)}" else transferPin
+        }
+
+        if (imageBitmap != null) {
+            Crossfade(
+                targetState = isPinVisible,
+                animationSpec = tween(
+                    durationMillis = com.example.appopt.ui.theme.Motion.Duration.FAST,
+                    easing = com.example.appopt.ui.theme.Motion.EasingCurve.Standard
+                ),
+                label = "qrPinDisplayCrossfade"
+            ) { showingPin ->
+                if (showingPin) {
+                    // Superficie conmutable: Muestra el PIN dentro del mismo cuadro del QR
+                    Surface(
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
                         modifier = Modifier
-                            .fillMaxSize()
-                            .padding(Dimensions.Spacing.md),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                            .size(Dimensions.ComponentSize.qrCodeDisplay)
+                            .padding(Dimensions.Spacing.xs)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Lock,
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(Dimensions.Spacing.md),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(Dimensions.IconSize.hero)
+                            )
+                            Spacer(modifier = Modifier.height(Dimensions.Spacing.sm))
+                            Text(
+                                text = stringResource(R.string.settings_transfer_pin_label),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
+                            Text(
+                                text = formattedPin,
+                                style = MaterialTheme.typography.headlineLarge,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Spacer(modifier = Modifier.height(Dimensions.Spacing.sm))
+                            Text(
+                                text = stringResource(R.string.settings_transfer_pin_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                } else {
+                    // Superficie conmutable: Muestra el código QR nítido
+                    Surface(
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                        color = Color.White,
+                        modifier = Modifier
+                            .size(Dimensions.ComponentSize.qrCodeDisplay)
+                            .padding(Dimensions.Spacing.xs)
+                    ) {
+                        Image(
+                            bitmap = imageBitmap,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(Dimensions.IconSize.hero)
-                        )
-                        Spacer(modifier = Modifier.height(Dimensions.Spacing.sm))
-                        Text(
-                            text = stringResource(R.string.settings_transfer_pin_label),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
-                        Text(
-                            text = formattedPin,
-                            style = MaterialTheme.typography.headlineLarge,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        Spacer(modifier = Modifier.height(Dimensions.Spacing.sm))
-                        Text(
-                            text = stringResource(R.string.settings_transfer_pin_hint),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(Dimensions.Spacing.xs)
                         )
                     }
-                }
-            } else {
-                // Superficie conmutable: Muestra el código QR nítido
-                Surface(
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                    color = Color.White,
-                    modifier = Modifier
-                        .size(Dimensions.ComponentSize.qrCodeDisplay)
-                        .padding(Dimensions.Spacing.xs)
-                ) {
-                    Image(
-                        bitmap = currentBitmap.asImageBitmap(),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(Dimensions.Spacing.xs)
-                    )
                 }
             }
 
@@ -238,22 +253,38 @@ fun ExportQrCarouselStep(
                         onTogglePinVisibility()
                     },
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(Dimensions.ComponentHeight.buttonDefault)
                 ) {
-                    Icon(
-                        imageVector = if (isPinVisible) Icons.Default.QrCodeScanner else Icons.Default.Visibility,
-                        contentDescription = null,
-                        modifier = Modifier.size(Dimensions.IconSize.small)
-                    )
-                    Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                    Text(
-                        text = if (isPinVisible) {
-                            stringResource(R.string.settings_transfer_view_qr)
-                        } else {
-                            stringResource(R.string.settings_transfer_view_pin)
-                        },
-                        style = MaterialTheme.typography.labelLarge
-                    )
+                    Crossfade(
+                        targetState = isPinVisible,
+                        animationSpec = tween(
+                            durationMillis = com.example.appopt.ui.theme.Motion.Duration.FAST,
+                            easing = com.example.appopt.ui.theme.Motion.EasingCurve.Standard
+                        ),
+                        label = "qrPinButtonCrossfade"
+                    ) { showingPin ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = if (showingPin) Icons.Default.QrCodeScanner else Icons.Default.Visibility,
+                                contentDescription = null,
+                                modifier = Modifier.size(Dimensions.IconSize.small)
+                            )
+                            Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                            Text(
+                                text = if (showingPin) {
+                                    stringResource(R.string.settings_transfer_view_qr)
+                                } else {
+                                    stringResource(R.string.settings_transfer_view_pin)
+                                },
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+                    }
                 }
             }
         } else {

@@ -212,7 +212,7 @@ object CloudVaultSyncManager {
         debounceSeconds: Long = DEFAULT_DEBOUNCE_SECONDS
     ) {
         val prefsManager = com.example.appopt.data.local.PreferencesManager(context)
-        if (!prefsManager.isGoogleDriveConnected() || !prefsManager.isAutoSyncEnabled()) {
+        if (!prefsManager.isCloudVaultInitialized() || !prefsManager.isAutoSyncEnabled()) {
             return
         }
 

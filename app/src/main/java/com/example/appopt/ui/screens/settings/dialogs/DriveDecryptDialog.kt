@@ -28,6 +28,7 @@ import androidx.compose.ui.res.stringResource
 import com.example.appopt.R
 import com.example.appopt.data.cloud.DriveBackupItem
 import com.example.appopt.security.MnemonicManager
+import com.example.appopt.ui.components.AppDialogActionButtons
 import com.example.appopt.ui.screens.settings.dialogs.components.DriveBackupDecryptForm
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
@@ -87,60 +88,22 @@ fun DriveDecryptDialog(
             )
         },
         confirmButton = {
-            var isProcessing by remember { mutableStateOf(false) }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Min),
-                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs, Alignment.End),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextButton(
-                    onClick = {
-                        appHaptics.click()
-                        onDismiss()
-                    },
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                ) {
-                    Text(
-                        text = stringResource(R.string.action_close),
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                }
-
-                Button(
-                    onClick = {
-                        if (!isProcessing) {
-                            isProcessing = true
-                            appHaptics.click()
-                            val normalizedSecret = if (restoreSecretText.contains(" ")) {
-                                MnemonicManager.normalizePhrase(restoreSecretText)
-                            } else {
-                                restoreSecretText.trim()
-                            }
-                            val passChars = normalizedSecret.toCharArray()
-                            onRestore(passChars)
-                            restoreSecretText = ""
-                            isProcessing = false
-                        }
-                    },
-                    enabled = restoreSecretText.isNotBlank() && !isProcessing,
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                    contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.xs),
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                ) {
-                    Text(
-                        text = stringResource(R.string.settings_drive_decrypt_and_restore),
-                        style = MaterialTheme.typography.labelLarge,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
+            AppDialogActionButtons(
+                dismissText = stringResource(R.string.action_close),
+                onDismiss = onDismiss,
+                confirmText = stringResource(R.string.settings_drive_decrypt_and_restore),
+                onConfirm = {
+                    val normalizedSecret = if (restoreSecretText.contains(" ")) {
+                        MnemonicManager.normalizePhrase(restoreSecretText)
+                    } else {
+                        restoreSecretText.trim()
+                    }
+                    val passChars = normalizedSecret.toCharArray()
+                    onRestore(passChars)
+                    restoreSecretText = ""
+                },
+                confirmEnabled = restoreSecretText.isNotBlank()
+            )
         },
         dismissButton = null,
         modifier = modifier

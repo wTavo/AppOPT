@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.example.appopt.R
 import com.example.appopt.data.cloud.SyncFrequency
+import com.example.appopt.ui.components.AppDialogActionButtons
 import com.example.appopt.ui.theme.Dimensions
 
 import com.example.appopt.ui.theme.rememberAppHaptics
@@ -91,18 +92,9 @@ fun SyncFrequencyDialog(
             }
         },
         confirmButton = {
-            TextButton(
-                onClick = {
-                    appHaptics.click()
-                    onDismiss()
-                },
-                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-            ) {
-                Text(
-                    text = stringResource(R.string.action_close),
-                    style = MaterialTheme.typography.labelLarge
-                )
-            }
+            AppDialogActionButtons(
+                onDismiss = onDismiss
+            )
         },
         dismissButton = null,
         modifier = modifier

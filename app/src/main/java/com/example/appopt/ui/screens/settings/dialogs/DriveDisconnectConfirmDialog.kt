@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import com.example.appopt.R
+import com.example.appopt.ui.components.AppDialogActionButtons
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
 
@@ -56,51 +57,13 @@ fun DriveDisconnectConfirmDialog(
             )
         },
         confirmButton = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Min),
-                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs, Alignment.End),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextButton(
-                    onClick = {
-                        appHaptics.click()
-                        onDismiss()
-                    },
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                ) {
-                    Text(
-                        text = stringResource(R.string.settings_drive_details_back),
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                }
-
-                Button(
-                    onClick = {
-                        appHaptics.click()
-                        onConfirm()
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError
-                    ),
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                    contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.xs),
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                ) {
-                    Text(
-                        text = stringResource(R.string.settings_drive_disconnect_button),
-                        style = MaterialTheme.typography.labelLarge,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
+            AppDialogActionButtons(
+                dismissText = stringResource(R.string.settings_drive_details_back),
+                onDismiss = onDismiss,
+                confirmText = stringResource(R.string.settings_drive_disconnect_button),
+                onConfirm = onConfirm,
+                isDestructive = true
+            )
         },
         dismissButton = null,
         modifier = modifier

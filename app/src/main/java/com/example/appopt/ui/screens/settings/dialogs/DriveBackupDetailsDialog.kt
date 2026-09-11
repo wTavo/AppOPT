@@ -57,6 +57,7 @@ import com.example.appopt.R
 import com.example.appopt.data.cloud.DriveBackupItem
 import com.example.appopt.security.MnemonicManager
 import com.example.appopt.security.SecurityConfig
+import com.example.appopt.ui.components.AppDialogActionButtons
 import com.example.appopt.ui.screens.settings.dialogs.components.DriveBackupDecryptForm
 import com.example.appopt.ui.screens.settings.dialogs.components.DriveBackupItemCard
 import com.example.appopt.ui.theme.Dimensions
@@ -364,154 +365,60 @@ fun DriveBackupDetailsDialog(
             ) { subState ->
                 when (subState) {
                     DriveDetailsSubState.HISTORY -> {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(IntrinsicSize.Min),
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            TextButton(
-                                onClick = {
-                                    appHaptics.click()
-                                    onDismiss()
-                                },
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.action_close),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
+                        AppDialogActionButtons(
+                            onDismiss = onDismiss
+                        )
                     }
                     DriveDetailsSubState.RESTORE_DECRYPT -> {
-                        var isProcessing by remember { mutableStateOf(false) }
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(IntrinsicSize.Min),
-                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs, Alignment.End),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            TextButton(
-                                onClick = {
-                                    appHaptics.click()
+                        AppDialogActionButtons(
+                            confirmText = stringResource(R.string.settings_drive_decrypt_and_restore),
+                            onConfirm = {
+                                val targetItem = pendingRestoreBackup
+                                if (targetItem != null) {
+                                    val normalizedSecret = if (restoreSecretText.contains(" ")) {
+                                        MnemonicManager.normalizePhrase(restoreSecretText)
+                                    } else {
+                                        restoreSecretText.trim()
+                                    }
+                                    val passChars = normalizedSecret.toCharArray()
+                                    onRestoreBackup(targetItem, passChars)
                                     pendingRestoreBackup = null
                                     restoreSecretText = ""
-                                },
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.settings_drive_details_back),
-                                    style = MaterialTheme.typography.labelLarge
-                                )
-                            }
-
-                            Button(
-                                onClick = {
-                                    if (!isProcessing) {
-                                        isProcessing = true
-                                        val targetItem = pendingRestoreBackup
-                                        if (targetItem != null) {
-                                            val normalizedSecret = if (restoreSecretText.contains(" ")) {
-                                                MnemonicManager.normalizePhrase(restoreSecretText)
-                                            } else {
-                                                restoreSecretText.trim()
-                                            }
-                                            val passChars = normalizedSecret.toCharArray()
-                                            onRestoreBackup(targetItem, passChars)
-                                            pendingRestoreBackup = null
-                                            restoreSecretText = ""
-                                        }
-                                        isProcessing = false
-                                    }
-                                },
-                                enabled = restoreSecretText.isNotBlank(),
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.xs),
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.settings_drive_decrypt_and_restore),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
+                                }
+                            },
+                            dismissText = stringResource(R.string.settings_drive_details_back),
+                            onDismiss = {
+                                pendingRestoreBackup = null
+                                restoreSecretText = ""
+                            },
+                            confirmEnabled = restoreSecretText.isNotBlank()
+                        )
                     }
                     DriveDetailsSubState.DELETE_SINGLE -> {
-                        var isProcessing by remember { mutableStateOf(false) }
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(IntrinsicSize.Min),
-                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs, Alignment.End),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            TextButton(
-                                onClick = {
-                                    appHaptics.click()
+                        AppDialogActionButtons(
+                            confirmText = stringResource(R.string.settings_drive_delete_version_action),
+                            onConfirm = {
+                                val targetItem = pendingDeleteBackup
+                                if (targetItem != null) {
+                                    val normalizedSecret = if (deleteSecretText.contains(" ")) {
+                                        MnemonicManager.normalizePhrase(deleteSecretText)
+                                    } else {
+                                        deleteSecretText.trim()
+                                    }
+                                    val passChars = normalizedSecret.toCharArray()
+                                    onDeleteSpecificBackup(targetItem, passChars)
                                     pendingDeleteBackup = null
                                     deleteSecretText = ""
-                                },
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.settings_drive_details_back),
-                                    style = MaterialTheme.typography.labelLarge
-                                )
-                            }
-
-                            Button(
-                                onClick = {
-                                    if (!isProcessing) {
-                                        isProcessing = true
-                                        val targetItem = pendingDeleteBackup
-                                        if (targetItem != null) {
-                                            val normalizedSecret = if (deleteSecretText.contains(" ")) {
-                                                MnemonicManager.normalizePhrase(deleteSecretText)
-                                            } else {
-                                                deleteSecretText.trim()
-                                            }
-                                            val passChars = normalizedSecret.toCharArray()
-                                            onDeleteSpecificBackup(targetItem, passChars)
-                                            pendingDeleteBackup = null
-                                            deleteSecretText = ""
-                                        }
-                                        isProcessing = false
-                                    }
-                                },
-                                enabled = deleteSecretText.isNotBlank(),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.error,
-                                    contentColor = MaterialTheme.colorScheme.onError
-                                ),
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.xs),
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.settings_drive_delete_version_action),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
+                                }
+                            },
+                            dismissText = stringResource(R.string.settings_drive_details_back),
+                            onDismiss = {
+                                pendingDeleteBackup = null
+                                deleteSecretText = ""
+                            },
+                            confirmEnabled = deleteSecretText.isNotBlank(),
+                            isDestructive = true
+                        )
                     }
                 }
             }

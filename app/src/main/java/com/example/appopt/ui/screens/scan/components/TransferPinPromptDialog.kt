@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import com.example.appopt.R
+import com.example.appopt.ui.components.AppDialogActionButtons
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
 
@@ -104,51 +105,17 @@ fun TransferPinPromptDialog(
             }
         },
         confirmButton = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Min),
-                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs, Alignment.End),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextButton(
-                    onClick = {
-                        if (!isVerifying) {
-                            appHaptics.click()
-                            onDismiss()
-                        }
-                    },
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                ) {
-                    Text(
-                        text = stringResource(R.string.action_close),
-                        style = MaterialTheme.typography.labelLarge,
-                        textAlign = TextAlign.Center
-                    )
-                }
-
-                Button(
-                    onClick = {
-                        appHaptics.click()
-                        onConfirm()
-                    },
-                    enabled = pinInput.length == 6 && !isVerifying,
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                    contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.xs),
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                ) {
-                    Text(
-                        text = stringResource(R.string.scan_transfer_pin_confirm_button),
-                        style = MaterialTheme.typography.labelLarge,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
+            AppDialogActionButtons(
+                dismissText = stringResource(R.string.action_close),
+                onDismiss = {
+                    if (!isVerifying) {
+                        onDismiss()
+                    }
+                },
+                confirmText = stringResource(R.string.scan_transfer_pin_confirm_button),
+                onConfirm = onConfirm,
+                confirmEnabled = pinInput.length == 6 && !isVerifying
+            )
         },
         dismissButton = null,
         modifier = modifier

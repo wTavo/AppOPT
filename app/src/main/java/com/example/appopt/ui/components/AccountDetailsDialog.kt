@@ -355,129 +355,39 @@ fun AccountDetailsDialog(
             ) { subState ->
                 when (subState) {
                     AccountDetailsSubState.VIEW -> {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(IntrinsicSize.Min),
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            TextButton(
-                                onClick = {
-                                    appHaptics.click()
-                                    onDismiss()
-                                },
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.account_modal_close_button),
-                                    style = MaterialTheme.typography.labelLarge
-                                )
-                            }
-                        }
+                        AppDialogActionButtons(
+                            dismissText = stringResource(R.string.account_modal_close_button),
+                            onDismiss = onDismiss
+                        )
                     }
                     AccountDetailsSubState.EDIT -> {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(IntrinsicSize.Min),
-                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs, Alignment.End),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            TextButton(
-                                onClick = {
-                                    appHaptics.click()
-                                    editedIssuer = account.issuer
-                                    editedAccountName = account.accountName
-                                    isEditMode = false
-                                },
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.settings_drive_details_back),
-                                    style = MaterialTheme.typography.labelLarge
-                                )
-                            }
-
-                            Button(
-                                onClick = {
-                                    appHaptics.click()
-                                    onUpdateAccount(account.id, editedIssuer.trim(), editedAccountName.trim())
-                                    isEditMode = false
-                                },
-                                enabled = isFormValid,
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.xs),
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.action_save_changes),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
+                        AppDialogActionButtons(
+                            dismissText = stringResource(R.string.settings_drive_details_back),
+                            onDismiss = {
+                                editedIssuer = account.issuer
+                                editedAccountName = account.accountName
+                                isEditMode = false
+                            },
+                            confirmText = stringResource(R.string.action_save_changes),
+                            onConfirm = {
+                                onUpdateAccount(account.id, editedIssuer.trim(), editedAccountName.trim())
+                                isEditMode = false
+                            },
+                            confirmEnabled = isFormValid
+                        )
                     }
                     AccountDetailsSubState.DELETE_CONFIRM -> {
-                        var isDeleting by remember { mutableStateOf(false) }
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(IntrinsicSize.Min),
-                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs, Alignment.End),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            TextButton(
-                                onClick = {
-                                    appHaptics.click()
-                                    showDeleteConfirm = false
-                                },
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.settings_drive_details_back),
-                                    style = MaterialTheme.typography.labelLarge
-                                )
-                            }
-
-                            Button(
-                                onClick = {
-                                    if (!isDeleting) {
-                                        isDeleting = true
-                                        showDeleteConfirm = false
-                                        onDeleteAccount(account.id)
-                                        onDismiss()
-                                    }
-                                },
-                                enabled = !isDeleting,
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.error,
-                                    contentColor = MaterialTheme.colorScheme.onError
-                                ),
-                                contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.xs),
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.account_details_move_to_trash_btn),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
+                        AppDialogActionButtons(
+                            dismissText = stringResource(R.string.settings_drive_details_back),
+                            onDismiss = { showDeleteConfirm = false },
+                            confirmText = stringResource(R.string.account_details_move_to_trash_btn),
+                            onConfirm = {
+                                showDeleteConfirm = false
+                                onDeleteAccount(account.id)
+                                onDismiss()
+                            },
+                            isDestructive = true
+                        )
                     }
                 }
             }

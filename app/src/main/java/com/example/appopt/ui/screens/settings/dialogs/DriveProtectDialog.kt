@@ -44,6 +44,7 @@ import com.example.appopt.R
 import com.example.appopt.data.cloud.GoogleDriveManager
 import com.example.appopt.security.MnemonicManager
 import com.example.appopt.security.SecurityConfig
+import com.example.appopt.ui.components.AppDialogActionButtons
 import com.example.appopt.ui.screens.settings.dialogs.components.DriveProtectStepMethod
 import com.example.appopt.ui.screens.settings.dialogs.components.DriveProtectStepMnemonic
 import com.example.appopt.ui.screens.settings.dialogs.components.DriveProtectStepQuiz
@@ -244,124 +245,64 @@ fun DriveProtectDialog(
                 modifier = Modifier.fillMaxWidth(),
                 label = "driveProtectButtonsTransition"
             ) { currentStep ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(IntrinsicSize.Min),
-                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs, Alignment.End),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextButton(
-                        onClick = {
-                            appHaptics.click()
-                            when (currentStep) {
-                                3 -> step = 2
-                                2 -> step = 1
-                                else -> onDismiss()
-                            }
-                        },
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                    ) {
-                        Text(
-                            text = if (currentStep == 1) {
-                                stringResource(R.string.action_close)
-                            } else {
-                                stringResource(R.string.settings_drive_details_back)
-                            },
-                            style = MaterialTheme.typography.labelLarge
+                when (currentStep) {
+                    1 -> {
+                        AppDialogActionButtons(
+                            confirmText = stringResource(R.string.settings_drive_next_step),
+                            onConfirm = { step = 2 },
+                            dismissText = stringResource(R.string.action_close),
+                            onDismiss = onDismiss,
+                            confirmEnabled = isStep1Valid
                         )
                     }
+                    2 -> {
+                        AppDialogActionButtons(
+                            confirmText = stringResource(R.string.settings_drive_to_quiz_step),
+                            onConfirm = {
+                                quizQuestions = MnemonicManager.generateQuiz(generatedMnemonicWords)
+                                quizSelectedAnswers = emptyMap()
+                                isQuizError = false
+                                step = 3
+                            },
+                            dismissText = stringResource(R.string.settings_drive_details_back),
+                            onDismiss = { step = 1 }
+                        )
+                    }
+                    3 -> {
+                        AppDialogActionButtons(
+                            confirmText = stringResource(R.string.settings_drive_encrypt_and_sync),
+                            onConfirm = {
+                                val allCorrect = quizQuestions.mapIndexed { idx, q ->
+                                    quizSelectedAnswers[idx] == q.correctWord
+                                }.all { it }
 
-                    when (currentStep) {
-                        1 -> {
-                            Button(
-                                onClick = {
-                                    appHaptics.click()
-                                    step = 2
-                                },
-                                enabled = isStep1Valid,
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.xs),
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.settings_drive_next_step),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
-                        2 -> {
-                            Button(
-                                onClick = {
-                                    appHaptics.click()
-                                    quizQuestions = MnemonicManager.generateQuiz(generatedMnemonicWords)
-                                    quizSelectedAnswers = emptyMap()
-                                    isQuizError = false
-                                    step = 3
-                                },
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.xs),
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.settings_drive_to_quiz_step),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
-                        3 -> {
-                            Button(
-                                onClick = {
-                                    val allCorrect = quizQuestions.mapIndexed { idx, q ->
-                                        quizSelectedAnswers[idx] == q.correctWord
-                                    }.all { it }
-
-                                    if (allCorrect) {
-                                        appHaptics.success()
-                                        val primaryPass = if (selectedProtectionTab == 0) {
-                                            masterPasswordText.toCharArray()
-                                        } else {
-                                            generated64Key.toCharArray()
-                                        }
-                                        val mnemonicPass = generatedMnemonicWords.joinToString(" ").toCharArray()
-                                        try {
-                                            onProtectAndSync(primaryPass, mnemonicPass)
-                                        } finally {
-                                            primaryPass.fill('0')
-                                            mnemonicPass.fill('0')
-                                            masterPasswordText = ""
-                                            masterPasswordConfirmText = ""
-                                            generated64Key = ""
-                                        }
+                                if (allCorrect) {
+                                    appHaptics.success()
+                                    val primaryPass = if (selectedProtectionTab == 0) {
+                                        masterPasswordText.toCharArray()
                                     } else {
-                                        appHaptics.error()
-                                        isQuizError = true
-                                        Toast.makeText(context, quizErrorMsg, Toast.LENGTH_LONG).show()
+                                        generated64Key.toCharArray()
                                     }
-                                },
-                                enabled = isQuizAnswered,
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.xs),
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.settings_drive_encrypt_and_sync),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
+                                    val mnemonicPass = generatedMnemonicWords.joinToString(" ").toCharArray()
+                                    try {
+                                        onProtectAndSync(primaryPass, mnemonicPass)
+                                    } finally {
+                                        primaryPass.fill('0')
+                                        mnemonicPass.fill('0')
+                                        masterPasswordText = ""
+                                        masterPasswordConfirmText = ""
+                                        generated64Key = ""
+                                    }
+                                } else {
+                                    appHaptics.error()
+                                    isQuizError = true
+                                    Toast.makeText(context, quizErrorMsg, Toast.LENGTH_LONG).show()
+                                }
+                            },
+                            dismissText = stringResource(R.string.settings_drive_details_back),
+                            onDismiss = { step = 2 },
+                            confirmEnabled = isQuizAnswered
+                        )
                     }
                 }
             }

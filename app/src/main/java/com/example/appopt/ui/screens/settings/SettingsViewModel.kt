@@ -1,7 +1,6 @@
 package com.example.appopt.ui.screens.settings
 
 import android.content.Context
-import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.WorkInfo
@@ -9,18 +8,13 @@ import androidx.work.WorkManager
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.data.cloud.CloudVaultSyncManager
 import com.example.appopt.data.cloud.DriveBackupInfo
-import com.example.appopt.data.cloud.DriveBackupItem
 import com.example.appopt.data.cloud.GoogleDriveManager
-import com.example.appopt.data.cloud.ManualSyncManager
-import com.example.appopt.data.cloud.SyncFrequency
-import com.example.appopt.domain.model.TotpAccount
-import com.example.appopt.security.SecurityConfig
+import com.example.appopt.ui.screens.settings.handler.DriveVaultHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -32,9 +26,9 @@ import kotlinx.coroutines.withContext
  *
  * Principio de diseño:
  * - Desacopla 100% la lógica de negocio y las llamadas asíncronas de la vista Compose (Directiva 8 y 13).
- * - Modela el estado en un único flujo reactivo inmutable [uiState] (Directiva 21).
- * - Implementa caché TTL en memoria para el historial de versiones (Directiva 6).
- * - Confinamiento estricto de hilos: operaciones de red y base de datos en [Dispatchers.IO] (Directiva 20).
+ * - Modela el estado en un único flujo reactivo inmutable [uiState] (Directiva 19).
+ * - Confinamiento estricto de hilos: operaciones de red y base de datos en [Dispatchers.IO] (Directiva 18).
+ * - Delega operaciones de Google Drive a [DriveVaultHandler] para alta cohesión y modularidad.
  */
 class SettingsViewModel : ViewModel() {
 
@@ -58,6 +52,8 @@ class SettingsViewModel : ViewModel() {
             )
         }
     )
+
+    private val driveVaultHandler = DriveVaultHandler(viewModelScope, _internalState)
 
     /** Estado reactivo unificado de la pantalla de Ajustes. */
     val uiState: StateFlow<SettingsUiState> = combine(
@@ -124,22 +120,13 @@ class SettingsViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Configura el estado de la superposición de fotogramas por segundo (FPS).
-     *
-     * @param enabled Verdadero para mostrar el overlay, falso para ocultarlo.
-     */
+    /** Configura el estado de la superposición de FPS. */
     fun setFpsOverlayEnabled(enabled: Boolean) {
         prefsManager.setFpsOverlayEnabled(enabled)
         _internalState.update { it.copy(isFpsOverlayEnabled = enabled) }
     }
 
-    /**
-     * Activa o desactiva la sincronización periódica en segundo plano.
-     *
-     * @param enabled Verdadero para programar la sincronización, falso para desactivarla.
-     * @param context Contexto de la aplicación para programar WorkManager.
-     */
+    /** Activa o desactiva la sincronización periódica en segundo plano. */
     fun setAutoSyncEnabled(enabled: Boolean, context: Context) {
         prefsManager.setAutoSyncEnabled(enabled)
         _internalState.update { it.copy(isAutoSyncEnabled = enabled) }
@@ -148,12 +135,7 @@ class SettingsViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Configura si la sincronización automática tiene permitido ejecutarse mediante datos móviles.
-     *
-     * @param allowed Verdadero si se permiten datos móviles, falso si solo Wi-Fi.
-     * @param context Contexto de la aplicación.
-     */
+    /** Configura si la sincronización automática permite datos móviles. */
     fun setSyncMobileDataAllowed(allowed: Boolean, context: Context) {
         prefsManager.setSyncMobileDataAllowed(allowed)
         _internalState.update { it.copy(isSyncMobileDataAllowed = allowed) }
@@ -162,45 +144,19 @@ class SettingsViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Desvincula la cuenta de Google Drive, limpiando tokens, cachés y cancelando tareas programadas.
-     *
-     * @param context Contexto de la aplicación.
-     */
+    /** Desvincula la cuenta de Google Drive. */
     fun disconnectGoogleDrive(context: Context) {
-        GoogleDriveManager.clearSession()
-        prefsManager.setLastBackupHistoryFetchTimestamp(0L)
-        prefsManager.setCachedBackupHistory(emptyList())
-        _internalState.update {
-            it.copy(
-                driveBackupExists = false,
-                driveBackupInfo = null,
-                backupHistoryList = emptyList()
-            )
-        }
-        prefsManager.setGoogleDriveConnected(false)
-        prefsManager.setLastSyncTimestamp(0L)
-        prefsManager.setLastSyncedVaultHash("")
-        CloudVaultSyncManager.schedulePeriodicSync(context, SyncFrequency.OFF, false)
+        driveVaultHandler.disconnectGoogleDrive(context)
     }
 
-    /**
-     * Notifica que la autorización OAuth2 fue exitosa.
-     *
-     * @param token Token OAuth2 de Google Drive.
-     */
+    /** Notifica que la autorización OAuth2 fue exitosa. */
     fun onGoogleDriveConnected(token: String) {
         prefsManager.setGoogleDriveConnected(true)
         GoogleDriveManager.currentAccessToken = token
         _internalState.update { it.copy(isDriveLoading = false) }
     }
 
-    /**
-     * Ejecuta una sincronización manual inmediata con la nube a través del motor unificado de [WorkManager].
-     *
-     * @param context Contexto de la aplicación.
-     * @param token Token de acceso de Google Drive opcional para cachear en memoria.
-     */
+    /** Ejecuta una sincronización manual inmediata con la nube. */
     fun executeManualSync(context: Context, token: String? = null) {
         if (token != null) {
             GoogleDriveManager.currentAccessToken = token
@@ -208,229 +164,48 @@ class SettingsViewModel : ViewModel() {
         CloudVaultSyncManager.syncImmediately(context)
     }
 
-    /**
-     * Activa de forma inmediata y síncrona el estado de carga del historial de versiones en la UI.
-     */
+    /** Activa el estado de carga del historial de versiones en la UI. */
     fun startBackupHistoryLoading() {
         _internalState.update { it.copy(isFetchingBackupHistory = true) }
     }
 
-    /**
-     * Consulta el historial de versiones aplicando caché TTL (20 segundos) para evitar saturación de red.
-     * Solo realiza la petición si la caché en memoria expiró o está vacía.
-     *
-     * @param token Token de acceso de Google Drive.
-     * @param onAuthExpired Callback invocado si el token ha expirado y requiere reautenticación silenciosa.
-     * @param onFinished Callback opcional invocado al finalizar la carga (éxito o fallo).
-     */
+    /** Consulta el historial de versiones aplicando caché TTL. */
     fun fetchBackupHistoryIfNeeded(
         token: String,
         onAuthExpired: () -> Unit,
         onFinished: (() -> Unit)? = null
     ) {
-        val now = System.currentTimeMillis()
-        val lastFetch = prefsManager.getLastBackupHistoryFetchTimestamp()
-        val hasCachedItems = _internalState.value.backupHistoryList.isNotEmpty()
-        val isCacheFresh = (now - lastFetch < SecurityConfig.BACKUP_HISTORY_CACHE_TTL_MILLIS) && hasCachedItems
-
-        if (isCacheFresh) {
-            _internalState.update { it.copy(isFetchingBackupHistory = false) }
-            onFinished?.invoke()
-            return
-        }
-
-        _internalState.update { it.copy(isFetchingBackupHistory = true) }
-
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val historyResult = ManualSyncManager.fetchBackupHistory(token)
-                if (historyResult.isSuccess) {
-                    val items = historyResult.getOrNull().orEmpty()
-                    prefsManager.setLastBackupHistoryFetchTimestamp(System.currentTimeMillis())
-                    prefsManager.setCachedBackupHistory(items)
-                    val mostRecent = items.firstOrNull()
-                    _internalState.update {
-                        it.copy(
-                            backupHistoryList = items,
-                            driveBackupExists = items.isNotEmpty(),
-                            driveBackupInfo = mostRecent?.let { m ->
-                                DriveBackupInfo(m.fileId, m.modifiedTimeMillis, m.deviceName)
-                            }
-                        )
-                    }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        onAuthExpired()
-                    }
-                }
-            } finally {
-                _internalState.update { it.copy(isFetchingBackupHistory = false) }
-                withContext(Dispatchers.Main) {
-                    onFinished?.invoke()
-                }
-            }
-        }
+        driveVaultHandler.fetchBackupHistoryIfNeeded(token, onAuthExpired, onFinished)
     }
 
-    /**
-     * Fuerza la actualización inmediata del historial de versiones desde Google Drive,
-     * omitiendo el tiempo de enfriamiento, mostrando la animación de carga y reiniciando el temporizador.
-     *
-     * @param token Token de acceso de Google Drive.
-     * @param onAuthExpired Callback invocado si el token ha expirado.
-     */
+    /** Fuerza la actualización inmediata del historial de versiones desde Google Drive. */
     fun forceRefreshBackupHistory(
         token: String,
         onAuthExpired: () -> Unit
     ) {
-        _internalState.update { it.copy(isFetchingBackupHistory = true, isRefreshingBackupHistory = true) }
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val historyResult = ManualSyncManager.fetchBackupHistory(token)
-                if (historyResult.isSuccess) {
-                    val items = historyResult.getOrNull().orEmpty()
-                    prefsManager.setLastBackupHistoryFetchTimestamp(System.currentTimeMillis())
-                    prefsManager.setCachedBackupHistory(items)
-                    val mostRecent = items.firstOrNull()
-                    _internalState.update {
-                        it.copy(
-                            backupHistoryList = items,
-                            driveBackupExists = items.isNotEmpty(),
-                            driveBackupInfo = mostRecent?.let { m ->
-                                DriveBackupInfo(m.fileId, m.modifiedTimeMillis, m.deviceName)
-                            }
-                        )
-                    }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        onAuthExpired()
-                    }
-                }
-            } finally {
-                _internalState.update { it.copy(isFetchingBackupHistory = false, isRefreshingBackupHistory = false) }
-            }
-        }
+        driveVaultHandler.forceRefreshBackupHistory(token, onAuthExpired)
     }
 
-    /**
-     * Refresca la lista de versiones en segundo plano tras una mutación.
-     */
-    private fun refreshBackupHistory(token: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            val historyResult = ManualSyncManager.fetchBackupHistory(token)
-            if (historyResult.isSuccess) {
-                val items = historyResult.getOrNull().orEmpty()
-                prefsManager.setLastBackupHistoryFetchTimestamp(System.currentTimeMillis())
-                prefsManager.setCachedBackupHistory(items)
-                val mostRecent = items.firstOrNull()
-                _internalState.update {
-                    it.copy(
-                        backupHistoryList = items,
-                        driveBackupExists = items.isNotEmpty(),
-                        driveBackupInfo = mostRecent?.let { m ->
-                            DriveBackupInfo(m.fileId, m.modifiedTimeMillis, m.deviceName)
-                        }
-                    )
-                }
-            }
-        }
-    }
-
-    /**
-     * Elimina una versión de respaldo específica en Google Drive tras validar la autenticación criptográfica.
-     *
-     * @param token Token de acceso de Google Drive.
-     * @param fileId Identificador único del archivo en Drive.
-     * @param passChars Contraseña o frase de descifrado requerida para autorizar la eliminación.
-     * @param onComplete Callback con el resultado booleano.
-     */
+    /** Elimina una versión de respaldo específica en Google Drive. */
     fun deleteSpecificBackup(
         token: String,
         fileId: String,
         passChars: CharArray,
         onComplete: (Boolean) -> Unit
     ) {
-        viewModelScope.launch {
-            _internalState.update { it.copy(isFetchingBackupHistory = true, isRefreshingBackupHistory = true) }
-            try {
-                val result = withContext(Dispatchers.IO) {
-                    ManualSyncManager.deleteSpecificBackupWithAuth(token, fileId, passChars)
-                }
-                if (result.isSuccess) {
-                    val updated = _internalState.value.backupHistoryList.filterNot { it.fileId == fileId }
-                    prefsManager.setLastBackupHistoryFetchTimestamp(System.currentTimeMillis())
-                    prefsManager.setCachedBackupHistory(updated)
-                    val mostRecent = updated.firstOrNull()
-                    _internalState.update {
-                        it.copy(
-                            backupHistoryList = updated,
-                            driveBackupExists = updated.isNotEmpty(),
-                            driveBackupInfo = mostRecent?.let { m ->
-                                DriveBackupInfo(m.fileId, m.modifiedTimeMillis, m.deviceName)
-                            }
-                        )
-                    }
-                    onComplete(true)
-                } else {
-                    onComplete(false)
-                }
-            } finally {
-                passChars.fill('0')
-                _internalState.update { it.copy(isFetchingBackupHistory = false, isRefreshingBackupHistory = false) }
-            }
-        }
+        driveVaultHandler.deleteSpecificBackup(token, fileId, passChars, onComplete)
     }
 
-    /**
-     * Elimina la totalidad de copias de seguridad de la aplicación en Google Drive tras validar la autenticación criptográfica.
-     *
-     * @param token Token de acceso de Google Drive.
-     * @param passChars Contraseña o frase de descifrado requerida para autorizar la eliminación.
-     * @param onComplete Callback con el resultado booleano.
-     */
+    /** Elimina la totalidad de copias de seguridad en Google Drive. */
     fun deleteAllBackups(
         token: String,
         passChars: CharArray,
         onComplete: (Boolean) -> Unit
     ) {
-        viewModelScope.launch {
-            _internalState.update { it.copy(isFetchingBackupHistory = true, isRefreshingBackupHistory = true) }
-            try {
-                val result = withContext(Dispatchers.IO) {
-                    ManualSyncManager.deleteAllBackupsWithAuth(token, passChars)
-                }
-                if (result.isSuccess) {
-                    prefsManager.setLastBackupHistoryFetchTimestamp(0L)
-                    prefsManager.setCachedBackupHistory(emptyList())
-                    _internalState.update {
-                        it.copy(
-                            backupHistoryList = emptyList(),
-                            driveBackupExists = false,
-                            driveBackupInfo = null
-                        )
-                    }
-                    prefsManager.setLastSyncTimestamp(0L)
-                    prefsManager.setLastSyncedVaultHash("")
-                    onComplete(true)
-                } else {
-                    onComplete(false)
-                }
-            } finally {
-                passChars.fill('0')
-                _internalState.update { it.copy(isFetchingBackupHistory = false, isRefreshingBackupHistory = false) }
-            }
-        }
+        driveVaultHandler.deleteAllBackups(token, passChars, onComplete)
     }
 
-    /**
-     * Crea una copia de seguridad protegida con contraseña y frase mnemónica opcional.
-     *
-     * @param context Contexto de la aplicación.
-     * @param token Token de acceso de Google Drive.
-     * @param primaryPass Caracteres de la contraseña maestra.
-     * @param emergencyMnemonic Caracteres de la frase de 12 palabras opcional.
-     * @param onComplete Callback con el resultado de la operación.
-     */
+    /** Crea una copia de seguridad protegida con contraseña y frase mnemónica. */
     fun createProtectedBackup(
         context: Context,
         token: String,
@@ -438,68 +213,20 @@ class SettingsViewModel : ViewModel() {
         emergencyMnemonic: CharArray?,
         onComplete: (Result<Unit>) -> Unit
     ) {
-        viewModelScope.launch {
-            _internalState.update { it.copy(isDriveLoading = true) }
-            try {
-                val result = withContext(Dispatchers.IO) {
-                    ManualSyncManager.createProtectedBackup(
-                        context = context,
-                        accessToken = token,
-                        secretKeyPass = primaryPass,
-                        emergencyMnemonic = emergencyMnemonic
-                    )
-                }
-                if (result.isSuccess) {
-                    _internalState.update { it.copy(driveBackupExists = true) }
-                    refreshBackupHistory(token)
-                }
-                onComplete(result)
-            } finally {
-                _internalState.update { it.copy(isDriveLoading = false) }
-            }
-        }
+        driveVaultHandler.createProtectedBackup(context, token, primaryPass, emergencyMnemonic, onComplete)
     }
 
-    /**
-     * Descifra y restaura la copia de seguridad más reciente desde Google Drive.
-     *
-     * @param context Contexto de la aplicación.
-     * @param token Token de acceso de Google Drive.
-     * @param passChars Caracteres de descifrado.
-     * @param onComplete Callback con el [Result] que contiene el conteo de cuentas restauradas.
-     */
+    /** Descifra y restaura la copia de seguridad más reciente desde Google Drive. */
     fun restoreFromBackup(
         context: Context,
         token: String,
         passChars: CharArray,
         onComplete: (Result<Int>) -> Unit
     ) {
-        viewModelScope.launch {
-            _internalState.update { it.copy(isDriveLoading = true) }
-            try {
-                val result = withContext(Dispatchers.IO) {
-                    ManualSyncManager.restoreFromBackup(context, token, passChars)
-                }
-                if (result.isSuccess) {
-                    prefsManager.setLastBackupHistoryFetchTimestamp(0L)
-                    refreshBackupHistory(token)
-                }
-                onComplete(result)
-            } finally {
-                _internalState.update { it.copy(isDriveLoading = false) }
-            }
-        }
+        driveVaultHandler.restoreFromBackup(context, token, passChars, onComplete)
     }
 
-    /**
-     * Descifra y restaura una versión histórica específica de Google Drive.
-     *
-     * @param context Contexto de la aplicación.
-     * @param token Token de acceso de Google Drive.
-     * @param fileId Identificador del archivo en Drive.
-     * @param passChars Caracteres de descifrado.
-     * @param onComplete Callback con el [Result] de la restauración.
-     */
+    /** Descifra y restaura una versión histórica específica de Google Drive. */
     fun restoreSpecificBackup(
         context: Context,
         token: String,
@@ -507,30 +234,10 @@ class SettingsViewModel : ViewModel() {
         passChars: CharArray,
         onComplete: (Result<Int>) -> Unit
     ) {
-        viewModelScope.launch {
-            _internalState.update { it.copy(isDriveLoading = true) }
-            try {
-                val result = withContext(Dispatchers.IO) {
-                    ManualSyncManager.restoreSpecificBackup(context, token, fileId, passChars)
-                }
-                if (result.isSuccess) {
-                    prefsManager.setLastBackupHistoryFetchTimestamp(0L)
-                    refreshBackupHistory(token)
-                }
-                onComplete(result)
-            } finally {
-                _internalState.update { it.copy(isDriveLoading = false) }
-            }
-        }
+        driveVaultHandler.restoreSpecificBackup(context, token, fileId, passChars, onComplete)
     }
 
-    /**
-     * Exporta las cuentas seleccionadas para transferencia offline con cifrado opcional mediante PIN.
-     *
-     * @param selectedIds Conjunto de identificadores de cuentas a exportar.
-     * @param pin PIN opcional en [CharArray] para cifrar el payload con AES-256-GCM.
-     * @return Cadena formateada para código QR con el payload de transferencia.
-     */
+    /** Exporta las cuentas seleccionadas para transferencia offline. */
     suspend fun exportAccounts(
         selectedIds: Set<String>,
         pin: CharArray? = null
@@ -538,13 +245,7 @@ class SettingsViewModel : ViewModel() {
         repository.exportAccountsForTransfer(selectedIds, pin)
     }
 
-    /**
-     * Exporta las cuentas seleccionadas divididas en lotes cifrados para transferencia multi-QR.
-     *
-     * @param selectedIds Conjunto de identificadores de cuentas a exportar.
-     * @param pin PIN de 6 dígitos en [CharArray] para cifrar cada lote con AES-256-GCM.
-     * @return Lista de cadenas cifradas correspondientes a cada código QR.
-     */
+    /** Exporta las cuentas seleccionadas divididas en lotes cifrados para multi-QR. */
     suspend fun exportAccountsInBatches(
         selectedIds: Set<String>,
         pin: CharArray
@@ -552,11 +253,7 @@ class SettingsViewModel : ViewModel() {
         repository.exportAccountsInBatches(selectedIds, pin)
     }
 
-    /**
-     * Elimina localmente las cuentas que fueron exportadas tras una transferencia completada.
-     *
-     * @param ids Identificadores de las cuentas a eliminar.
-     */
+    /** Elimina localmente las cuentas que fueron exportadas. */
     fun deleteExportedAccounts(ids: Set<String>) {
         viewModelScope.launch(Dispatchers.IO) {
             ids.forEach { id -> repository.deleteAccount(id) }

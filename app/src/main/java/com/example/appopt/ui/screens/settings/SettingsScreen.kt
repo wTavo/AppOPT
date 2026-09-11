@@ -54,12 +54,12 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.appopt.R
 import com.example.appopt.data.cloud.GoogleDriveManager
-import com.example.appopt.security.SecurityConfig
 import com.example.appopt.ui.screens.settings.components.DriveSyncSettingsCard
 import com.example.appopt.ui.screens.settings.components.PerformanceSettingsCard
 import com.example.appopt.ui.screens.settings.components.PermissionsSettingsCard
 import com.example.appopt.ui.screens.settings.components.TransferSettingsCard
 import com.example.appopt.ui.screens.settings.dialogs.SettingsDialogContainer
+import com.example.appopt.ui.screens.settings.dialogs.rememberDriveDialogCoordinator
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.util.BatteryOptimizationHelper
@@ -79,7 +79,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * Principio de diseño:
  * - Vista puramente declarativa desacoplada de la lógica de negocio mediante [SettingsViewModel] (Directiva 8 y 13).
  * - Centralización tipográfica, espaciados y cadenas en español estándar (Directivas 1, 2 y 4).
- * - Gestión de modales unificada sin superposición de diálogos (Directiva 14).
+ * - Gestión de modales unificada sin superposición de diálogos mediante [SettingsDialogContainer] (Directiva 14).
  *
  * @param onNavigateBack Callback invocado al presionar el botón de retorno.
  * @param onNavigateToScanQr Callback invocado para navegar hacia el escáner de importación QR.
@@ -101,77 +101,86 @@ fun SettingsScreen(
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val authClient = remember { GoogleDriveManager.getAuthorizationClient(context) }
-    var driveAccessToken by remember { mutableStateOf<String?>(null) }
-
-    // Control de visibilidad de modales
-    var showExportDialog by remember { mutableStateOf(false) }
-    var showBackupDetailsDialog by remember { mutableStateOf(false) }
-    var isHistoryLoadingSynchronous by remember { mutableStateOf(false) }
-    var showDisconnectConfirmDialog by remember { mutableStateOf(false) }
-    var showDriveProtectDialog by remember { mutableStateOf(false) }
-    var showDriveDecryptDialog by remember { mutableStateOf(false) }
-    var showOverwriteWarningDialog by remember { mutableStateOf(false) }
 
     val appLockManager = remember { AuthenticatorApp.instance.appLockManager }
     val isUnlocked by appLockManager.isUnlocked.collectAsStateWithLifecycle()
-
-    // Cierre defensivo de todos los diálogos al bloquearse la bóveda
-    LaunchedEffect(isUnlocked) {
-        if (!isUnlocked) {
-            showExportDialog = false
-            showBackupDetailsDialog = false
-            isHistoryLoadingSynchronous = false
-            showDisconnectConfirmDialog = false
-            showDriveProtectDialog = false
-            showDriveDecryptDialog = false
-            showOverwriteWarningDialog = false
-        }
-    }
-
-    // Gestor de autenticación biométrica
     val biometricAuthManager = remember { AuthenticatorApp.instance.biometricAuthManager }
 
-    // Mensajes centralizados de retroalimentación
     val driveErrorText = stringResource(R.string.settings_drive_error)
-    val driveRateLimitErrorText = stringResource(R.string.settings_drive_error_rate_limited)
-    val driveServiceUnavailableErrorText = stringResource(R.string.settings_drive_error_service_unavailable)
     val driveConnectedSuccessText = stringResource(R.string.settings_drive_connected_success)
-    val driveDisconnectedSuccessText = stringResource(R.string.settings_drive_disconnected_success)
     val servicesDeletedAfterExportText = stringResource(R.string.settings_services_deleted_after_export)
-    val driveSyncSuccessText = stringResource(R.string.settings_drive_sync_success)
-    val driveDecryptErrorText = stringResource(R.string.settings_drive_decrypt_error)
-    val driveDeleteSingleSuccessText = stringResource(R.string.settings_drive_delete_single_success)
-    val driveDeleteAllSuccessText = stringResource(R.string.settings_drive_delete_all_success)
     val exportAuthTitle = stringResource(R.string.settings_transfer_export_auth_title)
     val exportAuthSubtitle = stringResource(R.string.settings_transfer_export_auth_subtitle)
     val importAuthTitle = stringResource(R.string.settings_transfer_import_auth_title)
     val importAuthSubtitle = stringResource(R.string.settings_transfer_import_auth_subtitle)
     val transferAuthFailedText = stringResource(R.string.settings_transfer_auth_failed)
 
-    fun resolveDriveErrorMessage(error: Throwable): String {
-        val isRateLimited = error is GoogleDriveManager.RateLimitExceededException ||
-                error.message?.contains("429", ignoreCase = true) == true ||
-                error.message?.contains("rate", ignoreCase = true) == true ||
-                error.cause?.message?.contains("429", ignoreCase = true) == true
-        if (isRateLimited) return driveRateLimitErrorText
+    // Launchers de actividades para permisos y OAuth2 de Google
+    var pendingAuthAction by remember { mutableStateOf<((String) -> Unit)?>(null) }
+    val authLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { activityResult ->
+        if (activityResult.resultCode == Activity.RESULT_OK) {
+            try {
+                val authResult = authClient.getAuthorizationResultFromIntent(activityResult.data)
+                val token = authResult.accessToken
+                if (token != null) {
+                    GoogleDriveManager.currentAccessToken = token
+                    val action = pendingAuthAction
+                    pendingAuthAction = null
+                    if (action != null) {
+                        action(token)
+                    } else {
+                        viewModel.onGoogleDriveConnected(token)
+                    }
+                }
+            } catch (_: ApiException) {
+                pendingAuthAction = null
+                scope.launch { snackbarHostState.showSnackbar(driveErrorText) }
+            }
+        } else {
+            pendingAuthAction = null
+        }
+    }
 
-        val isServiceUnavailable = error is GoogleDriveManager.ServiceUnavailableException ||
-                error.message?.contains("503", ignoreCase = true) == true
-        if (isServiceUnavailable) return driveServiceUnavailableErrorText
+    val requestGoogleAuthorization: ((String) -> Unit) -> Unit = { onAuthorized ->
+        pendingAuthAction = onAuthorized
+        authClient.authorize(GoogleDriveManager.getAuthorizationRequest())
+            .addOnSuccessListener { result ->
+                if (result.hasResolution()) {
+                    val pendingIntent = result.pendingIntent
+                    if (pendingIntent != null) {
+                        authLauncher.launch(
+                            IntentSenderRequest.Builder(pendingIntent.intentSender).build()
+                        )
+                    }
+                } else {
+                    val token = result.accessToken
+                    if (token != null) {
+                        val action = pendingAuthAction
+                        pendingAuthAction = null
+                        action?.invoke(token)
+                    }
+                }
+            }
+            .addOnFailureListener {
+                pendingAuthAction = null
+                scope.launch { snackbarHostState.showSnackbar(driveErrorText) }
+            }
+    }
 
-        val isDecryptFailure = error is java.security.GeneralSecurityException ||
-                error is IllegalArgumentException ||
-                error.cause is java.security.GeneralSecurityException ||
-                error.cause is IllegalArgumentException ||
-                error.message?.contains("clave", ignoreCase = true) == true ||
-                error.message?.contains("ranura", ignoreCase = true) == true ||
-                error.message?.contains("descifrar", ignoreCase = true) == true ||
-                error.message?.contains("tag", ignoreCase = true) == true ||
-                error.message?.contains("credenciales", ignoreCase = true) == true ||
-                error.message?.contains("padding", ignoreCase = true) == true
-        if (isDecryptFailure) return driveDecryptErrorText
+    val coordinator = rememberDriveDialogCoordinator(
+        context = context,
+        viewModel = viewModel,
+        snackbarHostState = snackbarHostState,
+        onRequestAuth = requestGoogleAuthorization
+    )
 
-        return driveErrorText
+    // Cierre defensivo de todos los diálogos al bloquearse la bóveda
+    LaunchedEffect(isUnlocked) {
+        if (!isUnlocked) {
+            coordinator.closeAllDialogs()
+        }
     }
 
     // Diagnóstico en tiempo real de permisos y reloj del sistema
@@ -219,37 +228,6 @@ fun SettingsScreen(
         }
     }
 
-    // Launchers de actividades para permisos y OAuth2 de Google
-    var pendingAuthAction by remember { mutableStateOf<((String) -> Unit)?>(null) }
-    val authLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartIntentSenderForResult()
-    ) { activityResult ->
-        if (activityResult.resultCode == Activity.RESULT_OK) {
-            try {
-                val authResult = authClient.getAuthorizationResultFromIntent(activityResult.data)
-                val token = authResult.accessToken
-                if (token != null) {
-                    driveAccessToken = token
-                    GoogleDriveManager.currentAccessToken = token
-                    val action = pendingAuthAction
-                    pendingAuthAction = null
-                    if (action != null) {
-                        action(token)
-                    } else {
-                        viewModel.onGoogleDriveConnected(token)
-                    }
-                }
-            } catch (_: ApiException) {
-                pendingAuthAction = null
-                scope.launch {
-                    snackbarHostState.showSnackbar(driveErrorText)
-                }
-            }
-        } else {
-            pendingAuthAction = null
-        }
-    }
-
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted -> isCameraPermissionGranted = granted }
@@ -257,49 +235,6 @@ fun SettingsScreen(
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted -> isNotificationPermissionGranted = granted }
-
-    /**
-     * Solicita autorización OAuth2 de Google Drive al cliente de identidad y gestiona la resolución con IntentSender.
-     *
-     * @param onAuthorized Callback ejecutado una vez obtenido el token de acceso válido.
-     */
-    fun requestGoogleAuthorization(onAuthorized: (String) -> Unit) {
-        pendingAuthAction = onAuthorized
-        authClient.authorize(GoogleDriveManager.getAuthorizationRequest())
-            .addOnSuccessListener { result ->
-                if (result.hasResolution()) {
-                    val pendingIntent = result.pendingIntent
-                    if (pendingIntent != null) {
-                        authLauncher.launch(
-                            IntentSenderRequest.Builder(pendingIntent.intentSender).build()
-                        )
-                    }
-                } else {
-                    val token = result.accessToken
-                    if (token != null) {
-                        driveAccessToken = token
-                        val action = pendingAuthAction
-                        pendingAuthAction = null
-                        action?.invoke(token)
-                    }
-                }
-            }
-            .addOnFailureListener {
-                pendingAuthAction = null
-                scope.launch {
-                    snackbarHostState.showSnackbar(driveErrorText)
-                }
-            }
-    }
-
-    LaunchedEffect(Unit) {
-        if (uiState.isDriveConnected) {
-            val token = driveAccessToken ?: GoogleDriveManager.currentAccessToken
-            if (token != null) {
-                driveAccessToken = token
-            }
-        }
-    }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -385,7 +320,7 @@ fun SettingsScreen(
                             subtitle = exportAuthSubtitle,
                             onSuccess = {
                                 appHaptics.success()
-                                showExportDialog = true
+                                coordinator.showExportDialog = true
                             },
                             onError = { errorCode, _ ->
                                 if (errorCode != BiometricPrompt.ERROR_USER_CANCELED &&
@@ -396,12 +331,10 @@ fun SettingsScreen(
                                     scope.launch { snackbarHostState.showSnackbar(transferAuthFailedText) }
                                 }
                             },
-                            onFailed = {
-                                appHaptics.error()
-                            }
+                            onFailed = { appHaptics.error() }
                         )
                     } else {
-                        showExportDialog = true
+                        coordinator.showExportDialog = true
                     }
                 },
                 onImportClick = {
@@ -424,9 +357,7 @@ fun SettingsScreen(
                                     scope.launch { snackbarHostState.showSnackbar(transferAuthFailedText) }
                                 }
                             },
-                            onFailed = {
-                                appHaptics.error()
-                            }
+                            onFailed = { appHaptics.error() }
                         )
                     } else {
                         onNavigateToScanQr()
@@ -452,60 +383,22 @@ fun SettingsScreen(
                     }
                 },
                 onManualSyncClick = {
-                    val executeSync: (String) -> Unit = { token ->
+                    coordinator.executeWithAuth { token ->
                         appHaptics.click()
                         viewModel.executeManualSync(context, token)
-                    }
-                    val token = driveAccessToken ?: GoogleDriveManager.currentAccessToken
-                    if (token == null) {
-                        requestGoogleAuthorization { executeSync(it) }
-                    } else {
-                        executeSync(token)
                     }
                 },
                 onCreateBackupClick = {
                     if (uiState.driveBackupExists) {
-                        showOverwriteWarningDialog = true
+                        coordinator.showOverwriteWarningDialog = true
                     } else {
-                        showDriveProtectDialog = true
+                        coordinator.showDriveProtectDialog = true
                     }
                 },
                 onBackupDetailsClick = {
-                    val now = System.currentTimeMillis()
-                    val lastFetch = uiState.lastHistoryFetchTimestamp
-                    val isCacheFresh = (now - lastFetch < SecurityConfig.BACKUP_HISTORY_CACHE_TTL_MILLIS) && uiState.backupHistoryList.isNotEmpty()
-                    if (!isCacheFresh) {
-                        isHistoryLoadingSynchronous = true
-                        viewModel.startBackupHistoryLoading()
-                    }
-                    showBackupDetailsDialog = true
-                    val executeFetch: (String) -> Unit = { token ->
-                        viewModel.fetchBackupHistoryIfNeeded(
-                            token = token,
-                            onAuthExpired = {
-                                driveAccessToken = null
-                                GoogleDriveManager.currentAccessToken = null
-                                requestGoogleAuthorization { freshToken ->
-                                    viewModel.fetchBackupHistoryIfNeeded(
-                                        token = freshToken,
-                                        onAuthExpired = {},
-                                        onFinished = { isHistoryLoadingSynchronous = false }
-                                    )
-                                }
-                            },
-                            onFinished = {
-                                isHistoryLoadingSynchronous = false
-                            }
-                        )
-                    }
-                    val token = driveAccessToken ?: GoogleDriveManager.currentAccessToken
-                    if (token == null) {
-                        requestGoogleAuthorization { executeFetch(it) }
-                    } else {
-                        executeFetch(token)
-                    }
+                    coordinator.openBackupDetails(uiState)
                 },
-                onDisconnectClick = { showDisconnectConfirmDialog = true },
+                onDisconnectClick = { coordinator.showDisconnectConfirmDialog = true },
                 onAutoSyncToggle = { enabled -> viewModel.setAutoSyncEnabled(enabled, context) },
                 onMobileDataToggle = { allowed -> viewModel.setSyncMobileDataAllowed(allowed, context) }
             )
@@ -519,187 +412,43 @@ fun SettingsScreen(
         isUnlocked = isUnlocked,
         uiState = uiState,
         formattedLastSync = formattedLastSync,
-        showDisconnectConfirmDialog = showDisconnectConfirmDialog,
-        onDismissDisconnectConfirm = { showDisconnectConfirmDialog = false },
-        onConfirmDisconnect = {
-            showDisconnectConfirmDialog = false
-            driveAccessToken = null
-            viewModel.disconnectGoogleDrive(context)
-            scope.launch { snackbarHostState.showSnackbar(driveDisconnectedSuccessText) }
-        },
-        showExportDialog = showExportDialog,
-        onDismissExport = { showExportDialog = false },
+        showDisconnectConfirmDialog = coordinator.showDisconnectConfirmDialog,
+        onDismissDisconnectConfirm = { coordinator.showDisconnectConfirmDialog = false },
+        onConfirmDisconnect = { coordinator.confirmDisconnect() },
+        showExportDialog = coordinator.showExportDialog,
+        onDismissExport = { coordinator.showExportDialog = false },
         onExportBatchesPayload = { selectedIds, pinChars -> viewModel.exportAccountsInBatches(selectedIds, pinChars) },
         onCompleteExport = { exportedIds, keepOnDevice ->
             if (!keepOnDevice && exportedIds.isNotEmpty()) {
                 viewModel.deleteExportedAccounts(exportedIds)
                 scope.launch { snackbarHostState.showSnackbar(servicesDeletedAfterExportText) }
             }
-            showExportDialog = false
+            coordinator.showExportDialog = false
         },
-        showDriveProtectDialog = showDriveProtectDialog,
-        onDismissDriveProtect = { showDriveProtectDialog = false },
-        onProtectAndSync = { primaryPassChars, emergencyMnemonicChars ->
-            showDriveProtectDialog = false
-            val executeProtect: (String) -> Unit = { token ->
-                viewModel.createProtectedBackup(context, token, primaryPassChars, emergencyMnemonicChars) { result ->
-                    scope.launch {
-                        result.onSuccess {
-                            snackbarHostState.showSnackbar(driveSyncSuccessText)
-                        }.onFailure { error ->
-                            snackbarHostState.showSnackbar(resolveDriveErrorMessage(error))
-                        }
-                    }
-                }
-            }
-            val token = driveAccessToken ?: GoogleDriveManager.currentAccessToken
-            if (token == null) {
-                requestGoogleAuthorization { executeProtect(it) }
-            } else {
-                executeProtect(token)
-            }
-        },
-        showDriveDecryptDialog = showDriveDecryptDialog,
-        onDismissDriveDecrypt = { showDriveDecryptDialog = false },
-        onRestoreDriveDecrypt = { passChars ->
-            showDriveDecryptDialog = false
-            fun executeRestore(token: String) {
-                val passCharsCopy = passChars.clone()
-                viewModel.restoreFromBackup(context, token, passCharsCopy) { result ->
-                    result.onSuccess { count ->
-                        passChars.fill('0')
-                        scope.launch {
-                            val message = if (count > 0) {
-                                context.applicationContext.getString(R.string.settings_drive_restore_success, count)
-                            } else {
-                                context.applicationContext.getString(R.string.settings_drive_restore_up_to_date)
-                            }
-                            snackbarHostState.showSnackbar(message)
-                        }
-                    }.onFailure { error ->
-                        val isAuthExpired = error.message?.contains("401", ignoreCase = true) == true ||
-                                error.message?.contains("403", ignoreCase = true) == true
-                        if (isAuthExpired) {
-                            driveAccessToken = null
-                            GoogleDriveManager.currentAccessToken = null
-                            requestGoogleAuthorization { freshToken ->
-                                executeRestore(freshToken)
-                            }
-                        } else {
-                            passChars.fill('0')
-                            scope.launch {
-                                snackbarHostState.showSnackbar(resolveDriveErrorMessage(error))
-                            }
-                        }
-                    }
-                }
-            }
-            val token = driveAccessToken ?: GoogleDriveManager.currentAccessToken
-            if (token == null) {
-                requestGoogleAuthorization { executeRestore(it) }
-            } else {
-                executeRestore(token)
-            }
-        },
-        showBackupDetailsDialog = showBackupDetailsDialog,
-        isBackupHistoryLoading = isHistoryLoadingSynchronous,
+        showDriveProtectDialog = coordinator.showDriveProtectDialog,
+        onDismissDriveProtect = { coordinator.showDriveProtectDialog = false },
+        onProtectAndSync = { primary, mnemonic -> coordinator.protectAndSync(primary, mnemonic) },
+        showDriveDecryptDialog = coordinator.showDriveDecryptDialog,
+        onDismissDriveDecrypt = { coordinator.showDriveDecryptDialog = false },
+        onRestoreDriveDecrypt = { passChars -> coordinator.restoreDriveDecrypt(passChars) },
+        showBackupDetailsDialog = coordinator.showBackupDetailsDialog,
+        isBackupHistoryLoading = coordinator.isHistoryLoadingSynchronous,
         onDismissBackupDetails = {
-            showBackupDetailsDialog = false
-            isHistoryLoadingSynchronous = false
+            coordinator.showBackupDetailsDialog = false
+            coordinator.isHistoryLoadingSynchronous = false
         },
-        onForceRefreshBackupHistory = {
-            val token = driveAccessToken ?: GoogleDriveManager.currentAccessToken
-            if (token == null) {
-                requestGoogleAuthorization { freshToken ->
-                    viewModel.forceRefreshBackupHistory(freshToken) {
-                        driveAccessToken = null
-                        GoogleDriveManager.currentAccessToken = null
-                    }
-                }
-            } else {
-                viewModel.forceRefreshBackupHistory(
-                    token = token,
-                    onAuthExpired = {
-                        driveAccessToken = null
-                        GoogleDriveManager.currentAccessToken = null
-                        requestGoogleAuthorization { freshToken ->
-                            viewModel.forceRefreshBackupHistory(freshToken) {}
-                        }
-                    }
-                )
-            }
-        },
-        onRestoreBackupHistoryItem = { item, passChars ->
-            showBackupDetailsDialog = false
-            fun executeRestore(token: String) {
-                val passCharsCopy = passChars.clone()
-                viewModel.restoreSpecificBackup(context, token, item.fileId, passCharsCopy) { result ->
-                    result.onSuccess { count ->
-                        passChars.fill('0')
-                        scope.launch {
-                            val message = if (count > 0) {
-                                context.applicationContext.getString(R.string.settings_drive_restore_success, count)
-                            } else {
-                                context.applicationContext.getString(R.string.settings_drive_restore_up_to_date)
-                            }
-                            snackbarHostState.showSnackbar(message)
-                        }
-                    }.onFailure { error ->
-                        val isAuthExpired = error.message?.contains("401", ignoreCase = true) == true ||
-                                error.message?.contains("403", ignoreCase = true) == true
-                        if (isAuthExpired) {
-                            driveAccessToken = null
-                            GoogleDriveManager.currentAccessToken = null
-                            requestGoogleAuthorization { freshToken ->
-                                executeRestore(freshToken)
-                            }
-                        } else {
-                            passChars.fill('0')
-                            scope.launch {
-                                snackbarHostState.showSnackbar(resolveDriveErrorMessage(error))
-                            }
-                        }
-                    }
-                }
-            }
-            val token = driveAccessToken ?: GoogleDriveManager.currentAccessToken
-            if (token == null) {
-                requestGoogleAuthorization { executeRestore(it) }
-            } else {
-                executeRestore(token)
-            }
-        },
-        onDeleteBackupHistoryItem = { item, passChars ->
-            val executeDelete: (String) -> Unit = { token ->
-                viewModel.deleteSpecificBackup(token, item.fileId, passChars) { success ->
-                    scope.launch {
-                        snackbarHostState.showSnackbar(
-                            if (success) driveDeleteSingleSuccessText else driveDecryptErrorText
-                        )
-                    }
-                }
-            }
-            val token = driveAccessToken ?: GoogleDriveManager.currentAccessToken
-            if (token == null) {
-                requestGoogleAuthorization { executeDelete(it) }
-            } else {
-                executeDelete(token)
-            }
-        },
-        showOverwriteWarningDialog = showOverwriteWarningDialog,
-        onDismissOverwriteWarning = { showOverwriteWarningDialog = false },
+        onForceRefreshBackupHistory = { coordinator.forceRefreshHistory() },
+        onRestoreBackupHistoryItem = { item, passChars -> coordinator.restoreBackupHistoryItem(item, passChars) },
+        onDeleteBackupHistoryItem = { item, passChars -> coordinator.deleteBackupHistoryItem(item, passChars) },
+        showOverwriteWarningDialog = coordinator.showOverwriteWarningDialog,
+        onDismissOverwriteWarning = { coordinator.showOverwriteWarningDialog = false },
         onConfirmOverwrite = {
-            showOverwriteWarningDialog = false
-            showDriveProtectDialog = true
+            coordinator.showOverwriteWarningDialog = false
+            coordinator.showDriveProtectDialog = true
         },
         onRestoreInstead = {
-            showOverwriteWarningDialog = false
-            val token = driveAccessToken ?: GoogleDriveManager.currentAccessToken
-            if (token == null) {
-                requestGoogleAuthorization { showDriveDecryptDialog = true }
-            } else {
-                showDriveDecryptDialog = true
-            }
+            coordinator.showOverwriteWarningDialog = false
+            coordinator.executeWithAuth { coordinator.showDriveDecryptDialog = true }
         }
     )
 }

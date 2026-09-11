@@ -3,12 +3,15 @@ package com.example.appopt.ui.screens.trash
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -281,45 +284,59 @@ fun RecentlyDeletedScreen(
             },
             confirmButton = {
                 var isProcessing by remember { mutableStateOf(false) }
-                Button(
-                    onClick = {
-                        if (!isProcessing) {
-                            isProcessing = true
-                            scope.launch {
-                                try {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min),
+                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm, Alignment.End),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(
+                        onClick = {
+                            appHaptics.click()
+                            showEmptyTrashConfirmDialog = false
+                        },
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .heightIn(min = Dimensions.ComponentHeight.buttonCompact)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.settings_drive_details_back),
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            if (!isProcessing) {
+                                isProcessing = true
+                                showEmptyTrashConfirmDialog = false
+                                scope.launch {
                                     repository.emptyTrash()
                                     appHaptics.success()
                                     snackbarHostState.showSnackbar(emptyTrashSuccessText)
-                                } finally {
-                                    showEmptyTrashConfirmDialog = false
                                 }
                             }
-                        }
-                    },
-                    enabled = !isProcessing,
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError
-                    )
-                ) {
-                    Text(
-                        text = stringResource(R.string.trash_empty_button),
-                        style = MaterialTheme.typography.labelLarge
-                    )
+                        },
+                        enabled = !isProcessing,
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError
+                        ),
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .heightIn(min = Dimensions.ComponentHeight.buttonCompact)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.trash_empty_button),
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
                 }
             },
-            dismissButton = {
-                TextButton(onClick = {
-                    appHaptics.click()
-                    showEmptyTrashConfirmDialog = false
-                }) {
-                    Text(
-                        text = stringResource(R.string.action_cancel),
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                }
-            }
+            dismissButton = null
         )
     }
 
@@ -349,48 +366,63 @@ fun RecentlyDeletedScreen(
                         style = MaterialTheme.typography.bodyMedium
                     )
                 },
-            confirmButton = {
-                var isProcessing by remember { mutableStateOf(false) }
-                Button(
-                    onClick = {
-                        if (!isProcessing) {
-                            isProcessing = true
-                            scope.launch {
-                                try {
-                                    repository.permanentlyDelete(account.id)
-                                    appHaptics.success()
-                                    snackbarHostState.showSnackbar(permanentDeleteSuccessText)
-                                } finally {
-                                    accountPendingPermanentDelete = null
-                                }
-                            }
+                confirmButton = {
+                    var isProcessing by remember { mutableStateOf(false) }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Min),
+                        horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm, Alignment.End),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(
+                            onClick = {
+                                appHaptics.click()
+                                accountPendingPermanentDelete = null
+                            },
+                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .heightIn(min = Dimensions.ComponentHeight.buttonCompact)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.settings_drive_details_back),
+                                style = MaterialTheme.typography.labelLarge
+                            )
                         }
-                    },
-                    enabled = !isProcessing,
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError
-                    )
-                ) {
-                    Text(
-                        text = stringResource(R.string.trash_permanent_delete_button),
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    appHaptics.click()
-                    accountPendingPermanentDelete = null
-                }) {
-                    Text(
-                        text = stringResource(R.string.action_cancel),
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                }
-            }
-        )
+
+                        Button(
+                            onClick = {
+                                if (!isProcessing) {
+                                    isProcessing = true
+                                    val targetAccountId = account.id
+                                    accountPendingPermanentDelete = null
+                                    scope.launch {
+                                        repository.permanentlyDelete(targetAccountId)
+                                        appHaptics.success()
+                                        snackbarHostState.showSnackbar(permanentDeleteSuccessText)
+                                    }
+                                }
+                            },
+                            enabled = !isProcessing,
+                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error,
+                                contentColor = MaterialTheme.colorScheme.onError
+                            ),
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .heightIn(min = Dimensions.ComponentHeight.buttonCompact)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.trash_permanent_delete_button),
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+                    }
+                },
+                dismissButton = null
+            )
+        }
     }
-}
 }

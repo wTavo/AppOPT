@@ -221,10 +221,12 @@ class SettingsViewModel : ViewModel() {
      *
      * @param token Token de acceso de Google Drive.
      * @param onAuthExpired Callback invocado si el token ha expirado y requiere reautenticación silenciosa.
+     * @param onFinished Callback opcional invocado al finalizar la carga (éxito o fallo).
      */
     fun fetchBackupHistoryIfNeeded(
         token: String,
-        onAuthExpired: () -> Unit
+        onAuthExpired: () -> Unit,
+        onFinished: (() -> Unit)? = null
     ) {
         val now = System.currentTimeMillis()
         val lastFetch = prefsManager.getLastBackupHistoryFetchTimestamp()
@@ -233,6 +235,7 @@ class SettingsViewModel : ViewModel() {
 
         if (isCacheFresh) {
             _internalState.update { it.copy(isFetchingBackupHistory = false) }
+            onFinished?.invoke()
             return
         }
 
@@ -262,6 +265,9 @@ class SettingsViewModel : ViewModel() {
                 }
             } finally {
                 _internalState.update { it.copy(isFetchingBackupHistory = false) }
+                withContext(Dispatchers.Main) {
+                    onFinished?.invoke()
+                }
             }
         }
     }
@@ -430,7 +436,7 @@ class SettingsViewModel : ViewModel() {
         token: String,
         primaryPass: CharArray,
         emergencyMnemonic: CharArray?,
-        onComplete: (Boolean) -> Unit
+        onComplete: (Result<Unit>) -> Unit
     ) {
         viewModelScope.launch {
             _internalState.update { it.copy(isDriveLoading = true) }
@@ -446,10 +452,8 @@ class SettingsViewModel : ViewModel() {
                 if (result.isSuccess) {
                     _internalState.update { it.copy(driveBackupExists = true) }
                     refreshBackupHistory(token)
-                    onComplete(true)
-                } else {
-                    onComplete(false)
                 }
+                onComplete(result)
             } finally {
                 _internalState.update { it.copy(isDriveLoading = false) }
             }
@@ -478,9 +482,7 @@ class SettingsViewModel : ViewModel() {
                 }
                 if (result.isSuccess) {
                     prefsManager.setLastBackupHistoryFetchTimestamp(0L)
-                    if (uiState.value.isAutoSyncEnabled) {
-                        CloudVaultSyncManager.triggerReactiveSync(context, 0L)
-                    }
+                    refreshBackupHistory(token)
                 }
                 onComplete(result)
             } finally {
@@ -513,9 +515,7 @@ class SettingsViewModel : ViewModel() {
                 }
                 if (result.isSuccess) {
                     prefsManager.setLastBackupHistoryFetchTimestamp(0L)
-                    if (uiState.value.isAutoSyncEnabled) {
-                        CloudVaultSyncManager.triggerReactiveSync(context, 0L)
-                    }
+                    refreshBackupHistory(token)
                 }
                 onComplete(result)
             } finally {

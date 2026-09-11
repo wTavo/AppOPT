@@ -226,6 +226,19 @@ class PreferencesManager(context: Context) {
     }
 
     /**
+     * Retorna el identificador único e inmutable de instalación de este dispositivo.
+     * Si no existe, se genera determinísticamente mediante [java.util.UUID] y se persiste en disco.
+     */
+    fun getInstallationId(): String {
+        var id = sharedPreferences.getString(KEY_INSTALLATION_ID, null)
+        if (id.isNullOrEmpty()) {
+            id = java.util.UUID.randomUUID().toString()
+            sharedPreferences.edit { putString(KEY_INSTALLATION_ID, id) }
+        }
+        return id
+    }
+
+    /**
      * Recupera la lista de versiones de respaldo de Google Drive almacenadas localmente en caché.
      *
      * @return Lista de [DriveBackupItem] o lista vacía si no hay caché persistida.
@@ -244,6 +257,7 @@ class PreferencesManager(context: Context) {
                         modifiedTimeMillis = obj.getLong("modifiedTimeMillis"),
                         sizeBytes = obj.getLong("sizeBytes"),
                         deviceName = obj.optString("deviceName", ""),
+                        deviceId = obj.optString("deviceId", ""),
                         isMostRecent = obj.optBoolean("isMostRecent", false)
                     )
                 )
@@ -269,6 +283,7 @@ class PreferencesManager(context: Context) {
                     put("modifiedTimeMillis", item.modifiedTimeMillis)
                     put("sizeBytes", item.sizeBytes)
                     put("deviceName", item.deviceName)
+                    put("deviceId", item.deviceId)
                     put("isMostRecent", item.isMostRecent)
                 }
                 jsonArray.put(obj)
@@ -291,5 +306,6 @@ class PreferencesManager(context: Context) {
         private const val KEY_FPS_OVERLAY = "key_fps_overlay"
         private const val KEY_LAST_BACKUP_HISTORY_FETCH = "key_last_backup_history_fetch"
         private const val KEY_CACHED_BACKUP_HISTORY = "key_cached_backup_history"
+        private const val KEY_INSTALLATION_ID = "key_installation_id"
     }
 }

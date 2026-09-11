@@ -35,15 +35,70 @@ object GoogleDriveManager {
     private const val BACKUP_FILE_PREFIX = "appopt_vault_backup_"
     private const val LEGACY_BACKUP_FILE_NAME = "appopt_vault_backup.json"
 
+    /**
+     * Excepción lanzada cuando se supera la cuota o tasa de peticiones a Google Drive (HTTP 429).
+     */
+    class RateLimitExceededException(message: String = "Demasiadas solicitudes a Google Drive (HTTP 429)") : Exception(message)
+
+    /**
+     * Excepción lanzada cuando la sesión de Google Drive expira o no cuenta con permisos (HTTP 401 / 403).
+     */
+    class UnauthorizedException(message: String = "Sesión de Google Drive expirada o no autorizada") : Exception(message)
+
+    /**
+     * Excepción lanzada cuando los servidores de Google Drive están temporalmente fuera de servicio (HTTP 503).
+     */
+    class ServiceUnavailableException(message: String = "El servicio de Google Drive no está disponible temporalmente") : Exception(message)
+
+    /**
+     * Valida de manera centralizada el código de respuesta HTTP de Google Drive.
+     *
+     * @param responseCode Código de estado HTTP devuelto por la API.
+     * @param operation Nombre de la operación para el mensaje de diagnóstico.
+     * @throws RateLimitExceededException Si el código es 429.
+     * @throws UnauthorizedException Si el código es 401 o 403.
+     * @throws ServiceUnavailableException Si el código es 503.
+     * @throws IllegalStateException Si el código no está en el rango 200..299.
+     */
+    fun validateResponseCode(responseCode: Int, operation: String) {
+        when (responseCode) {
+            in 200..299 -> return
+            429 -> throw RateLimitExceededException()
+            401, 403 -> throw UnauthorizedException("HTTP $responseCode")
+            503 -> throw ServiceUnavailableException()
+            else -> throw IllegalStateException("Error al $operation (HTTP $responseCode)")
+        }
+    }
+
     /** Token de acceso en memoria activo emitido por Google Identity Services. */
     @Volatile
     var currentAccessToken: String? = null
 
     /**
-     * Purga y limpia el token de sesión de Google Drive.
+     * Estructura de caché en memoria para archivos cifrados descargados desde Google Drive.
+     */
+    private data class CachedEncryptedFile(
+        val fileId: String,
+        val encryptedContent: String,
+        val fetchedAtMillis: Long
+    )
+
+    /** Caché en memoria para evitar descargas redundantes de red ante reintentos de restauración. */
+    private val downloadedFilesCache = java.util.concurrent.ConcurrentHashMap<String, CachedEncryptedFile>()
+
+    /**
+     * Purga y limpia la memoria caché de archivos cifrados descargados.
+     */
+    fun clearDownloadCache() {
+        downloadedFilesCache.clear()
+    }
+
+    /**
+     * Purga y limpia el token de sesión y la caché de Google Drive.
      */
     fun clearSession() {
         currentAccessToken = null
+        clearDownloadCache()
     }
 
     /**
@@ -82,13 +137,15 @@ object GoogleDriveManager {
      * @param rawBackupJson Estructura JSON de cuentas a cifrar.
      * @param secretKeyPass Contraseña o clave de 64 dígitos en [CharArray].
      * @param emergencyMnemonic Frase mnemónica de 12 palabras opcional en [CharArray].
+     * @param deviceId Identificador único persistente del dispositivo emisor para control de versiones.
      * @return [Result] exitoso si el archivo fue creado y podado correctamente.
      */
     suspend fun uploadBackup(
         accessToken: String,
         rawBackupJson: String,
         secretKeyPass: CharArray,
-        emergencyMnemonic: CharArray? = null
+        emergencyMnemonic: CharArray? = null,
+        deviceId: String = ""
     ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             val encryptedBytes = if (emergencyMnemonic != null) {
@@ -114,6 +171,9 @@ object GoogleDriveManager {
                 put("description", deviceName)
                 put("appProperties", JSONObject().apply {
                     put("deviceName", deviceName)
+                    if (deviceId.isNotBlank()) {
+                        put("deviceId", deviceId)
+                    }
                 })
                 put("parents", org.json.JSONArray().apply { put("appDataFolder") })
             }.toString()
@@ -130,12 +190,11 @@ object GoogleDriveManager {
             }
 
             val responseCode = connection.responseCode
-            if (responseCode !in 200..299) {
-                throw IllegalStateException("Error al crear respaldo en Drive (HTTP $responseCode)")
-            }
+            validateResponseCode(responseCode, "crear respaldo en Drive")
 
             // Poda automática: eliminar copias que excedan el límite de retención
             pruneOldBackups(accessToken, MAX_BACKUP_VERSIONS)
+            clearDownloadCache()
             Unit
         }
     }
@@ -155,9 +214,8 @@ object GoogleDriveManager {
                 setRequestProperty("Authorization", "Bearer $accessToken")
             }
 
-            if (connection.responseCode !in 200..299) {
-                throw IllegalStateException("Error al listar copias de seguridad de Drive (HTTP ${connection.responseCode})")
-            }
+            val responseCode = connection.responseCode
+            validateResponseCode(responseCode, "listar copias de seguridad de Drive")
 
             val responseText = BufferedReader(InputStreamReader(connection.inputStream, StandardCharsets.UTF_8)).use {
                 it.readText()
@@ -179,6 +237,7 @@ object GoogleDriveManager {
                 val appProps = fileObj.optJSONObject("appProperties")
                 val deviceName = appProps?.optString("deviceName")?.ifEmpty { null }
                     ?: fileObj.optString("description").ifEmpty { "Dispositivo Android" }
+                val deviceId = appProps?.optString("deviceId", "") ?: ""
 
                 items.add(
                     DriveBackupItem(
@@ -187,6 +246,7 @@ object GoogleDriveManager {
                         modifiedTimeMillis = modifiedTimeMillis,
                         sizeBytes = sizeBytes,
                         deviceName = deviceName,
+                        deviceId = deviceId,
                         isMostRecent = false
                     )
                 )
@@ -236,19 +296,25 @@ object GoogleDriveManager {
         secretKeyPass: CharArray
     ): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
-            val downloadUrl = URL("https://www.googleapis.com/drive/v3/files/$fileId?alt=media")
-            val connection = (downloadUrl.openConnection() as HttpURLConnection).apply {
-                requestMethod = "GET"
-                setRequestProperty("Authorization", "Bearer $accessToken")
-            }
+            val now = System.currentTimeMillis()
+            val cached = downloadedFilesCache[fileId]
+            val downloadedContent = if (cached != null && (now - cached.fetchedAtMillis < com.example.appopt.security.SecurityConfig.BACKUP_DOWNLOAD_CACHE_TTL_MILLIS)) {
+                cached.encryptedContent
+            } else {
+                val downloadUrl = URL("https://www.googleapis.com/drive/v3/files/$fileId?alt=media")
+                val connection = (downloadUrl.openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    setRequestProperty("Authorization", "Bearer $accessToken")
+                }
 
-            val responseCode = connection.responseCode
-            if (responseCode !in 200..299) {
-                throw IllegalStateException("Error al descargar respaldo de Drive (HTTP $responseCode)")
-            }
+                val responseCode = connection.responseCode
+                validateResponseCode(responseCode, "descargar respaldo de Drive")
 
-            val downloadedContent = BufferedReader(InputStreamReader(connection.inputStream, StandardCharsets.UTF_8)).use { reader ->
-                reader.readText()
+                val content = BufferedReader(InputStreamReader(connection.inputStream, StandardCharsets.UTF_8)).use { reader ->
+                    reader.readText()
+                }
+                downloadedFilesCache[fileId] = CachedEncryptedFile(fileId, content, now)
+                content
             }
 
             if (downloadedContent.contains("\"ciphertext\"")) {
@@ -294,9 +360,11 @@ object GoogleDriveManager {
             }
 
             val responseCode = connection.responseCode
-            if (responseCode !in 200..299 && responseCode != 404) {
-                throw IllegalStateException("Error al eliminar la copia en Google Drive (HTTP $responseCode)")
+            if (responseCode != 404) {
+                validateResponseCode(responseCode, "eliminar la copia en Google Drive")
             }
+            downloadedFilesCache.remove(fileId)
+            Unit
         }
     }
 
@@ -316,10 +384,11 @@ object GoogleDriveManager {
                     setRequestProperty("Authorization", "Bearer $accessToken")
                 }
                 val responseCode = connection.responseCode
-                if (responseCode !in 200..299 && responseCode != 404) {
-                    throw IllegalStateException("Error al eliminar la copia en Google Drive (HTTP $responseCode)")
+                if (responseCode != 404) {
+                    validateResponseCode(responseCode, "eliminar la copia en Google Drive")
                 }
             }
+            clearDownloadCache()
         }
     }
 

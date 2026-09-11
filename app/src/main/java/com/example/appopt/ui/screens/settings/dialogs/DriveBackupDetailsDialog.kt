@@ -1,5 +1,6 @@
 package com.example.appopt.ui.screens.settings.dialogs
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -8,9 +9,11 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -23,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -69,14 +73,13 @@ import kotlin.time.Duration.Companion.milliseconds
 private enum class DriveDetailsSubState {
     HISTORY,
     RESTORE_DECRYPT,
-    DELETE_SINGLE,
-    DELETE_ALL
+    DELETE_SINGLE
 }
 
 /**
  * Diálogo modal con máquina de estados unificada (Single-Dialog State Machine) para inspeccionar el historial
  * de versiones de respaldo en Google Drive (Point-in-Time Recovery), restaurar versiones específicas mediante
- * descifrado directo en el modal, o eliminarlas individual o totalmente mediante autenticación criptográfica.
+ * descifrado directo en el modal, o eliminarlas individualmente mediante autenticación criptográfica.
  *
  * Cumple con la Directiva 14 (navegación modal defensiva sin desmontaje/parpadeo de ventanas) y estandarización
  * de nomenclatura de botones («Cerrar» para vista principal, «Volver» para sub-estados).
@@ -90,7 +93,6 @@ private enum class DriveDetailsSubState {
  * @param onForceRefresh Callback invocado para forzar una consulta fresca a Google Drive al presionar el botón de refresco.
  * @param onRestoreBackup Callback invocado para restaurar una versión específica con sus caracteres de descifrado.
  * @param onDeleteSpecificBackup Callback invocado para eliminar una versión específica con sus caracteres de descifrado.
- * @param onDeleteAllBackups Callback invocado para eliminar todas las versiones con sus caracteres de descifrado.
  * @param onDismiss Callback invocado para cerrar el modal.
  * @param modifier Modificador de diseño Compose opcional.
  */
@@ -105,7 +107,6 @@ fun DriveBackupDetailsDialog(
     onForceRefresh: () -> Unit = {},
     onRestoreBackup: (DriveBackupItem, CharArray) -> Unit,
     onDeleteSpecificBackup: (DriveBackupItem, CharArray) -> Unit,
-    onDeleteAllBackups: (CharArray) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -117,7 +118,6 @@ fun DriveBackupDetailsDialog(
     var isRestoreSecretVisible by remember { mutableStateOf(false) }
 
     var pendingDeleteBackup by remember { mutableStateOf<DriveBackupItem?>(null) }
-    var isPendingDeleteAll by remember { mutableStateOf(false) }
     var deleteSecretText by remember { mutableStateOf("") }
     var isDeleteSecretVisible by remember { mutableStateOf(false) }
 
@@ -135,10 +135,11 @@ fun DriveBackupDetailsDialog(
     val secondsRemaining = (remainingMillis + 999L) / 1000L
     val isCooldownActive = secondsRemaining > 0L
 
+    val currentDeviceId = remember { com.example.appopt.AuthenticatorApp.instance.preferencesManager.getInstallationId() }
+
     val currentSubState = when {
         pendingRestoreBackup != null -> DriveDetailsSubState.RESTORE_DECRYPT
         pendingDeleteBackup != null -> DriveDetailsSubState.DELETE_SINGLE
-        isPendingDeleteAll -> DriveDetailsSubState.DELETE_ALL
         else -> DriveDetailsSubState.HISTORY
     }
 
@@ -150,56 +151,47 @@ fun DriveBackupDetailsDialog(
             } else if (pendingDeleteBackup != null) {
                 pendingDeleteBackup = null
                 deleteSecretText = ""
-            } else if (isPendingDeleteAll) {
-                isPendingDeleteAll = false
-                deleteSecretText = ""
             } else {
                 onDismiss()
             }
         },
         shape = RoundedCornerShape(Dimensions.CornerRadius.large),
         title = {
-            val titleText = when {
-                pendingRestoreBackup != null -> stringResource(R.string.settings_drive_decrypt_title)
-                pendingDeleteBackup != null -> stringResource(R.string.settings_drive_delete_version_confirm_title)
-                isPendingDeleteAll -> stringResource(R.string.settings_drive_delete_all_confirm_title)
-                else -> stringResource(R.string.settings_drive_history_title)
-            }
-            val titleColor = if (pendingDeleteBackup != null || isPendingDeleteAll) {
-                MaterialTheme.colorScheme.error
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            }
-            Crossfade(
-                targetState = titleText,
-                animationSpec = tween(Motion.Duration.FAST, easing = Motion.EasingCurve.Standard),
-                label = "driveBackupDetailsTitleCrossfade"
-            ) { text ->
+            AnimatedContent(
+                targetState = currentSubState,
+                transitionSpec = { Motion.Spec.dialogStepContentTransform() },
+                label = "driveDetailsTitleTransition"
+            ) { subState ->
                 Text(
-                    text = text,
+                    text = when (subState) {
+                        DriveDetailsSubState.RESTORE_DECRYPT -> stringResource(R.string.settings_drive_decrypt_title)
+                        DriveDetailsSubState.DELETE_SINGLE -> stringResource(R.string.settings_drive_delete_version_confirm_title)
+                        DriveDetailsSubState.HISTORY -> stringResource(R.string.settings_drive_history_title)
+                    },
                     style = MaterialTheme.typography.titleLarge,
-                    color = titleColor
+                    color = if (subState == DriveDetailsSubState.DELETE_SINGLE) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    }
                 )
             }
         },
         text = {
-            Crossfade(
+            AnimatedContent(
                 targetState = currentSubState,
-                animationSpec = tween(Motion.Duration.FAST, easing = Motion.EasingCurve.Standard),
+                transitionSpec = { Motion.Spec.dialogStepContentTransform() },
+                contentAlignment = Alignment.TopStart,
                 modifier = Modifier.fillMaxWidth(),
-                label = "driveBackupDetailsStepTransition"
+                label = "driveDetailsSubStateTransition"
             ) { subState ->
                 when (subState) {
                     DriveDetailsSubState.RESTORE_DECRYPT -> {
-                        val pendingTarget = pendingRestoreBackup
-                        if (pendingTarget != null) {
-                            val isPendingActual = lastSyncTimestamp > 0L &&
-                                    lastSyncedHash.isNotEmpty() &&
-                                    !hasUnsyncedChanges &&
-                                    pendingTarget.isMostRecent
+                        val backupToRestore = pendingRestoreBackup
+                        if (backupToRestore != null) {
                             DriveBackupDecryptForm(
-                                targetBackup = pendingTarget,
-                                isActual = isPendingActual,
+                                targetBackup = backupToRestore,
+                                isActual = false,
                                 restoreSecretText = restoreSecretText,
                                 onRestoreSecretChange = { restoreSecretText = it },
                                 isRestoreSecretVisible = isRestoreSecretVisible,
@@ -209,15 +201,11 @@ fun DriveBackupDetailsDialog(
                         }
                     }
                     DriveDetailsSubState.DELETE_SINGLE -> {
-                        val pendingTarget = pendingDeleteBackup
-                        if (pendingTarget != null) {
-                            val isPendingActual = lastSyncTimestamp > 0L &&
-                                    lastSyncedHash.isNotEmpty() &&
-                                    !hasUnsyncedChanges &&
-                                    pendingTarget.isMostRecent
+                        val backupToDelete = pendingDeleteBackup
+                        if (backupToDelete != null) {
                             DriveBackupDecryptForm(
-                                targetBackup = pendingTarget,
-                                isActual = isPendingActual,
+                                targetBackup = backupToDelete,
+                                isActual = false,
                                 restoreSecretText = deleteSecretText,
                                 onRestoreSecretChange = { deleteSecretText = it },
                                 isRestoreSecretVisible = isDeleteSecretVisible,
@@ -226,305 +214,309 @@ fun DriveBackupDetailsDialog(
                             )
                         }
                     }
-                    DriveDetailsSubState.DELETE_ALL -> {
-                        DriveBackupDecryptForm(
-                            targetBackup = null,
-                            restoreSecretText = deleteSecretText,
-                            onRestoreSecretChange = { deleteSecretText = it },
-                            isRestoreSecretVisible = isDeleteSecretVisible,
-                            onToggleSecretVisibility = { isDeleteSecretVisible = !isDeleteSecretVisible },
-                            hintText = stringResource(R.string.settings_drive_delete_all_auth_hint)
-                        )
-                    }
                     DriveDetailsSubState.HISTORY -> {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
-                    ) {
-                        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.settings_drive_history_subtitle),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                                Box(
-                                    contentAlignment = Alignment.CenterEnd
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                        ) {
+                            CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    if (isLoading) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(Dimensions.IconSize.small),
-                                            strokeWidth = Dimensions.Stroke.thin
-                                        )
-                                    } else if (isCooldownActive) {
-                                        Surface(
-                                            shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
-                                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                                        ) {
-                                            Text(
-                                                text = stringResource(R.string.settings_drive_history_cooldown_badge, secondsRemaining),
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                maxLines = 1,
-                                                modifier = Modifier.padding(
-                                                    horizontal = Dimensions.Spacing.xs,
-                                                    vertical = Dimensions.Spacing.xs / 2
+                                    Text(
+                                        text = stringResource(R.string.settings_drive_history_subtitle),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                                    Box(
+                                        contentAlignment = Alignment.CenterEnd
+                                    ) {
+                                        if (isLoading) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(Dimensions.IconSize.small),
+                                                strokeWidth = Dimensions.Stroke.thin
+                                            )
+                                        } else if (isCooldownActive) {
+                                            Surface(
+                                                shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
+                                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                            ) {
+                                                Text(
+                                                    text = stringResource(R.string.settings_drive_history_cooldown_badge, secondsRemaining),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    maxLines = 1,
+                                                    modifier = Modifier.padding(
+                                                        horizontal = Dimensions.Spacing.xs,
+                                                        vertical = Dimensions.Spacing.xs / 2
+                                                    )
                                                 )
-                                            )
-                                        }
-                                    } else {
-                                        IconButton(
-                                            onClick = {
-                                                appHaptics.click()
-                                                onForceRefresh()
-                                            },
-                                            modifier = Modifier.size(Dimensions.IconSize.large)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Filled.Refresh,
-                                                contentDescription = stringResource(R.string.settings_drive_history_refresh_action),
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(Dimensions.IconSize.small)
-                                            )
+                                            }
+                                        } else {
+                                            IconButton(
+                                                onClick = {
+                                                    appHaptics.click()
+                                                    onForceRefresh()
+                                                },
+                                                modifier = Modifier.size(Dimensions.IconSize.large)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.Refresh,
+                                                    contentDescription = stringResource(R.string.settings_drive_history_refresh_action),
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(Dimensions.IconSize.small)
+                                                )
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
 
-                        if (isLoading) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = Dimensions.Spacing.lg),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator(modifier = Modifier.size(Dimensions.IconSize.large))
-                            }
-                        } else if (backupItems.isEmpty()) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = Dimensions.Spacing.md),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.settings_drive_history_empty),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        } else {
-                            LazyColumn(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(max = Dimensions.ComponentSize.modalListMaxHeight),
-                                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
-                                contentPadding = PaddingValues(bottom = Dimensions.Spacing.xs)
-                            ) {
-                                items(backupItems, key = { it.fileId }) { item ->
-                                    val formattedDate = remember(item.modifiedTimeMillis, currentTick) {
-                                        DateTimeFormatter.formatRelativeSyncTime(context, item.modifiedTimeMillis)
-                                    }
-                                    val isActual = lastSyncTimestamp > 0L &&
-                                            lastSyncedHash.isNotEmpty() &&
-                                            !hasUnsyncedChanges &&
-                                            item.isMostRecent
-
-                                    DriveBackupItemCard(
-                                        item = item,
-                                        isActual = isActual,
-                                        formattedDate = formattedDate,
-                                        onDeleteClick = {
-                                            appHaptics.click()
-                                            deleteSecretText = ""
-                                            isDeleteSecretVisible = false
-                                            pendingDeleteBackup = item
-                                        },
-                                        onRestoreClick = {
-                                            appHaptics.click()
-                                            restoreSecretText = ""
-                                            isRestoreSecretVisible = false
-                                            pendingRestoreBackup = item
-                                        }
+                            if (isLoading) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = Dimensions.Spacing.lg),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(modifier = Modifier.size(Dimensions.IconSize.large))
+                                }
+                            } else if (backupItems.isEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = Dimensions.Spacing.md),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.settings_drive_history_empty),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
+                            } else {
+                                val latestFromCurrentDevice = backupItems.firstOrNull {
+                                    if (it.deviceId.isNotBlank()) {
+                                        it.deviceId == currentDeviceId
+                                    } else {
+                                        lastSyncTimestamp > 0L && it.modifiedTimeMillis == lastSyncTimestamp
+                                    }
+                                }
+
+                                LazyColumn(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(max = Dimensions.ComponentSize.modalListMaxHeight),
+                                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
+                                    contentPadding = PaddingValues(bottom = Dimensions.Spacing.xs)
+                                ) {
+                                    items(backupItems, key = { it.fileId }) { item ->
+                                        val formattedDate = remember(item.modifiedTimeMillis, currentTick) {
+                                            DateTimeFormatter.formatRelativeSyncTime(context, item.modifiedTimeMillis)
+                                        }
+                                        val isFromCurrentDevice = if (item.deviceId.isNotBlank()) {
+                                            item.deviceId == currentDeviceId
+                                        } else {
+                                            lastSyncTimestamp > 0L && item.modifiedTimeMillis == lastSyncTimestamp
+                                        }
+
+                                        val isActual = isFromCurrentDevice &&
+                                                lastSyncTimestamp > 0L &&
+                                                lastSyncedHash.isNotEmpty() &&
+                                                !hasUnsyncedChanges &&
+                                                (item.fileId == latestFromCurrentDevice?.fileId)
+
+                                        DriveBackupItemCard(
+                                            item = item,
+                                            isActual = isActual,
+                                            formattedDate = formattedDate,
+                                            onDeleteClick = {
+                                                appHaptics.click()
+                                                deleteSecretText = ""
+                                                isDeleteSecretVisible = false
+                                                pendingDeleteBackup = item
+                                            },
+                                            onRestoreClick = {
+                                                appHaptics.click()
+                                                restoreSecretText = ""
+                                                isRestoreSecretVisible = false
+                                                pendingRestoreBackup = item
+                                            }
+                                        )
+                                    }
+                                }
                             }
-
-                            Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
-
-                            OutlinedButton(
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            AnimatedContent(
+                targetState = currentSubState,
+                transitionSpec = { Motion.Spec.dialogStepContentTransform() },
+                modifier = Modifier.fillMaxWidth(),
+                label = "driveDetailsButtonsTransition"
+            ) { subState ->
+                when (subState) {
+                    DriveDetailsSubState.HISTORY -> {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Min),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(
                                 onClick = {
                                     appHaptics.click()
-                                    deleteSecretText = ""
-                                    isDeleteSecretVisible = false
-                                    isPendingDeleteAll = true
+                                    onDismiss()
                                 },
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = MaterialTheme.colorScheme.error
-                                ),
-                                border = BorderStroke(
-                                    Dimensions.Stroke.thin,
-                                    MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
-                                ),
                                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Filled.DeleteSweep,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(Dimensions.IconSize.small)
-                                )
-                                Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
                                 Text(
-                                    text = stringResource(R.string.settings_drive_delete_all_action),
-                                    style = MaterialTheme.typography.labelMedium
+                                    text = stringResource(R.string.action_close),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    textAlign = TextAlign.Center
                                 )
                             }
                         }
                     }
-                }
-            }
-        }
-    },
-        confirmButton = {
-            when (currentSubState) {
-                DriveDetailsSubState.HISTORY -> {}
-                DriveDetailsSubState.RESTORE_DECRYPT -> {
-                    var isProcessing by remember { mutableStateOf(false) }
-                    Button(
-                        onClick = {
-                            if (!isProcessing) {
-                                isProcessing = true
-                                val targetItem = pendingRestoreBackup
-                                if (targetItem != null) {
-                                    val normalizedSecret = if (restoreSecretText.contains(" ")) {
-                                        MnemonicManager.normalizePhrase(restoreSecretText)
-                                    } else {
-                                        restoreSecretText.trim()
-                                    }
-                                    val passChars = normalizedSecret.toCharArray()
-                                    onRestoreBackup(targetItem, passChars)
+                    DriveDetailsSubState.RESTORE_DECRYPT -> {
+                        var isProcessing by remember { mutableStateOf(false) }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Min),
+                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs, Alignment.End),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(
+                                onClick = {
+                                    appHaptics.click()
                                     pendingRestoreBackup = null
                                     restoreSecretText = ""
-                                }
-                                isProcessing = false
+                                },
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.settings_drive_details_back),
+                                    style = MaterialTheme.typography.labelLarge
+                                )
                             }
-                        },
-                        enabled = restoreSecretText.isNotBlank(),
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.settings_drive_decrypt_and_restore),
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                    }
-                }
-                DriveDetailsSubState.DELETE_SINGLE -> {
-                    var isProcessing by remember { mutableStateOf(false) }
-                    Button(
-                        onClick = {
-                            if (!isProcessing) {
-                                isProcessing = true
-                                val targetItem = pendingDeleteBackup
-                                if (targetItem != null) {
-                                    val normalizedSecret = if (deleteSecretText.contains(" ")) {
-                                        MnemonicManager.normalizePhrase(deleteSecretText)
-                                    } else {
-                                        deleteSecretText.trim()
+
+                            Button(
+                                onClick = {
+                                    if (!isProcessing) {
+                                        isProcessing = true
+                                        val targetItem = pendingRestoreBackup
+                                        if (targetItem != null) {
+                                            val normalizedSecret = if (restoreSecretText.contains(" ")) {
+                                                MnemonicManager.normalizePhrase(restoreSecretText)
+                                            } else {
+                                                restoreSecretText.trim()
+                                            }
+                                            val passChars = normalizedSecret.toCharArray()
+                                            onRestoreBackup(targetItem, passChars)
+                                            pendingRestoreBackup = null
+                                            restoreSecretText = ""
+                                        }
+                                        isProcessing = false
                                     }
-                                    val passChars = normalizedSecret.toCharArray()
-                                    onDeleteSpecificBackup(targetItem, passChars)
+                                },
+                                enabled = restoreSecretText.isNotBlank(),
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.xs),
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.settings_drive_decrypt_and_restore),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+                    DriveDetailsSubState.DELETE_SINGLE -> {
+                        var isProcessing by remember { mutableStateOf(false) }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Min),
+                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs, Alignment.End),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(
+                                onClick = {
+                                    appHaptics.click()
                                     pendingDeleteBackup = null
                                     deleteSecretText = ""
-                                }
-                                isProcessing = false
+                                },
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.settings_drive_details_back),
+                                    style = MaterialTheme.typography.labelLarge
+                                )
                             }
-                        },
-                        enabled = deleteSecretText.isNotBlank(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error,
-                            contentColor = MaterialTheme.colorScheme.onError
-                        ),
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.settings_drive_delete_version_action),
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                    }
-                }
-                DriveDetailsSubState.DELETE_ALL -> {
-                    var isProcessing by remember { mutableStateOf(false) }
-                    Button(
-                        onClick = {
-                            if (!isProcessing) {
-                                isProcessing = true
-                                val normalizedSecret = if (deleteSecretText.contains(" ")) {
-                                    MnemonicManager.normalizePhrase(deleteSecretText)
-                                } else {
-                                    deleteSecretText.trim()
-                                }
-                                val passChars = normalizedSecret.toCharArray()
-                                onDeleteAllBackups(passChars)
-                                isPendingDeleteAll = false
-                                deleteSecretText = ""
-                                isProcessing = false
+
+                            Button(
+                                onClick = {
+                                    if (!isProcessing) {
+                                        isProcessing = true
+                                        val targetItem = pendingDeleteBackup
+                                        if (targetItem != null) {
+                                            val normalizedSecret = if (deleteSecretText.contains(" ")) {
+                                                MnemonicManager.normalizePhrase(deleteSecretText)
+                                            } else {
+                                                deleteSecretText.trim()
+                                            }
+                                            val passChars = normalizedSecret.toCharArray()
+                                            onDeleteSpecificBackup(targetItem, passChars)
+                                            pendingDeleteBackup = null
+                                            deleteSecretText = ""
+                                        }
+                                        isProcessing = false
+                                    }
+                                },
+                                enabled = deleteSecretText.isNotBlank(),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error,
+                                    contentColor = MaterialTheme.colorScheme.onError
+                                ),
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.xs),
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.settings_drive_delete_version_action),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    textAlign = TextAlign.Center
+                                )
                             }
-                        },
-                        enabled = deleteSecretText.isNotBlank(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error,
-                            contentColor = MaterialTheme.colorScheme.onError
-                        ),
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.settings_drive_delete_all_action),
-                            style = MaterialTheme.typography.labelLarge
-                        )
+                        }
                     }
                 }
             }
         },
-        dismissButton = {
-            TextButton(
-                onClick = {
-                    appHaptics.click()
-                    when (currentSubState) {
-                        DriveDetailsSubState.HISTORY -> onDismiss()
-                        DriveDetailsSubState.RESTORE_DECRYPT -> {
-                            pendingRestoreBackup = null
-                            restoreSecretText = ""
-                        }
-                        DriveDetailsSubState.DELETE_SINGLE -> {
-                            pendingDeleteBackup = null
-                            deleteSecretText = ""
-                        }
-                        DriveDetailsSubState.DELETE_ALL -> {
-                            isPendingDeleteAll = false
-                            deleteSecretText = ""
-                        }
-                    }
-                },
-                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-            ) {
-                Text(
-                    text = if (currentSubState == DriveDetailsSubState.HISTORY) {
-                        stringResource(R.string.action_close)
-                    } else {
-                        stringResource(R.string.settings_drive_details_back)
-                    },
-                    style = MaterialTheme.typography.labelLarge
-                )
-            }
-        },
+        dismissButton = null,
         modifier = modifier
     )
 }

@@ -2,6 +2,7 @@ package com.example.appopt.ui.screens.settings.dialogs
 
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -80,6 +81,7 @@ fun DriveProtectDialog(
     var masterPasswordConfirmText by remember { mutableStateOf("") }
     var isMasterPasswordVisible by remember { mutableStateOf(false) }
     var generated64Key by remember { mutableStateOf(GoogleDriveManager.generate64DigitKey()) }
+    var isKeyVisible by remember { mutableStateOf(false) }
     var generatedMnemonicWords by remember { mutableStateOf(MnemonicManager.generate12WordPhrase()) }
 
     var quizQuestions by remember { mutableStateOf<List<MnemonicManager.MnemonicQuizQuestion>>(emptyList()) }
@@ -122,10 +124,10 @@ fun DriveProtectDialog(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
             ) {
-                Crossfade(
+                AnimatedContent(
                     targetState = step,
-                    animationSpec = tween(Motion.Duration.FAST, easing = Motion.EasingCurve.Standard),
-                    label = "driveProtectTitleCrossfade"
+                    transitionSpec = { Motion.Spec.dialogStepContentTransform() },
+                    label = "driveProtectTitleTransition"
                 ) { currentStep ->
                     Text(
                         text = when (currentStep) {
@@ -155,9 +157,10 @@ fun DriveProtectDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
             ) {
-                Crossfade(
+                AnimatedContent(
                     targetState = step,
-                    animationSpec = tween(Motion.Duration.FAST, easing = Motion.EasingCurve.Standard),
+                    transitionSpec = { Motion.Spec.dialogStepContentTransform() },
+                    contentAlignment = Alignment.TopStart,
                     modifier = Modifier.fillMaxWidth(),
                     label = "driveProtectStepTransition"
                 ) { currentStep ->
@@ -172,6 +175,8 @@ fun DriveProtectDialog(
                             isMasterPasswordVisible = isMasterPasswordVisible,
                             onTogglePasswordVisibility = { isMasterPasswordVisible = !isMasterPasswordVisible },
                             generated64Key = generated64Key,
+                            isKeyVisible = isKeyVisible,
+                            onToggleKeyVisibility = { isKeyVisible = !isKeyVisible },
                             copyCountdown = keyCopyCountdown,
                             onRegenerateKey = {
                                 appHaptics.click()
@@ -206,7 +211,7 @@ fun DriveProtectDialog(
                                 appHaptics.click()
                                 val primaryTitle = if (selectedProtectionTab == 0) passwordLabel else keyLabel
                                 val primaryVal = if (selectedProtectionTab == 0) {
-                                    "•".repeat(masterPasswordText.length)
+                                    masterPasswordText
                                 } else {
                                     generated64Key
                                 }
@@ -233,124 +238,129 @@ fun DriveProtectDialog(
             }
         },
         confirmButton = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Min),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextButton(
-                    onClick = {
-                        appHaptics.click()
-                        when (step) {
-                            3 -> step = 2
-                            2 -> step = 1
-                            else -> onDismiss()
-                        }
-                    },
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+            AnimatedContent(
+                targetState = step,
+                transitionSpec = { Motion.Spec.dialogStepContentTransform() },
+                modifier = Modifier.fillMaxWidth(),
+                label = "driveProtectButtonsTransition"
+            ) { currentStep ->
+                Row(
                     modifier = Modifier
-                        .fillMaxHeight()
-                        .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min),
+                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs, Alignment.End),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = if (step == 1) {
-                            stringResource(R.string.action_close)
-                        } else {
-                            stringResource(R.string.settings_drive_details_back)
+                    TextButton(
+                        onClick = {
+                            appHaptics.click()
+                            when (currentStep) {
+                                3 -> step = 2
+                                2 -> step = 1
+                                else -> onDismiss()
+                            }
                         },
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-
-                when (step) {
-                    1 -> {
-                        Button(
-                            onClick = {
-                                appHaptics.click()
-                                step = 2
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                    ) {
+                        Text(
+                            text = if (currentStep == 1) {
+                                stringResource(R.string.action_close)
+                            } else {
+                                stringResource(R.string.settings_drive_details_back)
                             },
-                            enabled = isStep1Valid,
-                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                            contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.xs),
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.settings_drive_next_step),
-                                style = MaterialTheme.typography.labelLarge,
-                                textAlign = TextAlign.Center
-                            )
-                        }
+                            style = MaterialTheme.typography.labelLarge
+                        )
                     }
-                    2 -> {
-                        Button(
-                            onClick = {
-                                appHaptics.click()
-                                quizQuestions = MnemonicManager.generateQuiz(generatedMnemonicWords)
-                                quizSelectedAnswers = emptyMap()
-                                isQuizError = false
-                                step = 3
-                            },
-                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                            contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.xs),
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.settings_drive_to_quiz_step),
-                                style = MaterialTheme.typography.labelLarge,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                    3 -> {
-                        Button(
-                            onClick = {
-                                val allCorrect = quizQuestions.mapIndexed { idx, q ->
-                                    quizSelectedAnswers[idx] == q.correctWord
-                                }.all { it }
 
-                                if (allCorrect) {
-                                    appHaptics.success()
-                                    val primaryPass = if (selectedProtectionTab == 0) {
-                                        masterPasswordText.toCharArray()
+                    when (currentStep) {
+                        1 -> {
+                            Button(
+                                onClick = {
+                                    appHaptics.click()
+                                    step = 2
+                                },
+                                enabled = isStep1Valid,
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.xs),
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.settings_drive_next_step),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                        2 -> {
+                            Button(
+                                onClick = {
+                                    appHaptics.click()
+                                    quizQuestions = MnemonicManager.generateQuiz(generatedMnemonicWords)
+                                    quizSelectedAnswers = emptyMap()
+                                    isQuizError = false
+                                    step = 3
+                                },
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.xs),
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.settings_drive_to_quiz_step),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                        3 -> {
+                            Button(
+                                onClick = {
+                                    val allCorrect = quizQuestions.mapIndexed { idx, q ->
+                                        quizSelectedAnswers[idx] == q.correctWord
+                                    }.all { it }
+
+                                    if (allCorrect) {
+                                        appHaptics.success()
+                                        val primaryPass = if (selectedProtectionTab == 0) {
+                                            masterPasswordText.toCharArray()
+                                        } else {
+                                            generated64Key.toCharArray()
+                                        }
+                                        val mnemonicPass = generatedMnemonicWords.joinToString(" ").toCharArray()
+                                        try {
+                                            onProtectAndSync(primaryPass, mnemonicPass)
+                                        } finally {
+                                            primaryPass.fill('0')
+                                            mnemonicPass.fill('0')
+                                            masterPasswordText = ""
+                                            masterPasswordConfirmText = ""
+                                            generated64Key = ""
+                                        }
                                     } else {
-                                        generated64Key.toCharArray()
+                                        appHaptics.error()
+                                        isQuizError = true
+                                        Toast.makeText(context, quizErrorMsg, Toast.LENGTH_LONG).show()
                                     }
-                                    val mnemonicPass = generatedMnemonicWords.joinToString(" ").toCharArray()
-                                    try {
-                                        onProtectAndSync(primaryPass, mnemonicPass)
-                                    } finally {
-                                        primaryPass.fill('0')
-                                        mnemonicPass.fill('0')
-                                        masterPasswordText = ""
-                                        masterPasswordConfirmText = ""
-                                        generated64Key = ""
-                                    }
-                                } else {
-                                    appHaptics.error()
-                                    isQuizError = true
-                                    Toast.makeText(context, quizErrorMsg, Toast.LENGTH_LONG).show()
-                                }
-                            },
-                            enabled = isQuizAnswered,
-                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                            contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.xs),
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.settings_drive_encrypt_and_sync),
-                                style = MaterialTheme.typography.labelLarge,
-                                textAlign = TextAlign.Center
-                            )
+                                },
+                                enabled = isQuizAnswered,
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.xs),
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.settings_drive_encrypt_and_sync),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
                     }
                 }

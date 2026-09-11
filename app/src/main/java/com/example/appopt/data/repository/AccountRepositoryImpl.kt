@@ -85,6 +85,7 @@ class AccountRepositoryImpl(
      */
     override fun clearMemoryCache() {
         otpCodeCache.clear()
+        com.example.appopt.data.cloud.GoogleDriveManager.clearDownloadCache()
     }
 
     /**

@@ -279,7 +279,7 @@ fun AddAccountScreen(
                 onActionConfirmed = onNavigateBack
             )
 
-            Spacer(modifier = Modifier.height(Dimensions.Spacing.xl))
+            Spacer(modifier = Modifier.height(Dimensions.Spacing.sm))
         }
     }
 }

@@ -17,13 +17,20 @@ import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Password
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -36,7 +43,7 @@ import com.example.appopt.ui.theme.Dimensions
  *
  * Estructura claramente organizada:
  * 1. Texto descriptivo del kit de recuperación.
- * 2. Sección 1: Método principal de acceso con previsualización del paso 1.
+ * 2. Sección 1: Método principal de acceso con previsualización del paso 1 (oculto por defecto con alternancia).
  * 3. Sección 2: Frase de emergencia con cuadrícula de las 12 palabras BIP-39.
  * 4. Aviso de seguridad de respaldo.
  * 5. Botones simétricos: Copiar frase (con temporizador reactivo) e Imprimir kit.
@@ -61,6 +68,8 @@ fun DriveProtectStepMnemonic(
     onPrintPdf: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var isPrimaryVisible by remember { mutableStateOf(false) }
+
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
@@ -91,31 +100,56 @@ fun DriveProtectStepMnemonic(
                     verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
                 ) {
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Icon(
-                            imageVector = if (isPasswordMethod) Icons.Filled.Password else Icons.Filled.Key,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(Dimensions.IconSize.small)
-                        )
-                        Text(
-                            text = primaryMethodLabel,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                        ) {
+                            Icon(
+                                imageVector = if (isPasswordMethod) Icons.Filled.Password else Icons.Filled.Key,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(Dimensions.IconSize.small)
+                            )
+                            Text(
+                                text = primaryMethodLabel,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { isPrimaryVisible = !isPrimaryVisible },
+                            modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
+                        ) {
+                            Icon(
+                                imageVector = if (isPrimaryVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                     if (isPasswordMethod) {
                         Text(
-                            text = stringResource(R.string.settings_drive_password_preview_value),
+                            text = if (isPrimaryVisible) {
+                                primaryMethodValue
+                            } else {
+                                stringResource(R.string.settings_drive_password_preview_value)
+                            },
                             style = MaterialTheme.typography.bodyMedium,
                             fontFamily = FontFamily.Monospace,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                     } else {
                         Text(
-                            text = primaryMethodValue.chunked(16).joinToString("\n"),
+                            text = if (isPrimaryVisible) {
+                                primaryMethodValue.chunked(16).joinToString("\n")
+                            } else {
+                                "••••••••••••••••\n••••••••••••••••\n••••••••••••••••\n••••••••••••••••"
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             fontFamily = FontFamily.Monospace,
                             color = MaterialTheme.colorScheme.onSurface

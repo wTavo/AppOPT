@@ -114,76 +114,85 @@ fun DriveOverwriteWarningDialog(
             }
         },
         confirmButton = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Min),
-                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs),
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
             ) {
-                Button(
-                    onClick = {
-                        appHaptics.click()
-                        onConfirmOverwrite()
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError
-                    ),
-                    contentPadding = PaddingValues(horizontal = Dimensions.Spacing.xs, vertical = Dimensions.Spacing.xs),
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                Row(
                     modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min),
+                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = stringResource(R.string.settings_drive_overwrite_confirm_btn),
-                        style = MaterialTheme.typography.labelLarge,
-                        textAlign = TextAlign.Center
-                    )
+                    Button(
+                        onClick = {
+                            appHaptics.click()
+                            onRestoreInstead()
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
+                        contentPadding = PaddingValues(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs),
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.settings_drive_overwrite_restore_btn),
+                            style = MaterialTheme.typography.labelLarge,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            appHaptics.click()
+                            onConfirmOverwrite()
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError
+                        ),
+                        contentPadding = PaddingValues(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs),
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.settings_drive_overwrite_confirm_btn),
+                            style = MaterialTheme.typography.labelLarge,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
 
-                Button(
-                    onClick = {
-                        appHaptics.click()
-                        onRestoreInstead()
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    ),
-                    contentPadding = PaddingValues(horizontal = Dimensions.Spacing.xs, vertical = Dimensions.Spacing.xs),
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
                 ) {
-                    Text(
-                        text = stringResource(R.string.settings_drive_overwrite_restore_btn),
-                        style = MaterialTheme.typography.labelLarge,
-                        textAlign = TextAlign.Center
-                    )
+                    TextButton(
+                        onClick = {
+                            appHaptics.click()
+                            onDismiss()
+                        },
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.action_close),
+                            style = MaterialTheme.typography.labelLarge,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
         },
-        dismissButton = {
-            TextButton(
-                onClick = {
-                    appHaptics.click()
-                    onDismiss()
-                },
-                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                modifier = Modifier.height(Dimensions.ComponentHeight.buttonDefault)
-            ) {
-                Text(
-                    text = stringResource(R.string.action_close),
-                    style = MaterialTheme.typography.labelLarge,
-                    maxLines = 1
-                )
-            }
-        },
+        dismissButton = null,
         modifier = modifier
     )
 }

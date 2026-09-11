@@ -55,6 +55,8 @@ import com.example.appopt.ui.theme.Dimensions
  * @param isMasterPasswordVisible Indica si los campos de contraseña se muestran en texto plano.
  * @param onTogglePasswordVisibility Callback para alternar la visibilidad de las contraseñas.
  * @param generated64Key Clave hexadecimal de 64 caracteres generada.
+ * @param isKeyVisible Indica si la clave criptográfica de 64 dígitos se muestra en texto claro.
+ * @param onToggleKeyVisibility Callback para alternar la visibilidad de la clave de 64 dígitos.
  * @param copyCountdown Segundos restantes de retención en el portapapeles seguro (0 cuando no está copiado).
  * @param onRegenerateKey Callback para generar una nueva clave aleatoria.
  * @param onCopyKey Callback para copiar la clave al portapapeles seguro.
@@ -71,6 +73,8 @@ fun DriveProtectStepMethod(
     isMasterPasswordVisible: Boolean,
     onTogglePasswordVisibility: () -> Unit,
     generated64Key: String,
+    isKeyVisible: Boolean,
+    onToggleKeyVisibility: () -> Unit,
     copyCountdown: Int,
     onRegenerateKey: () -> Unit,
     onCopyKey: () -> Unit,
@@ -218,11 +222,27 @@ fun DriveProtectStepMethod(
                         modifier = Modifier.padding(Dimensions.Spacing.md),
                         verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
                     ) {
-                        Text(
-                            text = stringResource(R.string.settings_drive_key_label),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(R.string.settings_drive_key_label),
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            IconButton(
+                                onClick = onToggleKeyVisibility,
+                                modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
+                            ) {
+                                Icon(
+                                    imageVector = if (isKeyVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
 
                         Surface(
                             shape = RoundedCornerShape(Dimensions.CornerRadius.small),
@@ -231,7 +251,11 @@ fun DriveProtectStepMethod(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = generated64Key.chunked(16).joinToString("\n"),
+                                text = if (isKeyVisible) {
+                                    generated64Key.chunked(16).joinToString("\n")
+                                } else {
+                                    "••••••••••••••••\n••••••••••••••••\n••••••••••••••••\n••••••••••••••••"
+                                },
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontFamily = FontFamily.Monospace,
                                 color = MaterialTheme.colorScheme.primary,

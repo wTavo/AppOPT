@@ -104,7 +104,7 @@ fun HomeFloatingDock(
         shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
         color = MaterialTheme.colorScheme.surface.copy(alpha = if (isAddMenuOpen) 0.60f else 1.0f),
         tonalElevation = if (isAddMenuOpen) Dimensions.Elevation.none else Dimensions.Elevation.cardDefault,
-        shadowElevation = if (isAddMenuOpen) Dimensions.Elevation.none else Dimensions.Elevation.cardDragging,
+        shadowElevation = if (isAddMenuOpen) Dimensions.Elevation.none else Dimensions.Elevation.cardDefault,
         border = BorderStroke(
             Dimensions.Stroke.thin,
             MaterialTheme.colorScheme.outline.copy(alpha = if (isAddMenuOpen) 0.05f else 0.15f)
@@ -170,8 +170,8 @@ fun HomeFloatingDock(
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 shape = CircleShape,
                 elevation = FloatingActionButtonDefaults.elevation(
-                    defaultElevation = Dimensions.Elevation.cardDefault,
-                    pressedElevation = Dimensions.Elevation.cardDragging
+                    defaultElevation = Dimensions.Elevation.none,
+                    pressedElevation = Dimensions.Elevation.cardDefault
                 ),
                 modifier = Modifier
                     .size(Dimensions.ComponentSize.heroFab)

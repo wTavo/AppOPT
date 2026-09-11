@@ -34,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -105,6 +106,7 @@ fun SettingsScreen(
     // Control de visibilidad de modales
     var showExportDialog by remember { mutableStateOf(false) }
     var showBackupDetailsDialog by remember { mutableStateOf(false) }
+    var isHistoryLoadingSynchronous by remember { mutableStateOf(false) }
     var showDisconnectConfirmDialog by remember { mutableStateOf(false) }
     var showDriveProtectDialog by remember { mutableStateOf(false) }
     var showDriveDecryptDialog by remember { mutableStateOf(false) }
@@ -118,6 +120,7 @@ fun SettingsScreen(
         if (!isUnlocked) {
             showExportDialog = false
             showBackupDetailsDialog = false
+            isHistoryLoadingSynchronous = false
             showDisconnectConfirmDialog = false
             showDriveProtectDialog = false
             showDriveDecryptDialog = false
@@ -130,6 +133,8 @@ fun SettingsScreen(
 
     // Mensajes centralizados de retroalimentación
     val driveErrorText = stringResource(R.string.settings_drive_error)
+    val driveRateLimitErrorText = stringResource(R.string.settings_drive_error_rate_limited)
+    val driveServiceUnavailableErrorText = stringResource(R.string.settings_drive_error_service_unavailable)
     val driveConnectedSuccessText = stringResource(R.string.settings_drive_connected_success)
     val driveDisconnectedSuccessText = stringResource(R.string.settings_drive_disconnected_success)
     val servicesDeletedAfterExportText = stringResource(R.string.settings_services_deleted_after_export)
@@ -142,6 +147,32 @@ fun SettingsScreen(
     val importAuthTitle = stringResource(R.string.settings_transfer_import_auth_title)
     val importAuthSubtitle = stringResource(R.string.settings_transfer_import_auth_subtitle)
     val transferAuthFailedText = stringResource(R.string.settings_transfer_auth_failed)
+
+    fun resolveDriveErrorMessage(error: Throwable): String {
+        val isRateLimited = error is GoogleDriveManager.RateLimitExceededException ||
+                error.message?.contains("429", ignoreCase = true) == true ||
+                error.message?.contains("rate", ignoreCase = true) == true ||
+                error.cause?.message?.contains("429", ignoreCase = true) == true
+        if (isRateLimited) return driveRateLimitErrorText
+
+        val isServiceUnavailable = error is GoogleDriveManager.ServiceUnavailableException ||
+                error.message?.contains("503", ignoreCase = true) == true
+        if (isServiceUnavailable) return driveServiceUnavailableErrorText
+
+        val isDecryptFailure = error is java.security.GeneralSecurityException ||
+                error is IllegalArgumentException ||
+                error.cause is java.security.GeneralSecurityException ||
+                error.cause is IllegalArgumentException ||
+                error.message?.contains("clave", ignoreCase = true) == true ||
+                error.message?.contains("ranura", ignoreCase = true) == true ||
+                error.message?.contains("descifrar", ignoreCase = true) == true ||
+                error.message?.contains("tag", ignoreCase = true) == true ||
+                error.message?.contains("credenciales", ignoreCase = true) == true ||
+                error.message?.contains("padding", ignoreCase = true) == true
+        if (isDecryptFailure) return driveDecryptErrorText
+
+        return driveErrorText
+    }
 
     // Diagnóstico en tiempo real de permisos y reloj del sistema
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -267,6 +298,12 @@ fun SettingsScreen(
             if (token != null) {
                 driveAccessToken = token
             }
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            GoogleDriveManager.clearDownloadCache()
         }
     }
 
@@ -438,6 +475,7 @@ fun SettingsScreen(
                     val lastFetch = uiState.lastHistoryFetchTimestamp
                     val isCacheFresh = (now - lastFetch < SecurityConfig.BACKUP_HISTORY_CACHE_TTL_MILLIS) && uiState.backupHistoryList.isNotEmpty()
                     if (!isCacheFresh) {
+                        isHistoryLoadingSynchronous = true
                         viewModel.startBackupHistoryLoading()
                     }
                     showBackupDetailsDialog = true
@@ -448,8 +486,15 @@ fun SettingsScreen(
                                 driveAccessToken = null
                                 GoogleDriveManager.currentAccessToken = null
                                 requestGoogleAuthorization { freshToken ->
-                                    viewModel.fetchBackupHistoryIfNeeded(freshToken) {}
+                                    viewModel.fetchBackupHistoryIfNeeded(
+                                        token = freshToken,
+                                        onAuthExpired = {},
+                                        onFinished = { isHistoryLoadingSynchronous = false }
+                                    )
                                 }
+                            },
+                            onFinished = {
+                                isHistoryLoadingSynchronous = false
                             }
                         )
                     }
@@ -464,6 +509,8 @@ fun SettingsScreen(
                 onAutoSyncToggle = { enabled -> viewModel.setAutoSyncEnabled(enabled, context) },
                 onMobileDataToggle = { allowed -> viewModel.setSyncMobileDataAllowed(allowed, context) }
             )
+
+            Spacer(modifier = Modifier.height(Dimensions.Spacing.sm))
         }
     }
 
@@ -495,9 +542,13 @@ fun SettingsScreen(
         onProtectAndSync = { primaryPassChars, emergencyMnemonicChars ->
             showDriveProtectDialog = false
             val executeProtect: (String) -> Unit = { token ->
-                viewModel.createProtectedBackup(context, token, primaryPassChars, emergencyMnemonicChars) { success ->
+                viewModel.createProtectedBackup(context, token, primaryPassChars, emergencyMnemonicChars) { result ->
                     scope.launch {
-                        snackbarHostState.showSnackbar(if (success) driveSyncSuccessText else driveErrorText)
+                        result.onSuccess {
+                            snackbarHostState.showSnackbar(driveSyncSuccessText)
+                        }.onFailure { error ->
+                            snackbarHostState.showSnackbar(resolveDriveErrorMessage(error))
+                        }
                     }
                 }
             }
@@ -518,9 +569,12 @@ fun SettingsScreen(
                     result.onSuccess { count ->
                         passChars.fill('0')
                         scope.launch {
-                            snackbarHostState.showSnackbar(
+                            val message = if (count > 0) {
                                 context.applicationContext.getString(R.string.settings_drive_restore_success, count)
-                            )
+                            } else {
+                                context.applicationContext.getString(R.string.settings_drive_restore_up_to_date)
+                            }
+                            snackbarHostState.showSnackbar(message)
                         }
                     }.onFailure { error ->
                         val isAuthExpired = error.message?.contains("401", ignoreCase = true) == true ||
@@ -533,18 +587,8 @@ fun SettingsScreen(
                             }
                         } else {
                             passChars.fill('0')
-                            val isDecryptFailure = error is java.security.GeneralSecurityException ||
-                                    error is IllegalArgumentException ||
-                                    error.cause is java.security.GeneralSecurityException ||
-                                    error.cause is IllegalArgumentException ||
-                                    error.message?.contains("clave", ignoreCase = true) == true ||
-                                    error.message?.contains("ranura", ignoreCase = true) == true ||
-                                    error.message?.contains("descifrar", ignoreCase = true) == true ||
-                                    error.message?.contains("tag", ignoreCase = true) == true ||
-                                    error.message?.contains("credenciales", ignoreCase = true) == true ||
-                                    error.message?.contains("padding", ignoreCase = true) == true
                             scope.launch {
-                                snackbarHostState.showSnackbar(if (isDecryptFailure) driveDecryptErrorText else driveErrorText)
+                                snackbarHostState.showSnackbar(resolveDriveErrorMessage(error))
                             }
                         }
                     }
@@ -558,7 +602,11 @@ fun SettingsScreen(
             }
         },
         showBackupDetailsDialog = showBackupDetailsDialog,
-        onDismissBackupDetails = { showBackupDetailsDialog = false },
+        isBackupHistoryLoading = isHistoryLoadingSynchronous,
+        onDismissBackupDetails = {
+            showBackupDetailsDialog = false
+            isHistoryLoadingSynchronous = false
+        },
         onForceRefreshBackupHistory = {
             val token = driveAccessToken ?: GoogleDriveManager.currentAccessToken
             if (token == null) {
@@ -589,9 +637,12 @@ fun SettingsScreen(
                     result.onSuccess { count ->
                         passChars.fill('0')
                         scope.launch {
-                            snackbarHostState.showSnackbar(
+                            val message = if (count > 0) {
                                 context.applicationContext.getString(R.string.settings_drive_restore_success, count)
-                            )
+                            } else {
+                                context.applicationContext.getString(R.string.settings_drive_restore_up_to_date)
+                            }
+                            snackbarHostState.showSnackbar(message)
                         }
                     }.onFailure { error ->
                         val isAuthExpired = error.message?.contains("401", ignoreCase = true) == true ||
@@ -604,18 +655,8 @@ fun SettingsScreen(
                             }
                         } else {
                             passChars.fill('0')
-                            val isDecryptFailure = error is java.security.GeneralSecurityException ||
-                                    error is IllegalArgumentException ||
-                                    error.cause is java.security.GeneralSecurityException ||
-                                    error.cause is IllegalArgumentException ||
-                                    error.message?.contains("clave", ignoreCase = true) == true ||
-                                    error.message?.contains("ranura", ignoreCase = true) == true ||
-                                    error.message?.contains("descifrar", ignoreCase = true) == true ||
-                                    error.message?.contains("tag", ignoreCase = true) == true ||
-                                    error.message?.contains("credenciales", ignoreCase = true) == true ||
-                                    error.message?.contains("padding", ignoreCase = true) == true
                             scope.launch {
-                                snackbarHostState.showSnackbar(if (isDecryptFailure) driveDecryptErrorText else driveErrorText)
+                                snackbarHostState.showSnackbar(resolveDriveErrorMessage(error))
                             }
                         }
                     }
@@ -643,23 +684,6 @@ fun SettingsScreen(
                 requestGoogleAuthorization { executeDelete(it) }
             } else {
                 executeDelete(token)
-            }
-        },
-        onDeleteAllBackups = { passChars ->
-            val executeDeleteAll: (String) -> Unit = { token ->
-                viewModel.deleteAllBackups(token, passChars) { success ->
-                    scope.launch {
-                        snackbarHostState.showSnackbar(
-                            if (success) driveDeleteAllSuccessText else driveDecryptErrorText
-                        )
-                    }
-                }
-            }
-            val token = driveAccessToken ?: GoogleDriveManager.currentAccessToken
-            if (token == null) {
-                requestGoogleAuthorization { executeDeleteAll(it) }
-            } else {
-                executeDeleteAll(token)
             }
         },
         showOverwriteWarningDialog = showOverwriteWarningDialog,

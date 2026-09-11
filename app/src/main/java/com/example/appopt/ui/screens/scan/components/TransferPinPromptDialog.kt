@@ -2,7 +2,13 @@ package com.example.appopt.ui.screens.scan.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
@@ -12,6 +18,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -20,7 +27,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import com.example.appopt.R
 import com.example.appopt.ui.theme.Dimensions
-
 import com.example.appopt.ui.theme.rememberAppHaptics
 
 /**
@@ -98,36 +104,53 @@ fun TransferPinPromptDialog(
             }
         },
         confirmButton = {
-            Button(
-                onClick = {
-                    appHaptics.click()
-                    onConfirm()
-                },
-                enabled = pinInput.length == 6 && !isVerifying,
-                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = stringResource(R.string.scan_transfer_pin_confirm_button),
-                    style = MaterialTheme.typography.labelLarge
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = {
-                    if (!isVerifying) {
+                TextButton(
+                    onClick = {
+                        if (!isVerifying) {
+                            appHaptics.click()
+                            onDismiss()
+                        }
+                    },
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                ) {
+                    Text(
+                        text = stringResource(R.string.action_close),
+                        style = MaterialTheme.typography.labelLarge,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                Button(
+                    onClick = {
                         appHaptics.click()
-                        onDismiss()
-                    }
-                },
-                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-            ) {
-                Text(
-                    text = stringResource(R.string.action_close),
-                    style = MaterialTheme.typography.labelLarge
-                )
+                        onConfirm()
+                    },
+                    enabled = pinInput.length == 6 && !isVerifying,
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                    contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.xs),
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                ) {
+                    Text(
+                        text = stringResource(R.string.scan_transfer_pin_confirm_button),
+                        style = MaterialTheme.typography.labelLarge,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
         },
+        dismissButton = null,
         modifier = modifier
     )
 }

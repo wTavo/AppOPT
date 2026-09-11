@@ -111,6 +111,12 @@ object SecurityConfig {
     const val BACKUP_HISTORY_CACHE_TTL_MILLIS = 20_000L
 
     /**
+     * Tiempo de expiración de caché en milisegundos (TTL) para el archivo de respaldo cifrado descargado (2 minutos / 120 segundos).
+     * Permite reintentos de descifrado y operaciones continuas con 0 peticiones de red adicionales a Google Drive.
+     */
+    const val BACKUP_DOWNLOAD_CACHE_TTL_MILLIS = 120_000L
+
+    /**
      * Longitud en dígitos para el PIN de transferencia de servicios por código QR.
      */
     const val TRANSFER_QR_PIN_LENGTH = 6

@@ -10,6 +10,7 @@ import com.example.appopt.security.SecurityConfig
 import com.example.appopt.security.TransferCrypto
 import org.json.JSONArray
 import org.json.JSONObject
+import java.security.MessageDigest
 import java.util.UUID
 
 /**
@@ -313,37 +314,97 @@ object AccountBackupSerializer {
             if (trimmed.isBlank()) return@runCatching 0
 
             val root = JSONObject(trimmed)
-            if (!root.has("accounts")) return@runCatching 0
-            val accountsArray = root.getJSONArray("accounts")
+            val accountsArray = when {
+                root.has("accounts") -> root.getJSONArray("accounts")
+                root.has("a") -> root.getJSONArray("a")
+                else -> return@runCatching 0
+            }
             if (accountsArray.length() == 0) return@runCatching 0
 
             val currentEntities = accountDao.getAllAccountsSync()
-            val localById = currentEntities.associateBy { it.id }
-            val localByCompositeKey = currentEntities.associateBy {
-                "${it.issuer.lowercase().trim()}:${it.accountName.lowercase().trim()}"
+            val localById = currentEntities.associateBy { it.id }.toMutableMap()
+            val localBySecretHash = mutableMapOf<String, AccountEntity>()
+            val sha256 = MessageDigest.getInstance("SHA-256")
+
+            for (entity in currentEntities) {
+                try {
+                    val secretBytes = cryptoManager.decrypt(entity.encryptedSecret, entity.iv)
+                    val hash = sha256.digest(secretBytes).joinToString("") { "%02x".format(it) }
+                    CryptoManager.zeroize(secretBytes)
+                    localBySecretHash[hash] = entity
+                } catch (_: Exception) {
+                    // Ignorar fallas aisladas en entidades corruptas
+                }
             }
 
             var changesCount = 0
 
             for (i in 0 until accountsArray.length()) {
                 val item = accountsArray.getJSONObject(i)
-                val remoteId = item.optString("id", "")
-                val remoteIssuer = item.optString("issuer", "Cuenta").trim()
-                val remoteAccountName = item.optString("accountName", "Usuario").trim()
+                val remoteId = when {
+                    item.has("id") -> item.optString("id", "")
+                    else -> ""
+                }.trim()
+
+                val rawSecret = when {
+                    item.has("secret") -> item.getString("secret")
+                    item.has("s") -> item.getString("s")
+                    else -> continue
+                }
+
+                val remoteIssuer = when {
+                    item.has("issuer") -> item.optString("issuer", "Cuenta")
+                    item.has("i") -> item.optString("i", "Cuenta")
+                    else -> "Cuenta"
+                }.trim()
+
+                val remoteAccountName = when {
+                    item.has("accountName") -> item.optString("accountName", "")
+                    item.has("a") -> item.optString("a", "")
+                    else -> ""
+                }.trim()
+
+                val remoteAlgorithm = when {
+                    item.has("algorithm") -> item.optString("algorithm", "SHA1")
+                    item.has("alg") -> item.optString("alg", "SHA1")
+                    else -> "SHA1"
+                }
+
+                val remoteDigits = when {
+                    item.has("digits") -> item.optInt("digits", 6)
+                    item.has("d") -> item.optInt("d", 6)
+                    else -> 6
+                }
+
+                val remotePeriod = when {
+                    item.has("period") -> item.optInt("period", 30)
+                    item.has("p") -> item.optInt("p", 30)
+                    else -> 30
+                }
+
+                val remoteType = when {
+                    item.has("type") -> item.optString("type", "TOTP")
+                    item.has("t") -> item.optString("t", "TOTP")
+                    else -> "TOTP"
+                }
+
+                val remoteCounter = when {
+                    item.has("counter") -> item.optLong("counter", 0L)
+                    item.has("c") -> item.optLong("c", 0L)
+                    else -> 0L
+                }
+
+                val remoteIsFavorite = item.optBoolean("isFavorite", false)
+                val remoteOrderIndex = item.optInt("orderIndex", 0)
                 val remoteUpdatedAt = item.optLong("updatedAt", 0L)
-                val rawSecret = item.getString("secret")
-                val remoteAlgorithm = OtpAlgorithm.fromString(item.optString("algorithm", "SHA1"))
-                val remoteDigits = item.optInt("digits", 6)
-                val remotePeriod = item.optInt("period", 30)
-                val remoteType = OtpType.fromString(item.optString("type", "TOTP"))
-                val remoteCounter = item.optLong("counter", 0L)
 
-                val compositeKey = "${remoteIssuer.lowercase()}:${remoteAccountName.lowercase()}"
-                val existingEntity = (if (remoteId.isNotBlank()) localById[remoteId] else null) ?: localByCompositeKey[compositeKey]
+                val sanitizedSecret = Base32.sanitize(rawSecret)
+                val secretBytes = Base32.decode(sanitizedSecret)
+                try {
+                    val remoteHash = sha256.digest(secretBytes).joinToString("") { "%02x".format(it) }
+                    val existingEntity = (if (remoteId.isNotBlank()) localById[remoteId] else null) ?: localBySecretHash[remoteHash]
 
-                if (existingEntity == null) {
-                    val secretBytes = Base32.decode(Base32.sanitize(rawSecret))
-                    try {
+                    if (existingEntity == null) {
                         val payload = cryptoManager.encrypt(secretBytes)
                         val newId = if (remoteId.isNotBlank()) remoteId else UUID.randomUUID().toString()
                         val now = if (remoteUpdatedAt > 0L) remoteUpdatedAt else System.currentTimeMillis()
@@ -353,43 +414,46 @@ object AccountBackupSerializer {
                             accountName = remoteAccountName,
                             encryptedSecret = payload.ciphertext,
                             iv = payload.iv,
-                            algorithm = remoteAlgorithm.name,
+                            algorithm = OtpAlgorithm.fromString(remoteAlgorithm).name,
                             digits = remoteDigits,
                             period = remotePeriod,
-                            type = remoteType.name,
+                            type = OtpType.fromString(remoteType).name,
                             counter = remoteCounter,
+                            isFavorite = remoteIsFavorite,
+                            orderIndex = remoteOrderIndex,
+                            isDeleted = false,
+                            deletedAt = null,
                             createdAt = now,
                             updatedAt = now
                         )
                         accountDao.insertAccount(newEntity)
+                        localById[newId] = newEntity
+                        localBySecretHash[remoteHash] = newEntity
                         changesCount++
-                    } finally {
-                        CryptoManager.zeroize(secretBytes)
-                    }
-                } else {
-                    if (remoteUpdatedAt > existingEntity.updatedAt) {
-                        val secretBytes = Base32.decode(Base32.sanitize(rawSecret))
-                        try {
+                    } else {
+                        if (remoteUpdatedAt > existingEntity.updatedAt) {
                             val payload = cryptoManager.encrypt(secretBytes)
                             val updatedEntity = existingEntity.copy(
                                 issuer = remoteIssuer,
                                 accountName = remoteAccountName,
                                 encryptedSecret = payload.ciphertext,
                                 iv = payload.iv,
-                                algorithm = remoteAlgorithm.name,
+                                algorithm = OtpAlgorithm.fromString(remoteAlgorithm).name,
                                 digits = remoteDigits,
                                 period = remotePeriod,
-                                type = remoteType.name,
+                                type = OtpType.fromString(remoteType).name,
                                 counter = remoteCounter,
                                 updatedAt = remoteUpdatedAt
                             )
                             accountDao.updateAccount(updatedEntity)
+                            localById[existingEntity.id] = updatedEntity
+                            localBySecretHash[remoteHash] = updatedEntity
                             onInvalidateCache(existingEntity.id)
                             changesCount++
-                        } finally {
-                            CryptoManager.zeroize(secretBytes)
                         }
                     }
+                } finally {
+                    CryptoManager.zeroize(secretBytes)
                 }
             }
 

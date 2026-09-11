@@ -31,6 +31,7 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 
 ## 4. Sistema Centralizado de Espaciados y Dimensiones (`ui/theme/Dimensions.kt`)
 - **PROHIBIDO** quemar valores arbitrarios de espaciado, elevaciones o radios de esquinas en los componentes.
+- **PROHIBIDO** que en cualquier pantalla, formulario, diálogo o lista scrolleable la última sección, tarjeta o botón quede pegada al borde inferior de la pantalla o a la barra de gestos/navegación.
 - **OBLIGATORIO** consumir las dimensiones centralizadas en `ui/theme/Dimensions.kt`:
   - `Dimensions.Spacing.*` para paddings y márgenes (`xs`, `sm`, `md`, `lg`, `xl`, `xxl`).
   - `Dimensions.Elevation.*` para sombras y planos (`cardDefault`, `cardDragging`, `modal`).
@@ -38,6 +39,7 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
   - `Dimensions.IconSize.*` para tamaños de iconos (`small`, `medium`, `large`, `hero`, `illustration`).
   - `Dimensions.ComponentSize.*` para límites y componentes estándar (`modalListMaxHeight`, `actionIconButton`, `qrCodeDisplay`, etc.).
   - `Dimensions.ComponentHeight.*` para alturas (`buttonDefault`, `buttonCompact`, `progressIndicator`).
+- **OBLIGATORIO** incluir siempre un espacio o margen inferior de respiro calibrado (`Dimensions.Spacing.lg` / `Dimensions.Spacing.md` o `Spacer(modifier = Modifier.height(Dimensions.Spacing.sm))` al final del contenedor vertical) al final de cada pantalla o lista para garantizar una separación visual limpia, estética y cómoda al toque sin exceso de espacio en cualquier dispositivo.
 
 ---
 
@@ -117,11 +119,21 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
   - **Límite y respiro de listas internas:** `heightIn(max = Dimensions.ComponentSize.modalListMaxHeight)` (320.dp) con scroll vertical (`LazyColumn` o `verticalScroll`) y `contentPadding = PaddingValues(bottom = Dimensions.Spacing.xs)`.
   - **Tarjetas y superficies internas:** `shape = RoundedCornerShape(Dimensions.CornerRadius.medium)` y padding `Dimensions.Spacing.md`.
   - **Botones interactivos y modales:** `shape = RoundedCornerShape(Dimensions.CornerRadius.medium)` con tipografía `MaterialTheme.typography.labelLarge`.
-- **OBLIGATORIO el estándar uniforme de nomenclatura en botones de diálogos:**
-  - **«Cerrar» (`R.string.action_close` / `account_modal_close_button`):** Para el botón de descarte del estado/diálogo principal (*Main Dialog*).
-  - **«Volver» (`R.string.settings_drive_details_back`):** Para regresar de un sub-paso, pantalla secundaria o confirmación al estado anterior dentro del modal.
-  - **«Cancelar» (`R.string.action_cancel`):** Exclusivo para abortar una acción destructiva irreversible antes de confirmarla.
+- **OBLIGATORIO el estándar uniforme de nomenclatura y posición en botones de diálogos:**
+  - **PROHIBIDO el uso de la palabra «Cancelar»:** En todos los diálogos modales y alertas solo se permite el uso estandarizado de **«Cerrar»** o **«Volver»**.
+  - **«Cerrar» (`R.string.action_close`):** Para el botón de descarte del estado/diálogo principal o informativos.
+  - **«Volver» (`R.string.settings_drive_details_back`):** Para regresar de un sub-paso, pantalla secundaria, modo edición o abortar una confirmación/acción destructiva sin ejecutarla.
+  - **Posición Material Design 3 (Ergonomía móvil):**
+    - **Diálogos de 2 botones (Acción + Descarte):** El botón de salida/regreso («Cerrar» o «Volver») debe ubicarse SIEMPRE a la **izquierda** (como `TextButton`), mientras que el botón de acción afirmativa/mutante/destructiva se ubica a la **derecha** (como `Button` primario o de error).
 - **OBLIGATORIO** implementar navegación defensiva hacia atrás en `onDismissRequest`: presionar afuera o el botón atrás del sistema debe revertir al estado/paso anterior antes de cerrar el modal por completo.
+- **OBLIGATORIO la jerarquía de animaciones en transiciones de diálogos (*Fade Through & Directional SizeTransform*):**
+  - **PROHIBIDO** animar simultáneamente opacidad y tamaño sin desfase temporal, ya que causa recortes progresivos, compresión de layouts y temblor visual en componentes rígidos o de alta densidad (ej. tarjetas OTP o listas).
+  - **PROHIBIDO** usar `animateContentSize` en contenedores externos que envuelven `Crossfade` o transiciones asíncronas de contenido.
+  - **OBLIGATORIO** orquestar las transiciones de pasos y sub-estados dentro del diálogo mediante `AnimatedContent` consumiendo `Motion.Spec.dialogStepContentTransform()`:
+    1. **Fase de salida:** El contenido saliente se desvanece por completo a 0% de opacidad (`fadeOut`, 75ms) manteniendo el tamaño fijo del contenedor.
+    2. **Fase de ajuste dimensional:** En expansión, el contenedor salta instantáneamente al tamaño final (`snap(delayMillis = 75)`) mientras la opacidad es cero; en contracción, el contenedor anima su altura suavemente tras la desaparición del contenido.
+    3. **Fase de entrada:** El nuevo contenido entra suavemente (`fadeIn`, 150ms) con 75ms de retardo en un contenedor que ya tiene su dimensión final 100% garantizada.
+    4. **Sin recorte invasivo:** Fijar `clip = false` en `SizeTransform` para preservar radios de curvatura y sombras intactas en cada fotograma.
 
 ---
 
@@ -129,12 +141,14 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 - **PROHIBIDO** exponer mensajes técnicos internos de excepciones criptográficas, de red o de sistema (`e.message`, `e.printStackTrace()`, nombres de clases Java/C++, OpenSSL o rutas de archivos) en la interfaz de usuario, diálogos o callbacks del sistema.
 - **PROHIBIDO el "antipatrón mudo" (*Swallowing Errors*):** Dejar bloques `catch` o callbacks de error con `null`, cadenas vacías o sin retroalimentación cuando el usuario requiere conocer el resultado de una acción.
 - **OBLIGATORIO** capturar excepciones técnicas de bajo nivel y presentar al usuario mensajes **amigables, descriptivos y accionables** centralizados en `res/values/strings.xml` (explicando en lenguaje cotidiano qué falló y qué paso correctivo puede tomar).
+- **OBLIGATORIO el manejo resiliente de tasa de solicitudes API (HTTP 429 / Rate Limiting):** En todas las integraciones de red y nube (como Google Drive API), capturar respuestas de saturación de cuota o límite de peticiones (HTTP 429 / 503) y presentar mensajes amigables y accionables de reintento (`R.string.settings_drive_error_rate_limited`), evitando desbordes o fallos silenciosos.
 
 ---
 
-## 16. Estándar de Pruebas Unitarias de Regresión Criptográfica (*Deterministic Crypto Testing*)
+## 16. Estándar de Pruebas Unitarias de Regresión Criptográfica e Instalación Automática (*Testing & Automated Device Installation*)
 - **PROHIBIDO** introducir nuevos motores de cálculo, algoritmos de derivación, parsers de URI o funciones de firma sin su correspondiente suite de pruebas unitarias automatizadas.
 - **OBLIGATORIO** incluir pruebas en `app/src/test/` con 100% de cobertura en escenarios límite (*edge cases*): cadenas vacías, entradas nulas, formatos Base32 con/sin padding, alteraciones de orden y marcas de tiempo extremas.
+- **OBLIGATORIO** tras finalizar las modificaciones de código y validar las pruebas unitarias con `./gradlew testDebugUnitTest`, ejecutar `./gradlew installRelease` para compilar e instalar automáticamente el APK en los dispositivos o emuladores conectados.
 
 ---
 

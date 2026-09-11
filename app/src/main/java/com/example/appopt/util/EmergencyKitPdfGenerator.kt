@@ -262,12 +262,21 @@ object EmergencyKitPdfGenerator {
         canvas.drawText(primaryMethodTitle, leftMargin, currentY, sectionTitlePaint)
         currentY += 14f
 
-        val primaryCardRect = RectF(leftMargin, currentY, leftMargin + contentWidth, currentY + 36f)
+        val lines = primaryMethodValue.split("\n")
+        val lineHeight = 16f
+        val cardHeight = maxOf(36f, (lines.size * lineHeight) + 16f)
+        val primaryCardRect = RectF(leftMargin, currentY, leftMargin + contentWidth, currentY + cardHeight)
         canvas.drawRoundRect(primaryCardRect, 6f, 6f, cardBackgroundPaint)
         canvas.drawRoundRect(primaryCardRect, 6f, 6f, cardBorderPaint)
 
-        canvas.drawText(primaryMethodValue, leftMargin + 12f, currentY + 22f, monoPaint)
-        currentY += 52f
+        if (lines.size == 1) {
+            canvas.drawText(lines[0], leftMargin + 12f, currentY + 22f, monoPaint)
+        } else {
+            lines.forEachIndexed { index, line ->
+                canvas.drawText(line, leftMargin + 12f, currentY + 18f + (index * lineHeight), monoPaint)
+            }
+        }
+        currentY += cardHeight + 16f
 
         // 4. Sección: Frase de Emergencia (12 Palabras BIP-39)
         canvas.drawText(context.getString(R.string.emergency_kit_pdf_words_section_title), leftMargin, currentY, sectionTitlePaint)

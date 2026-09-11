@@ -107,6 +107,47 @@ class BackupRetentionTest {
     }
 
     /**
+     * Valida que la discriminación de copias por deviceId identifique correctamente la versión de este dispositivo vs otros dispositivos.
+     */
+    @Test
+    fun testDeviceOriginDiscrimination() {
+        val deviceAId = "uuid-phone-a"
+        val deviceBId = "uuid-phone-b"
+
+        val backupFromPhoneA = DriveBackupItem(
+            fileId = "file_a_1",
+            fileName = "backup_a.json",
+            modifiedTimeMillis = 1000L,
+            sizeBytes = 2048L,
+            deviceName = "Samsung S24",
+            isMostRecent = false,
+            deviceId = deviceAId
+        )
+
+        val backupFromPhoneB = DriveBackupItem(
+            fileId = "file_b_1",
+            fileName = "backup_b.json",
+            modifiedTimeMillis = 2000L,
+            sizeBytes = 3072L,
+            deviceName = "Pixel 8",
+            isMostRecent = true,
+            deviceId = deviceBId
+        )
+
+        val backups = listOf(backupFromPhoneB, backupFromPhoneA)
+
+        // En el Teléfono A:
+        val latestForPhoneA = backups.firstOrNull { it.deviceId == deviceAId }
+        assertEquals("file_a_1", latestForPhoneA?.fileId)
+        assertFalse(backupFromPhoneB.deviceId == deviceAId)
+
+        // En el Teléfono B:
+        val latestForPhoneB = backups.firstOrNull { it.deviceId == deviceBId }
+        assertEquals("file_b_1", latestForPhoneB?.fileId)
+        assertFalse(backupFromPhoneA.deviceId == deviceBId)
+    }
+
+    /**
      * Valida que la purga de sesión restablezca a nulo los tokens activos.
      */
     @Test

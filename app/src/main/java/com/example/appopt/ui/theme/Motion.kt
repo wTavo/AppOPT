@@ -1,12 +1,18 @@
 package com.example.appopt.ui.theme
 
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 
 import androidx.compose.ui.graphics.TransformOrigin
 
@@ -257,5 +263,56 @@ object Motion {
             durationMillis = Duration.DIALOG_STEP_FADE_OUT,
             easing = EasingCurve.Standard
         )
+
+        /**
+         * Transición estándar unificada para intercambios de pasos y sub-estados dentro de diálogos modales.
+         *
+         * Implementa el estándar Material Design 3 Fade Through con animación de tamaño direccional y retardo:
+         * 1. Salida (75 ms): El contenido saliente se desvanece a opacidad 0% mientras el contenedor mantiene su tamaño fijo.
+         * 2. Ajuste de tamaño:
+         *    - Al expandir (`targetSize.height >= initialSize.height`): Salto instantáneo mediante [snap] con retardo de 75 ms
+         *      para que el nuevo contenido aparezca en un contenedor con la dimensión final ya garantizada.
+         *    - Al contraer (`targetSize.height < initialSize.height`): Animación suave mediante [tween] tras el desvanecimiento.
+         * 3. Entrada (150 ms): El contenido entrante aparece suavemente con [fadeIn] tras 75 ms de retardo.
+         *
+         * @return [ContentTransform] lista para consumirse en `AnimatedContent(transitionSpec = { Motion.Spec.dialogStepContentTransform() })`.
+         */
+        fun dialogStepContentTransform(): ContentTransform {
+            val exitDuration = Duration.FAST / 2 // 75 ms
+            val enterDuration = Duration.FAST    // 150 ms
+
+            val exitSpec = fadeOut(
+                animationSpec = tween(
+                    durationMillis = exitDuration,
+                    easing = EasingCurve.Standard
+                )
+            )
+            val enterSpec = fadeIn(
+                animationSpec = tween(
+                    durationMillis = enterDuration,
+                    delayMillis = exitDuration,
+                    easing = EasingCurve.Decelerate
+                )
+            )
+
+            return ContentTransform(
+                targetContentEnter = enterSpec,
+                initialContentExit = exitSpec,
+                sizeTransform = SizeTransform(
+                    clip = false,
+                    sizeAnimationSpec = { initialSize, targetSize ->
+                        if (targetSize.height >= initialSize.height) {
+                            snap(delayMillis = exitDuration)
+                        } else {
+                            tween(
+                                durationMillis = enterDuration,
+                                delayMillis = exitDuration,
+                                easing = EasingCurve.Standard
+                            )
+                        }
+                    }
+                )
+            )
+        }
     }
 }

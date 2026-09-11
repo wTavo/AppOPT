@@ -95,7 +95,8 @@ fun SyncFrequencyDialog(
                 onClick = {
                     appHaptics.click()
                     onDismiss()
-                }
+                },
+                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
             ) {
                 Text(
                     text = stringResource(R.string.action_close),
@@ -103,6 +104,7 @@ fun SyncFrequencyDialog(
                 )
             }
         },
+        dismissButton = null,
         modifier = modifier
     )
 }

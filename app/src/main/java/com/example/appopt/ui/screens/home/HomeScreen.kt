@@ -5,9 +5,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -157,6 +161,12 @@ fun HomeScreen(
         accountsToDisplay.find { it.account.id == id }
     }
 
+    // Cálculo dinámico de resguardo vertical para evitar que el header flotante y el dock tapen las tarjetas en cualquier dispositivo
+    val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val listTopPadding = statusBarTop + Dimensions.ComponentHeight.buttonDefault + (Dimensions.Spacing.sm * 2) + Dimensions.Spacing.md
+    val listBottomPadding = navBarBottom + Dimensions.Spacing.lg + Dimensions.ComponentSize.heroFab + (Dimensions.Spacing.sm * 2) + Dimensions.Spacing.lg
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -171,8 +181,8 @@ fun HomeScreen(
                     contentPadding = PaddingValues(
                         start = Dimensions.Spacing.lg,
                         end = Dimensions.Spacing.lg,
-                        top = Dimensions.Spacing.xxl * 2 + Dimensions.Spacing.md,
-                        bottom = Dimensions.Spacing.xxl * 3
+                        top = listTopPadding,
+                        bottom = listBottomPadding
                     ),
                     verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                 ) {
@@ -217,7 +227,13 @@ fun HomeScreen(
             uiState is UiState.Empty -> {
                 EmptyAccountsState(
                     onScanQr = onNavigateToScanQr,
-                    onAddManual = onNavigateToAddManual
+                    onAddManual = onNavigateToAddManual,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(
+                            top = listTopPadding,
+                            bottom = listBottomPadding
+                        )
                 )
             }
             else -> {

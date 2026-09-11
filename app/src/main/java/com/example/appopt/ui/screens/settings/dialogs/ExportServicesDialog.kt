@@ -1,12 +1,17 @@
 package com.example.appopt.ui.screens.settings.dialogs
 
 import android.graphics.Bitmap
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -24,9 +29,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextAlign
 import com.example.appopt.R
 import com.example.appopt.domain.model.TotpAccount
 import com.example.appopt.security.SecurityConfig
@@ -143,32 +149,37 @@ fun ExportServicesDialog(
     AlertDialog(
         onDismissRequest = {
             if (isShowingQr) {
+                if (currentExportState == ExportSubState.QR_CAROUSEL) {
+                    onCompleteExport(exportedServiceIds, keepServicesOnDevice)
+                }
                 isShowingQr = false
                 transferQrBitmaps = emptyList()
                 transferPin = ""
-            } else {
-                onDismiss()
             }
+            onDismiss()
         },
         shape = RoundedCornerShape(Dimensions.CornerRadius.large),
         title = {
-            Text(
-                text = if (isShowingQr) {
-                    if (isExpired) {
-                        stringResource(R.string.settings_transfer_expired_title)
-                    } else {
-                        stringResource(R.string.settings_export_qr_dialog_title)
-                    }
-                } else {
-                    stringResource(R.string.settings_export_services_dialog_title)
-                },
-                style = MaterialTheme.typography.titleLarge
-            )
+            AnimatedContent(
+                targetState = currentExportState,
+                transitionSpec = { Motion.Spec.dialogStepContentTransform() },
+                label = "exportServicesTitleTransition"
+            ) { exportState ->
+                Text(
+                    text = when (exportState) {
+                        ExportSubState.EXPIRED -> stringResource(R.string.settings_transfer_expired_title)
+                        ExportSubState.QR_CAROUSEL -> stringResource(R.string.settings_export_qr_dialog_title)
+                        ExportSubState.ACCOUNT_SELECTION -> stringResource(R.string.settings_export_services_dialog_title)
+                    },
+                    style = MaterialTheme.typography.titleLarge
+                )
+            }
         },
         text = {
-            Crossfade(
+            AnimatedContent(
                 targetState = currentExportState,
-                animationSpec = tween(Motion.Duration.FAST, easing = Motion.EasingCurve.Standard),
+                transitionSpec = { Motion.Spec.dialogStepContentTransform() },
+                contentAlignment = Alignment.TopStart,
                 modifier = Modifier.fillMaxWidth(),
                 label = "exportServicesStepTransition"
             ) { state ->
@@ -208,104 +219,161 @@ fun ExportServicesDialog(
             }
         },
         confirmButton = {
-            when (currentExportState) {
-                ExportSubState.ACCOUNT_SELECTION -> {
-                    var isProcessing by remember { mutableStateOf(false) }
-                    Button(
-                        onClick = {
-                            if (!isProcessing) {
-                                isProcessing = true
-                                try {
-                                    generateTransferQr()
-                                } finally {
-                                    isProcessing = false
+            AnimatedContent(
+                targetState = currentExportState,
+                transitionSpec = { Motion.Spec.dialogStepContentTransform() },
+                modifier = Modifier.fillMaxWidth(),
+                label = "exportServicesButtonsTransition"
+            ) { exportState ->
+                when (exportState) {
+                    ExportSubState.ACCOUNT_SELECTION -> {
+                        var isProcessing by remember { mutableStateOf(false) }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Min),
+                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs, Alignment.End),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(
+                                onClick = {
+                                    haptics.click()
+                                    onDismiss()
+                                },
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.action_close),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+
+                            Button(
+                                onClick = {
+                                    if (!isProcessing) {
+                                        isProcessing = true
+                                        try {
+                                            generateTransferQr()
+                                        } finally {
+                                            isProcessing = false
+                                        }
+                                    }
+                                },
+                                enabled = selectedServiceIds.isNotEmpty() && !isProcessing,
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.xs),
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.settings_generate_qr_button),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+                    ExportSubState.QR_CAROUSEL -> {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Min),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(
+                                onClick = {
+                                    haptics.click()
+                                    onCompleteExport(exportedServiceIds, keepServicesOnDevice)
+                                    isShowingQr = false
+                                    transferQrBitmaps = emptyList()
+                                    transferPin = ""
+                                    onDismiss()
+                                },
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                            ) {
+                                Text(
+                                    text = if (!keepServicesOnDevice) {
+                                        stringResource(R.string.settings_export_confirm_done)
+                                    } else {
+                                        stringResource(R.string.action_close)
+                                    },
+                                    style = MaterialTheme.typography.labelLarge,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+                    ExportSubState.EXPIRED -> {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Min),
+                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs, Alignment.End),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(
+                                onClick = {
+                                    haptics.click()
+                                    isShowingQr = false
+                                    transferQrBitmaps = emptyList()
+                                    transferPin = ""
+                                    onDismiss()
+                                },
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.action_close),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+
+                            Button(
+                                onClick = {
+                                    if (!isGenerating) {
+                                        haptics.click()
+                                        generateTransferQr()
+                                    }
+                                },
+                                enabled = !isGenerating,
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.xs),
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                            ) {
+                                if (isGenerating) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(Dimensions.IconSize.small),
+                                        strokeWidth = Dimensions.Spacing.xs,
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                } else {
+                                    Text(
+                                        text = stringResource(R.string.settings_transfer_regenerate_button),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        textAlign = TextAlign.Center
+                                    )
                                 }
                             }
-                        },
-                        enabled = selectedServiceIds.isNotEmpty() && !isProcessing,
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.settings_generate_qr_button),
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                    }
-                }
-                ExportSubState.QR_CAROUSEL -> {
-                    var isProcessing by remember { mutableStateOf(false) }
-                    Button(
-                        onClick = {
-                            if (!isProcessing) {
-                                isProcessing = true
-                                onCompleteExport(exportedServiceIds, keepServicesOnDevice)
-                            }
-                        },
-                        enabled = (transferQrBitmaps.isNotEmpty() || keepServicesOnDevice) && !isProcessing,
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                    ) {
-                        Text(
-                            text = if (!keepServicesOnDevice) {
-                                stringResource(R.string.settings_export_confirm_done)
-                            } else {
-                                stringResource(R.string.account_modal_close_button)
-                            },
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                    }
-                }
-                ExportSubState.EXPIRED -> {
-                    Button(
-                        onClick = {
-                            if (!isGenerating) {
-                                haptics.click()
-                                generateTransferQr()
-                            }
-                        },
-                        enabled = !isGenerating,
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                    ) {
-                        if (isGenerating) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(Dimensions.IconSize.small),
-                                strokeWidth = Dimensions.Spacing.xs,
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                        } else {
-                            Text(
-                                text = stringResource(R.string.settings_transfer_regenerate_button),
-                                style = MaterialTheme.typography.labelLarge
-                            )
                         }
                     }
                 }
             }
         },
-        dismissButton = {
-            TextButton(
-                onClick = {
-                    haptics.click()
-                    when (currentExportState) {
-                        ExportSubState.ACCOUNT_SELECTION -> onDismiss()
-                        ExportSubState.QR_CAROUSEL,
-                        ExportSubState.EXPIRED -> {
-                            isShowingQr = false
-                            transferQrBitmaps = emptyList()
-                            transferPin = ""
-                        }
-                    }
-                },
-                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-            ) {
-                Text(
-                    text = if (currentExportState == ExportSubState.ACCOUNT_SELECTION) {
-                        stringResource(R.string.action_close)
-                    } else {
-                        stringResource(R.string.settings_drive_details_back)
-                    },
-                    style = MaterialTheme.typography.labelLarge
-                )
-            }
-        },
+        dismissButton = null,
         modifier = modifier
     )
 }

@@ -1,5 +1,17 @@
 package com.example.appopt.ui.screens.settings.dialogs
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -76,45 +88,61 @@ fun DriveDecryptDialog(
         },
         confirmButton = {
             var isProcessing by remember { mutableStateOf(false) }
-            Button(
-                onClick = {
-                    if (!isProcessing) {
-                        isProcessing = true
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(
+                    onClick = {
                         appHaptics.click()
-                        val normalizedSecret = if (restoreSecretText.contains(" ")) {
-                            MnemonicManager.normalizePhrase(restoreSecretText)
-                        } else {
-                            restoreSecretText.trim()
+                        onDismiss()
+                    },
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                ) {
+                    Text(
+                        text = stringResource(R.string.action_close),
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+
+                Button(
+                    onClick = {
+                        if (!isProcessing) {
+                            isProcessing = true
+                            appHaptics.click()
+                            val normalizedSecret = if (restoreSecretText.contains(" ")) {
+                                MnemonicManager.normalizePhrase(restoreSecretText)
+                            } else {
+                                restoreSecretText.trim()
+                            }
+                            val passChars = normalizedSecret.toCharArray()
+                            onRestore(passChars)
+                            restoreSecretText = ""
+                            isProcessing = false
                         }
-                        val passChars = normalizedSecret.toCharArray()
-                        onRestore(passChars)
-                        restoreSecretText = ""
-                        isProcessing = false
-                    }
-                },
-                enabled = restoreSecretText.isNotBlank() && !isProcessing,
-                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-            ) {
-                Text(
-                    text = stringResource(R.string.settings_drive_decrypt_and_restore),
-                    style = MaterialTheme.typography.labelLarge
-                )
+                    },
+                    enabled = restoreSecretText.isNotBlank() && !isProcessing,
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                    contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.xs),
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_drive_decrypt_and_restore),
+                        style = MaterialTheme.typography.labelLarge,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
         },
-        dismissButton = {
-            TextButton(
-                onClick = {
-                    appHaptics.click()
-                    onDismiss()
-                },
-                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-            ) {
-                Text(
-                    text = stringResource(R.string.action_close),
-                    style = MaterialTheme.typography.labelLarge
-                )
-            }
-        },
+        dismissButton = null,
         modifier = modifier
     )
 }

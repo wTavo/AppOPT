@@ -33,7 +33,6 @@ import com.example.appopt.ui.screens.settings.SettingsUiState
  * @param onForceRefreshBackupHistory Callback para forzar actualización del historial.
  * @param onRestoreBackupHistoryItem Callback para restaurar una versión específica.
  * @param onDeleteBackupHistoryItem Callback para eliminar una versión específica con sus caracteres de descifrado.
- * @param onDeleteAllBackups Callback para eliminar todas las versiones con sus caracteres de descifrado.
  * @param showOverwriteWarningDialog Bandera de visibilidad para advertencia de sobrescritura.
  * @param onDismissOverwriteWarning Callback para cerrar la advertencia de sobrescritura.
  * @param onConfirmOverwrite Callback para proceder a la creación del respaldo sobrescribiendo el existente.
@@ -58,11 +57,11 @@ fun SettingsDialogContainer(
     onDismissDriveDecrypt: () -> Unit,
     onRestoreDriveDecrypt: (CharArray) -> Unit,
     showBackupDetailsDialog: Boolean,
+    isBackupHistoryLoading: Boolean = false,
     onDismissBackupDetails: () -> Unit,
     onForceRefreshBackupHistory: () -> Unit,
     onRestoreBackupHistoryItem: (DriveBackupItem, CharArray) -> Unit,
     onDeleteBackupHistoryItem: (DriveBackupItem, CharArray) -> Unit,
-    onDeleteAllBackups: (CharArray) -> Unit,
     showOverwriteWarningDialog: Boolean,
     onDismissOverwriteWarning: () -> Unit,
     onConfirmOverwrite: () -> Unit,
@@ -107,11 +106,11 @@ fun SettingsDialogContainer(
         )
     }
 
-    // 5. Modal: Historial de Versiones (Point-in-Time), Restauración In-Situ y Borrado Granular / Total
+    // 5. Modal: Historial de Versiones (Point-in-Time), Restauración In-Situ y Borrado Granular
     if (showBackupDetailsDialog) {
         DriveBackupDetailsDialog(
             backupItems = uiState.backupHistoryList,
-            isLoading = uiState.isFetchingBackupHistory || uiState.isRefreshingBackupHistory,
+            isLoading = isBackupHistoryLoading || uiState.isFetchingBackupHistory || uiState.isRefreshingBackupHistory,
             lastFetchTimestamp = uiState.lastHistoryFetchTimestamp,
             lastSyncTimestamp = uiState.lastSyncTimestamp,
             lastSyncedHash = uiState.lastSyncedHash,
@@ -119,7 +118,6 @@ fun SettingsDialogContainer(
             onForceRefresh = onForceRefreshBackupHistory,
             onRestoreBackup = onRestoreBackupHistoryItem,
             onDeleteSpecificBackup = onDeleteBackupHistoryItem,
-            onDeleteAllBackups = onDeleteAllBackups,
             onDismiss = onDismissBackupDetails
         )
     }

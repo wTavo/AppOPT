@@ -4,11 +4,11 @@
     <!-- ================================================================= -->
     <string name="app_name">Authenticator</string>
 
-    <string name="action_cancel">Cancelar</string>
+    <string name="action_cancel">Volver</string>
     <string name="action_close">Cerrar</string>
     <string name="action_delete">Eliminar</string>
     <string name="action_edit">Editar</string>
-    <string name="action_cancel_edit">Cancelar edición</string>
+    <string name="action_cancel_edit">Cerrar edición</string>
     <string name="action_save">Guardar en bóveda</string>
     <string name="action_save_changes">Guardar cambios</string>
     <string name="action_unlock">Desbloquear</string>
@@ -137,6 +137,7 @@
     <string name="settings_drive_syncing">Sincronizando con Google Drive…</string>
     <string name="settings_drive_sync_success">Copia de seguridad sincronizada exitosamente en Google Drive</string>
     <string name="settings_drive_restore_success">Se restauraron %1$d servicios desde Google Drive</string>
+    <string name="settings_drive_restore_up_to_date">Todos los servicios ya se encuentran actualizados</string>
     <string name="settings_drive_frequency_title">Frecuencia de la copia</string>
     <string name="settings_drive_frequency_15min">Cada 15 minutos (Modo prueba)</string>
     <string name="settings_drive_frequency_hourly">Cada hora (Modo prueba)</string>
@@ -175,7 +176,7 @@
     <string name="settings_drive_delete_all_auth_hint">Ingresa tu contraseña maestra, clave de 64 dígitos o frase de 12 palabras para autorizar la eliminación de todas las copias de seguridad de Google Drive.</string>
     <string name="settings_drive_delete_version_confirm_title">¿Eliminar esta versión?</string>
     <string name="settings_drive_delete_version_confirm_desc">Esta versión de la copia de seguridad será eliminada de forma irreversible.</string>
-    <string name="settings_drive_delete_version_auth_hint">Ingresa tu contraseña maestra, clave de 64 dígitos o frase de 12 palabras para autorizar la eliminación de esta versión.</string>
+    <string name="settings_drive_delete_version_auth_hint">Ingresa el método principal asignado a esta copia o tu frase de recuperación de 12 palabras para autorizar su eliminación.</string>
     <string name="settings_drive_version_actual_badge">Actual</string>
     <string name="settings_drive_delete_single_success">Versión eliminada correctamente</string>
     <string name="settings_drive_delete_all_success">Todas las copias de seguridad fueron eliminadas</string>
@@ -229,9 +230,9 @@
     <string name="settings_drive_quiz_description">Para garantizar que anotaste tu frase de 12 palabras, selecciona la palabra correcta para cada posición solicitada.</string>
     <string name="settings_drive_quiz_question_label">¿Cuál es tu palabra #%1$d?</string>
     <string name="settings_drive_quiz_review_words">Revisar 12 palabras</string>
-    <string name="settings_drive_decrypt_title">Descifrar copia de seguridad</string>
-    <string name="settings_drive_decrypt_hint">Ingresa tu contraseña maestra, tu clave de 64 dígitos o tu frase de 12 palabras de emergencia para descifrar tu respaldo.</string>
-    <string name="settings_drive_decrypt_input_label">Contraseña, clave de 64 dígitos o 12 palabras</string>
+    <string name="settings_drive_decrypt_title">Restaurar copia de seguridad</string>
+    <string name="settings_drive_decrypt_hint">Ingresa el método principal asignado a esta copia o tu frase de recuperación de 12 palabras para restaurar tu copia de seguridad.</string>
+    <string name="settings_drive_decrypt_input_label">Método principal o frase de recuperación</string>
     <string name="settings_drive_decrypt_device">Dispositivo: %1$s</string>
     <string name="settings_drive_encrypt_and_sync">Cifrar y sincronizar</string>
     <string name="settings_drive_decrypt_and_restore">Descifrar y restaurar</string>
@@ -339,6 +340,8 @@
 
     <!-- Sincronización y Respaldo en la Nube (Google Drive E2EE) -->
     <string name="settings_drive_error">No se pudo completar la operación en Google Drive. Verifica tu conexión e inténtalo de nuevo.</string>
+    <string name="settings_drive_error_rate_limited">Demasiadas solicitudes a Google Drive. Por favor espera un momento e intenta nuevamente.</string>
+    <string name="settings_drive_error_service_unavailable">El servicio de Google Drive no está disponible temporalmente. Inténtalo más tarde.</string>
     <string name="settings_drive_password_mismatch">Las contraseñas no coinciden</string>
     <string name="settings_drive_password_too_short">La contraseña debe tener al menos 10 caracteres</string>
     <string name="settings_drive_quiz_error">Una o más palabras seleccionadas no coinciden. Por favor revisa tus 12 palabras.</string>

@@ -12,8 +12,6 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 
 import androidx.compose.ui.graphics.TransformOrigin
@@ -269,43 +267,35 @@ object Motion {
         /**
          * Transición fluida estilo Dynamic Island Morphing para pasos y sub-estados dentro de diálogos modales.
          *
-         * Al estar todo el diálogo unificado en un solo contenedor monolítico:
-         * 1. Salida (90 ms): El contenido saliente se desvanece con [fadeOut] y sutil desplazamiento vertical.
-         * 2. Ajuste dimensional líquido: El contenedor muta su tamaño con física de resortes elásticos amortiguados ([spring]).
-         * 3. Entrada (180 ms): El nuevo contenido emerge suavemente con [fadeIn] y sutil desplazamiento vertical tras 60 ms.
-         * 4. Sin recorte invasivo: [clip] = false preserva esquinas y sombras intactas.
+         * Arquitectura monolítica: todo el contenido del diálogo (título, cuerpo y botones) vive dentro
+         * de un único [AnimatedContent]. Esto garantiza que solo haya **2 animaciones simultáneas**:
+         * fade del contenido y ajuste dimensional del contenedor.
+         *
+         * ⚠️ PROHIBIDO agregar [slideInVertically] o [slideOutVertically] a esta especificación.
+         *    El desplazamiento vertical del contenido entra en conflicto vectorial con el [SizeTransform]
+         *    y el auto-centramiento del [AlertDialog], produciendo vibración irrecuperable en la zona inferior.
+         *    El resultado deseado — "cápsula líquida que respira" — se logra únicamente con fade + spring size.
+         *
+         * Fases:
+         * 1. **Salida fluida (90 ms):** Contenido saliente se desvanece con [fadeOut].
+         * 2. **Ajuste dimensional líquido:** El contenedor muta su altura con física de resortes sin rebote ([spring]).
+         * 3. **Entrada suave (180 ms, retardo 60 ms):** Nuevo contenido emerge con [fadeIn] tras el ajuste dimensional.
+         * 4. **Sin recorte:** [clip] = false preserva los radios de curvatura de 16 dp y sombras en cada fotograma.
          *
          * @return [ContentTransform] lista para consumirse en `AnimatedContent(transitionSpec = { Motion.Spec.dialogStepContentTransform() })`.
          */
         fun dialogStepContentTransform(): ContentTransform {
-            val exitDuration = Duration.DIALOG_STEP_FADE_OUT // 90 ms
-            val enterDuration = Duration.DIALOG_STEP_FADE_IN // 180 ms
-            val enterDelay = 60
-
             val exitSpec = fadeOut(
                 animationSpec = tween(
-                    durationMillis = exitDuration,
-                    easing = EasingCurve.Standard
-                )
-            ) + slideOutVertically(
-                targetOffsetY = { -it / 24 },
-                animationSpec = tween(
-                    durationMillis = exitDuration,
+                    durationMillis = Duration.DIALOG_STEP_FADE_OUT,
                     easing = EasingCurve.Standard
                 )
             )
 
             val enterSpec = fadeIn(
                 animationSpec = tween(
-                    durationMillis = enterDuration,
-                    delayMillis = enterDelay,
-                    easing = EasingCurve.Decelerate
-                )
-            ) + slideInVertically(
-                initialOffsetY = { it / 24 },
-                animationSpec = tween(
-                    durationMillis = enterDuration,
-                    delayMillis = enterDelay,
+                    durationMillis = Duration.DIALOG_STEP_FADE_IN,
+                    delayMillis = 60,
                     easing = EasingCurve.Decelerate
                 )
             )

@@ -126,13 +126,13 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
   - **Posición Material Design 3 (Ergonomía móvil):**
     - **Diálogos de 2 botones (Acción + Descarte):** El botón de salida/regreso («Cerrar» o «Volver») debe ubicarse SIEMPRE a la **izquierda** (como `TextButton`), mientras que el botón de acción afirmativa/mutante/destructiva se ubica a la **derecha** (como `Button` primario o de error).
 - **OBLIGATORIO** implementar navegación defensiva hacia atrás en `onDismissRequest`: presionar afuera o el botón atrás del sistema debe revertir al estado/paso anterior antes de cerrar el modal por completo.
-- **OBLIGATORIO la jerarquía de animaciones en transiciones de diálogos (*VisionOS Fluid Morphing & Spring Physics*):**
-  - **PROHIBIDO** animar simultáneamente opacidad y tamaño de manera rígida o con saltos bruscos que causen recortes progresivos, compresión de layouts o temblor visual en componentes rígidos o de alta densidad (ej. tarjetas OTP o listas).
+- **OBLIGATORIO la jerarquía de animaciones en transiciones de diálogos (*Fade Through & Directional SizeTransform*):**
+  - **PROHIBIDO** animar simultáneamente opacidad y tamaño sin desfase temporal o con resortes sin amortiguación que causen recortes progresivos, compresión de layouts, desborde inferior o temblor visual en componentes rígidos (ej. tarjetas OTP o listas).
   - **PROHIBIDO** usar `animateContentSize` en contenedores externos que envuelven `Crossfade` o transiciones asíncronas de contenido.
   - **OBLIGATORIO** orquestar las transiciones de pasos y sub-estados dentro del diálogo mediante `AnimatedContent` consumiendo `Motion.Spec.dialogStepContentTransform()`:
-    1. **Fase de salida:** El contenido saliente se desvanece de forma rápida y limpia (`fadeOut`, 90ms) combinada con una micro-contracción sutil (`scaleOut`, 0.96f).
-    2. **Fase de ajuste dimensional líquido:** El contenedor se redimensiona suavemente utilizando física de resortes elásticos amortiguados (`spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)`), adaptándose de forma orgánica a cualquier variación de altura.
-    3. **Fase de entrada elástica:** El nuevo contenido emerge suavemente (`fadeIn`) con una micro-expansión orgánica amortiguada (`scaleIn(initialScale = 0.95f)`).
+    1. **Fase de salida:** El contenido saliente se desvanece por completo a 0% de opacidad (`fadeOut`, 75ms) manteniendo el tamaño fijo del contenedor.
+    2. **Fase de ajuste dimensional:** En expansión, el contenedor salta instantáneamente al tamaño final (`snap(delayMillis = 75)`) mientras la opacidad es cero; en contracción, el contenedor anima su altura suavemente tras la desaparición del contenido.
+    3. **Fase de entrada:** El nuevo contenido entra suavemente (`fadeIn`, 150ms) con 75ms de retardo en un contenedor que ya tiene su dimensión final 100% garantizada y sin desbordes.
     4. **Sin recorte invasivo:** Fijar `clip = false` en `SizeTransform` para preservar radios de curvatura y sombras intactas en cada fotograma.
 
 ---

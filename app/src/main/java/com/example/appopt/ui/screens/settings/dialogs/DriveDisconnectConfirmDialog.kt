@@ -58,7 +58,7 @@ fun DriveDisconnectConfirmDialog(
         },
         confirmButton = {
             AppDialogActionButtons(
-                dismissText = stringResource(R.string.settings_drive_details_back),
+                dismissText = stringResource(R.string.action_close),
                 onDismiss = onDismiss,
                 confirmText = stringResource(R.string.settings_drive_disconnect_button),
                 onConfirm = onConfirm,

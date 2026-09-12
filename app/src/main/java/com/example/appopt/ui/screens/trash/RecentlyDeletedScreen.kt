@@ -285,7 +285,7 @@ fun RecentlyDeletedScreen(
             },
             confirmButton = {
                 AppDialogActionButtons(
-                    dismissText = stringResource(R.string.settings_drive_details_back),
+                    dismissText = stringResource(R.string.action_close),
                     onDismiss = { showEmptyTrashConfirmDialog = false },
                     confirmText = stringResource(R.string.trash_empty_button),
                     onConfirm = {
@@ -331,7 +331,7 @@ fun RecentlyDeletedScreen(
                 },
                 confirmButton = {
                     AppDialogActionButtons(
-                        dismissText = stringResource(R.string.settings_drive_details_back),
+                        dismissText = stringResource(R.string.action_close),
                         onDismiss = { accountPendingPermanentDelete = null },
                         confirmText = stringResource(R.string.trash_permanent_delete_button),
                         onConfirm = {

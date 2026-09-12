@@ -148,64 +148,9 @@ fun AccountDetailsDialog(
             }
         },
         shape = RoundedCornerShape(Dimensions.CornerRadius.large),
-        title = {
-            AnimatedContent(
-                targetState = currentDialogState,
-                transitionSpec = { Motion.Spec.dialogStepContentTransform() },
-                label = "accountDetailsTitleTransition"
-            ) { dialogState ->
-                if (dialogState == AccountDetailsSubState.DELETE_CONFIRM) {
-                    Text(
-                        text = stringResource(R.string.home_delete_dialog_title),
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                } else {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = if (isEditMode) stringResource(R.string.account_modal_edit_title) else stringResource(R.string.account_modal_title),
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-
-                        // Iconos de acción arriba a la derecha: Lápiz y Basurero
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(
-                                onClick = {
-                                    appHaptics.click()
-                                    isEditMode = !isEditMode
-                                },
-                                modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
-                            ) {
-                                Icon(
-                                    imageVector = if (isEditMode) Icons.Filled.Close else Icons.Filled.Edit,
-                                    contentDescription = if (isEditMode) stringResource(R.string.action_cancel_edit) else stringResource(R.string.action_edit),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-
-                            IconButton(
-                                onClick = {
-                                    appHaptics.click()
-                                    showDeleteConfirm = true
-                                },
-                                modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.DeleteOutline,
-                                    contentDescription = stringResource(R.string.action_delete),
-                                    tint = UrgentRed
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        },
+        confirmButton = {},
+        dismissButton = null,
+        title = null,
         text = {
             AnimatedContent(
                 targetState = currentDialogState,
@@ -215,18 +160,55 @@ fun AccountDetailsDialog(
                 modifier = Modifier.fillMaxWidth()
             ) { subState ->
                 when (subState) {
-                    AccountDetailsSubState.DELETE_CONFIRM -> {
-                        Text(
-                            text = stringResource(R.string.account_details_delete_to_trash_hint),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
                     AccountDetailsSubState.VIEW -> {
                         Column(
                             modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                         ) {
-                            // --- MODO VISUALIZACIÓN: Tipografía limpia con Avatar de Marca ---
+                            // Cabecera con Título e Iconos de acción (Lápiz y Basurero)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.account_modal_title),
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    IconButton(
+                                        onClick = {
+                                            appHaptics.click()
+                                            isEditMode = true
+                                        },
+                                        modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Edit,
+                                            contentDescription = stringResource(R.string.action_edit),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+
+                                    IconButton(
+                                        onClick = {
+                                            appHaptics.click()
+                                            showDeleteConfirm = true
+                                        },
+                                        modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.DeleteOutline,
+                                            contentDescription = stringResource(R.string.action_delete),
+                                            tint = UrgentRed
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Avatar de Marca y Nombre de Cuenta
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -257,7 +239,7 @@ fun AccountDetailsDialog(
                                 }
                             }
 
-                            // Dígitos grandes abajo con el contador circular integrado
+                            // Tarjeta de Dígitos OTP grandes con contador circular
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = CardDefaults.cardColors(
@@ -311,14 +293,47 @@ fun AccountDetailsDialog(
                                     }
                                 }
                             }
+
+                            // Botón Cerrar
+                            AppDialogActionButtons(
+                                dismissText = stringResource(R.string.account_modal_close_button),
+                                onDismiss = onDismiss
+                            )
                         }
                     }
                     AccountDetailsSubState.EDIT -> {
-                        // --- MODO EDICIÓN: Campos de texto para modificar nombre del servicio y cuenta ---
                         Column(
                             modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                         ) {
+                            // Cabecera de Edición
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.account_modal_edit_title),
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+
+                                IconButton(
+                                    onClick = {
+                                        appHaptics.click()
+                                        isEditMode = false
+                                    },
+                                    modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Close,
+                                        contentDescription = stringResource(R.string.action_cancel_edit),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+
+                            // Campos de texto para modificar nombre del servicio y cuenta
                             OutlinedTextField(
                                 value = editedIssuer,
                                 onValueChange = { editedIssuer = it },
@@ -342,59 +357,57 @@ fun AccountDetailsDialog(
                                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                                 modifier = Modifier.fillMaxWidth()
                             )
+
+                            // Botones Volver + Guardar cambios
+                            AppDialogActionButtons(
+                                dismissText = stringResource(R.string.settings_drive_details_back),
+                                onDismiss = {
+                                    editedIssuer = account.issuer
+                                    editedAccountName = account.accountName
+                                    isEditMode = false
+                                },
+                                confirmText = stringResource(R.string.action_save_changes),
+                                onConfirm = {
+                                    onUpdateAccount(account.id, editedIssuer.trim(), editedAccountName.trim())
+                                    isEditMode = false
+                                },
+                                confirmEnabled = isFormValid
+                            )
+                        }
+                    }
+                    AccountDetailsSubState.DELETE_CONFIRM -> {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.home_delete_dialog_title),
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.error
+                            )
+
+                            Text(
+                                text = stringResource(R.string.account_details_delete_to_trash_hint),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            AppDialogActionButtons(
+                                dismissText = stringResource(R.string.settings_drive_details_back),
+                                onDismiss = { showDeleteConfirm = false },
+                                confirmText = stringResource(R.string.account_details_move_to_trash_btn),
+                                onConfirm = {
+                                    showDeleteConfirm = false
+                                    onDeleteAccount(account.id)
+                                    onDismiss()
+                                },
+                                isDestructive = true
+                            )
                         }
                     }
                 }
             }
         },
-
-        confirmButton = {
-            AnimatedContent(
-                targetState = currentDialogState,
-                transitionSpec = { Motion.Spec.dialogStepContentTransform() },
-                modifier = Modifier.fillMaxWidth(),
-                label = "accountDetailsButtonsTransition"
-            ) { subState ->
-                when (subState) {
-                    AccountDetailsSubState.VIEW -> {
-                        AppDialogActionButtons(
-                            dismissText = stringResource(R.string.account_modal_close_button),
-                            onDismiss = onDismiss
-                        )
-                    }
-                    AccountDetailsSubState.EDIT -> {
-                        AppDialogActionButtons(
-                            dismissText = stringResource(R.string.settings_drive_details_back),
-                            onDismiss = {
-                                editedIssuer = account.issuer
-                                editedAccountName = account.accountName
-                                isEditMode = false
-                            },
-                            confirmText = stringResource(R.string.action_save_changes),
-                            onConfirm = {
-                                onUpdateAccount(account.id, editedIssuer.trim(), editedAccountName.trim())
-                                isEditMode = false
-                            },
-                            confirmEnabled = isFormValid
-                        )
-                    }
-                    AccountDetailsSubState.DELETE_CONFIRM -> {
-                        AppDialogActionButtons(
-                            dismissText = stringResource(R.string.settings_drive_details_back),
-                            onDismiss = { showDeleteConfirm = false },
-                            confirmText = stringResource(R.string.account_details_move_to_trash_btn),
-                            onConfirm = {
-                                showDeleteConfirm = false
-                                onDeleteAccount(account.id)
-                                onDismiss()
-                            },
-                            isDestructive = true
-                        )
-                    }
-                }
-            }
-        },
-        dismissButton = null,
         modifier = modifier
     )
 }

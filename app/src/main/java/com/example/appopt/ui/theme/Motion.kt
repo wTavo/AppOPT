@@ -12,6 +12,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 
 import androidx.compose.ui.graphics.TransformOrigin
@@ -265,32 +267,45 @@ object Motion {
         )
 
         /**
-         * Transición estándar unificada y sincronizada para intercambios de pasos y sub-estados dentro de diálogos modales.
+         * Transición fluida estilo Dynamic Island Morphing para pasos y sub-estados dentro de diálogos modales.
          *
-         * Implementa el estándar Material Design 3 Fade Through con animación de tamaño direccional y retardo sincronizado:
-         * 1. Salida (75 ms): El contenido saliente se desvanece a opacidad 0% mientras el contenedor mantiene su tamaño fijo.
-         * 2. Ajuste de tamaño:
-         *    - Al expandir (`targetSize.height >= initialSize.height`): Salto instantáneo mediante [snap] con retardo de 75 ms
-         *      para que el nuevo contenido aparezca en un contenedor con la dimensión final ya garantizada sin desbordes.
-         *    - Al contraer (`targetSize.height < initialSize.height`): Animación suave mediante [tween] tras el desvanecimiento.
-         * 3. Entrada (150 ms): El contenido entrante aparece suavemente con [fadeIn] tras 75 ms de retardo en un contenedor listo.
+         * Al estar todo el diálogo unificado en un solo contenedor monolítico:
+         * 1. Salida (90 ms): El contenido saliente se desvanece con [fadeOut] y sutil desplazamiento vertical.
+         * 2. Ajuste dimensional líquido: El contenedor muta su tamaño con física de resortes elásticos amortiguados ([spring]).
+         * 3. Entrada (180 ms): El nuevo contenido emerge suavemente con [fadeIn] y sutil desplazamiento vertical tras 60 ms.
+         * 4. Sin recorte invasivo: [clip] = false preserva esquinas y sombras intactas.
          *
          * @return [ContentTransform] lista para consumirse en `AnimatedContent(transitionSpec = { Motion.Spec.dialogStepContentTransform() })`.
          */
         fun dialogStepContentTransform(): ContentTransform {
-            val exitDuration = Duration.FAST / 2 // 75 ms
-            val enterDuration = Duration.FAST    // 150 ms
+            val exitDuration = Duration.DIALOG_STEP_FADE_OUT // 90 ms
+            val enterDuration = Duration.DIALOG_STEP_FADE_IN // 180 ms
+            val enterDelay = 60
 
             val exitSpec = fadeOut(
                 animationSpec = tween(
                     durationMillis = exitDuration,
                     easing = EasingCurve.Standard
                 )
+            ) + slideOutVertically(
+                targetOffsetY = { -it / 24 },
+                animationSpec = tween(
+                    durationMillis = exitDuration,
+                    easing = EasingCurve.Standard
+                )
             )
+
             val enterSpec = fadeIn(
                 animationSpec = tween(
                     durationMillis = enterDuration,
-                    delayMillis = exitDuration,
+                    delayMillis = enterDelay,
+                    easing = EasingCurve.Decelerate
+                )
+            ) + slideInVertically(
+                initialOffsetY = { it / 24 },
+                animationSpec = tween(
+                    durationMillis = enterDuration,
+                    delayMillis = enterDelay,
                     easing = EasingCurve.Decelerate
                 )
             )
@@ -300,16 +315,11 @@ object Motion {
                 initialContentExit = exitSpec,
                 sizeTransform = SizeTransform(
                     clip = false,
-                    sizeAnimationSpec = { initialSize, targetSize ->
-                        if (targetSize.height >= initialSize.height) {
-                            snap(delayMillis = exitDuration)
-                        } else {
-                            tween(
-                                durationMillis = enterDuration,
-                                delayMillis = exitDuration,
-                                easing = EasingCurve.Standard
-                            )
-                        }
+                    sizeAnimationSpec = { _, _ ->
+                        spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
                     }
                 )
             )

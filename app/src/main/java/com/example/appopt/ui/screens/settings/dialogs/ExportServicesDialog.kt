@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -160,22 +161,9 @@ fun ExportServicesDialog(
             onDismiss()
         },
         shape = RoundedCornerShape(Dimensions.CornerRadius.large),
-        title = {
-            AnimatedContent(
-                targetState = currentExportState,
-                transitionSpec = { Motion.Spec.dialogStepContentTransform() },
-                label = "exportServicesTitleTransition"
-            ) { exportState ->
-                Text(
-                    text = when (exportState) {
-                        ExportSubState.EXPIRED -> stringResource(R.string.settings_transfer_expired_title)
-                        ExportSubState.QR_CAROUSEL -> stringResource(R.string.settings_export_qr_dialog_title)
-                        ExportSubState.ACCOUNT_SELECTION -> stringResource(R.string.settings_export_services_dialog_title)
-                    },
-                    style = MaterialTheme.typography.titleLarge
-                )
-            }
-        },
+        confirmButton = {},
+        dismissButton = null,
+        title = null,
         text = {
             AnimatedContent(
                 targetState = currentExportState,
@@ -186,90 +174,108 @@ fun ExportServicesDialog(
             ) { state ->
                 when (state) {
                     ExportSubState.ACCOUNT_SELECTION -> {
-                        ExportAccountSelectionStep(
-                            accounts = accounts,
-                            selectedServiceIds = selectedServiceIds,
-                            onToggleSelection = { id ->
-                                if (id in selectedServiceIds) {
-                                    selectedServiceIds.remove(id)
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.settings_export_services_dialog_title),
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+
+                            ExportAccountSelectionStep(
+                                accounts = accounts,
+                                selectedServiceIds = selectedServiceIds,
+                                onToggleSelection = { id ->
+                                    if (id in selectedServiceIds) {
+                                        selectedServiceIds.remove(id)
+                                    } else {
+                                        selectedServiceIds.add(id)
+                                    }
+                                },
+                                keepServicesOnDevice = keepServicesOnDevice,
+                                onKeepServicesChanged = { keepServicesOnDevice = it }
+                            )
+
+                            AppDialogActionButtons(
+                                confirmText = stringResource(R.string.settings_generate_qr_button),
+                                onConfirm = { generateTransferQr() },
+                                dismissText = stringResource(R.string.action_close),
+                                onDismiss = onDismiss,
+                                confirmEnabled = selectedServiceIds.isNotEmpty() && !isGenerating
+                            )
+                        }
+                    }
+                    ExportSubState.QR_CAROUSEL -> {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.settings_export_qr_dialog_title),
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+
+                            ExportQrCarouselStep(
+                                transferQrBitmaps = transferQrBitmaps,
+                                currentQrIndex = currentQrIndex,
+                                onSelectQrIndex = { currentQrIndex = it; isPinVisible = false },
+                                transferPin = transferPin,
+                                isPinVisible = isPinVisible,
+                                onTogglePinVisibility = { isPinVisible = !isPinVisible },
+                                exportedCount = exportedServiceIds.size,
+                                secondsRemaining = secondsRemaining,
+                                totalSessionDuration = totalSessionDuration
+                            )
+
+                            AppDialogActionButtons(
+                                dismissText = if (!keepServicesOnDevice) {
+                                    stringResource(R.string.settings_export_confirm_done)
                                 } else {
-                                    selectedServiceIds.add(id)
+                                    stringResource(R.string.action_close)
+                                },
+                                onDismiss = {
+                                    onCompleteExport(exportedServiceIds, keepServicesOnDevice)
+                                    isShowingQr = false
+                                    transferQrBitmaps = emptyList()
+                                    transferPin = ""
+                                    onDismiss()
                                 }
-                            },
-                            keepServicesOnDevice = keepServicesOnDevice,
-                            onKeepServicesChanged = { keepServicesOnDevice = it }
-                        )
+                            )
+                        }
                     }
                     ExportSubState.EXPIRED -> {
-                        ExportExpiredStep()
-                    }
-                    ExportSubState.QR_CAROUSEL -> {
-                        ExportQrCarouselStep(
-                            transferQrBitmaps = transferQrBitmaps,
-                            currentQrIndex = currentQrIndex,
-                            onSelectQrIndex = { currentQrIndex = it; isPinVisible = false },
-                            transferPin = transferPin,
-                            isPinVisible = isPinVisible,
-                            onTogglePinVisibility = { isPinVisible = !isPinVisible },
-                            exportedCount = exportedServiceIds.size,
-                            secondsRemaining = secondsRemaining,
-                            totalSessionDuration = totalSessionDuration
-                        )
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.settings_transfer_expired_title),
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.error
+                            )
+
+                            ExportExpiredStep()
+
+                            AppDialogActionButtons(
+                                confirmText = stringResource(R.string.settings_transfer_regenerate_button),
+                                onConfirm = { generateTransferQr() },
+                                dismissText = stringResource(R.string.action_close),
+                                onDismiss = {
+                                    isShowingQr = false
+                                    transferQrBitmaps = emptyList()
+                                    transferPin = ""
+                                    onDismiss()
+                                },
+                                confirmEnabled = !isGenerating
+                            )
+                        }
                     }
                 }
             }
         },
-        confirmButton = {
-            AnimatedContent(
-                targetState = currentExportState,
-                transitionSpec = { Motion.Spec.dialogStepContentTransform() },
-                modifier = Modifier.fillMaxWidth(),
-                label = "exportServicesButtonsTransition"
-            ) { exportState ->
-                when (exportState) {
-                    ExportSubState.ACCOUNT_SELECTION -> {
-                        AppDialogActionButtons(
-                            confirmText = stringResource(R.string.settings_generate_qr_button),
-                            onConfirm = { generateTransferQr() },
-                            dismissText = stringResource(R.string.action_close),
-                            onDismiss = onDismiss,
-                            confirmEnabled = selectedServiceIds.isNotEmpty() && !isGenerating
-                        )
-                    }
-                    ExportSubState.QR_CAROUSEL -> {
-                        AppDialogActionButtons(
-                            dismissText = if (!keepServicesOnDevice) {
-                                stringResource(R.string.settings_export_confirm_done)
-                            } else {
-                                stringResource(R.string.action_close)
-                            },
-                            onDismiss = {
-                                onCompleteExport(exportedServiceIds, keepServicesOnDevice)
-                                isShowingQr = false
-                                transferQrBitmaps = emptyList()
-                                transferPin = ""
-                                onDismiss()
-                            }
-                        )
-                    }
-                    ExportSubState.EXPIRED -> {
-                        AppDialogActionButtons(
-                            confirmText = stringResource(R.string.settings_transfer_regenerate_button),
-                            onConfirm = { generateTransferQr() },
-                            dismissText = stringResource(R.string.action_close),
-                            onDismiss = {
-                                isShowingQr = false
-                                transferQrBitmaps = emptyList()
-                                transferPin = ""
-                                onDismiss()
-                            },
-                            confirmEnabled = !isGenerating
-                        )
-                    }
-                }
-            }
-        },
-        dismissButton = null,
         modifier = modifier
     )
 }

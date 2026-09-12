@@ -113,33 +113,21 @@ fun DriveProtectDialog(
 
     AlertDialog(
         onDismissRequest = {
-            when (step) {
-                3 -> step = 2
-                2 -> step = 1
-                else -> onDismiss()
+            if (step > 1) {
+                step -= 1
+            } else {
+                onDismiss()
             }
         },
         shape = RoundedCornerShape(Dimensions.CornerRadius.large),
-        title = {
+        confirmButton = {},
+        dismissButton = null,
+        title = null,
+        text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
             ) {
-                AnimatedContent(
-                    targetState = step,
-                    transitionSpec = { Motion.Spec.dialogStepContentTransform() },
-                    label = "driveProtectTitleTransition"
-                ) { currentStep ->
-                    Text(
-                        text = when (currentStep) {
-                            1 -> stringResource(R.string.settings_drive_protect_step1_title)
-                            2 -> stringResource(R.string.settings_drive_protect_step2_title)
-                            else -> stringResource(R.string.settings_drive_quiz_title)
-                        },
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                }
-
                 LinearProgressIndicator(
                     progress = { animatedProgress },
                     modifier = Modifier
@@ -149,15 +137,7 @@ fun DriveProtectDialog(
                     color = MaterialTheme.colorScheme.primary,
                     trackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
-            }
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
-            ) {
+
                 AnimatedContent(
                     targetState = step,
                     transitionSpec = { Motion.Spec.dialogStepContentTransform() },
@@ -166,150 +146,174 @@ fun DriveProtectDialog(
                     label = "driveProtectStepTransition"
                 ) { currentStep ->
                     when (currentStep) {
-                        1 -> DriveProtectStepMethod(
-                            selectedTab = selectedProtectionTab,
-                            onTabSelected = { selectedProtectionTab = it },
-                            masterPasswordText = masterPasswordText,
-                            onMasterPasswordChange = { masterPasswordText = it },
-                            masterPasswordConfirmText = masterPasswordConfirmText,
-                            onMasterPasswordConfirmChange = { masterPasswordConfirmText = it },
-                            isMasterPasswordVisible = isMasterPasswordVisible,
-                            onTogglePasswordVisibility = { isMasterPasswordVisible = !isMasterPasswordVisible },
-                            generated64Key = generated64Key,
-                            isKeyVisible = isKeyVisible,
-                            onToggleKeyVisibility = { isKeyVisible = !isKeyVisible },
-                            copyCountdown = keyCopyCountdown,
-                            onRegenerateKey = {
-                                appHaptics.click()
-                                generated64Key = GoogleDriveManager.generate64DigitKey()
-                            },
-                            onCopyKey = {
-                                secureClipboard.copySecurelyWithFeedback(
-                                    context = context,
-                                    label = SecurityConfig.CLIPBOARD_LABEL_RECOVERY_64KEY,
-                                    text = generated64Key,
-                                    feedbackMessage = keyCopiedMsg,
-                                    onHaptics = { appHaptics.copy() },
-                                    autoClearSeconds = SecurityConfig.CLIPBOARD_RECOVERY_KEY_AUTO_CLEAR_SECONDS
+                        1 -> {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.settings_drive_protect_step1_title),
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
-                            }
-                        )
-                        2 -> DriveProtectStepMnemonic(
-                            mnemonicWords = generatedMnemonicWords,
-                            primaryMethodLabel = if (selectedProtectionTab == 0) passwordLabel else keyLabel,
-                            primaryMethodValue = if (selectedProtectionTab == 0) masterPasswordText else generated64Key,
-                            isPasswordMethod = selectedProtectionTab == 0,
-                            copyCountdown = mnemonicCopyCountdown,
-                            onCopyWords = {
-                                secureClipboard.copySecurelyWithFeedback(
-                                    context = context,
-                                    label = SecurityConfig.CLIPBOARD_LABEL_RECOVERY_MNEMONIC,
-                                    text = generatedMnemonicWords.joinToString(" "),
-                                    feedbackMessage = wordsCopiedMsg,
-                                    onHaptics = { appHaptics.copy() },
-                                    autoClearSeconds = SecurityConfig.CLIPBOARD_RECOVERY_KEY_AUTO_CLEAR_SECONDS
-                                )
-                            },
-                            onPrintPdf = {
-                                appHaptics.click()
-                                val primaryTitle = if (selectedProtectionTab == 0) passwordLabel else keyLabel
-                                val primaryVal = if (selectedProtectionTab == 0) {
-                                    masterPasswordText
-                                } else {
-                                    generated64Key
-                                }
-                                EmergencyKitPdfGenerator.printEmergencyKit(
-                                    context = context,
-                                    primaryMethodTitle = primaryTitle,
-                                    primaryMethodValue = primaryVal,
-                                    mnemonicWords = generatedMnemonicWords
-                                )
-                            }
-                        )
-                        3 -> DriveProtectStepQuiz(
-                            questions = quizQuestions,
-                            selectedAnswers = quizSelectedAnswers,
-                            isError = isQuizError,
-                            onSelectAnswer = { questionIdx, option ->
-                                appHaptics.click()
-                                isQuizError = false
-                                quizSelectedAnswers = quizSelectedAnswers + (questionIdx to option)
-                            }
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            AnimatedContent(
-                targetState = step,
-                transitionSpec = { Motion.Spec.dialogStepContentTransform() },
-                modifier = Modifier.fillMaxWidth(),
-                label = "driveProtectButtonsTransition"
-            ) { currentStep ->
-                when (currentStep) {
-                    1 -> {
-                        AppDialogActionButtons(
-                            confirmText = stringResource(R.string.settings_drive_next_step),
-                            onConfirm = { step = 2 },
-                            dismissText = stringResource(R.string.action_close),
-                            onDismiss = onDismiss,
-                            confirmEnabled = isStep1Valid
-                        )
-                    }
-                    2 -> {
-                        AppDialogActionButtons(
-                            confirmText = stringResource(R.string.settings_drive_to_quiz_step),
-                            onConfirm = {
-                                quizQuestions = MnemonicManager.generateQuiz(generatedMnemonicWords)
-                                quizSelectedAnswers = emptyMap()
-                                isQuizError = false
-                                step = 3
-                            },
-                            dismissText = stringResource(R.string.settings_drive_details_back),
-                            onDismiss = { step = 1 }
-                        )
-                    }
-                    3 -> {
-                        AppDialogActionButtons(
-                            confirmText = stringResource(R.string.settings_drive_encrypt_and_sync),
-                            onConfirm = {
-                                val allCorrect = quizQuestions.mapIndexed { idx, q ->
-                                    quizSelectedAnswers[idx] == q.correctWord
-                                }.all { it }
 
-                                if (allCorrect) {
-                                    appHaptics.success()
-                                    val primaryPass = if (selectedProtectionTab == 0) {
-                                        masterPasswordText.toCharArray()
-                                    } else {
-                                        generated64Key.toCharArray()
+                                DriveProtectStepMethod(
+                                    selectedTab = selectedProtectionTab,
+                                    onTabSelected = { selectedProtectionTab = it },
+                                    masterPasswordText = masterPasswordText,
+                                    onMasterPasswordChange = { masterPasswordText = it },
+                                    masterPasswordConfirmText = masterPasswordConfirmText,
+                                    onMasterPasswordConfirmChange = { masterPasswordConfirmText = it },
+                                    isMasterPasswordVisible = isMasterPasswordVisible,
+                                    onTogglePasswordVisibility = { isMasterPasswordVisible = !isMasterPasswordVisible },
+                                    generated64Key = generated64Key,
+                                    isKeyVisible = isKeyVisible,
+                                    onToggleKeyVisibility = { isKeyVisible = !isKeyVisible },
+                                    copyCountdown = keyCopyCountdown,
+                                    onRegenerateKey = {
+                                        appHaptics.click()
+                                        generated64Key = GoogleDriveManager.generate64DigitKey()
+                                    },
+                                    onCopyKey = {
+                                        secureClipboard.copySecurelyWithFeedback(
+                                            context = context,
+                                            label = SecurityConfig.CLIPBOARD_LABEL_RECOVERY_64KEY,
+                                            text = generated64Key,
+                                            feedbackMessage = keyCopiedMsg,
+                                            onHaptics = { appHaptics.copy() },
+                                            autoClearSeconds = SecurityConfig.CLIPBOARD_RECOVERY_KEY_AUTO_CLEAR_SECONDS
+                                        )
                                     }
-                                    val mnemonicPass = generatedMnemonicWords.joinToString(" ").toCharArray()
-                                    try {
-                                        onProtectAndSync(primaryPass, mnemonicPass)
-                                    } finally {
-                                        primaryPass.fill('0')
-                                        mnemonicPass.fill('0')
-                                        masterPasswordText = ""
-                                        masterPasswordConfirmText = ""
-                                        generated64Key = ""
+                                )
+
+                                AppDialogActionButtons(
+                                    confirmText = stringResource(R.string.settings_drive_next_step),
+                                    onConfirm = { step = 2 },
+                                    dismissText = stringResource(R.string.action_close),
+                                    onDismiss = onDismiss,
+                                    confirmEnabled = isStep1Valid
+                                )
+                            }
+                        }
+                        2 -> {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.settings_drive_protect_step2_title),
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+
+                                DriveProtectStepMnemonic(
+                                    mnemonicWords = generatedMnemonicWords,
+                                    primaryMethodLabel = if (selectedProtectionTab == 0) passwordLabel else keyLabel,
+                                    primaryMethodValue = if (selectedProtectionTab == 0) masterPasswordText else generated64Key,
+                                    isPasswordMethod = selectedProtectionTab == 0,
+                                    copyCountdown = mnemonicCopyCountdown,
+                                    onCopyWords = {
+                                        secureClipboard.copySecurelyWithFeedback(
+                                            context = context,
+                                            label = SecurityConfig.CLIPBOARD_LABEL_RECOVERY_MNEMONIC,
+                                            text = generatedMnemonicWords.joinToString(" "),
+                                            feedbackMessage = wordsCopiedMsg,
+                                            onHaptics = { appHaptics.copy() },
+                                            autoClearSeconds = SecurityConfig.CLIPBOARD_RECOVERY_KEY_AUTO_CLEAR_SECONDS
+                                        )
+                                    },
+                                    onPrintPdf = {
+                                        appHaptics.click()
+                                        val primaryTitle = if (selectedProtectionTab == 0) passwordLabel else keyLabel
+                                        val primaryVal = if (selectedProtectionTab == 0) {
+                                            masterPasswordText
+                                        } else {
+                                            generated64Key
+                                        }
+                                        EmergencyKitPdfGenerator.printEmergencyKit(
+                                            context = context,
+                                            primaryMethodTitle = primaryTitle,
+                                            primaryMethodValue = primaryVal,
+                                            mnemonicWords = generatedMnemonicWords
+                                        )
                                     }
-                                } else {
-                                    appHaptics.error()
-                                    isQuizError = true
-                                    Toast.makeText(context, quizErrorMsg, Toast.LENGTH_LONG).show()
-                                }
-                            },
-                            dismissText = stringResource(R.string.settings_drive_details_back),
-                            onDismiss = { step = 2 },
-                            confirmEnabled = isQuizAnswered
-                        )
+                                )
+
+                                AppDialogActionButtons(
+                                    confirmText = stringResource(R.string.settings_drive_to_quiz_step),
+                                    onConfirm = {
+                                        quizQuestions = MnemonicManager.generateQuiz(generatedMnemonicWords)
+                                        quizSelectedAnswers = emptyMap()
+                                        isQuizError = false
+                                        step = 3
+                                    },
+                                    dismissText = stringResource(R.string.settings_drive_details_back),
+                                    onDismiss = { step = 1 }
+                                )
+                            }
+                        }
+                        3 -> {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.settings_drive_quiz_title),
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+
+                                DriveProtectStepQuiz(
+                                    questions = quizQuestions,
+                                    selectedAnswers = quizSelectedAnswers,
+                                    isError = isQuizError,
+                                    onSelectAnswer = { questionIdx, option ->
+                                        appHaptics.click()
+                                        isQuizError = false
+                                        quizSelectedAnswers = quizSelectedAnswers + (questionIdx to option)
+                                    }
+                                )
+
+                                AppDialogActionButtons(
+                                    confirmText = stringResource(R.string.settings_drive_encrypt_and_sync),
+                                    onConfirm = {
+                                        val allCorrect = quizQuestions.mapIndexed { idx, q ->
+                                            quizSelectedAnswers[idx] == q.correctWord
+                                        }.all { it }
+
+                                        if (allCorrect) {
+                                            appHaptics.success()
+                                            val primaryPass = if (selectedProtectionTab == 0) {
+                                                masterPasswordText.toCharArray()
+                                            } else {
+                                                generated64Key.toCharArray()
+                                            }
+                                            val mnemonicPass = generatedMnemonicWords.joinToString(" ").toCharArray()
+                                            try {
+                                                onProtectAndSync(primaryPass, mnemonicPass)
+                                            } finally {
+                                                primaryPass.fill('0')
+                                                mnemonicPass.fill('0')
+                                                masterPasswordText = ""
+                                                masterPasswordConfirmText = ""
+                                                generated64Key = ""
+                                            }
+                                        } else {
+                                            appHaptics.error()
+                                            isQuizError = true
+                                            Toast.makeText(context, quizErrorMsg, Toast.LENGTH_LONG).show()
+                                        }
+                                    },
+                                    dismissText = stringResource(R.string.settings_drive_details_back),
+                                    onDismiss = { step = 2 },
+                                    confirmEnabled = isQuizAnswered
+                                )
+                            }
+                        }
                     }
                 }
             }
         },
-        dismissButton = null,
         modifier = modifier
     )
 }

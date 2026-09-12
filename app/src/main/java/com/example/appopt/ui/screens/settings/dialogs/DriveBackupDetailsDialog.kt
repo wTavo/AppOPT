@@ -157,27 +157,7 @@ fun DriveBackupDetailsDialog(
             }
         },
         shape = RoundedCornerShape(Dimensions.CornerRadius.large),
-        title = {
-            AnimatedContent(
-                targetState = currentSubState,
-                transitionSpec = { Motion.Spec.dialogStepContentTransform() },
-                label = "driveDetailsTitleTransition"
-            ) { subState ->
-                Text(
-                    text = when (subState) {
-                        DriveDetailsSubState.RESTORE_DECRYPT -> stringResource(R.string.settings_drive_decrypt_title)
-                        DriveDetailsSubState.DELETE_SINGLE -> stringResource(R.string.settings_drive_delete_version_confirm_title)
-                        DriveDetailsSubState.HISTORY -> stringResource(R.string.settings_drive_history_title)
-                    },
-                    style = MaterialTheme.typography.titleLarge,
-                    color = if (subState == DriveDetailsSubState.DELETE_SINGLE) {
-                        MaterialTheme.colorScheme.error
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    }
-                )
-            }
-        },
+        title = null,
         text = {
             AnimatedContent(
                 targetState = currentSubState,
@@ -188,30 +168,101 @@ fun DriveBackupDetailsDialog(
             ) { subState ->
                 when (subState) {
                     DriveDetailsSubState.RESTORE_DECRYPT -> {
-                        val backupToRestore = pendingRestoreBackup
-                        if (backupToRestore != null) {
-                            DriveBackupDecryptForm(
-                                targetBackup = backupToRestore,
-                                isActual = false,
-                                restoreSecretText = restoreSecretText,
-                                onRestoreSecretChange = { restoreSecretText = it },
-                                isRestoreSecretVisible = isRestoreSecretVisible,
-                                onToggleSecretVisibility = { isRestoreSecretVisible = !isRestoreSecretVisible },
-                                hintText = stringResource(R.string.settings_drive_decrypt_hint)
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.settings_drive_decrypt_title),
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+
+                            val backupToRestore = pendingRestoreBackup
+                            if (backupToRestore != null) {
+                                DriveBackupDecryptForm(
+                                    targetBackup = backupToRestore,
+                                    isActual = false,
+                                    restoreSecretText = restoreSecretText,
+                                    onRestoreSecretChange = { restoreSecretText = it },
+                                    isRestoreSecretVisible = isRestoreSecretVisible,
+                                    onToggleSecretVisibility = { isRestoreSecretVisible = !isRestoreSecretVisible },
+                                    hintText = stringResource(R.string.settings_drive_decrypt_hint)
+                                )
+                            }
+
+                            AppDialogActionButtons(
+                                confirmText = stringResource(R.string.settings_drive_decrypt_and_restore),
+                                onConfirm = {
+                                    val targetItem = pendingRestoreBackup
+                                    if (targetItem != null) {
+                                        val normalizedSecret = if (restoreSecretText.contains(" ")) {
+                                            MnemonicManager.normalizePhrase(restoreSecretText)
+                                        } else {
+                                            restoreSecretText.trim()
+                                        }
+                                        val passChars = normalizedSecret.toCharArray()
+                                        onRestoreBackup(targetItem, passChars)
+                                        pendingRestoreBackup = null
+                                        restoreSecretText = ""
+                                    }
+                                },
+                                dismissText = stringResource(R.string.settings_drive_details_back),
+                                onDismiss = {
+                                    pendingRestoreBackup = null
+                                    restoreSecretText = ""
+                                },
+                                confirmEnabled = restoreSecretText.isNotBlank()
                             )
                         }
                     }
                     DriveDetailsSubState.DELETE_SINGLE -> {
-                        val backupToDelete = pendingDeleteBackup
-                        if (backupToDelete != null) {
-                            DriveBackupDecryptForm(
-                                targetBackup = backupToDelete,
-                                isActual = false,
-                                restoreSecretText = deleteSecretText,
-                                onRestoreSecretChange = { deleteSecretText = it },
-                                isRestoreSecretVisible = isDeleteSecretVisible,
-                                onToggleSecretVisibility = { isDeleteSecretVisible = !isDeleteSecretVisible },
-                                hintText = stringResource(R.string.settings_drive_delete_version_auth_hint)
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.settings_drive_delete_version_confirm_title),
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.error
+                            )
+
+                            val backupToDelete = pendingDeleteBackup
+                            if (backupToDelete != null) {
+                                DriveBackupDecryptForm(
+                                    targetBackup = backupToDelete,
+                                    isActual = false,
+                                    restoreSecretText = deleteSecretText,
+                                    onRestoreSecretChange = { deleteSecretText = it },
+                                    isRestoreSecretVisible = isDeleteSecretVisible,
+                                    onToggleSecretVisibility = { isDeleteSecretVisible = !isDeleteSecretVisible },
+                                    hintText = stringResource(R.string.settings_drive_delete_version_auth_hint)
+                                )
+                            }
+
+                            AppDialogActionButtons(
+                                confirmText = stringResource(R.string.settings_drive_delete_version_action),
+                                onConfirm = {
+                                    val targetItem = pendingDeleteBackup
+                                    if (targetItem != null) {
+                                        val normalizedSecret = if (deleteSecretText.contains(" ")) {
+                                            MnemonicManager.normalizePhrase(deleteSecretText)
+                                        } else {
+                                            deleteSecretText.trim()
+                                        }
+                                        val passChars = normalizedSecret.toCharArray()
+                                        onDeleteSpecificBackup(targetItem, passChars)
+                                        pendingDeleteBackup = null
+                                        deleteSecretText = ""
+                                    }
+                                },
+                                dismissText = stringResource(R.string.settings_drive_details_back),
+                                onDismiss = {
+                                    pendingDeleteBackup = null
+                                    deleteSecretText = ""
+                                },
+                                confirmEnabled = deleteSecretText.isNotBlank(),
+                                isDestructive = true
                             )
                         }
                     }
@@ -220,6 +271,12 @@ fun DriveBackupDetailsDialog(
                             modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                         ) {
+                            Text(
+                                text = stringResource(R.string.settings_drive_history_title),
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+
                             CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -351,80 +408,17 @@ fun DriveBackupDetailsDialog(
                                     }
                                 }
                             }
+
+                            AppDialogActionButtons(
+                                onDismiss = onDismiss
+                            )
                         }
                     }
                 }
             }
         },
-        confirmButton = {
-            AnimatedContent(
-                targetState = currentSubState,
-                transitionSpec = { Motion.Spec.dialogStepContentTransform() },
-                modifier = Modifier.fillMaxWidth(),
-                label = "driveDetailsButtonsTransition"
-            ) { subState ->
-                when (subState) {
-                    DriveDetailsSubState.HISTORY -> {
-                        AppDialogActionButtons(
-                            onDismiss = onDismiss
-                        )
-                    }
-                    DriveDetailsSubState.RESTORE_DECRYPT -> {
-                        AppDialogActionButtons(
-                            confirmText = stringResource(R.string.settings_drive_decrypt_and_restore),
-                            onConfirm = {
-                                val targetItem = pendingRestoreBackup
-                                if (targetItem != null) {
-                                    val normalizedSecret = if (restoreSecretText.contains(" ")) {
-                                        MnemonicManager.normalizePhrase(restoreSecretText)
-                                    } else {
-                                        restoreSecretText.trim()
-                                    }
-                                    val passChars = normalizedSecret.toCharArray()
-                                    onRestoreBackup(targetItem, passChars)
-                                    pendingRestoreBackup = null
-                                    restoreSecretText = ""
-                                }
-                            },
-                            dismissText = stringResource(R.string.settings_drive_details_back),
-                            onDismiss = {
-                                pendingRestoreBackup = null
-                                restoreSecretText = ""
-                            },
-                            confirmEnabled = restoreSecretText.isNotBlank()
-                        )
-                    }
-                    DriveDetailsSubState.DELETE_SINGLE -> {
-                        AppDialogActionButtons(
-                            confirmText = stringResource(R.string.settings_drive_delete_version_action),
-                            onConfirm = {
-                                val targetItem = pendingDeleteBackup
-                                if (targetItem != null) {
-                                    val normalizedSecret = if (deleteSecretText.contains(" ")) {
-                                        MnemonicManager.normalizePhrase(deleteSecretText)
-                                    } else {
-                                        deleteSecretText.trim()
-                                    }
-                                    val passChars = normalizedSecret.toCharArray()
-                                    onDeleteSpecificBackup(targetItem, passChars)
-                                    pendingDeleteBackup = null
-                                    deleteSecretText = ""
-                                }
-                            },
-                            dismissText = stringResource(R.string.settings_drive_details_back),
-                            onDismiss = {
-                                pendingDeleteBackup = null
-                                deleteSecretText = ""
-                            },
-                            confirmEnabled = deleteSecretText.isNotBlank(),
-                            isDestructive = true
-                        )
-                    }
-                }
-            }
-        },
+        confirmButton = {},
         dismissButton = null,
         modifier = modifier
     )
 }
-

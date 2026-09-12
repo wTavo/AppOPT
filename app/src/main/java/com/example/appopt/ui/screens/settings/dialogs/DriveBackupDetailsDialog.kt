@@ -27,7 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.material3.AlertDialog
+import com.example.appopt.ui.components.AppModalDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -144,7 +144,7 @@ fun DriveBackupDetailsDialog(
         else -> DriveDetailsSubState.HISTORY
     }
 
-    AlertDialog(
+    AppModalDialog(
         onDismissRequest = {
             if (pendingRestoreBackup != null) {
                 pendingRestoreBackup = null
@@ -156,16 +156,15 @@ fun DriveBackupDetailsDialog(
                 onDismiss()
             }
         },
-        shape = RoundedCornerShape(Dimensions.CornerRadius.large),
-        title = null,
-        text = {
-            AnimatedContent(
-                targetState = currentSubState,
-                transitionSpec = { Motion.Spec.dialogStepContentTransform() },
-                contentAlignment = Alignment.TopStart,
-                modifier = Modifier.fillMaxWidth(),
-                label = "driveDetailsSubStateTransition"
-            ) { subState ->
+        modifier = modifier
+    ) {
+        AnimatedContent(
+            targetState = currentSubState,
+            transitionSpec = { Motion.Spec.dialogStepContentTransform() },
+            contentAlignment = Alignment.TopCenter,
+            modifier = Modifier.fillMaxWidth(),
+            label = "driveDetailsSubStateTransition"
+        ) { subState ->
                 when (subState) {
                     DriveDetailsSubState.RESTORE_DECRYPT -> {
                         Column(
@@ -415,10 +414,6 @@ fun DriveBackupDetailsDialog(
                         }
                     }
                 }
-            }
-        },
-        confirmButton = {},
-        dismissButton = null,
-        modifier = modifier
-    )
+        }
+    }
 }

@@ -137,7 +137,7 @@ fun AccountDetailsDialog(
         else -> AccountDetailsSubState.VIEW
     }
 
-    AlertDialog(
+    AppModalDialog(
         onDismissRequest = {
             if (showDeleteConfirm) {
                 showDeleteConfirm = false
@@ -147,18 +147,15 @@ fun AccountDetailsDialog(
                 onDismiss()
             }
         },
-        shape = RoundedCornerShape(Dimensions.CornerRadius.large),
-        confirmButton = {},
-        dismissButton = null,
-        title = null,
-        text = {
-            AnimatedContent(
-                targetState = currentDialogState,
-                transitionSpec = { Motion.Spec.dialogStepContentTransform() },
-                contentAlignment = Alignment.TopStart,
-                label = "accountDetailsStepTransition",
-                modifier = Modifier.fillMaxWidth()
-            ) { subState ->
+        modifier = modifier
+    ) {
+        AnimatedContent(
+            targetState = currentDialogState,
+            transitionSpec = { Motion.Spec.dialogStepContentTransform() },
+            contentAlignment = Alignment.TopCenter,
+            label = "accountDetailsStepTransition",
+            modifier = Modifier.fillMaxWidth()
+        ) { subState ->
                 when (subState) {
                     AccountDetailsSubState.VIEW -> {
                         Column(
@@ -403,11 +400,9 @@ fun AccountDetailsDialog(
                                 },
                                 isDestructive = true
                             )
-                        }
                     }
                 }
             }
-        },
-        modifier = modifier
-    )
+        }
+    }
 }

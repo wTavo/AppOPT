@@ -130,11 +130,13 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
   - **PROHIBIDO** fragmentar diálogos modales interactivos en múltiples ranuras animadas independientes (`title`, `text`, `confirmButton`) que compitan entre sí y provoquen colisiones de layout o desbordes en la parte inferior.
   - **PROHIBIDO** animar escala sobre árboles de texto (`scaleIn`/`scaleOut`) que causen vibración en fuentes monoespaciadas o códigos OTP.
   - **PROHIBIDO** usar `animateContentSize` en contenedores externos que envuelven `Crossfade` o transiciones asíncronas de contenido.
-  - **PROHIBIDO** agregar `slideInVertically` o `slideOutVertically` dentro de `dialogStepContentTransform()`. El desplazamiento vertical del contenido entra en **conflicto vectorial** con el `SizeTransform` y el auto-centramiento del `AlertDialog`, produciendo vibración irrecuperable en la zona inferior del diálogo.
-  - **PROHIBIDO** agregar `SizeTransform` a `dialogStepContentTransform()`. `AlertDialog` mide su slot `text` y **reposiciona su ventana en cada fotograma** en que el tamaño varía. Con `SizeTransform` + resorte, el diálogo se reposiciona continuamente durante ~400 ms, provocando que el contenido inferior "persiga" el borde de la tarjeta y produzca vibración. El cambio de tamaño ocurre en el primer fotograma del fade (cuando el contenido está casi invisible) y resulta imperceptible.
+  - **PROHIBIDO** usar `AlertDialog` nativo (`WRAP_CONTENT`) para flujos multietapa con cambio dinámico de tamaño: la ventana flotante del sistema operativo Android re-centra su marco físico en cada fotograma vía IPC con `WindowManagerService`, provocando desincronización y temblor.
+  - **OBLIGATORIO** utilizar `AppModalDialog` para todos los diálogos de múltiples pasos: su ventana fija de pantalla completa (`usePlatformDefaultWidth = false`) elimina toda interferencia de Android OS y permite que la tarjeta visual (`Surface`) mute sus dimensiones de forma 100% líquida en Compose GPU.
   - **OBLIGATORIO** unificar todo el diálogo (título, cuerpo y botones `AppDialogActionButtons`) dentro de un único contenedor monolítico animado (`AnimatedContent`), consumiendo `Motion.Spec.dialogStepContentTransform()`:
-    1. **Fase de salida fluida:** El contenido saliente se desvanece de inmediato (`fadeOut`, 90ms). Sin desplazamiento. Simultáneamente, `AnimatedContent` snapea su tamaño al nuevo estado (imperceptible durante el fade).
-    2. **Fase de entrada suave:** El nuevo contenido emerge suavemente (`fadeIn`, 180ms con 60ms de retardo). Sin desplazamiento.
+    1. **Fase de salida fluida:** El contenido saliente se desvanece de inmediato (`fadeOut`, 90ms). Sin desplazamiento vectorial.
+    2. **Fase de ajuste dimensional líquido:** La tarjeta modal muta sus dimensiones suavemente en Compose GPU con física de resortes elásticos sin rebote (`spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)`).
+    3. **Fase de entrada suave:** El nuevo contenido emerge suavemente (`fadeIn`, 180ms con 70ms de retardo). Sin desplazamiento vectorial.
+    4. **Sin recorte invasivo:** Fijar `clip = false` en `SizeTransform` para preservar radios de curvatura de 16.dp y sombras intactas en cada fotograma.
 
 
 ---

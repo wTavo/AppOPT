@@ -20,7 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import com.example.appopt.ui.components.AppModalDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -111,7 +111,7 @@ fun DriveProtectDialog(
         label = "driveProtectProgress"
     )
 
-    AlertDialog(
+    AppModalDialog(
         onDismissRequest = {
             if (step > 1) {
                 step -= 1
@@ -119,32 +119,29 @@ fun DriveProtectDialog(
                 onDismiss()
             }
         },
-        shape = RoundedCornerShape(Dimensions.CornerRadius.large),
-        confirmButton = {},
-        dismissButton = null,
-        title = null,
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
-            ) {
-                LinearProgressIndicator(
-                    progress = { animatedProgress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(Dimensions.Spacing.xs)
-                        .clip(RoundedCornerShape(Dimensions.CornerRadius.pill)),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant
-                )
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+        ) {
+            LinearProgressIndicator(
+                progress = { animatedProgress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(Dimensions.Spacing.xs)
+                    .clip(RoundedCornerShape(Dimensions.CornerRadius.pill)),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
 
-                AnimatedContent(
-                    targetState = step,
-                    transitionSpec = { Motion.Spec.dialogStepContentTransform() },
-                    contentAlignment = Alignment.TopStart,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = "driveProtectStepTransition"
-                ) { currentStep ->
+            AnimatedContent(
+                targetState = step,
+                transitionSpec = { Motion.Spec.dialogStepContentTransform() },
+                contentAlignment = Alignment.TopCenter,
+                modifier = Modifier.fillMaxWidth(),
+                label = "driveProtectStepTransition"
+            ) { currentStep ->
                     when (currentStep) {
                         1 -> {
                             Column(
@@ -312,8 +309,6 @@ fun DriveProtectDialog(
                         }
                     }
                 }
-            }
-        },
-        modifier = modifier
-    )
+        }
+    }
 }

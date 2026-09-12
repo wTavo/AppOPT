@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
+import com.example.appopt.ui.components.AppModalDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -148,7 +148,7 @@ fun ExportServicesDialog(
         else -> ExportSubState.QR_CAROUSEL
     }
 
-    AlertDialog(
+    AppModalDialog(
         onDismissRequest = {
             if (isShowingQr) {
                 if (currentExportState == ExportSubState.QR_CAROUSEL) {
@@ -160,18 +160,15 @@ fun ExportServicesDialog(
             }
             onDismiss()
         },
-        shape = RoundedCornerShape(Dimensions.CornerRadius.large),
-        confirmButton = {},
-        dismissButton = null,
-        title = null,
-        text = {
-            AnimatedContent(
-                targetState = currentExportState,
-                transitionSpec = { Motion.Spec.dialogStepContentTransform() },
-                contentAlignment = Alignment.TopStart,
-                modifier = Modifier.fillMaxWidth(),
-                label = "exportServicesStepTransition"
-            ) { state ->
+        modifier = modifier
+    ) {
+        AnimatedContent(
+            targetState = currentExportState,
+            transitionSpec = { Motion.Spec.dialogStepContentTransform() },
+            contentAlignment = Alignment.TopCenter,
+            modifier = Modifier.fillMaxWidth(),
+            label = "exportServicesStepTransition"
+        ) { state ->
                 when (state) {
                     ExportSubState.ACCOUNT_SELECTION -> {
                         Column(
@@ -274,8 +271,6 @@ fun ExportServicesDialog(
                         }
                     }
                 }
-            }
-        },
-        modifier = modifier
-    )
+        }
+    }
 }

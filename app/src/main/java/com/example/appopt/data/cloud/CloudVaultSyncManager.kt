@@ -6,8 +6,11 @@ import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.example.appopt.domain.model.TotpAccount
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
@@ -18,6 +21,21 @@ import com.example.appopt.security.SecurityConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+
+/**
+ * Estado reactivo unificado de las tareas en segundo plano de sincronización en la nube.
+ *
+ * @property isSyncRunning Indica si una tarea reactiva, manual o periódica está ejecutándose activamente.
+ * @property isSyncPending Indica si hay una tarea en cola esperando el retardo de consolidación (*debounce*).
+ * @property hasSucceededWithUpload Indica si la última tarea completada realizó una subida efectiva a Google Drive.
+ * @property hasFailed Indica si la última tarea en segundo plano finalizó en estado de error.
+ */
+data class WorkManagerSyncStatus(
+    val isSyncRunning: Boolean = false,
+    val isSyncPending: Boolean = false,
+    val hasSucceededWithUpload: Boolean = false,
+    val hasFailed: Boolean = false
+)
 
 /**
  * Frecuencia configurable de la copia de seguridad automática en Google Drive.
@@ -137,6 +155,61 @@ object CloudVaultSyncManager {
      * Clave de entrada enviada a [AutoSyncWorker] para indicar una sincronización manual forzada por el usuario.
      */
     const val KEY_FORCE_MANUAL_SYNC = "key_force_manual_sync"
+
+    /**
+     * Observa en tiempo real el estado de las tareas de WorkManager ([REACTIVE_WORK_NAME] y [PERIODIC_WORK_NAME]).
+     *
+     * @param context Contexto de la aplicación.
+     * @return Flujo reactivo con el estado consolidado de ejecución de tareas en la nube.
+     */
+    fun observeWorkManagerSyncStatus(context: Context): Flow<WorkManagerSyncStatus> {
+        val workManager = WorkManager.getInstance(context)
+        return combine(
+            workManager.getWorkInfosForUniqueWorkFlow(REACTIVE_WORK_NAME),
+            workManager.getWorkInfosForUniqueWorkFlow(PERIODIC_WORK_NAME)
+        ) { reactiveList, periodicList ->
+            val isReactiveRunning = reactiveList.any { it.state == WorkInfo.State.RUNNING }
+            val isPeriodicRunning = periodicList.any { it.state == WorkInfo.State.RUNNING }
+            val isReactivePending = reactiveList.any { it.state == WorkInfo.State.ENQUEUED }
+            val allInfos = reactiveList + periodicList
+
+            val hasFailed = allInfos.any { it.state == WorkInfo.State.FAILED }
+            val hasSucceededWithUpload = allInfos.any { info ->
+                info.state == WorkInfo.State.SUCCEEDED &&
+                    info.outputData.getBoolean(KEY_SYNC_PERFORMED, false)
+            }
+
+            WorkManagerSyncStatus(
+                isSyncRunning = isReactiveRunning || isPeriodicRunning,
+                isSyncPending = isReactivePending,
+                hasSucceededWithUpload = hasSucceededWithUpload,
+                hasFailed = hasFailed
+            )
+        }
+    }
+
+    /**
+     * Evalúa si una lista de cuentas en memoria está completamente sincronizada con la nube
+     * según las marcas de tiempo y la huella digital guardadas en preferencias.
+     *
+     * @param isConnected Indica si Google Drive está conectado.
+     * @param lastSyncTimestamp Marca de tiempo de la última sincronización.
+     * @param lastSyncedHash Huella digital de la última sincronización confirmada.
+     * @param accounts Lista de cuentas locales en la bóveda.
+     * @return True si la bóveda local coincide exactamente con la última versión en la nube.
+     */
+    fun isVaultSyncedWithCloud(
+        isConnected: Boolean,
+        lastSyncTimestamp: Long,
+        lastSyncedHash: String?,
+        accounts: List<TotpAccount>
+    ): Boolean {
+        if (!isConnected || lastSyncTimestamp <= 0L || lastSyncedHash.isNullOrEmpty() || accounts.isEmpty()) {
+            return false
+        }
+        val currentVaultHash = computeAccountsSignature(accounts)
+        return currentVaultHash == lastSyncedHash
+    }
 
     /**
      * Calcula la firma hash determinística de una lista de entidades [AccountEntity] sin requerir descifrado de secretos.

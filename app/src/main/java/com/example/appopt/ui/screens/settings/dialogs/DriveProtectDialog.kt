@@ -184,13 +184,14 @@ fun DriveProtectDialog(
                                 generated64Key = GoogleDriveManager.generate64DigitKey()
                             },
                             onCopyKey = {
-                                appHaptics.copy()
-                                secureClipboard.copyToClipboard(
+                                secureClipboard.copySecurelyWithFeedback(
+                                    context = context,
                                     label = SecurityConfig.CLIPBOARD_LABEL_RECOVERY_64KEY,
                                     text = generated64Key,
+                                    feedbackMessage = keyCopiedMsg,
+                                    onHaptics = { appHaptics.copy() },
                                     autoClearSeconds = SecurityConfig.CLIPBOARD_RECOVERY_KEY_AUTO_CLEAR_SECONDS
                                 )
-                                Toast.makeText(context, keyCopiedMsg, Toast.LENGTH_SHORT).show()
                             }
                         )
                         2 -> DriveProtectStepMnemonic(
@@ -200,13 +201,14 @@ fun DriveProtectDialog(
                             isPasswordMethod = selectedProtectionTab == 0,
                             copyCountdown = mnemonicCopyCountdown,
                             onCopyWords = {
-                                appHaptics.copy()
-                                secureClipboard.copyToClipboard(
+                                secureClipboard.copySecurelyWithFeedback(
+                                    context = context,
                                     label = SecurityConfig.CLIPBOARD_LABEL_RECOVERY_MNEMONIC,
                                     text = generatedMnemonicWords.joinToString(" "),
+                                    feedbackMessage = wordsCopiedMsg,
+                                    onHaptics = { appHaptics.copy() },
                                     autoClearSeconds = SecurityConfig.CLIPBOARD_RECOVERY_KEY_AUTO_CLEAR_SECONDS
                                 )
-                                Toast.makeText(context, wordsCopiedMsg, Toast.LENGTH_SHORT).show()
                             },
                             onPrintPdf = {
                                 appHaptics.click()

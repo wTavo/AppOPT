@@ -88,6 +88,31 @@ class SecureClipboardManager(
     }
 
     /**
+     * Copia un texto confidencial al portapapeles con confirmación háptica y notificación visual.
+     *
+     * @param context Contexto para mostrar el Toast.
+     * @param label Etiqueta descriptiva del elemento copiado.
+     * @param text Contenido sensible.
+     * @param feedbackMessage Mensaje opcional para el Toast de confirmación.
+     * @param onHaptics Lambda opcional para disparar vibración háptica de copia.
+     * @param autoClearSeconds Tiempo en segundos tras el cual se limpiará el portapapeles.
+     */
+    fun copySecurelyWithFeedback(
+        context: Context,
+        label: String,
+        text: String,
+        feedbackMessage: String? = null,
+        onHaptics: (() -> Unit)? = null,
+        autoClearSeconds: Int = SecurityConfig.CLIPBOARD_OTP_AUTO_CLEAR_SECONDS
+    ) {
+        onHaptics?.invoke()
+        copyToClipboard(label, text, autoClearSeconds)
+        if (!feedbackMessage.isNullOrBlank()) {
+            android.widget.Toast.makeText(context, feedbackMessage, android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /**
      * Limpia el portapapeles si su contenido actual coincide con el texto que la aplicación copió.
      *
      * @param expectedText Texto esperado para no sobrescribir copias posteriores hechas por el usuario en otras apps.

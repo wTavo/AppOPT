@@ -55,6 +55,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
 import com.example.appopt.domain.model.TotpAccount
+import com.example.appopt.ui.components.AppDestructiveConfirmDialog
 import com.example.appopt.ui.components.AppDialogActionButtons
 import com.example.appopt.ui.screens.trash.components.DeletedAccountCard
 import com.example.appopt.ui.theme.Dimensions
@@ -260,93 +261,41 @@ fun RecentlyDeletedScreen(
 
     // Modal: Confirmación de vaciado total de papelera
     if (isUnlocked && showEmptyTrashConfirmDialog) {
-        AlertDialog(
-            onDismissRequest = { showEmptyTrashConfirmDialog = false },
-            shape = RoundedCornerShape(Dimensions.CornerRadius.large),
-            icon = {
-                Icon(
-                    imageVector = Icons.Filled.DeleteSweep,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(Dimensions.IconSize.large)
-                )
+        AppDestructiveConfirmDialog(
+            title = stringResource(R.string.trash_empty_title),
+            message = stringResource(R.string.trash_empty_confirm_msg),
+            confirmText = stringResource(R.string.trash_empty_button),
+            onConfirm = {
+                showEmptyTrashConfirmDialog = false
+                scope.launch {
+                    repository.emptyTrash()
+                    appHaptics.success()
+                    snackbarHostState.showSnackbar(emptyTrashSuccessText)
+                }
             },
-            title = {
-                Text(
-                    text = stringResource(R.string.trash_empty_title),
-                    style = MaterialTheme.typography.titleLarge
-                )
-            },
-            text = {
-                Text(
-                    text = stringResource(R.string.trash_empty_confirm_msg),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            },
-            confirmButton = {
-                AppDialogActionButtons(
-                    dismissText = stringResource(R.string.action_close),
-                    onDismiss = { showEmptyTrashConfirmDialog = false },
-                    confirmText = stringResource(R.string.trash_empty_button),
-                    onConfirm = {
-                        showEmptyTrashConfirmDialog = false
-                        scope.launch {
-                            repository.emptyTrash()
-                            appHaptics.success()
-                            snackbarHostState.showSnackbar(emptyTrashSuccessText)
-                        }
-                    },
-                    isDestructive = true
-                )
-            },
-            dismissButton = null
+            onDismiss = { showEmptyTrashConfirmDialog = false },
+            icon = Icons.Filled.DeleteSweep
         )
     }
 
     // Modal: Confirmación de eliminación definitiva de 1 cuenta
     if (isUnlocked) {
         accountPendingPermanentDelete?.let { account ->
-            AlertDialog(
-                onDismissRequest = { accountPendingPermanentDelete = null },
-                shape = RoundedCornerShape(Dimensions.CornerRadius.large),
-                icon = {
-                    Icon(
-                        imageVector = Icons.Filled.DeleteForever,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(Dimensions.IconSize.large)
-                    )
+            AppDestructiveConfirmDialog(
+                title = stringResource(R.string.trash_permanent_delete_title),
+                message = stringResource(R.string.trash_permanent_delete_confirm_msg),
+                confirmText = stringResource(R.string.trash_permanent_delete_button),
+                onConfirm = {
+                    val targetAccountId = account.id
+                    accountPendingPermanentDelete = null
+                    scope.launch {
+                        repository.permanentlyDelete(targetAccountId)
+                        appHaptics.success()
+                        snackbarHostState.showSnackbar(permanentDeleteSuccessText)
+                    }
                 },
-                title = {
-                    Text(
-                        text = stringResource(R.string.trash_permanent_delete_title),
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                },
-                text = {
-                    Text(
-                        text = stringResource(R.string.trash_permanent_delete_confirm_msg),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                },
-                confirmButton = {
-                    AppDialogActionButtons(
-                        dismissText = stringResource(R.string.action_close),
-                        onDismiss = { accountPendingPermanentDelete = null },
-                        confirmText = stringResource(R.string.trash_permanent_delete_button),
-                        onConfirm = {
-                            val targetAccountId = account.id
-                            accountPendingPermanentDelete = null
-                            scope.launch {
-                                repository.permanentlyDelete(targetAccountId)
-                                appHaptics.success()
-                                snackbarHostState.showSnackbar(permanentDeleteSuccessText)
-                            }
-                        },
-                        isDestructive = true
-                    )
-                },
-                dismissButton = null
+                onDismiss = { accountPendingPermanentDelete = null },
+                icon = Icons.Filled.DeleteForever
             )
         }
     }

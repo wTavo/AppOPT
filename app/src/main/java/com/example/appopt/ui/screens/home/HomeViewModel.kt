@@ -76,12 +76,7 @@ class HomeViewModel : ViewModel() {
         preferencesManager.lastSyncedVaultHashFlow,
         repository.getAccounts()
     ) { isConnected, lastSync, lastHash, accounts ->
-        if (!isConnected || lastSync <= 0L || lastHash.isNullOrEmpty() || accounts.isEmpty()) {
-            false
-        } else {
-            val currentVaultHash = CloudVaultSyncManager.computeAccountsSignature(accounts)
-            currentVaultHash == lastHash
-        }
+        CloudVaultSyncManager.isVaultSyncedWithCloud(isConnected, lastSync, lastHash, accounts)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -96,71 +91,52 @@ class HomeViewModel : ViewModel() {
 
     /**
      * Observa el estado del motor unificado de sincronización en segundo plano de [WorkManager]
-     * ([CloudVaultSyncManager.REACTIVE_WORK_NAME] y [CloudVaultSyncManager.PERIODIC_WORK_NAME]).
+     * a través de [CloudVaultSyncManager.observeWorkManagerSyncStatus].
      *
      * Mapea reactivamente las transiciones a [CloudSyncUiState]:
-     * - Si hay una tarea en cola (diferida 30s) o en ejecución (reactiva, manual o periódica): [CloudSyncUiState.SYNCING].
+     * - Si hay una tarea en cola (diferida 30s) o en ejecución: [CloudSyncUiState.SYNCING] o [CloudSyncUiState.PENDING].
      * - Al completar una subida efectiva a Google Drive: [CloudSyncUiState.SUCCESS] por 2.5s y vuelve a [CloudSyncUiState.IDLE].
-     * - Si la tarea fue cancelada o finalizó sin subida requerida (huellas idénticas): vuelve inmediatamente a [CloudSyncUiState.IDLE].
+     * - Si la tarea fue cancelada o finalizó sin subida requerida: vuelve inmediatamente a [CloudSyncUiState.IDLE].
      * - Si falla una tarea activa: [CloudSyncUiState.ERROR] por 3s y vuelve a [CloudSyncUiState.IDLE].
-     * - En cualquier otro caso: [CloudSyncUiState.IDLE].
      */
     private fun observeCloudSync() {
         viewModelScope.launch {
             var wasSyncing = false
-            val workManager = WorkManager.getInstance(AuthenticatorApp.instance)
-
-            combine(
-                workManager.getWorkInfosForUniqueWorkFlow(CloudVaultSyncManager.REACTIVE_WORK_NAME),
-                workManager.getWorkInfosForUniqueWorkFlow(CloudVaultSyncManager.PERIODIC_WORK_NAME)
-            ) { reactiveList, periodicList ->
-                Pair(reactiveList, periodicList)
-            }.collect { (reactiveList, periodicList) ->
-                val isReactiveRunning = reactiveList.any { it.state == WorkInfo.State.RUNNING }
-                val isPeriodicRunning = periodicList.any { it.state == WorkInfo.State.RUNNING }
-                val isReactivePending = reactiveList.any { it.state == WorkInfo.State.ENQUEUED }
-                val isSyncRunning = isReactiveRunning || isPeriodicRunning
-                val allInfos = reactiveList + periodicList
-
-                if (isSyncRunning) {
-                    wasSyncing = true
-                    syncFeedbackJob?.cancel()
-                    _cloudSyncState.value = CloudSyncUiState.SYNCING
-                } else if (isReactivePending) {
-                    wasSyncing = true
-                    syncFeedbackJob?.cancel()
-                    _cloudSyncState.value = CloudSyncUiState.PENDING
-                } else {
-                    if (wasSyncing) {
-                        wasSyncing = false
+            CloudVaultSyncManager.observeWorkManagerSyncStatus(AuthenticatorApp.instance)
+                .collect { status ->
+                    if (status.isSyncRunning) {
+                        wasSyncing = true
                         syncFeedbackJob?.cancel()
+                        _cloudSyncState.value = CloudSyncUiState.SYNCING
+                    } else if (status.isSyncPending) {
+                        wasSyncing = true
+                        syncFeedbackJob?.cancel()
+                        _cloudSyncState.value = CloudSyncUiState.PENDING
+                    } else {
+                        if (wasSyncing) {
+                            wasSyncing = false
+                            syncFeedbackJob?.cancel()
 
-                        val hasFailed = allInfos.any { it.state == WorkInfo.State.FAILED }
-                        val hasSucceededWithUpload = allInfos.any { info ->
-                            info.state == WorkInfo.State.SUCCEEDED &&
-                                info.outputData.getBoolean(CloudVaultSyncManager.KEY_SYNC_PERFORMED, false)
-                        }
-
-                        if (hasFailed) {
-                            syncFeedbackJob = viewModelScope.launch {
-                                _cloudSyncState.value = CloudSyncUiState.ERROR
-                                delay(3000.milliseconds)
+                            if (status.hasFailed) {
+                                syncFeedbackJob = viewModelScope.launch {
+                                    _cloudSyncState.value = CloudSyncUiState.ERROR
+                                    delay(3000.milliseconds)
+                                    _cloudSyncState.value = CloudSyncUiState.IDLE
+                                }
+                            } else if (status.hasSucceededWithUpload) {
+                                syncFeedbackJob = viewModelScope.launch {
+                                    _cloudSyncState.value = CloudSyncUiState.SUCCESS
+                                    delay(2500.milliseconds)
+                                    _cloudSyncState.value = CloudSyncUiState.IDLE
+                                }
+                            } else {
                                 _cloudSyncState.value = CloudSyncUiState.IDLE
                             }
-                        } else if (hasSucceededWithUpload) {
-                            syncFeedbackJob = viewModelScope.launch {
-                                _cloudSyncState.value = CloudSyncUiState.SUCCESS
-                                delay(2500.milliseconds)
-                                _cloudSyncState.value = CloudSyncUiState.IDLE
-                            }
-                        } else {
+                        } else if (syncFeedbackJob?.isActive != true) {
                             _cloudSyncState.value = CloudSyncUiState.IDLE
                         }
-                    } else if (syncFeedbackJob?.isActive != true) {
-                        _cloudSyncState.value = CloudSyncUiState.IDLE
                     }
                 }
-            }
         }
     }
 

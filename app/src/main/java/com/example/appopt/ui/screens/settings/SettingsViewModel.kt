@@ -68,12 +68,8 @@ class SettingsViewModel : ViewModel() {
             Triple(lastSync, lastHash.orEmpty(), lastFetch)
         }
     ) { internal, accounts, isConnected, (lastSync, safeLastHash, lastFetch) ->
-        val currentVaultHash = CloudVaultSyncManager.computeAccountsSignature(accounts)
-        val hasChanges = if (!isConnected || lastSync == 0L || safeLastHash.isEmpty()) {
-            false
-        } else {
-            currentVaultHash != safeLastHash
-        }
+        val isSynced = CloudVaultSyncManager.isVaultSyncedWithCloud(isConnected, lastSync, safeLastHash, accounts)
+        val hasChanges = isConnected && lastSync > 0L && safeLastHash.isNotEmpty() && !isSynced
 
         internal.copy(
             accounts = accounts,
@@ -98,25 +94,15 @@ class SettingsViewModel : ViewModel() {
      */
     private fun observeWorkManagerSync() {
         viewModelScope.launch {
-            val workManager = WorkManager.getInstance(appInstance)
-            combine(
-                workManager.getWorkInfosForUniqueWorkFlow(CloudVaultSyncManager.REACTIVE_WORK_NAME),
-                workManager.getWorkInfosForUniqueWorkFlow(CloudVaultSyncManager.PERIODIC_WORK_NAME)
-            ) { reactiveList, periodicList ->
-                val isRunning = reactiveList.any { it.state == WorkInfo.State.RUNNING } ||
-                        periodicList.any { it.state == WorkInfo.State.RUNNING }
-                val hasSucceeded = reactiveList.any {
-                    it.state == WorkInfo.State.SUCCEEDED && it.outputData.getBoolean(CloudVaultSyncManager.KEY_SYNC_PERFORMED, false)
+            CloudVaultSyncManager.observeWorkManagerSyncStatus(appInstance)
+                .collect { status ->
+                    _internalState.update { current ->
+                        current.copy(
+                            isAutoSyncRunning = status.isSyncRunning,
+                            driveBackupExists = if (status.hasSucceededWithUpload) true else current.driveBackupExists
+                        )
+                    }
                 }
-                Pair(isRunning, hasSucceeded)
-            }.collect { (isRunning, hasSucceeded) ->
-                _internalState.update { current ->
-                    current.copy(
-                        isAutoSyncRunning = isRunning,
-                        driveBackupExists = if (hasSucceeded) true else current.driveBackupExists
-                    )
-                }
-            }
         }
     }
 

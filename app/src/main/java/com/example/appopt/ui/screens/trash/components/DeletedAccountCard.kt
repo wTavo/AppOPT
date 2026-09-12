@@ -3,11 +3,14 @@ package com.example.appopt.ui.screens.trash.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -109,7 +112,9 @@ fun DeletedAccountCard(
 
             // Acciones: Eliminar definitivamente y Restaurar
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min),
                 horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -117,7 +122,8 @@ fun DeletedAccountCard(
                     onClick = onPermanentDelete,
                     modifier = Modifier
                         .weight(1f)
-                        .height(Dimensions.ComponentHeight.buttonDefault),
+                        .fillMaxHeight()
+                        .heightIn(min = Dimensions.ComponentHeight.buttonDefault),
                     contentPadding = PaddingValues(horizontal = Dimensions.Spacing.xs, vertical = Dimensions.Spacing.xs),
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                     colors = ButtonDefaults.outlinedButtonColors(

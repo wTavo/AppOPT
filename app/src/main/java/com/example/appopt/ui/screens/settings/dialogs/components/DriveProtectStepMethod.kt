@@ -4,8 +4,11 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -98,6 +101,7 @@ fun DriveProtectStepMethod(
             // Opción 0: Contraseña Maestra
             val isTab0 = selectedTab == 0
             Surface(
+                onClick = { onTabSelected(0) },
                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                 color = if (isTab0) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
                 border = BorderStroke(
@@ -107,7 +111,6 @@ fun DriveProtectStepMethod(
                 modifier = Modifier
                     .weight(1f)
                     .height(Dimensions.ComponentSize.methodSelectorCard)
-                    .clickable { onTabSelected(0) }
             ) {
                 Column(
                     modifier = Modifier
@@ -127,7 +130,6 @@ fun DriveProtectStepMethod(
                         text = stringResource(R.string.settings_drive_method_password),
                         style = MaterialTheme.typography.labelLarge,
                         textAlign = TextAlign.Center,
-                        maxLines = 1,
                         color = if (isTab0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -136,6 +138,7 @@ fun DriveProtectStepMethod(
             // Opción 1: Clave de 64 Dígitos
             val isTab1 = selectedTab == 1
             Surface(
+                onClick = { onTabSelected(1) },
                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                 color = if (isTab1) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
                 border = BorderStroke(
@@ -145,7 +148,6 @@ fun DriveProtectStepMethod(
                 modifier = Modifier
                     .weight(1f)
                     .height(Dimensions.ComponentSize.methodSelectorCard)
-                    .clickable { onTabSelected(1) }
             ) {
                 Column(
                     modifier = Modifier
@@ -273,15 +275,20 @@ fun DriveProtectStepMethod(
 
                 // Botones Simétricos con Altura y Tipografía Idéntica
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min),
+                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     OutlinedButton(
                         onClick = onRegenerateKey,
                         shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                        contentPadding = PaddingValues(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs),
                         modifier = Modifier
                             .weight(1f)
-                            .height(Dimensions.ComponentHeight.buttonDefault)
+                            .fillMaxHeight()
+                            .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Refresh,
@@ -292,7 +299,7 @@ fun DriveProtectStepMethod(
                         Text(
                             text = stringResource(R.string.settings_drive_key_regenerate_short),
                             style = MaterialTheme.typography.labelLarge,
-                            maxLines = 1
+                            textAlign = TextAlign.Center
                         )
                     }
 
@@ -300,9 +307,11 @@ fun DriveProtectStepMethod(
                         onClick = onCopyKey,
                         enabled = copyCountdown <= 0,
                         shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                        contentPadding = PaddingValues(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs),
                         modifier = Modifier
                             .weight(1f)
-                            .height(Dimensions.ComponentHeight.buttonDefault)
+                            .fillMaxHeight()
+                            .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
                     ) {
                         Icon(
                             imageVector = if (copyCountdown > 0) Icons.Filled.Timer else Icons.Filled.ContentCopy,
@@ -317,7 +326,7 @@ fun DriveProtectStepMethod(
                                 stringResource(R.string.settings_drive_copy_key_short)
                             },
                             style = MaterialTheme.typography.labelLarge,
-                            maxLines = 1
+                            textAlign = TextAlign.Center
                         )
                     }
                 }

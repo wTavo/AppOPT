@@ -3,10 +3,14 @@ package com.example.appopt.ui.screens.settings.dialogs.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -35,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextAlign
 import com.example.appopt.R
 import com.example.appopt.ui.theme.Dimensions
 
@@ -224,16 +229,21 @@ fun DriveProtectStepMnemonic(
 
         // Botones de acción simétricos y estandarizados
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min),
+            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedButton(
                 onClick = onCopyWords,
                 enabled = copyCountdown <= 0,
                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                contentPadding = PaddingValues(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs),
                 modifier = Modifier
                     .weight(1f)
-                    .height(Dimensions.ComponentHeight.buttonDefault)
+                    .fillMaxHeight()
+                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
             ) {
                 Icon(
                     imageVector = if (copyCountdown > 0) Icons.Filled.Timer else Icons.Filled.ContentCopy,
@@ -248,16 +258,18 @@ fun DriveProtectStepMnemonic(
                         stringResource(R.string.settings_drive_copy_phrase_btn)
                     },
                     style = MaterialTheme.typography.labelLarge,
-                    maxLines = 1
+                    textAlign = TextAlign.Center
                 )
             }
 
             OutlinedButton(
                 onClick = onPrintPdf,
                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                contentPadding = PaddingValues(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs),
                 modifier = Modifier
                     .weight(1f)
-                    .height(Dimensions.ComponentHeight.buttonDefault)
+                    .fillMaxHeight()
+                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
             ) {
                 Icon(
                     imageVector = Icons.Filled.Print,
@@ -268,7 +280,7 @@ fun DriveProtectStepMnemonic(
                 Text(
                     text = stringResource(R.string.settings_drive_print_pdf_short),
                     style = MaterialTheme.typography.labelLarge,
-                    maxLines = 1
+                    textAlign = TextAlign.Center
                 )
             }
         }

@@ -106,6 +106,7 @@ fun OtpCodeCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(Dimensions.CornerRadius.large))
             .clickable(
                 enabled = !isDragging,
                 interactionSource = interactionSource,

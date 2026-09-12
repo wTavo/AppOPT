@@ -82,15 +82,14 @@ fun DriveProtectStepQuiz(
                         q.options.forEach { option ->
                             val isSelected = selectedAnswers[qIdx] == option
                             Surface(
+                                onClick = { onSelectAnswer(qIdx, option) },
                                 shape = RoundedCornerShape(Dimensions.CornerRadius.small),
                                 color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
                                 border = BorderStroke(
                                     Dimensions.Stroke.thin,
                                     if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
                                 ),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clickable { onSelectAnswer(qIdx, option) }
+                                modifier = Modifier.weight(1f)
                             ) {
                                 Box(
                                     modifier = Modifier.padding(

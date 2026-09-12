@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
@@ -19,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import com.example.appopt.R
 import com.example.appopt.domain.model.TotpAccount
@@ -69,8 +71,9 @@ fun ExportAccountSelectionStep(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clip(RoundedCornerShape(Dimensions.CornerRadius.small))
                         .clickable { onToggleSelection(account.id) }
-                        .padding(vertical = Dimensions.Spacing.xs),
+                        .padding(vertical = Dimensions.Spacing.xs, horizontal = Dimensions.Spacing.xs),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     ServiceBrandAvatar(
@@ -107,8 +110,9 @@ fun ExportAccountSelectionStep(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .clip(RoundedCornerShape(Dimensions.CornerRadius.small))
                 .clickable { onKeepServicesChanged(!keepServicesOnDevice) }
-                .padding(vertical = Dimensions.Spacing.xs),
+                .padding(vertical = Dimensions.Spacing.xs, horizontal = Dimensions.Spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {

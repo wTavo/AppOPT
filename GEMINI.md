@@ -211,3 +211,14 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
       1. Es transaccional o descartable al cerrar la pantalla/diálogo (ej. opciones de cuestionario BIP-39, filtros temporales de búsqueda).
       2. Modela entradas del usuario en curso antes de confirmarse (ej. campos de texto en formularios de alta/edición).
       3. Controla elementos puramente visuales, animaciones o coordenadas de renderizado (`isMenuOpen`, `isDragging`, `rememberScrollState`).
+
+---
+
+## 25. Resiliencia Fuera de Línea y Degradación Elegante de Permisos (*Offline-First Resilience & Permission Degradation*)
+- **PROHIBIDO** condicionar o bloquear la funcionalidad básica de la aplicación (generación de códigos TOTP/HOTP, adición manual, exportación offline o gestión de papelera) a la disponibilidad de conexión a internet o a la concesión de permisos opcionales del sistema.
+- **PROHIBIDO** provocar cierres forzosos (*crashes*) o bloqueos en la interfaz cuando el usuario deniegue permisos en tiempo de ejecución (Cámara, Notificaciones, Batería o Alarmas exactas).
+- **OBLIGATORIO diseñar bajo el principio Offline-First:**
+  1. La base de datos local y los algoritmos criptográficos son completamente autónomos y funcionan al 100% sin red.
+  2. Las operaciones en la nube (Google Drive) deben ejecutarse de forma asíncrona y no bloqueante, manejando estados de desconexión sin degradar la experiencia local.
+  3. Ante la denegación de permisos de cámara o notificaciones, presentar vistas informativas y alternativas claras (ej. entrada manual de clave o enlaces directos a los ajustes del sistema) sin interrumpir el flujo del usuario.
+

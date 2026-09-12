@@ -194,3 +194,20 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 - **OBLIGATORIO** fijar pesos simétricos (`Modifier.weight(1f)`) en filas de botones adyacentes para que compartan equitativamente el ancho disponible.
 - **OBLIGATORIO** sincronizar la altura de botones y contenedores hermanos utilizando `Modifier.height(IntrinsicSize.Min)` en la fila y `Modifier.fillMaxHeight().heightIn(min = Dimensions.ComponentHeight.buttonDefault)` (50.dp o 36.dp) en los botones, de modo que si un control requiere más altura por salto de línea, todos los controles adyacentes se adapten dinámicamente a la misma altura exacta.
 - **OBLIGATORIO** diseñar textos con flujo natural (`wrapContentHeight()`, `textAlign = TextAlign.Center`, `PaddingValues` calibrados), garantizando legibilidad total, simetría y cero truncamiento.
+
+---
+
+## 24. Ámbito de Estados: Centralización Compartida vs. Aislamiento Local (*Shared Managers vs. Local UI State Scope*)
+- **PROHIBIDO** centralizar en Managers o Singletons globales estados efímeros que solo pertenecen a una pantalla, formulario o diálogo particular (ej. visibilidad de contraseña, pestañas de modales, textos en edición, selecciones transitorias o animaciones).
+- **PROHIBIDO** duplicar o mantener cálculos aislados en múltiples ViewModels para estados transversales del sistema que requieren una única fuente de verdad (ej. estado de sincronización en la nube, temporizadores de portapapeles, sesión de proveedores o estado de bloqueo biométrico).
+- **OBLIGATORIO definir el ámbito del estado según su ciclo de vida y alcance:**
+  - **Estado Compartido / Global (`data/cloud/`, `security/`, `domain/repository/`):**
+    - Debe implementarse mediante `Manager`, `Repository` o `Coordinator` como fuente única de verdad cuando:
+      1. Múltiples pantallas o procesos en segundo plano (como `WorkManager`) observan o mutan el mismo dato de forma concurrente (ej. `CloudVaultSyncManager`, `SecureClipboardManager`, `AppLockManager`).
+      2. El ciclo de vida de la tarea o dato supera la permanencia de la pantalla activa (ej. cuenta regresiva de limpieza de portapapeles, sincronización en progreso).
+      3. Gestiona recursos o hardware exclusivos del sistema (Keystore, biometría, conectividad).
+  - **Estado Local / Aislado (`ViewModel` / `UiState` / `remember`):**
+    - Debe confinarse estrictamente al `ViewModel` o Composable cuando:
+      1. Es transaccional o descartable al cerrar la pantalla/diálogo (ej. opciones de cuestionario BIP-39, filtros temporales de búsqueda).
+      2. Modela entradas del usuario en curso antes de confirmarse (ej. campos de texto en formularios de alta/edición).
+      3. Controla elementos puramente visuales, animaciones o coordenadas de renderizado (`isMenuOpen`, `isDragging`, `rememberScrollState`).

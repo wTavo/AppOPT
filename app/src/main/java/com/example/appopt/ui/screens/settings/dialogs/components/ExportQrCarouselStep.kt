@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -39,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import com.example.appopt.R
 import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.rememberAppHaptics
 
 /**
@@ -156,8 +158,8 @@ fun ExportQrCarouselStep(
             Crossfade(
                 targetState = isPinVisible,
                 animationSpec = tween(
-                    durationMillis = com.example.appopt.ui.theme.Motion.Duration.FAST,
-                    easing = com.example.appopt.ui.theme.Motion.EasingCurve.Standard
+                    durationMillis = Motion.Duration.FAST,
+                    easing = Motion.EasingCurve.Standard
                 ),
                 label = "qrPinDisplayCrossfade"
             ) { showingPin ->
@@ -255,13 +257,13 @@ fun ExportQrCarouselStep(
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(Dimensions.ComponentHeight.buttonDefault)
+                        .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
                 ) {
                     Crossfade(
                         targetState = isPinVisible,
                         animationSpec = tween(
-                            durationMillis = com.example.appopt.ui.theme.Motion.Duration.FAST,
-                            easing = com.example.appopt.ui.theme.Motion.EasingCurve.Standard
+                            durationMillis = Motion.Duration.FAST,
+                            easing = Motion.EasingCurve.Standard
                         ),
                         label = "qrPinButtonCrossfade"
                     ) { showingPin ->

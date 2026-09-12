@@ -130,12 +130,11 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
   - **PROHIBIDO** fragmentar diálogos modales interactivos en múltiples ranuras animadas independientes (`title`, `text`, `confirmButton`) que compitan entre sí y provoquen colisiones de layout o desbordes en la parte inferior.
   - **PROHIBIDO** animar escala sobre árboles de texto (`scaleIn`/`scaleOut`) que causen vibración en fuentes monoespaciadas o códigos OTP.
   - **PROHIBIDO** usar `animateContentSize` en contenedores externos que envuelven `Crossfade` o transiciones asíncronas de contenido.
-  - **PROHIBIDO** agregar `slideInVertically` o `slideOutVertically` dentro de `dialogStepContentTransform()`. El desplazamiento vertical del contenido entra en **conflicto vectorial** con el `SizeTransform` y el auto-centramiento del `AlertDialog`, produciendo vibración irrecuperable en la zona inferior del diálogo. El efecto "cápsula líquida que respira" se logra **únicamente** con fade + spring size.
+  - **PROHIBIDO** agregar `slideInVertically` o `slideOutVertically` dentro de `dialogStepContentTransform()`. El desplazamiento vertical del contenido entra en **conflicto vectorial** con el `SizeTransform` y el auto-centramiento del `AlertDialog`, produciendo vibración irrecuperable en la zona inferior del diálogo.
+  - **PROHIBIDO** agregar `SizeTransform` a `dialogStepContentTransform()`. `AlertDialog` mide su slot `text` y **reposiciona su ventana en cada fotograma** en que el tamaño varía. Con `SizeTransform` + resorte, el diálogo se reposiciona continuamente durante ~400 ms, provocando que el contenido inferior "persiga" el borde de la tarjeta y produzca vibración. El cambio de tamaño ocurre en el primer fotograma del fade (cuando el contenido está casi invisible) y resulta imperceptible.
   - **OBLIGATORIO** unificar todo el diálogo (título, cuerpo y botones `AppDialogActionButtons`) dentro de un único contenedor monolítico animado (`AnimatedContent`), consumiendo `Motion.Spec.dialogStepContentTransform()`:
-    1. **Fase de salida fluida:** El contenido saliente se desvanece de inmediato (`fadeOut`, 90ms). Sin desplazamiento.
-    2. **Fase de ajuste dimensional líquido:** Toda la tarjeta modal muta sus dimensiones de manera continua y orgánica utilizando física de resortes elásticos amortiguados (`spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)`).
-    3. **Fase de entrada suave:** El nuevo contenido emerge suavemente (`fadeIn`, 180ms con 60ms de retardo). Sin desplazamiento.
-    4. **Sin recorte invasivo:** Fijar `clip = false` en `SizeTransform` para preservar radios de curvatura de 16.dp y sombras intactas en cada fotograma.
+    1. **Fase de salida fluida:** El contenido saliente se desvanece de inmediato (`fadeOut`, 90ms). Sin desplazamiento. Simultáneamente, `AnimatedContent` snapea su tamaño al nuevo estado (imperceptible durante el fade).
+    2. **Fase de entrada suave:** El nuevo contenido emerge suavemente (`fadeIn`, 180ms con 60ms de retardo). Sin desplazamiento.
 
 
 ---

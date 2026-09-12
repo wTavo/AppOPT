@@ -1,7 +1,6 @@
 package com.example.appopt.ui.theme
 
 import androidx.compose.animation.ContentTransform
-import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -265,22 +264,26 @@ object Motion {
         )
 
         /**
-         * Transición fluida estilo Dynamic Island Morphing para pasos y sub-estados dentro de diálogos modales.
+         * Transición Fade Through para pasos y sub-estados dentro de diálogos modales.
          *
          * Arquitectura monolítica: todo el contenido del diálogo (título, cuerpo y botones) vive dentro
-         * de un único [AnimatedContent]. Esto garantiza que solo haya **2 animaciones simultáneas**:
-         * fade del contenido y ajuste dimensional del contenedor.
+         * de un único [AnimatedContent], eliminando colisiones de layout entre ranuras independientes.
+         *
+         * ⚠️ PROHIBIDO agregar [SizeTransform] a esta especificación.
+         *    [AlertDialog] mide el slot `text` y reposiciona su ventana en cada fotograma en que el tamaño
+         *    cambia. Con [SizeTransform] + resorte, el diálogo se reposiciona continuamente durante ~400 ms,
+         *    lo que produce vibración irrecuperable en la zona inferior (el contenido "persigue" el borde
+         *    inferior de la tarjeta). El cambio de tamaño correcto ocurre en el primer fotograma del fade
+         *    (cuando el contenido está casi invisible) y resulta imperceptible para el usuario.
          *
          * ⚠️ PROHIBIDO agregar [slideInVertically] o [slideOutVertically] a esta especificación.
-         *    El desplazamiento vertical del contenido entra en conflicto vectorial con el [SizeTransform]
-         *    y el auto-centramiento del [AlertDialog], produciendo vibración irrecuperable en la zona inferior.
-         *    El resultado deseado — "cápsula líquida que respira" — se logra únicamente con fade + spring size.
+         *    El desplazamiento vertical entra en conflicto vectorial con el auto-centramiento del [AlertDialog],
+         *    produciendo vibración adicional.
          *
          * Fases:
-         * 1. **Salida fluida (90 ms):** Contenido saliente se desvanece con [fadeOut].
-         * 2. **Ajuste dimensional líquido:** El contenedor muta su altura con física de resortes sin rebote ([spring]).
-         * 3. **Entrada suave (180 ms, retardo 60 ms):** Nuevo contenido emerge con [fadeIn] tras el ajuste dimensional.
-         * 4. **Sin recorte:** [clip] = false preserva los radios de curvatura de 16 dp y sombras en cada fotograma.
+         * 1. **Salida fluida (90 ms):** Contenido saliente se desvanece con [fadeOut]. Simultáneamente,
+         *    [AnimatedContent] snapea su tamaño al del nuevo contenido (imperceptible en el fade).
+         * 2. **Entrada suave (180 ms, retardo 60 ms):** Nuevo contenido emerge con [fadeIn].
          *
          * @return [ContentTransform] lista para consumirse en `AnimatedContent(transitionSpec = { Motion.Spec.dialogStepContentTransform() })`.
          */
@@ -302,16 +305,9 @@ object Motion {
 
             return ContentTransform(
                 targetContentEnter = enterSpec,
-                initialContentExit = exitSpec,
-                sizeTransform = SizeTransform(
-                    clip = false,
-                    sizeAnimationSpec = { _, _ ->
-                        spring(
-                            dampingRatio = Spring.DampingRatioNoBouncy,
-                            stiffness = Spring.StiffnessMediumLow
-                        )
-                    }
-                )
+                initialContentExit = exitSpec
+                // Sin SizeTransform — el tamaño snapea al inicio del fade para evitar reposicionamiento
+                // continuo de la ventana del AlertDialog que causa temblor en zona inferior.
             )
         }
     }

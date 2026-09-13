@@ -576,7 +576,7 @@ object AccountBackupSerializer {
                 digits = digits,
                 period = period,
                 type = type.name,
-                counter = counter,
+                counter = maxOf(existingEntity.counter, counter),
                 isDeleted = false,
                 deletedAt = null,
                 updatedAt = now
@@ -591,7 +591,7 @@ object AccountBackupSerializer {
             existingEntity.period != period ||
             existingEntity.algorithm != algorithm.name ||
             existingEntity.type != type.name ||
-            existingEntity.counter != counter
+            counter > existingEntity.counter
         ) {
             val payload = cryptoManager.encrypt(secretBytes)
             val updatedEntity = existingEntity.copy(
@@ -603,7 +603,7 @@ object AccountBackupSerializer {
                 digits = digits,
                 period = period,
                 type = type.name,
-                counter = counter,
+                counter = maxOf(existingEntity.counter, counter),
                 updatedAt = now
             )
             accountDao.updateAccount(updatedEntity)

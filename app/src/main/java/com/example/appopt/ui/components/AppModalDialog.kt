@@ -66,12 +66,9 @@ fun AppModalDialog(
             Surface(
                 modifier = modifier
                     .safeDrawingPadding()
-                    .padding(
-                        horizontal = Dimensions.Spacing.xl,
-                        vertical = Dimensions.Spacing.xxl
-                    )
-                    .widthIn(min = 280.dp, max = 380.dp)
-                    .fillMaxWidth()
+                    .padding(vertical = Dimensions.Spacing.xl)
+                    .fillMaxWidth(0.86f)
+                    .widthIn(min = 280.dp, max = 400.dp)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,

@@ -431,7 +431,32 @@ object AccountBackupSerializer {
                         localBySecretHash[remoteHash] = newEntity
                         changesCount++
                     } else {
-                        if (remoteUpdatedAt > existingEntity.updatedAt) {
+                        if (existingEntity.isDeleted) {
+                            val payload = cryptoManager.encrypt(secretBytes)
+                            val restoredEntity = existingEntity.copy(
+                                issuer = remoteIssuer,
+                                accountName = remoteAccountName,
+                                encryptedSecret = payload.ciphertext,
+                                iv = payload.iv,
+                                algorithm = OtpAlgorithm.fromString(remoteAlgorithm).name,
+                                digits = remoteDigits,
+                                period = remotePeriod,
+                                type = OtpType.fromString(remoteType).name,
+                                counter = remoteCounter,
+                                isDeleted = false,
+                                deletedAt = null,
+                                updatedAt = if (remoteUpdatedAt > 0L) remoteUpdatedAt else System.currentTimeMillis()
+                            )
+                            accountDao.updateAccount(restoredEntity)
+                            localById[existingEntity.id] = restoredEntity
+                            localBySecretHash[remoteHash] = restoredEntity
+                            onInvalidateCache(existingEntity.id)
+                            changesCount++
+                        } else if (remoteUpdatedAt > existingEntity.updatedAt ||
+                            remoteIssuer != existingEntity.issuer ||
+                            remoteAccountName != existingEntity.accountName ||
+                            remoteCounter > existingEntity.counter
+                        ) {
                             val payload = cryptoManager.encrypt(secretBytes)
                             val updatedEntity = existingEntity.copy(
                                 issuer = remoteIssuer,
@@ -443,7 +468,7 @@ object AccountBackupSerializer {
                                 period = remotePeriod,
                                 type = OtpType.fromString(remoteType).name,
                                 counter = remoteCounter,
-                                updatedAt = remoteUpdatedAt
+                                updatedAt = if (remoteUpdatedAt > 0L) remoteUpdatedAt else System.currentTimeMillis()
                             )
                             accountDao.updateAccount(updatedEntity)
                             localById[existingEntity.id] = updatedEntity
@@ -457,7 +482,136 @@ object AccountBackupSerializer {
                 }
             }
 
+            if (changesCount > 0) {
+                com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
+            }
+
             changesCount
+        }
+    }
+
+    /**
+     * Guarda o fusiona un servicio individual verificando si ya existe en la base de datos por hash de clave secreta.
+     *
+     * @param issuer Nombre del servicio o emisor.
+     * @param accountName Nombre de usuario o cuenta.
+     * @param secretBytes Clave secreta en bytes.
+     * @param algorithm Algoritmo HMAC (SHA1, SHA256, SHA512).
+     * @param digits Cantidad de dígitos generados.
+     * @param period Período en segundos para TOTP.
+     * @param type Tipo de OTP (TOTP / HOTP).
+     * @param counter Contador para HOTP.
+     * @param accountDao DAO de Room para operaciones locales.
+     * @param cryptoManager Gestor criptográfico para cifrado AES-256-GCM.
+     * @param onInvalidateCache Callback opcional para invalidar la caché en memoria.
+     * @return 1 si se insertó, actualizó o restauró el servicio; 0 si ya existía de forma idéntica.
+     */
+    suspend fun mergeSingleAccount(
+        issuer: String,
+        accountName: String,
+        secretBytes: ByteArray,
+        algorithm: OtpAlgorithm,
+        digits: Int,
+        period: Int,
+        type: OtpType,
+        counter: Long,
+        accountDao: AccountDao,
+        cryptoManager: CryptoManager,
+        onInvalidateCache: (String) -> Unit
+    ): Int {
+        val currentEntities = accountDao.getAllAccountsSync()
+        val sha256 = MessageDigest.getInstance("SHA-256")
+        val incomingHash = sha256.digest(secretBytes).joinToString("") { "%02x".format(it) }
+
+        var existingEntity: AccountEntity? = null
+        for (entity in currentEntities) {
+            try {
+                val decBytes = cryptoManager.decrypt(entity.encryptedSecret, entity.iv)
+                val hash = sha256.digest(decBytes).joinToString("") { "%02x".format(it) }
+                CryptoManager.zeroize(decBytes)
+                if (hash == incomingHash) {
+                    existingEntity = entity
+                    break
+                }
+            } catch (_: Exception) {
+                // Ignorar fallas aisladas en entidades corruptas
+            }
+        }
+
+        val trimmedIssuer = issuer.trim().ifBlank { "Servicio" }
+        val trimmedAccountName = accountName.trim()
+        val now = System.currentTimeMillis()
+
+        return if (existingEntity == null) {
+            val payload = cryptoManager.encrypt(secretBytes)
+            val newEntity = AccountEntity(
+                id = UUID.randomUUID().toString(),
+                issuer = trimmedIssuer,
+                accountName = trimmedAccountName,
+                encryptedSecret = payload.ciphertext,
+                iv = payload.iv,
+                algorithm = algorithm.name,
+                digits = digits,
+                period = period,
+                type = type.name,
+                counter = counter,
+                isFavorite = false,
+                orderIndex = 0,
+                isDeleted = false,
+                deletedAt = null,
+                createdAt = now,
+                updatedAt = now
+            )
+            accountDao.insertAccount(newEntity)
+            com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
+            1
+        } else if (existingEntity.isDeleted) {
+            val payload = cryptoManager.encrypt(secretBytes)
+            val restoredEntity = existingEntity.copy(
+                issuer = trimmedIssuer,
+                accountName = trimmedAccountName,
+                encryptedSecret = payload.ciphertext,
+                iv = payload.iv,
+                algorithm = algorithm.name,
+                digits = digits,
+                period = period,
+                type = type.name,
+                counter = counter,
+                isDeleted = false,
+                deletedAt = null,
+                updatedAt = now
+            )
+            accountDao.updateAccount(restoredEntity)
+            onInvalidateCache(existingEntity.id)
+            com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
+            1
+        } else if (existingEntity.issuer != trimmedIssuer ||
+            existingEntity.accountName != trimmedAccountName ||
+            existingEntity.digits != digits ||
+            existingEntity.period != period ||
+            existingEntity.algorithm != algorithm.name ||
+            existingEntity.type != type.name ||
+            existingEntity.counter != counter
+        ) {
+            val payload = cryptoManager.encrypt(secretBytes)
+            val updatedEntity = existingEntity.copy(
+                issuer = trimmedIssuer,
+                accountName = trimmedAccountName,
+                encryptedSecret = payload.ciphertext,
+                iv = payload.iv,
+                algorithm = algorithm.name,
+                digits = digits,
+                period = period,
+                type = type.name,
+                counter = counter,
+                updatedAt = now
+            )
+            accountDao.updateAccount(updatedEntity)
+            onInvalidateCache(existingEntity.id)
+            com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
+            1
+        } else {
+            0
         }
     }
 }

@@ -122,6 +122,11 @@ object SecurityConfig {
     const val TRANSFER_QR_PIN_LENGTH = 6
 
     /**
+     * Cantidad máxima de intentos fallidos permitidos para ingresar el PIN de transferencia QR antes del bloqueo de sesión.
+     */
+    const val TRANSFER_QR_MAX_PIN_ATTEMPTS = 5
+
+    /**
      * Tiempo de expiración en segundos para la validez del código QR de transferencia cifrado (90 segundos base).
      */
     const val TRANSFER_QR_EXPIRATION_SECONDS = 90

@@ -426,22 +426,33 @@ class AccountRepositoryImpl(
                 return Result.failure(parseResult.exceptionOrNull() ?: Exception("QR OTP no válido"))
             }
             val data = parseResult.getOrThrow()
-            saveAccount(
-                issuer = data.issuer,
-                accountName = data.accountName,
-                secretBytes = data.secretBytes,
-                algorithm = data.algorithm,
-                digits = data.digits,
-                period = data.period,
-                type = data.type,
-                counter = data.counter
-            )
-            return Result.success(1)
+            return withContext(Dispatchers.IO) {
+                runCatching {
+                    AccountBackupSerializer.mergeSingleAccount(
+                        issuer = data.issuer,
+                        accountName = data.accountName,
+                        secretBytes = data.secretBytes,
+                        algorithm = data.algorithm,
+                        digits = data.digits,
+                        period = data.period,
+                        type = data.type,
+                        counter = data.counter,
+                        accountDao = accountDao,
+                        cryptoManager = cryptoManager,
+                        onInvalidateCache = { id -> otpCodeCache.remove(id) }
+                    )
+                }
+            }
         }
 
-        // 3. Caso JSON estructurado multi-cuenta
-        return AccountBackupSerializer.parseAndSaveAccountsJson(effectiveTrimmed) { issuer, accountName, secretBytes, algorithm, digits, period, type, counter ->
-            saveAccount(issuer, accountName, secretBytes, algorithm, digits, period, type, counter)
+        // 3. Caso JSON estructurado multi-cuenta (fusión no destructiva y deduplicada)
+        return withContext(Dispatchers.IO) {
+            AccountBackupSerializer.mergeRemoteBackup(
+                remoteBackupJson = effectiveTrimmed,
+                accountDao = accountDao,
+                cryptoManager = cryptoManager,
+                onInvalidateCache = { id -> otpCodeCache.remove(id) }
+            )
         }
     }
 
@@ -451,15 +462,18 @@ class AccountRepositoryImpl(
     override suspend fun importAccountsFromChunks(
         chunks: List<TransferQrChunk>,
         pin: CharArray
-    ): Result<Int> {
+    ): Result<Int> = withContext(Dispatchers.IO) {
         val decryptResult = TransferCrypto.decryptAssembledChunks(chunks, pin)
         if (decryptResult.isFailure) {
-            return Result.failure(decryptResult.exceptionOrNull() ?: TransferCrypto.InvalidPinException())
+            return@withContext Result.failure(decryptResult.exceptionOrNull() ?: TransferCrypto.InvalidPinException())
         }
         val plainJson = decryptResult.getOrThrow().trim()
-        return AccountBackupSerializer.parseAndSaveAccountsJson(plainJson) { issuer, accountName, secretBytes, algorithm, digits, period, type, counter ->
-            saveAccount(issuer, accountName, secretBytes, algorithm, digits, period, type, counter)
-        }
+        AccountBackupSerializer.mergeRemoteBackup(
+            remoteBackupJson = plainJson,
+            accountDao = accountDao,
+            cryptoManager = cryptoManager,
+            onInvalidateCache = { id -> otpCodeCache.remove(id) }
+        )
     }
 
     /**

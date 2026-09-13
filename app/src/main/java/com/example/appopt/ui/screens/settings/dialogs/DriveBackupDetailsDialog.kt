@@ -124,10 +124,20 @@ fun DriveBackupDetailsDialog(
 
     var currentTick by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
-    LaunchedEffect(Unit) {
-        while (isActive) {
-            currentTick = System.currentTimeMillis()
-            delay(1_000L.milliseconds)
+    LaunchedEffect(lastFetchTimestamp) {
+        val initialElapsed = (System.currentTimeMillis() - lastFetchTimestamp).coerceAtLeast(0L)
+        val initialRemaining = (SecurityConfig.BACKUP_HISTORY_CACHE_TTL_MILLIS - initialElapsed).coerceAtLeast(0L)
+        if (initialRemaining > 0L) {
+            while (isActive) {
+                val now = System.currentTimeMillis()
+                currentTick = now
+                val elapsed = (now - lastFetchTimestamp).coerceAtLeast(0L)
+                val remaining = (SecurityConfig.BACKUP_HISTORY_CACHE_TTL_MILLIS - elapsed).coerceAtLeast(0L)
+                if (remaining <= 0L) {
+                    break
+                }
+                delay(1_000L.milliseconds)
+            }
         }
     }
 

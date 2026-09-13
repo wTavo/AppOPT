@@ -202,7 +202,7 @@ fun SettingsScreen(
         mutableStateOf(BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context))
     }
 
-    LaunchedEffect(lifecycleOwner) {
+    LaunchedEffect(lifecycleOwner, uiState.isDriveConnected, uiState.lastSyncTimestamp) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             isCameraPermissionGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
             isNotificationPermissionGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -211,11 +211,14 @@ fun SettingsScreen(
                 NotificationManagerCompat.from(context).areNotificationsEnabled()
             }
             isBatteryOptimizationIgnored = BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)
-            while (isActive) {
-                val now = System.currentTimeMillis()
-                currentTick = now
-                val millisUntilNextMinute = 60_000L - (now % 60_000L)
-                delay(millisUntilNextMinute.coerceAtLeast(1_000L).milliseconds)
+
+            if (uiState.isDriveConnected && uiState.lastSyncTimestamp > 0L) {
+                while (isActive) {
+                    val now = System.currentTimeMillis()
+                    currentTick = now
+                    val millisUntilNextMinute = 60_000L - (now % 60_000L)
+                    delay(millisUntilNextMinute.coerceAtLeast(1_000L).milliseconds)
+                }
             }
         }
     }

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -64,8 +65,12 @@ fun AppModalDialog(
             // Tarjeta modal del diálogo: Su tamaño se adapta dinámicamente al contenido
             Surface(
                 modifier = modifier
-                    .padding(horizontal = Dimensions.Spacing.lg)
-                    .widthIn(max = 420.dp)
+                    .safeDrawingPadding()
+                    .padding(
+                        horizontal = Dimensions.Spacing.xl,
+                        vertical = Dimensions.Spacing.xxl
+                    )
+                    .widthIn(min = 280.dp, max = 380.dp)
                     .fillMaxWidth()
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },

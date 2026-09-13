@@ -91,6 +91,18 @@ object Motion {
 
         /** Duración del desvanecimiento rápido de salida en pasos de diálogo (90ms). */
         const val DIALOG_STEP_FADE_OUT = 90
+
+        /** Tiempo de permanencia antes de restaurar el estado visual de sincronización en cabecera (3000ms). */
+        const val SYNC_STATUS_RESET = 3000
+
+        /** Tiempo rápido de permanencia para restauración de estado de sincronización (2500ms). */
+        const val SYNC_STATUS_FAST_RESET = 2500
+
+        /** Tiempo de retención de la animación de escaneo QR exitoso antes de navegar (1200ms). */
+        const val SCAN_SUCCESS_HOLD = 1200
+
+        /** Tiempo de espera de reintento de cámara tras fallo de inicialización (1000ms). */
+        const val CAMERA_TIMEOUT_RESET = 1000
     }
 
     /**

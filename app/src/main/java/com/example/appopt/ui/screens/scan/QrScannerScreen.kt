@@ -71,6 +71,7 @@ import com.example.appopt.ui.screens.scan.components.QrCameraPermissionView
 import com.example.appopt.ui.screens.scan.components.QrScannerOverlay
 import com.example.appopt.ui.screens.scan.components.TransferPinPromptDialog
 import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
@@ -318,7 +319,7 @@ fun QrScannerScreen(
                                                                                 snackbarHostState.showSnackbar(
                                                                                     context.getString(R.string.scan_transfer_import_success, count)
                                                                                 )
-                                                                                delay(1200L)
+                                                                                delay(Motion.Duration.SCAN_SUCCESS_HOLD.toLong())
                                                                                 onScanSuccess()
                                                                             }.onFailure {
                                                                                 cachedSessionPin = null
@@ -442,7 +443,7 @@ fun QrScannerScreen(
                             snackbarHostState.showSnackbar(
                                 context.getString(R.string.scan_transfer_import_success, count)
                             )
-                            delay(1000L)
+                            delay(Motion.Duration.CAMERA_TIMEOUT_RESET.toLong())
                             isProcessingQr = false
                         }.onFailure { error ->
                             appHaptics.error()

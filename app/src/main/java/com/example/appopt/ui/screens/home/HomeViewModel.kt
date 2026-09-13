@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import com.example.appopt.ui.theme.Motion
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -120,13 +121,13 @@ class HomeViewModel : ViewModel() {
                             if (status.hasFailed) {
                                 syncFeedbackJob = viewModelScope.launch {
                                     _cloudSyncState.value = CloudSyncUiState.ERROR
-                                    delay(3000.milliseconds)
+                                    delay(Motion.Duration.SYNC_STATUS_RESET.milliseconds)
                                     _cloudSyncState.value = CloudSyncUiState.IDLE
                                 }
                             } else if (status.hasSucceededWithUpload) {
                                 syncFeedbackJob = viewModelScope.launch {
                                     _cloudSyncState.value = CloudSyncUiState.SUCCESS
-                                    delay(2500.milliseconds)
+                                    delay(Motion.Duration.SYNC_STATUS_FAST_RESET.milliseconds)
                                     _cloudSyncState.value = CloudSyncUiState.IDLE
                                 }
                             } else {

@@ -4,6 +4,7 @@ import com.example.appopt.data.local.AccountDao
 import com.example.appopt.data.local.AccountEntity
 import com.example.appopt.domain.model.OtpAlgorithm
 import com.example.appopt.domain.model.OtpType
+import com.example.appopt.domain.model.ParsedAccountPreview
 import com.example.appopt.domain.model.TotpAccount
 import com.example.appopt.domain.repository.AccountRepository
 import com.example.appopt.domain.repository.AccountWithCode
@@ -486,6 +487,45 @@ class AccountRepositoryImpl(
             cryptoManager = cryptoManager,
             onInvalidateCache = { id -> otpCodeCache.remove(id) }
         )
+    }
+
+    /**
+     * Parsea un payload JSON estructurado para previsualizar las cuentas antes de su importación.
+     */
+    override suspend fun parseAccountsForPreview(jsonString: String): List<ParsedAccountPreview> {
+        return withContext(Dispatchers.IO) {
+            AccountBackupSerializer.parseAccountsForPreview(jsonString, accountDao, cryptoManager)
+        }
+    }
+
+    /**
+     * Importa y fusiona una lista seleccionada de cuentas previsualizadas de forma no regresiva y deduplicada.
+     */
+    override suspend fun importSelectedAccounts(accounts: List<ParsedAccountPreview>): Int {
+        return withContext(Dispatchers.IO) {
+            var changesCount = 0
+            for (preview in accounts) {
+                try {
+                    val changed = AccountBackupSerializer.mergeSingleAccount(
+                        issuer = preview.issuer,
+                        accountName = preview.accountName,
+                        secretBytes = preview.secretBytes,
+                        algorithm = preview.algorithm,
+                        digits = preview.digits,
+                        period = preview.period,
+                        type = preview.type,
+                        counter = preview.counter,
+                        accountDao = accountDao,
+                        cryptoManager = cryptoManager,
+                        onInvalidateCache = { id -> otpCodeCache.remove(id) }
+                    )
+                    changesCount += changed
+                } finally {
+                    CryptoManager.zeroize(preview.secretBytes)
+                }
+            }
+            changesCount
+        }
     }
 
     /**

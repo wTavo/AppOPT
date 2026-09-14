@@ -37,10 +37,12 @@ import com.example.appopt.domain.repository.AccountWithCode
 import com.example.appopt.ui.common.UiState
 import com.example.appopt.ui.components.AccountDetailsDialog
 import com.example.appopt.ui.components.OtpCodeCard
+import com.example.appopt.ui.screens.add.AddAccountDialog
 import com.example.appopt.ui.screens.home.components.AddAccountSpeedDialOverlay
 import com.example.appopt.ui.screens.home.components.EmptyAccountsState
 import com.example.appopt.ui.screens.home.components.HomeFloatingDock
 import com.example.appopt.ui.screens.home.components.HomeTopHeader
+import com.example.appopt.ui.screens.scan.QrScannerDialog
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.rememberAppHaptics
@@ -88,6 +90,8 @@ fun HomeScreen(
     var isSearchActive by remember { mutableStateOf(false) }
     var selectedAccountId by remember { mutableStateOf<String?>(null) }
     var isAddMenuOpen by remember { mutableStateOf(false) }
+    var isQrScannerDialogOpen by remember { mutableStateOf(false) }
+    var isManualAddDialogOpen by remember { mutableStateOf(false) }
 
     val appLockManager = remember { AuthenticatorApp.instance.appLockManager }
     val isUnlocked by appLockManager.isUnlocked.collectAsStateWithLifecycle()
@@ -98,6 +102,8 @@ fun HomeScreen(
             selectedAccountId = null
             isAddMenuOpen = false
             isSearchActive = false
+            isQrScannerDialogOpen = false
+            isManualAddDialogOpen = false
         }
     }
 
@@ -248,11 +254,11 @@ fun HomeScreen(
                 onDismiss = { isAddMenuOpen = false },
                 onScanQr = {
                     isAddMenuOpen = false
-                    onNavigateToScanQr()
+                    isQrScannerDialogOpen = true
                 },
                 onAddManual = {
                     isAddMenuOpen = false
-                    onNavigateToAddManual()
+                    isManualAddDialogOpen = true
                 }
             )
         }
@@ -290,8 +296,29 @@ fun HomeScreen(
         )
     }
 
-    // Modal / Popup de Edición y Detalles de la Cuenta seleccionada
+    // Modales interactivos en la bóveda
     if (isUnlocked) {
+        // Modal de Ingreso Manual
+        if (isManualAddDialogOpen) {
+            AddAccountDialog(
+                onDismiss = { isManualAddDialogOpen = false },
+                onAccountSaved = { isManualAddDialogOpen = false }
+            )
+        }
+
+        // Modal de Escaneo de Códigos QR
+        if (isQrScannerDialogOpen) {
+            QrScannerDialog(
+                onDismiss = { isQrScannerDialogOpen = false },
+                onScanSuccess = { isQrScannerDialogOpen = false },
+                onNavigateToManual = {
+                    isQrScannerDialogOpen = false
+                    isManualAddDialogOpen = true
+                }
+            )
+        }
+
+        // Modal / Popup de Edición y Detalles de la Cuenta seleccionada
         selectedAccountWithCode?.let { item ->
             AccountDetailsDialog(
                 accountWithCode = item,

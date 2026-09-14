@@ -380,4 +380,20 @@
     <string name="account_details_move_to_trash_btn">Mover a la papelera</string>
     <string name="account_details_moved_to_trash_success">Servicio movido a la papelera</string>
 
+    <!-- Selector de Cuentas para Importación y Restauración -->
+    <string name="import_selection_title">Seleccionar servicios a importar</string>
+    <string name="import_selection_desc">Elige los servicios que deseas añadir a tu bóveda local.</string>
+    <string name="import_selection_count">%1$d de %2$d seleccionados</string>
+    <string name="import_selection_select_all">Seleccionar todo</string>
+    <string name="import_selection_deselect_all">Deseleccionar todo</string>
+    <string name="import_selection_confirm_button">Importar (%1$d)</string>
+    <string name="import_selection_badge_new">Nuevo</string>
+    <string name="import_selection_badge_existing">En la bóveda</string>
+    <string name="import_selection_empty">No hay servicios seleccionados para importar</string>
+    <string name="drive_restore_selection_title">Seleccionar servicios a restaurar</string>
+    <string name="drive_restore_selection_desc">Elige los servicios que deseas restaurar desde la copia de seguridad.</string>
+    <string name="drive_restore_confirm_button">Restaurar (%1$d)</string>
+    <string name="scan_torch_toggle">Alternar linterna</string>
+    <string name="scan_manual_switch">Ingresar clave manual</string>
+
 </resources>

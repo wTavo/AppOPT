@@ -191,4 +191,21 @@ interface AccountRepository {
      * @return [Result] con la cantidad de cuentas purgadas.
      */
     suspend fun purgeExpiredTrash(): Result<Int>
+
+    /**
+     * Parsea un payload JSON estructurado para previsualizar las cuentas antes de su importación.
+     *
+     * @param jsonString Cadena JSON con arreglo de cuentas.
+     * @return Lista de modelos [com.example.appopt.domain.model.ParsedAccountPreview].
+     */
+    suspend fun parseAccountsForPreview(jsonString: String): List<com.example.appopt.domain.model.ParsedAccountPreview>
+
+    /**
+     * Importa y fusiona una lista seleccionada de cuentas previsualizadas de forma no regresiva y deduplicada.
+     *
+     * @param accounts Lista de cuentas seleccionadas a importar.
+     * @return Conteo de cuentas insertadas, actualizadas o restauradas.
+     */
+    suspend fun importSelectedAccounts(accounts: List<com.example.appopt.domain.model.ParsedAccountPreview>): Int
 }
+

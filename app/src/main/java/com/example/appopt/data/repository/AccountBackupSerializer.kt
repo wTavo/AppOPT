@@ -4,6 +4,7 @@ import com.example.appopt.data.local.AccountDao
 import com.example.appopt.data.local.AccountEntity
 import com.example.appopt.domain.model.OtpAlgorithm
 import com.example.appopt.domain.model.OtpType
+import com.example.appopt.domain.model.ParsedAccountPreview
 import com.example.appopt.domain.totp.Base32
 import com.example.appopt.security.CryptoManager
 import com.example.appopt.security.SecurityConfig
@@ -613,5 +614,136 @@ object AccountBackupSerializer {
         } else {
             0
         }
+    }
+
+    /**
+     * Parsea un payload JSON estructurado para previsualizar las cuentas antes de su importación,
+     * detectando si alguna de ellas ya existe previamente en la base de datos local.
+     *
+     * @param jsonString Cadena JSON con arreglo de cuentas ("a" o "accounts").
+     * @param accountDao DAO de Room para consultar las cuentas existentes.
+     * @param cryptoManager Gestor criptográfico para calcular hashes de secretos locales.
+     * @return Lista de modelos [ParsedAccountPreview].
+     */
+    suspend fun parseAccountsForPreview(
+        jsonString: String,
+        accountDao: AccountDao,
+        cryptoManager: CryptoManager
+    ): List<ParsedAccountPreview> {
+        val trimmed = jsonString.trim()
+        if (trimmed.isBlank()) return emptyList()
+
+        val root = try {
+            JSONObject(trimmed)
+        } catch (_: Exception) {
+            return emptyList()
+        }
+
+        val accountsArray = when {
+            root.has("accounts") -> root.getJSONArray("accounts")
+            root.has("a") -> root.getJSONArray("a")
+            else -> return emptyList()
+        }
+
+        val currentEntities = accountDao.getAllAccountsSync()
+        val localHashes = mutableSetOf<String>()
+        val sha256 = MessageDigest.getInstance("SHA-256")
+
+        for (entity in currentEntities) {
+            if (!entity.isDeleted) {
+                try {
+                    val decBytes = cryptoManager.decrypt(entity.encryptedSecret, entity.iv)
+                    val hash = sha256.digest(decBytes).joinToString("") { "%02x".format(it) }
+                    CryptoManager.zeroize(decBytes)
+                    localHashes.add(hash)
+                } catch (_: Exception) {
+                    // Ignorar entidades corruptas aisladas
+                }
+            }
+        }
+
+        val list = mutableListOf<ParsedAccountPreview>()
+        for (i in 0 until accountsArray.length()) {
+            val item = accountsArray.getJSONObject(i)
+            val rawSecret = when {
+                item.has("secret") -> item.getString("secret")
+                item.has("s") -> item.getString("s")
+                else -> continue
+            }
+            val secretBytes = try {
+                Base32.decode(Base32.sanitize(rawSecret))
+            } catch (_: Exception) {
+                continue
+            }
+
+            val incomingHash = sha256.digest(secretBytes).joinToString("") { "%02x".format(it) }
+            val isAlreadyInVault = incomingHash in localHashes
+
+            val remoteId = when {
+                item.has("id") -> item.optString("id", UUID.randomUUID().toString())
+                else -> UUID.randomUUID().toString()
+            }.ifBlank { UUID.randomUUID().toString() }
+
+            val remoteIssuer = when {
+                item.has("issuer") -> item.optString("issuer", "Cuenta")
+                item.has("i") -> item.optString("i", "Cuenta")
+                else -> "Cuenta"
+            }.trim().ifBlank { "Cuenta" }
+
+            val remoteAccountName = when {
+                item.has("accountName") -> item.optString("accountName", "")
+                item.has("a") -> item.optString("a", "")
+                else -> ""
+            }.trim()
+
+            val remoteAlgorithm = when {
+                item.has("algorithm") -> item.optString("algorithm", "SHA1")
+                item.has("alg") -> item.optString("alg", "SHA1")
+                else -> "SHA1"
+            }
+
+            val remoteDigits = when {
+                item.has("digits") -> item.optInt("digits", 6)
+                item.has("d") -> item.optInt("d", 6)
+                else -> 6
+            }
+
+            val remotePeriod = when {
+                item.has("period") -> item.optInt("period", 30)
+                item.has("p") -> item.optInt("p", 30)
+                else -> 30
+            }
+
+            val remoteType = when {
+                item.has("type") -> item.optString("type", "TOTP")
+                item.has("t") -> item.optString("t", "TOTP")
+                else -> "TOTP"
+            }
+
+            val remoteCounter = when {
+                item.has("counter") -> item.optLong("counter", 0L)
+                item.has("c") -> item.optLong("c", 0L)
+                else -> 0L
+            }
+
+            val remoteIsFavorite = item.optBoolean("isFavorite", false)
+
+            list.add(
+                ParsedAccountPreview(
+                    id = remoteId,
+                    issuer = remoteIssuer,
+                    accountName = remoteAccountName,
+                    algorithm = OtpAlgorithm.fromString(remoteAlgorithm),
+                    digits = remoteDigits,
+                    period = remotePeriod,
+                    type = OtpType.fromString(remoteType),
+                    counter = remoteCounter,
+                    isFavorite = remoteIsFavorite,
+                    isAlreadyInVault = isAlreadyInVault,
+                    secretBytes = secretBytes
+                )
+            )
+        }
+        return list
     }
 }

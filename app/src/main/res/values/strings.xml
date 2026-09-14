@@ -46,8 +46,8 @@
     <!-- Modal Detalle de Cuenta (Account Modal) -->
     <string name="account_modal_title">Detalle de cuenta</string>
     <string name="account_modal_edit_title">Editar cuenta</string>
-    <string name="account_modal_issuer_label">Servicio / Emisor</string>
-    <string name="account_modal_name_label">Cuenta / Usuario (opcional)</string>
+    <string name="account_modal_issuer_label">Servicio o emisor</string>
+    <string name="account_modal_name_label">Cuenta o usuario</string>
     <string name="account_modal_close_button">Cerrar</string>
 
     <!-- Pantalla de Bloqueo (Lock Screen) -->
@@ -61,9 +61,13 @@
 
     <!-- Pantalla Agregar Cuenta Manual (Add Account Screen) -->
     <string name="add_account_title">Ingresar clave manual</string>
-    <string name="add_account_issuer_label">Servicio / Emisor *</string>
-    <string name="add_account_name_label">Cuenta / Usuario (opcional)</string>
-    <string name="add_account_secret_label">Clave secreta (Base32) *</string>
+    <string name="add_account_issuer_label">Servicio o emisor</string>
+    <string name="add_account_name_label">Cuenta o usuario</string>
+    <string name="add_account_secret_label">Clave secreta</string>
+    <string name="add_account_issuer_placeholder">Ej. Google, GitHub</string>
+    <string name="add_account_name_placeholder">Ej. usuario@correo.com</string>
+    <string name="add_account_secret_placeholder">Ej. JBSWY3DPEHPK3PXP</string>
+    <string name="add_account_secret_invalid_hint">Clave Base32 no válida</string>
     <string name="add_account_advanced_options">Opciones avanzadas</string>
     <string name="add_account_advanced_description">La mayoría de los servicios usan SHA1 y 6 dígitos por defecto.</string>
     <string name="add_account_algorithm_label">Algoritmo HMAC</string>

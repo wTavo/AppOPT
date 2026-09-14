@@ -115,11 +115,17 @@ fun AddAccountDialog(
                 color = MaterialTheme.colorScheme.onSurface
             )
 
-            // Campo: Servicio / Emisor
+            // Campo: Servicio o emisor
             OutlinedTextField(
                 value = issuer,
                 onValueChange = { issuer = it },
                 label = { Text(stringResource(R.string.add_account_issuer_label)) },
+                placeholder = {
+                    Text(
+                        text = stringResource(R.string.add_account_issuer_placeholder),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Business,
@@ -136,11 +142,17 @@ fun AddAccountDialog(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Campo: Cuenta / Usuario (opcional)
+            // Campo: Cuenta o usuario
             OutlinedTextField(
                 value = accountName,
                 onValueChange = { accountName = it },
                 label = { Text(stringResource(R.string.add_account_name_label)) },
+                placeholder = {
+                    Text(
+                        text = stringResource(R.string.add_account_name_placeholder),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.PersonOutline,
@@ -157,11 +169,26 @@ fun AddAccountDialog(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Campo: Clave Secreta Base32
+            // Campo: Clave secreta Base32
             OutlinedTextField(
                 value = secretInput,
                 onValueChange = { secretInput = it },
                 label = { Text(stringResource(R.string.add_account_secret_label)) },
+                placeholder = {
+                    Text(
+                        text = stringResource(R.string.add_account_secret_placeholder),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                },
+                supportingText = {
+                    if (sanitizedSecret.isNotBlank() && !isSecretValid) {
+                        Text(
+                            text = stringResource(R.string.add_account_secret_invalid_hint),
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Key,

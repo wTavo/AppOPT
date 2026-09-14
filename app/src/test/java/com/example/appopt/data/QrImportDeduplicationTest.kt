@@ -155,4 +155,44 @@ class QrImportDeduplicationTest {
         assertTrue("Debe bloquearse la sesión al alcanzar los 5 intentos fallidos", isLockedOut)
         assertEquals(5, failedAttempts)
     }
+
+    @Test
+    fun testSessionBlacklistingAndQrLockoutAfterMaxAttempts() {
+        val blockedSessionIds = mutableSetOf<Long>()
+        val blockedPayloadFingerprints = mutableSetOf<Int>()
+
+        val targetSessionId = 9876543210L
+        val rawQrPayload = "appopt-transfer:v2:9876543210:1:1:salt:iv:ciphertext"
+        val payloadFingerprint = rawQrPayload.hashCode()
+
+        // Simulación: El usuario falla 5 veces el PIN
+        var attempts = 0
+        var isSessionLocked = false
+
+        while (attempts < SecurityConfig.TRANSFER_QR_MAX_PIN_ATTEMPTS) {
+            attempts++
+            if (attempts >= SecurityConfig.TRANSFER_QR_MAX_PIN_ATTEMPTS) {
+                blockedSessionIds.add(targetSessionId)
+                blockedPayloadFingerprints.add(payloadFingerprint)
+                isSessionLocked = true
+            }
+        }
+
+        assertTrue("La sesión debe marcarse como bloqueada tras 5 intentos", isSessionLocked)
+        assertTrue("El SessionId debe estar en la lista negra", blockedSessionIds.contains(targetSessionId))
+        assertTrue("La huella del payload debe estar en la lista negra", blockedPayloadFingerprints.contains(payloadFingerprint))
+
+        // Simulación: El atacante vuelve a apuntar la cámara al mismo código QR
+        val reScannedChunkSessionId = 9876543210L
+        val isReScanBlocked = reScannedChunkSessionId in blockedSessionIds || rawQrPayload.hashCode() in blockedPayloadFingerprints
+
+        assertTrue("Cualquier intento posterior de escanear el mismo QR debe ser rechazado de inmediato", isReScanBlocked)
+
+        // Simulación: El emisor genera un nuevo código QR legítimo con nuevo SessionId
+        val freshSessionId = 1234567890L
+        val freshQrPayload = "appopt-transfer:v2:1234567890:1:1:newsalt:newiv:newciphertext"
+        val isFreshQrAllowed = freshSessionId !in blockedSessionIds && freshQrPayload.hashCode() !in blockedPayloadFingerprints
+
+        assertTrue("El nuevo código QR generado debe ser aceptado y procesado normalmente", isFreshQrAllowed)
+    }
 }

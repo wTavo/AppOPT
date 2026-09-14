@@ -114,6 +114,7 @@ fun QrScannerScreen(
     val cameraInitErrorText = stringResource(R.string.scan_error_camera_init)
     val incorrectPinErrorText = stringResource(R.string.scan_transfer_pin_error_incorrect)
     val pinMaxAttemptsErrorText = stringResource(R.string.scan_transfer_pin_error_max_attempts)
+    val qrBlockedErrorText = stringResource(R.string.scan_transfer_qr_blocked)
     val expiredQrErrorText = stringResource(R.string.scan_transfer_pin_error_expired)
     val singleAlreadyExistsText = stringResource(R.string.scan_import_single_already_exists)
     val allAlreadyExistText = stringResource(R.string.scan_import_all_already_exist)
@@ -140,6 +141,11 @@ fun QrScannerScreen(
     var isProcessingQr by remember { mutableStateOf(false) }
     var totalImportedAccountsCount by remember { mutableIntStateOf(0) }
     var lastScannedPayload by remember { mutableStateOf<String?>(null) }
+
+    // Conjunto de sesiones y códigos QR bloqueados por superar el límite de intentos de PIN
+    val blockedSessionIds = remember { mutableSetOf<Long>() }
+    val blockedPayloadFingerprints = remember { mutableSetOf<Int>() }
+    var lastBlockedAlertTimestamp by remember { mutableLongStateOf(0L) }
 
     // Estado de la sesión de fragmentos "Todo o Nada" (v2)
     val sessionChunks = remember { mutableStateMapOf<Int, TransferQrChunk>() }
@@ -277,10 +283,25 @@ fun QrScannerScreen(
                                                     // 1. Caso QR Cifrado con PIN (Todo o Nada o v1)
                                                     if (trimmed.startsWith(TransferCrypto.QR_TRANSFER_PREFIX, ignoreCase = true) && !isProcessingQr && pendingEncryptedPayload == null) {
                                                         lastScannedPayload = trimmed
+                                                        val payloadFingerprint = trimmed.hashCode()
                                                         val parsedChunk = try {
                                                             TransferCrypto.parseTransferChunk(trimmed)
                                                         } catch (_: Exception) {
                                                             null
+                                                        }
+
+                                                        val isSessionBlocked = (parsedChunk != null && parsedChunk.sessionId != 0L && parsedChunk.sessionId in blockedSessionIds) ||
+                                                            (payloadFingerprint in blockedPayloadFingerprints)
+
+                                                        if (isSessionBlocked) {
+                                                            if (now - lastBlockedAlertTimestamp > 2500L) {
+                                                                lastBlockedAlertTimestamp = now
+                                                                appHaptics.error()
+                                                                scope.launch {
+                                                                    snackbarHostState.showSnackbar(qrBlockedErrorText)
+                                                                }
+                                                            }
+                                                            continue
                                                         }
 
                                                         if (parsedChunk != null) {
@@ -336,6 +357,10 @@ fun QrScannerScreen(
                                                                                 failedPinAttempts++
                                                                                 if (failedPinAttempts >= SecurityConfig.TRANSFER_QR_MAX_PIN_ATTEMPTS) {
                                                                                     appHaptics.error()
+                                                                                    if (currentSessionId != 0L) {
+                                                                                        blockedSessionIds.add(currentSessionId)
+                                                                                    }
+                                                                                    blockedPayloadFingerprints.add(payloadFingerprint)
                                                                                     pendingEncryptedPayload = null
                                                                                     sessionChunks.clear()
                                                                                     totalExpectedChunks = 0
@@ -345,7 +370,7 @@ fun QrScannerScreen(
                                                                                     failedPinAttempts = 0
                                                                                     isProcessingQr = false
                                                                                     scope.launch {
-                                                                                        snackbarHostState.showSnackbar(pinMaxAttemptsErrorText)
+                                                                                        snackbarHostState.showSnackbar(qrBlockedErrorText)
                                                                                     }
                                                                                 } else {
                                                                                     val remaining = SecurityConfig.TRANSFER_QR_MAX_PIN_ATTEMPTS - failedPinAttempts
@@ -495,6 +520,10 @@ fun QrScannerScreen(
                             if (error is TransferCrypto.InvalidPinException) {
                                 failedPinAttempts++
                                 if (failedPinAttempts >= SecurityConfig.TRANSFER_QR_MAX_PIN_ATTEMPTS) {
+                                    if (currentSessionId != 0L) {
+                                        blockedSessionIds.add(currentSessionId)
+                                    }
+                                    blockedPayloadFingerprints.add(payload.hashCode())
                                     pendingEncryptedPayload = null
                                     sessionChunks.clear()
                                     totalExpectedChunks = 0
@@ -503,7 +532,7 @@ fun QrScannerScreen(
                                     pinErrorMessage = null
                                     failedPinAttempts = 0
                                     isProcessingQr = false
-                                    snackbarHostState.showSnackbar(pinMaxAttemptsErrorText)
+                                    snackbarHostState.showSnackbar(qrBlockedErrorText)
                                 } else {
                                     val remaining = SecurityConfig.TRANSFER_QR_MAX_PIN_ATTEMPTS - failedPinAttempts
                                     transferPinInput = ""

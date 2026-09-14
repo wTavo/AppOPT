@@ -337,6 +337,7 @@
     <string name="scan_transfer_pin_error_incorrect">PIN incorrecto. Verifica los dígitos e inténtalo de nuevo.</string>
     <string name="scan_transfer_pin_error_incorrect_attempts">PIN incorrecto. Te quedan %1$d intentos.</string>
     <string name="scan_transfer_pin_error_max_attempts">Límite de intentos alcanzado. Transferencia cancelada por seguridad.</string>
+    <string name="scan_transfer_qr_blocked">Este código QR fue bloqueado por seguridad. Genera uno nuevo en el otro teléfono.</string>
     <string name="scan_transfer_pin_error_expired">Este código QR ha expirado. Genera uno nuevo en el dispositivo emisor.</string>
     <string name="scan_transfer_import_success">Se importaron %1$d servicios correctamente</string>
     <string name="scan_import_single_already_exists">El servicio ya se encuentra registrado en tu bóveda</string>

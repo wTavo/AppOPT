@@ -54,6 +54,8 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.appopt.R
 import com.example.appopt.data.cloud.GoogleDriveManager
+import com.example.appopt.ui.screens.add.AddAccountDialog
+import com.example.appopt.ui.screens.scan.QrScannerDialog
 import com.example.appopt.ui.screens.settings.components.DriveSyncSettingsCard
 import com.example.appopt.ui.screens.settings.components.PerformanceSettingsCard
 import com.example.appopt.ui.screens.settings.components.PermissionsSettingsCard
@@ -90,7 +92,6 @@ import kotlin.time.Duration.Companion.milliseconds
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToScanQr: () -> Unit,
     viewModel: SettingsViewModel = viewModel(),
     modifier: Modifier = Modifier
 ) {
@@ -169,6 +170,9 @@ fun SettingsScreen(
             }
     }
 
+    var showQrScannerDialog by remember { mutableStateOf(false) }
+    var showManualAddDialog by remember { mutableStateOf(false) }
+
     val coordinator = rememberDriveDialogCoordinator(
         context = context,
         viewModel = viewModel,
@@ -180,6 +184,8 @@ fun SettingsScreen(
     LaunchedEffect(isUnlocked) {
         if (!isUnlocked) {
             coordinator.closeAllDialogs()
+            showQrScannerDialog = false
+            showManualAddDialog = false
         }
     }
 
@@ -349,7 +355,7 @@ fun SettingsScreen(
                             subtitle = importAuthSubtitle,
                             onSuccess = {
                                 appHaptics.success()
-                                onNavigateToScanQr()
+                                showQrScannerDialog = true
                             },
                             onError = { errorCode, _ ->
                                 if (errorCode != BiometricPrompt.ERROR_USER_CANCELED &&
@@ -363,7 +369,7 @@ fun SettingsScreen(
                             onFailed = { appHaptics.error() }
                         )
                     } else {
-                        onNavigateToScanQr()
+                        showQrScannerDialog = true
                     }
                 }
             )
@@ -454,4 +460,26 @@ fun SettingsScreen(
             coordinator.executeWithAuth { coordinator.showDriveDecryptDialog = true }
         }
     )
+
+    if (isUnlocked) {
+        if (showQrScannerDialog) {
+            QrScannerDialog(
+                onDismiss = { showQrScannerDialog = false },
+                onScanSuccess = {
+                    showQrScannerDialog = false
+                },
+                onNavigateToManual = {
+                    showQrScannerDialog = false
+                    showManualAddDialog = true
+                }
+            )
+        }
+
+        if (showManualAddDialog) {
+            AddAccountDialog(
+                onDismiss = { showManualAddDialog = false },
+                onAccountSaved = { showManualAddDialog = false }
+            )
+        }
+    }
 }

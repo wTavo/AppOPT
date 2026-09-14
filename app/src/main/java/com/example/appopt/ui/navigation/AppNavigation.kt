@@ -18,12 +18,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.appopt.AuthenticatorApp
-import com.example.appopt.ui.screens.add.AddAccountScreen
-import com.example.appopt.ui.screens.add.AddAccountViewModel
 import com.example.appopt.ui.screens.home.HomeScreen
 import com.example.appopt.ui.screens.home.HomeViewModel
 import com.example.appopt.ui.screens.lock.LockScreen
-import com.example.appopt.ui.screens.scan.QrScannerScreen
 import com.example.appopt.ui.screens.settings.SettingsScreen
 import com.example.appopt.ui.screens.trash.RecentlyDeletedScreen
 import com.example.appopt.performance.PerformanceFpsOverlay
@@ -67,66 +64,8 @@ fun AppNavigation() {
                 val homeViewModel: HomeViewModel = viewModel()
                 HomeScreen(
                     viewModel = homeViewModel,
-                    onNavigateToScanQr = { navController.navigate(Screen.ScanQr.route) },
-                    onNavigateToAddManual = { navController.navigate(Screen.AddManual.route) },
                     onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                     onNavigateToRecentlyDeleted = { navController.navigate(Screen.RecentlyDeleted.route) }
-                )
-            }
-
-            composable(
-                route = Screen.ScanQr.route,
-                enterTransition = {
-                    scaleIn(
-                        initialScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
-                        transformOrigin = NavigationOriginTracker.currentOrigin,
-                        animationSpec = Motion.Spec.navButtonExpandScaleSpec()
-                    )
-                },
-                popExitTransition = {
-                    scaleOut(
-                        targetScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
-                        transformOrigin = NavigationOriginTracker.currentOrigin,
-                        animationSpec = Motion.Spec.navButtonExpandScaleSpec()
-                    ) + fadeOut(animationSpec = Motion.Spec.navButtonCollapseFadeSpec())
-                }
-            ) {
-                QrScannerScreen(
-                    onScanSuccess = {
-                        navController.popBackStack(Screen.Home.route, false)
-                    },
-                    onNavigateToManual = {
-                        navController.navigate(Screen.AddManual.route) {
-                            popUpTo(Screen.ScanQr.route) { inclusive = true }
-                        }
-                    },
-                    onNavigateBack = {
-                        navController.popBackStack()
-                    }
-                )
-            }
-
-            composable(
-                route = Screen.AddManual.route,
-                enterTransition = {
-                    scaleIn(
-                        initialScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
-                        transformOrigin = NavigationOriginTracker.currentOrigin,
-                        animationSpec = Motion.Spec.navButtonExpandScaleSpec()
-                    )
-                },
-                popExitTransition = {
-                    scaleOut(
-                        targetScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
-                        transformOrigin = NavigationOriginTracker.currentOrigin,
-                        animationSpec = Motion.Spec.navButtonExpandScaleSpec()
-                    ) + fadeOut(animationSpec = Motion.Spec.navButtonCollapseFadeSpec())
-                }
-            ) {
-                val addViewModel: AddAccountViewModel = viewModel()
-                AddAccountScreen(
-                    viewModel = addViewModel,
-                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
@@ -148,8 +87,7 @@ fun AppNavigation() {
                 }
             ) {
                 SettingsScreen(
-                    onNavigateBack = { navController.popBackStack() },
-                    onNavigateToScanQr = { navController.navigate(Screen.ScanQr.route) }
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
@@ -176,21 +114,21 @@ fun AppNavigation() {
             }
         }
 
-        val prefs = remember { AuthenticatorApp.instance.preferencesManager }
-        val isFpsOverlayEnabled by prefs.isFpsOverlayEnabledFlow.collectAsStateWithLifecycle()
+        // Overlay de diagnóstico FPS (superpuesto a todo el contenido si está activo)
+        PerformanceFpsOverlay(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(Dimensions.Spacing.lg)
+                .zIndex(50f)
+        )
 
-        if (isUnlocked && isFpsOverlayEnabled) {
-            PerformanceFpsOverlay(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = Dimensions.Spacing.xxl + Dimensions.Spacing.md, end = Dimensions.Spacing.md)
-                    .zIndex(99f)
-            )
-        }
-
+        // Compuerta de seguridad: LockScreen se superpone a todo cuando la bóveda está bloqueada
         if (!isUnlocked) {
             LockScreen(
-                onUnlocked = { appLockManager.unlock() }
+                onUnlocked = { appLockManager.unlock() },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(100f)
             )
         }
     }

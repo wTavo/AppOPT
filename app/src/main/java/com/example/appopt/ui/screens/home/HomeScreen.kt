@@ -72,8 +72,6 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
-    onNavigateToScanQr: () -> Unit,
-    onNavigateToAddManual: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToRecentlyDeleted: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -232,8 +230,8 @@ fun HomeScreen(
             }
             uiState is UiState.Empty -> {
                 EmptyAccountsState(
-                    onScanQr = onNavigateToScanQr,
-                    onAddManual = onNavigateToAddManual,
+                    onScanQr = { isQrScannerDialogOpen = true },
+                    onAddManual = { isManualAddDialogOpen = true },
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(

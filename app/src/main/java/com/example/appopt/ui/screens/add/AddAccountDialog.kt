@@ -142,7 +142,7 @@ fun AddAccountDialog(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Campo: Cuenta o usuario (Opcional mediante supportingText)
+            // Campo: Cuenta o usuario
             OutlinedTextField(
                 value = accountName,
                 onValueChange = { accountName = it },
@@ -151,13 +151,6 @@ fun AddAccountDialog(
                     Text(
                         text = stringResource(R.string.add_account_name_placeholder),
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    )
-                },
-                supportingText = {
-                    Text(
-                        text = stringResource(R.string.field_optional_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
                 leadingIcon = {

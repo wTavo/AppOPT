@@ -66,7 +66,8 @@
     <string name="add_account_secret_label">Clave secreta</string>
     <string name="add_account_issuer_placeholder">Ej. Google, GitHub</string>
     <string name="add_account_name_placeholder">Ej. usuario@correo.com</string>
-    <string name="add_account_secret_placeholder">Ej. JBSWY3DPEHPK3PXP</string>
+    <string name="add_account_secret_placeholder">XXXX-XXXX-XXXX-XXXX</string>
+    <string name="field_optional_hint">Opcional</string>
     <string name="add_account_secret_invalid_hint">Clave Base32 no válida</string>
     <string name="add_account_advanced_options">Opciones avanzadas</string>
     <string name="add_account_advanced_description">La mayoría de los servicios usan SHA1 y 6 dígitos por defecto.</string>

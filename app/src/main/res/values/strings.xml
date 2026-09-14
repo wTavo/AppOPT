@@ -47,7 +47,7 @@
     <string name="account_modal_title">Detalle de cuenta</string>
     <string name="account_modal_edit_title">Editar cuenta</string>
     <string name="account_modal_issuer_label">Servicio o emisor</string>
-    <string name="account_modal_name_label">Cuenta o usuario</string>
+    <string name="account_modal_name_label">Cuenta o usuario (opcional)</string>
     <string name="account_modal_close_button">Cerrar</string>
 
     <!-- Pantalla de Bloqueo (Lock Screen) -->
@@ -62,10 +62,10 @@
     <!-- Pantalla Agregar Cuenta Manual (Add Account Screen) -->
     <string name="add_account_title">Ingresar clave manual</string>
     <string name="add_account_issuer_label">Servicio o emisor</string>
-    <string name="add_account_name_label">Cuenta o usuario</string>
+    <string name="add_account_name_label">Cuenta o usuario (opcional)</string>
     <string name="add_account_secret_label">Clave secreta</string>
     <string name="add_account_issuer_placeholder">Ej. Google, GitHub</string>
-    <string name="add_account_name_placeholder">usuario@correo.com (opcional)</string>
+    <string name="add_account_name_placeholder">Ej. usuario@correo.com</string>
     <string name="add_account_secret_placeholder">Ej. JBSW4O2K...</string>
     <string name="field_optional_hint">Opcional</string>
     <string name="add_account_secret_invalid_hint">Clave Base32 no válida</string>

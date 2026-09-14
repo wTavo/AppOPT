@@ -200,14 +200,12 @@ fun AppAnimatedButton(
                             Icon(
                                 imageVector = leadingIcon,
                                 contentDescription = null,
-                                modifier = Modifier.size(if (isCompact) Dimensions.IconSize.small else Dimensions.IconSize.medium),
-                                tint = MaterialTheme.colorScheme.onPrimary
+                                modifier = Modifier.size(if (isCompact) Dimensions.IconSize.small else Dimensions.IconSize.medium)
                             )
                         }
                         Text(
                             text = text,
                             style = if (isCompact) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onPrimary,
                             textAlign = TextAlign.Center
                         )
                     }

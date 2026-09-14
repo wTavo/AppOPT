@@ -54,7 +54,6 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.appopt.R
 import com.example.appopt.data.cloud.GoogleDriveManager
-import com.example.appopt.ui.screens.add.AddAccountDialog
 import com.example.appopt.ui.screens.scan.QrScannerDialog
 import com.example.appopt.ui.screens.settings.components.DriveSyncSettingsCard
 import com.example.appopt.ui.screens.settings.components.PerformanceSettingsCard
@@ -171,7 +170,6 @@ fun SettingsScreen(
     }
 
     var showQrScannerDialog by remember { mutableStateOf(false) }
-    var showManualAddDialog by remember { mutableStateOf(false) }
 
     val coordinator = rememberDriveDialogCoordinator(
         context = context,
@@ -185,7 +183,6 @@ fun SettingsScreen(
         if (!isUnlocked) {
             coordinator.closeAllDialogs()
             showQrScannerDialog = false
-            showManualAddDialog = false
         }
     }
 
@@ -464,21 +461,12 @@ fun SettingsScreen(
     if (isUnlocked) {
         if (showQrScannerDialog) {
             QrScannerDialog(
+                title = stringResource(R.string.scan_import_title),
                 onDismiss = { showQrScannerDialog = false },
                 onScanSuccess = {
                     showQrScannerDialog = false
                 },
-                onNavigateToManual = {
-                    showQrScannerDialog = false
-                    showManualAddDialog = true
-                }
-            )
-        }
-
-        if (showManualAddDialog) {
-            AddAccountDialog(
-                onDismiss = { showManualAddDialog = false },
-                onAccountSaved = { showManualAddDialog = false }
+                onNavigateToManual = null
             )
         }
     }

@@ -35,8 +35,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -103,8 +105,9 @@ private enum class QrScannerStep {
 @Composable
 fun QrScannerDialog(
     onDismiss: () -> Unit,
-    onScanSuccess: () -> Unit,
-    onNavigateToManual: () -> Unit,
+    onScanSuccess: () -> Unit = {},
+    onNavigateToManual: (() -> Unit)? = null,
+    title: String = stringResource(R.string.scan_title),
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -189,7 +192,7 @@ fun QrScannerDialog(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = stringResource(R.string.scan_title),
+                            text = title,
                             style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.fillMaxWidth()
@@ -375,54 +378,61 @@ fun QrScannerDialog(
                             textAlign = TextAlign.Center
                         )
 
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(IntrinsicSize.Min),
-                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            TextButton(
-                                onClick = onDismiss,
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.none),
+                        if (onNavigateToManual != null) {
+                            Row(
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                                    .fillMaxWidth()
+                                    .height(IntrinsicSize.Min),
+                                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = stringResource(R.string.action_close),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
+                                TextButton(
+                                    onClick = onDismiss,
+                                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                    contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.none),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight()
+                                        .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.action_close),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
 
-                            OutlinedButton(
-                                onClick = {
-                                    appHaptics.click()
-                                    onDismiss()
-                                    onNavigateToManual()
-                                },
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                contentPadding = PaddingValues(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.none),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Keyboard,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(Dimensions.IconSize.small)
-                                )
-                                Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                                Text(
-                                    text = stringResource(R.string.scan_manual_switch),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    maxLines = 1
-                                )
+                                FilledTonalButton(
+                                    onClick = {
+                                        appHaptics.click()
+                                        onDismiss()
+                                        onNavigateToManual()
+                                    },
+                                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                    contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.none),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight()
+                                        .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Key,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(Dimensions.IconSize.small)
+                                    )
+                                    Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                                    Text(
+                                        text = stringResource(R.string.scan_manual_switch_short),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
                             }
+                        } else {
+                            AppDialogActionButtons(
+                                onDismiss = onDismiss,
+                                dismissText = stringResource(R.string.action_close)
+                            )
                         }
                     }
                 }

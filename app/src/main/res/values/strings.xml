@@ -394,6 +394,8 @@
     <string name="drive_restore_selection_desc">Elige los servicios que deseas restaurar desde la copia de seguridad.</string>
     <string name="drive_restore_confirm_button">Restaurar (%1$d)</string>
     <string name="scan_torch_toggle">Alternar linterna</string>
-    <string name="scan_manual_switch">Ingresar clave manual</string>
+        <string name="scan_manual_switch">Ingresar clave manual</string>
+    <string name="scan_manual_switch_short">Ingreso manual</string>
+    <string name="scan_import_title">Importar servicios</string>
 
 </resources>

@@ -104,16 +104,24 @@ fun AddAccountDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(Dimensions.Spacing.lg)
-                .imePadding()
-                .verticalScroll(rememberScrollState()),
+                .imePadding(),
             verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
         ) {
-            // Título del Diálogo
+            // 1. Título Fijo del Diálogo
             Text(
                 text = stringResource(R.string.add_account_title),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface
             )
+
+            // 2. Contenido Central Scrolleable
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+            ) {
 
             // Campo: Servicio o emisor
             OutlinedTextField(
@@ -317,7 +325,9 @@ fun AddAccountDialog(
                 }
             }
 
-            // Botones de acción simétricos (Directiva 14 & 23)
+            }
+
+            // 3. Botones de Acción Fijos en la parte inferior (Directiva 14 & 23)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

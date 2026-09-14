@@ -442,7 +442,7 @@ object AccountBackupSerializer {
                                 digits = remoteDigits,
                                 period = remotePeriod,
                                 type = OtpType.fromString(remoteType).name,
-                                counter = remoteCounter,
+                                counter = maxOf(existingEntity.counter, remoteCounter),
                                 isDeleted = false,
                                 deletedAt = null,
                                 updatedAt = if (remoteUpdatedAt > 0L) remoteUpdatedAt else System.currentTimeMillis()
@@ -467,7 +467,7 @@ object AccountBackupSerializer {
                                 digits = remoteDigits,
                                 period = remotePeriod,
                                 type = OtpType.fromString(remoteType).name,
-                                counter = remoteCounter,
+                                counter = maxOf(existingEntity.counter, remoteCounter),
                                 updatedAt = if (remoteUpdatedAt > 0L) remoteUpdatedAt else System.currentTimeMillis()
                             )
                             accountDao.updateAccount(updatedEntity)

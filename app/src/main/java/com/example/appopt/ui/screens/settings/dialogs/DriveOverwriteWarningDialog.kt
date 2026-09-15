@@ -11,10 +11,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -30,6 +31,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import com.example.appopt.R
 import com.example.appopt.data.cloud.DriveBackupInfo
+import com.example.appopt.ui.components.AppModalDialog
+import com.example.appopt.ui.components.LocalModalDismissHandler
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.util.DateTimeFormatter
@@ -62,27 +65,41 @@ fun DriveOverwriteWarningDialog(
     val defaultDeviceName = stringResource(R.string.drive_default_device_name)
     val deviceName = backupInfo?.deviceName ?: defaultDeviceName
 
-    AlertDialog(
+    AppModalDialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(Dimensions.CornerRadius.large),
-        icon = {
-            Icon(
-                imageVector = Icons.Filled.Shield,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.error,
-                modifier = Modifier.size(Dimensions.IconSize.hero)
-            )
-        },
-        title = {
-            Text(
-                text = stringResource(R.string.settings_drive_overwrite_title),
-                style = MaterialTheme.typography.titleLarge
-            )
-        },
-        text = {
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+        ) {
+            // Cabecera fija
             Column(
-                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Shield,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(Dimensions.IconSize.hero)
+                )
+
+                Text(
+                    text = stringResource(R.string.settings_drive_overwrite_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            // Cuerpo central scrolleable
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
             ) {
                 Text(
                     text = stringResource(R.string.settings_drive_overwrite_msg),
@@ -112,8 +129,8 @@ fun DriveOverwriteWarningDialog(
                     }
                 }
             }
-        },
-        confirmButton = {
+
+            // Pie fijo de acciones
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
@@ -176,10 +193,11 @@ fun DriveOverwriteWarningDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
+                    val modalDismissHandler = LocalModalDismissHandler.current
                     TextButton(
                         onClick = {
                             appHaptics.click()
-                            onDismiss()
+                            modalDismissHandler?.invoke() ?: onDismiss()
                         },
                         shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                     ) {
@@ -191,8 +209,6 @@ fun DriveOverwriteWarningDialog(
                     }
                 }
             }
-        },
-        dismissButton = null,
-        modifier = modifier
-    )
+        }
+    }
 }

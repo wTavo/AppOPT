@@ -21,9 +21,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import com.example.appopt.R
@@ -31,6 +36,7 @@ import com.example.appopt.domain.model.TotpAccount
 import com.example.appopt.security.SecurityConfig
 import com.example.appopt.ui.components.AppAnimatedButton
 import com.example.appopt.ui.components.ServiceBrandAvatar
+import com.example.appopt.ui.navigation.NavigationOriginTracker
 import com.example.appopt.ui.theme.Dimensions
 
 /**
@@ -110,6 +116,8 @@ fun DeletedAccountCard(
                 }
             }
 
+            var deleteCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+
             // Acciones: Eliminar definitivamente y Restaurar
             Row(
                 modifier = Modifier
@@ -119,11 +127,15 @@ fun DeletedAccountCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedButton(
-                    onClick = onPermanentDelete,
+                    onClick = {
+                        NavigationOriginTracker.updateFromCoordinates(deleteCoordinates)
+                        onPermanentDelete()
+                    },
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .heightIn(min = Dimensions.ComponentHeight.buttonDefault),
+                        .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                        .onGloballyPositioned { deleteCoordinates = it },
                     contentPadding = PaddingValues(horizontal = Dimensions.Spacing.xs, vertical = Dimensions.Spacing.xs),
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                     colors = ButtonDefaults.outlinedButtonColors(

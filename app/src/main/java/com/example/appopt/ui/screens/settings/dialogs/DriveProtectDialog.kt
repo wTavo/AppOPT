@@ -1,4 +1,5 @@
 package com.example.appopt.ui.screens.settings.dialogs
+import androidx.compose.foundation.layout.imePadding
 
 import android.content.Context
 import android.widget.Toast
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -112,17 +114,22 @@ fun DriveProtectDialog(
     )
 
     AppModalDialog(
-        onDismissRequest = {
+        onDismissRequest = onDismiss,
+        onBackStep = {
             if (step > 1) {
                 step -= 1
+                true
             } else {
-                onDismiss()
+                false
             }
         },
         modifier = modifier
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(Dimensions.Spacing.lg)
+                .imePadding(),
             verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
         ) {
             LinearProgressIndicator(
@@ -148,11 +155,21 @@ fun DriveProtectDialog(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                             ) {
+                                // Cabecera fija
                                 Text(
                                     text = stringResource(R.string.settings_drive_protect_step1_title),
                                     style = MaterialTheme.typography.titleLarge,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
+
+                                // Cuerpo central scrolleable aislado
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(1f, fill = false)
+                                        .verticalScroll(rememberScrollState()),
+                                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                                ) {
 
                                 DriveProtectStepMethod(
                                     selectedTab = selectedProtectionTab,
@@ -182,7 +199,9 @@ fun DriveProtectDialog(
                                         )
                                     }
                                 )
+                                }
 
+                                // Pie fijo de acciones
                                 AppDialogActionButtons(
                                     confirmText = stringResource(R.string.settings_drive_next_step),
                                     onConfirm = { step = 2 },
@@ -197,11 +216,21 @@ fun DriveProtectDialog(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                             ) {
+                                // Cabecera fija
                                 Text(
                                     text = stringResource(R.string.settings_drive_protect_step2_title),
                                     style = MaterialTheme.typography.titleLarge,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
+
+                                // Cuerpo central scrolleable aislado
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(1f, fill = false)
+                                        .verticalScroll(rememberScrollState()),
+                                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                                ) {
 
                                 DriveProtectStepMnemonic(
                                     mnemonicWords = generatedMnemonicWords,
@@ -235,7 +264,9 @@ fun DriveProtectDialog(
                                         )
                                     }
                                 )
+                                }
 
+                                // Pie fijo de acciones
                                 AppDialogActionButtons(
                                     confirmText = stringResource(R.string.settings_drive_to_quiz_step),
                                     onConfirm = {
@@ -254,11 +285,21 @@ fun DriveProtectDialog(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                             ) {
+                                // Cabecera fija
                                 Text(
                                     text = stringResource(R.string.settings_drive_quiz_title),
                                     style = MaterialTheme.typography.titleLarge,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
+
+                                // Cuerpo central scrolleable aislado
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(1f, fill = false)
+                                        .verticalScroll(rememberScrollState()),
+                                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                                ) {
 
                                 DriveProtectStepQuiz(
                                     questions = quizQuestions,
@@ -270,7 +311,9 @@ fun DriveProtectDialog(
                                         quizSelectedAnswers = quizSelectedAnswers + (questionIdx to option)
                                     }
                                 )
+                                }
 
+                                // Pie fijo de acciones
                                 AppDialogActionButtons(
                                     confirmText = stringResource(R.string.settings_drive_encrypt_and_sync),
                                     onConfirm = {

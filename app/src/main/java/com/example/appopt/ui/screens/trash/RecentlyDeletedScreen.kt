@@ -49,6 +49,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -57,6 +59,7 @@ import com.example.appopt.R
 import com.example.appopt.domain.model.TotpAccount
 import com.example.appopt.ui.components.AppDestructiveConfirmDialog
 import com.example.appopt.ui.components.AppDialogActionButtons
+import com.example.appopt.ui.navigation.NavigationOriginTracker
 import com.example.appopt.ui.screens.trash.components.DeletedAccountCard
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
@@ -105,6 +108,8 @@ fun RecentlyDeletedScreen(
     val emptyTrashSuccessText = stringResource(R.string.trash_empty_success)
     val permanentDeleteSuccessText = stringResource(R.string.trash_permanent_delete_success)
 
+    var emptyTrashCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -127,9 +132,11 @@ fun RecentlyDeletedScreen(
                     if (deletedAccounts.isNotEmpty()) {
                         IconButton(
                             onClick = {
+                                NavigationOriginTracker.updateFromCoordinates(emptyTrashCoordinates)
                                 appHaptics.click()
                                 showEmptyTrashConfirmDialog = true
-                            }
+                            },
+                            modifier = Modifier.onGloballyPositioned { emptyTrashCoordinates = it }
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.DeleteSweep,

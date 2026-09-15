@@ -23,11 +23,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import com.example.appopt.R
+import com.example.appopt.ui.navigation.NavigationOriginTracker
 import com.example.appopt.ui.theme.Dimensions
 
 /**
@@ -43,6 +50,9 @@ fun EmptyAccountsState(
     onAddManual: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var scanQrCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var addManualCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -87,10 +97,14 @@ fun EmptyAccountsState(
         Spacer(modifier = Modifier.height(Dimensions.Spacing.xxl))
 
         Button(
-            onClick = onScanQr,
+            onClick = {
+                NavigationOriginTracker.updateFromCoordinates(scanQrCoordinates)
+                onScanQr()
+            },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(Dimensions.ComponentHeight.buttonDefault),
+                .height(Dimensions.ComponentHeight.buttonDefault)
+                .onGloballyPositioned { scanQrCoordinates = it },
             shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
         ) {
             Icon(
@@ -108,10 +122,14 @@ fun EmptyAccountsState(
         Spacer(modifier = Modifier.height(Dimensions.Spacing.md))
 
         OutlinedButton(
-            onClick = onAddManual,
+            onClick = {
+                NavigationOriginTracker.updateFromCoordinates(addManualCoordinates)
+                onAddManual()
+            },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(Dimensions.ComponentHeight.buttonDefault),
+                .height(Dimensions.ComponentHeight.buttonDefault)
+                .onGloballyPositioned { addManualCoordinates = it },
             shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
         ) {
             Icon(

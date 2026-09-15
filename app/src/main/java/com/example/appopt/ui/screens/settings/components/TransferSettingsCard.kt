@@ -11,11 +11,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
 import com.example.appopt.R
 import com.example.appopt.domain.model.TotpAccount
 import com.example.appopt.ui.components.SettingsSectionCard
+import com.example.appopt.ui.navigation.NavigationOriginTracker
 import com.example.appopt.ui.theme.Dimensions
 
 /**
@@ -33,6 +40,9 @@ fun TransferSettingsCard(
     onImportClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var exportCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var importCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+
     SettingsSectionCard(
         title = stringResource(R.string.settings_transfer_title),
         description = stringResource(R.string.settings_transfer_description),
@@ -45,8 +55,13 @@ fun TransferSettingsCard(
                 horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
             ) {
                 Button(
-                    onClick = onExportClick,
-                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        NavigationOriginTracker.updateFromCoordinates(exportCoordinates)
+                        onExportClick()
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .onGloballyPositioned { exportCoordinates = it },
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                 ) {
                     Text(
@@ -56,8 +71,13 @@ fun TransferSettingsCard(
                 }
 
                 OutlinedButton(
-                    onClick = onImportClick,
-                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        NavigationOriginTracker.updateFromCoordinates(importCoordinates)
+                        onImportClick()
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .onGloballyPositioned { importCoordinates = it },
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                 ) {
                     Text(
@@ -68,8 +88,13 @@ fun TransferSettingsCard(
             }
         } else {
             Button(
-                onClick = onImportClick,
-                modifier = Modifier.fillMaxWidth(),
+                onClick = {
+                    NavigationOriginTracker.updateFromCoordinates(importCoordinates)
+                    onImportClick()
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onGloballyPositioned { importCoordinates = it },
                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
             ) {
                 Text(

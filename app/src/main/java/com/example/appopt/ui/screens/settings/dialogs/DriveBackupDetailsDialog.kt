@@ -1,4 +1,7 @@
 package com.example.appopt.ui.screens.settings.dialogs
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.imePadding
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.Arrangement
@@ -16,12 +19,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -54,6 +54,7 @@ import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.util.DateTimeFormatter
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
@@ -111,7 +112,7 @@ fun DriveBackupDetailsDialog(
                 if (remaining <= 0L) {
                     break
                 }
-                kotlinx.coroutines.delay(1_000L.milliseconds)
+                delay(1_000L.milliseconds)
             }
         }
     }
@@ -134,25 +135,21 @@ fun DriveBackupDetailsDialog(
     }
 
     AppModalDialog(
-        onDismissRequest = {
-            if (!isDecryptingBackup) {
-                when (currentSubState) {
-                    DriveDetailsSubState.RESTORE_SELECT_ACCOUNTS -> {
-                        currentSubState = DriveDetailsSubState.RESTORE_DECRYPT
-                    }
-                    DriveDetailsSubState.RESTORE_DECRYPT -> {
-                        pendingRestoreBackup = null
-                        restoreSecretText = ""
-                        decryptErrorMessage = null
-                        currentSubState = DriveDetailsSubState.HISTORY
-                    }
-                    DriveDetailsSubState.DELETE_SINGLE -> {
-                        pendingDeleteBackup = null
-                        deleteSecretText = ""
-                        currentSubState = DriveDetailsSubState.HISTORY
-                    }
-                    DriveDetailsSubState.HISTORY -> onDismiss()
-                }
+        onDismissRequest = onDismiss,
+        onBackStep = {
+            if (currentSubState == DriveDetailsSubState.RESTORE_SELECT_ACCOUNTS) {
+                currentSubState = DriveDetailsSubState.RESTORE_DECRYPT
+                true
+            } else if (currentSubState == DriveDetailsSubState.RESTORE_DECRYPT || currentSubState == DriveDetailsSubState.DELETE_SINGLE) {
+                pendingRestoreBackup = null
+                pendingDeleteBackup = null
+                restoreSecretText = ""
+                deleteSecretText = ""
+                decryptErrorMessage = null
+                currentSubState = DriveDetailsSubState.HISTORY
+                true
+            } else {
+                false
             }
         },
         modifier = modifier
@@ -169,14 +166,25 @@ fun DriveBackupDetailsDialog(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(Dimensions.Spacing.lg),
+                            .padding(Dimensions.Spacing.lg)
+                            .imePadding(),
                         verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                     ) {
+                        // Cabecera fija
                         Text(
                             text = stringResource(R.string.settings_drive_decrypt_title),
                             style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.onSurface
                         )
+
+                        // Cuerpo central scrolleable aislado
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f, fill = false)
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                        ) {
 
                         val backupToRestore = pendingRestoreBackup
                         if (backupToRestore != null) {
@@ -201,7 +209,9 @@ fun DriveBackupDetailsDialog(
                                 color = MaterialTheme.colorScheme.error
                             )
                         }
+                        }
 
+                        // Pie fijo de acciones
                         AppDialogActionButtons(
                             confirmText = stringResource(R.string.settings_drive_decrypt_and_restore),
                             onConfirm = {
@@ -269,19 +279,28 @@ fun DriveBackupDetailsDialog(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(Dimensions.Spacing.lg),
+                            .padding(Dimensions.Spacing.lg)
+                            .imePadding(),
                         verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                     ) {
+                        // Cabecera fija
                         Text(
                             text = stringResource(R.string.drive_restore_selection_title),
                             style = MaterialTheme.typography.titleLarge
                         )
 
-                        Text(
-                            text = stringResource(R.string.drive_restore_selection_desc),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        // Cuerpo central scrolleable aislado
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f, fill = false),
+                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.drive_restore_selection_desc),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
 
                         AccountImportSelectionList(
                             accounts = parsedAccounts,
@@ -300,7 +319,9 @@ fun DriveBackupDetailsDialog(
                                 selectedAccountIds = emptySet()
                             }
                         )
+                        }
 
+                        // Pie fijo de acciones
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -349,14 +370,25 @@ fun DriveBackupDetailsDialog(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(Dimensions.Spacing.lg),
+                            .padding(Dimensions.Spacing.lg)
+                            .imePadding(),
                         verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                     ) {
+                        // Cabecera fija
                         Text(
                             text = stringResource(R.string.settings_drive_delete_version_confirm_title),
                             style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.error
                         )
+
+                        // Cuerpo central scrolleable aislado
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f, fill = false)
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                        ) {
 
                         val backupToDelete = pendingDeleteBackup
                         if (backupToDelete != null) {
@@ -370,7 +402,9 @@ fun DriveBackupDetailsDialog(
                                 hintText = stringResource(R.string.settings_drive_delete_version_auth_hint)
                             )
                         }
+                        }
 
+                        // Pie fijo de acciones
                         AppDialogActionButtons(
                             confirmText = stringResource(R.string.action_delete),
                             onConfirm = {
@@ -404,45 +438,29 @@ fun DriveBackupDetailsDialog(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(Dimensions.Spacing.lg),
+                            .padding(Dimensions.Spacing.lg)
+                            .imePadding(),
                         verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                        // Cabecera fija
+                        Text(
+                            text = stringResource(R.string.settings_drive_history_title),
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        // Cuerpo central scrolleable aislado
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f, fill = false),
+                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                         ) {
                             Text(
-                                text = stringResource(R.string.settings_drive_history_title),
-                                style = MaterialTheme.typography.titleLarge,
-                                color = MaterialTheme.colorScheme.onSurface
+                                text = stringResource(R.string.settings_drive_history_subtitle),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-
-                            IconButton(
-                                onClick = {
-                                    appHaptics.click()
-                                    onForceRefresh()
-                                },
-                                enabled = !isLoading && !isCooldownActive,
-                                modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Refresh,
-                                    contentDescription = stringResource(R.string.settings_drive_history_refresh_action),
-                                    tint = if (isCooldownActive) {
-                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                    } else {
-                                        MaterialTheme.colorScheme.primary
-                                    }
-                                )
-                            }
-                        }
-
-                        Text(
-                            text = stringResource(R.string.settings_drive_history_subtitle),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
 
                         if (isLoading) {
                             Box(
@@ -499,12 +517,20 @@ fun DriveBackupDetailsDialog(
                                 }
                             }
                         }
+                        }
 
+                        // Pie fijo de acciones
                         AppDialogActionButtons(
                             dismissText = stringResource(R.string.action_close),
                             onDismiss = onDismiss,
-                            confirmText = null,
-                            onConfirm = null
+                            confirmText = if (isCooldownActive) {
+                                stringResource(R.string.settings_drive_history_cooldown_badge, secondsRemaining)
+                            } else {
+                                stringResource(R.string.settings_drive_history_refresh_action)
+                            },
+                            onConfirm = onForceRefresh,
+                            confirmEnabled = !isLoading && !isCooldownActive,
+                            isLoading = isLoading
                         )
                     }
                 }

@@ -308,11 +308,7 @@ fun HomeScreen(
         if (isQrScannerDialogOpen) {
             QrScannerDialog(
                 onDismiss = { isQrScannerDialogOpen = false },
-                onScanSuccess = { isQrScannerDialogOpen = false },
-                onNavigateToManual = {
-                    isQrScannerDialogOpen = false
-                    isManualAddDialogOpen = true
-                }
+                onScanSuccess = { isQrScannerDialogOpen = false }
             )
         }
 

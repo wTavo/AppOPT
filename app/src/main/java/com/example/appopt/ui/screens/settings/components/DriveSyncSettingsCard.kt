@@ -32,13 +32,20 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import com.example.appopt.R
 import com.example.appopt.ui.components.SettingsSectionCard
 import com.example.appopt.ui.components.SettingsStatusTile
+import com.example.appopt.ui.navigation.NavigationOriginTracker
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.SafeGreen
 import com.example.appopt.ui.theme.appSwitchColors
@@ -53,6 +60,7 @@ import com.example.appopt.ui.theme.appSwitchColors
  * @param hasUnsyncedChanges Indica si existen cambios locales no sincronizados con la nube.
  * @param lastSyncTimestamp Marca de tiempo en milisegundos de la última sincronización.
  * @param isAutoSyncEnabled Indica si la copia automática al hacer cambios está activada.
+ * @param isSyncMobileDataAllowed Indica si se permite sincronizar con datos móviles.
  * @param hasLocalAccounts Indica si existen cuentas o servicios 2FA locales registrados en la bóveda.
  * @param onConnectClick Callback para conectar la cuenta de Google.
  * @param onManualSyncClick Callback para disparar la sincronización inmediata.
@@ -83,6 +91,10 @@ fun DriveSyncSettingsCard(
     onMobileDataToggle: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var backupDetailsCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var createBackupCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var disconnectCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+
     val isSyncingActive = isDriveLoading && isDriveConnected
 
     val badgeColor = when {
@@ -157,7 +169,10 @@ fun DriveSyncSettingsCard(
                         else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                     },
                     onClick = if (!isSyncingActive) {
-                        { onBackupDetailsClick() }
+                        {
+                            NavigationOriginTracker.updateFromCoordinates(backupDetailsCoordinates)
+                            onBackupDetailsClick()
+                        }
                     } else null,
                     trailingContent = if (!isSyncingActive) {
                         {
@@ -169,7 +184,9 @@ fun DriveSyncSettingsCard(
                             )
                         }
                     } else null,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .onGloballyPositioned { backupDetailsCoordinates = it }
                 )
 
                 val isDisconnectAllowed = !isDriveLoading
@@ -181,7 +198,12 @@ fun DriveSyncSettingsCard(
                     Surface(
                         shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                         color = MaterialTheme.colorScheme.errorContainer,
-                        modifier = Modifier.clickable { onDisconnectClick() }
+                        modifier = Modifier
+                            .onGloballyPositioned { disconnectCoordinates = it }
+                            .clickable {
+                                NavigationOriginTracker.updateFromCoordinates(disconnectCoordinates)
+                                onDisconnectClick()
+                            }
                     ) {
                         Box(
                             modifier = Modifier.padding(Dimensions.Spacing.sm),
@@ -243,9 +265,14 @@ fun DriveSyncSettingsCard(
                     }
                 } else if (hasLocalAccounts) {
                     Button(
-                        onClick = onCreateBackupClick,
+                        onClick = {
+                            NavigationOriginTracker.updateFromCoordinates(createBackupCoordinates)
+                            onCreateBackupClick()
+                        },
                         enabled = !isDriveLoading,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onGloballyPositioned { createBackupCoordinates = it },
                         shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                     ) {
                         Text(

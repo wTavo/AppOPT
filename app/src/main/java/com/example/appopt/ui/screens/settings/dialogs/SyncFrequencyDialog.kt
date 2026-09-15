@@ -8,12 +8,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,8 +20,8 @@ import androidx.compose.ui.res.stringResource
 import com.example.appopt.R
 import com.example.appopt.data.cloud.SyncFrequency
 import com.example.appopt.ui.components.AppDialogActionButtons
+import com.example.appopt.ui.components.AppModalDialog
 import com.example.appopt.ui.theme.Dimensions
-
 import com.example.appopt.ui.theme.rememberAppHaptics
 
 /**
@@ -41,18 +40,26 @@ fun SyncFrequencyDialog(
     modifier: Modifier = Modifier
 ) {
     val appHaptics = rememberAppHaptics()
-    AlertDialog(
+    AppModalDialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(Dimensions.CornerRadius.large),
-        title = {
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+        ) {
+            // Cabecera fija
             Text(
                 text = stringResource(R.string.settings_drive_frequency_title),
                 style = MaterialTheme.typography.titleLarge
             )
-        },
-        text = {
+
+            // Cuerpo central scrolleable
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
             ) {
                 val frequencyOptions = listOf(
@@ -90,13 +97,12 @@ fun SyncFrequencyDialog(
                     }
                 }
             }
-        },
-        confirmButton = {
+
+            // Pie fijo de acciones
             AppDialogActionButtons(
+                dismissText = stringResource(R.string.action_close),
                 onDismiss = onDismiss
             )
-        },
-        dismissButton = null,
-        modifier = modifier
-    )
+        }
+    }
 }

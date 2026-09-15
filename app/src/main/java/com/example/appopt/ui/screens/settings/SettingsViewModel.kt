@@ -167,9 +167,10 @@ class SettingsViewModel : ViewModel() {
     /** Fuerza la actualización inmediata del historial de versiones desde Google Drive. */
     fun forceRefreshBackupHistory(
         token: String,
-        onAuthExpired: () -> Unit
+        onAuthExpired: () -> Unit,
+        onFinished: (() -> Unit)? = null
     ) {
-        driveVaultHandler.forceRefreshBackupHistory(token, onAuthExpired)
+        driveVaultHandler.forceRefreshBackupHistory(token, onAuthExpired, onFinished)
     }
 
     /** Elimina una versión de respaldo específica en Google Drive. */

@@ -34,6 +34,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -41,6 +43,7 @@ import androidx.compose.ui.semantics.semantics
 import com.example.appopt.R
 import com.example.appopt.domain.model.OtpType
 import com.example.appopt.domain.repository.AccountWithCode
+import com.example.appopt.ui.navigation.NavigationOriginTracker
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.SafeGreen
@@ -103,15 +106,19 @@ fun OtpCodeCard(
         }
     }
 
+    var cardCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
+            .onGloballyPositioned { cardCoordinates = it }
             .clip(RoundedCornerShape(Dimensions.CornerRadius.large))
             .clickable(
                 enabled = !isDragging,
                 interactionSource = interactionSource,
                 indication = ripple(),
                 onClick = {
+                    NavigationOriginTracker.updateFromCoordinates(cardCoordinates)
                     appHaptics.click()
                     onCardClick()
                 }

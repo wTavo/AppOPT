@@ -58,6 +58,7 @@ import com.example.appopt.domain.totp.Base32
 import com.example.appopt.security.CryptoManager
 import com.example.appopt.ui.components.AppAnimatedButton
 import com.example.appopt.ui.components.AppModalDialog
+import com.example.appopt.ui.components.LocalModalDismissHandler
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.SafeGreen
 import com.example.appopt.ui.theme.UrgentRed
@@ -328,6 +329,7 @@ fun AddAccountDialog(
             }
 
             // 3. Botones de Acción Fijos en la parte inferior (Directiva 14 & 23)
+            val modalDismissHandler = LocalModalDismissHandler.current
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -337,7 +339,14 @@ fun AddAccountDialog(
             ) {
                 // Botón "Cerrar" a la izquierda
                 TextButton(
-                    onClick = onDismiss,
+                    onClick = {
+                        appHaptics.click()
+                        if (modalDismissHandler != null) {
+                            modalDismissHandler()
+                        } else {
+                            onDismiss()
+                        }
+                    },
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                     contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.none),
                     modifier = Modifier
@@ -377,7 +386,11 @@ fun AddAccountDialog(
                     },
                     onActionConfirmed = {
                         onAccountSaved()
-                        onDismiss()
+                        if (modalDismissHandler != null) {
+                            modalDismissHandler()
+                        } else {
+                            onDismiss()
+                        }
                     },
                     enabled = isFormValid,
                     modifier = Modifier.weight(1f)

@@ -112,6 +112,12 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 - **PROHIBIDO** cerrar un diálogo modal y abrir otro diálogo separado en su lugar para flujos encadenados, restauraciones, sub-pasos o confirmaciones (antipatrón de parpadeo y desmontaje de modales).
 - **PROHIBIDO** quemar espaciados o dimensiones arbitrarias dentro de los diálogos, o permitir que listas internas desborden la pantalla sin límite de altura o sin scroll vertical.
 - **OBLIGATORIO** unificar flujos encadenados (confirmaciones destructivas, modo edición, sub-pasos de descifrado/restauración) dentro de un único diálogo modal dinámico mediante una máquina de estados interna con transición fluida de contenido (idéntico al patrón de `AccountDetailsDialog.kt`).
+- **OBLIGATORIO la Estructura Tripartita Inmutable en Diálogos (Cabecera y Botones Fijos con Cuerpo Central Scrolleable):**
+  - **PROHIBIDO** permitir que el título/cabecera del modal o los botones de acción inferiores desaparezcan, se desplacen o queden ocultos fuera de la pantalla cuando el contenido interno se expande o cuando se despliega el teclado virtual (`imePadding`).
+  - **OBLIGATORIO** estructurar el contenedor de cada paso o estado del modal en tres secciones independientes:
+    1. **Cabecera fija superior:** Título principal de la pantalla/paso (`MaterialTheme.typography.titleLarge`) y/o controles de acción superior (botones de edición, cerrar o actualizar).
+    2. **Cuerpo central scrolleable aislado:** Confinar el scroll vertical únicamente al cuerpo central mediante `Modifier.fillMaxWidth().weight(1f, fill = false).verticalScroll(rememberScrollState())` (o `LazyColumn` / contenedores con `weight(1f, fill = false)`), garantizando que con contenidos breves el modal solo ocupe su altura natural (`fill = false`) y con contenidos extensos o teclado activo el scroll quede estrictamente confinado al centro.
+    3. **Pie fijo inferior:** Botones de acción (`AppDialogActionButtons` o `Row(TextButton + AppAnimatedButton)`), siempre anclados y visibles en la base del diálogo.
 - **OBLIGATORIO el estándar uniforme de geometría y espaciados en diálogos:**
   - **Forma del modal:** `shape = RoundedCornerShape(Dimensions.CornerRadius.large)` (16.dp).
   - **Tipografía de encabezado:** `style = MaterialTheme.typography.titleLarge` (en color `onSurface` o `error` para destructivos).

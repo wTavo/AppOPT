@@ -110,10 +110,12 @@ class DriveVaultHandler(
      *
      * @param token Token de acceso de Google Drive.
      * @param onAuthExpired Callback invocado si el token ha expirado.
+     * @param onFinished Callback opcional invocado al finalizar la carga.
      */
     fun forceRefreshBackupHistory(
         token: String,
-        onAuthExpired: () -> Unit
+        onAuthExpired: () -> Unit,
+        onFinished: (() -> Unit)? = null
     ) {
         internalState.update { it.copy(isFetchingBackupHistory = true, isRefreshingBackupHistory = true) }
         scope.launch(Dispatchers.IO) {
@@ -140,6 +142,9 @@ class DriveVaultHandler(
                 }
             } finally {
                 internalState.update { it.copy(isFetchingBackupHistory = false, isRefreshingBackupHistory = false) }
+                withContext(Dispatchers.Main) {
+                    onFinished?.invoke()
+                }
             }
         }
     }

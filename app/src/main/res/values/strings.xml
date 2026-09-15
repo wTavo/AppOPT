@@ -170,6 +170,7 @@
     <string name="settings_drive_history_title">Historial de copias de seguridad</string>
     <string name="settings_drive_history_subtitle">Se conservan automáticamente las últimas 3 versiones de tu bóveda.</string>
     <string name="settings_drive_history_refresh_action">Actualizar</string>
+    <string name="settings_drive_history_refresh_cooldown">Actualizar (%1$d s)</string>
     <string name="settings_drive_history_cooldown_badge">%1$d s</string>
     <string name="settings_drive_history_empty">No hay copias de seguridad disponibles en Google Drive.</string>
     <string name="settings_drive_history_loading">Cargando versiones de respaldo…</string>

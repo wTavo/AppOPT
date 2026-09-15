@@ -1,4 +1,7 @@
 package com.example.appopt.ui.screens.settings.dialogs
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.imePadding
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.Arrangement
@@ -71,13 +74,13 @@ fun DriveDecryptDialog(
     var selectedAccountIds by remember { mutableStateOf<Set<String>>(emptySet()) }
 
     AppModalDialog(
-        onDismissRequest = {
-            if (!isDecrypting) {
-                if (currentStep == DriveDecryptStep.SELECT_ACCOUNTS) {
-                    currentStep = DriveDecryptStep.DECRYPT
-                } else {
-                    onDismiss()
-                }
+        onDismissRequest = onDismiss,
+        onBackStep = {
+            if (!isDecrypting && currentStep == DriveDecryptStep.SELECT_ACCOUNTS) {
+                currentStep = DriveDecryptStep.DECRYPT
+                true
+            } else {
+                false
             }
         },
         modifier = modifier
@@ -92,13 +95,24 @@ fun DriveDecryptDialog(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(Dimensions.Spacing.lg),
+                            .padding(Dimensions.Spacing.lg)
+                            .imePadding(),
                         verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                     ) {
+                        // Cabecera fija
                         Text(
                             text = stringResource(R.string.settings_drive_decrypt_title),
                             style = MaterialTheme.typography.titleLarge
                         )
+
+                        // Cuerpo central scrolleable aislado
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f, fill = false)
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                        ) {
 
                         val targetBackup = remember(backupDateMillis, deviceName, isActual) {
                             DriveBackupItem(
@@ -130,7 +144,9 @@ fun DriveDecryptDialog(
                                 color = MaterialTheme.colorScheme.error
                             )
                         }
+                        }
 
+                        // Pie fijo de acciones
                         AppDialogActionButtons(
                             dismissText = stringResource(R.string.action_close),
                             onDismiss = {
@@ -190,19 +206,28 @@ fun DriveDecryptDialog(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(Dimensions.Spacing.lg),
+                            .padding(Dimensions.Spacing.lg)
+                            .imePadding(),
                         verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                     ) {
+                        // Cabecera fija
                         Text(
                             text = stringResource(R.string.drive_restore_selection_title),
                             style = MaterialTheme.typography.titleLarge
                         )
 
-                        Text(
-                            text = stringResource(R.string.drive_restore_selection_desc),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        // Cuerpo central scrolleable aislado
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f, fill = false),
+                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.drive_restore_selection_desc),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
 
                         AccountImportSelectionList(
                             accounts = parsedAccounts,
@@ -221,7 +246,9 @@ fun DriveDecryptDialog(
                                 selectedAccountIds = emptySet()
                             }
                         )
+                        }
 
+                        // Pie fijo de acciones
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()

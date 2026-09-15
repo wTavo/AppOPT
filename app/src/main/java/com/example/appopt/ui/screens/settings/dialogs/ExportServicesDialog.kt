@@ -1,4 +1,7 @@
 package com.example.appopt.ui.screens.settings.dialogs
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.imePadding
 
 import android.graphics.Bitmap
 import androidx.compose.animation.AnimatedContent
@@ -8,6 +11,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -172,14 +176,26 @@ fun ExportServicesDialog(
                 when (state) {
                     ExportSubState.ACCOUNT_SELECTION -> {
                         Column(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(Dimensions.Spacing.lg)
+                                .imePadding(),
                             verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                         ) {
+                            // Cabecera fija
                             Text(
                                 text = stringResource(R.string.settings_export_services_dialog_title),
                                 style = MaterialTheme.typography.titleLarge,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
+
+                            // Cuerpo central scrolleable aislado
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f, fill = false),
+                                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                            ) {
 
                             ExportAccountSelectionStep(
                                 accounts = accounts,
@@ -194,7 +210,9 @@ fun ExportServicesDialog(
                                 keepServicesOnDevice = keepServicesOnDevice,
                                 onKeepServicesChanged = { keepServicesOnDevice = it }
                             )
+                            }
 
+                            // Pie fijo de acciones
                             AppDialogActionButtons(
                                 confirmText = stringResource(R.string.settings_generate_qr_button),
                                 onConfirm = { generateTransferQr() },
@@ -206,14 +224,27 @@ fun ExportServicesDialog(
                     }
                     ExportSubState.QR_CAROUSEL -> {
                         Column(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(Dimensions.Spacing.lg)
+                                .imePadding(),
                             verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                         ) {
+                            // Cabecera fija
                             Text(
                                 text = stringResource(R.string.settings_export_qr_dialog_title),
                                 style = MaterialTheme.typography.titleLarge,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
+
+                            // Cuerpo central scrolleable aislado
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f, fill = false)
+                                    .verticalScroll(rememberScrollState()),
+                                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                            ) {
 
                             ExportQrCarouselStep(
                                 transferQrBitmaps = transferQrBitmaps,
@@ -226,7 +257,9 @@ fun ExportServicesDialog(
                                 secondsRemaining = secondsRemaining,
                                 totalSessionDuration = totalSessionDuration
                             )
+                            }
 
+                            // Pie fijo de acciones
                             AppDialogActionButtons(
                                 dismissText = if (!keepServicesOnDevice) {
                                     stringResource(R.string.settings_export_confirm_done)
@@ -245,17 +278,32 @@ fun ExportServicesDialog(
                     }
                     ExportSubState.EXPIRED -> {
                         Column(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(Dimensions.Spacing.lg)
+                                .imePadding(),
                             verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                         ) {
+                            // Cabecera fija
                             Text(
                                 text = stringResource(R.string.settings_transfer_expired_title),
                                 style = MaterialTheme.typography.titleLarge,
                                 color = MaterialTheme.colorScheme.error
                             )
 
-                            ExportExpiredStep()
+                            // Cuerpo central scrolleable aislado
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f, fill = false)
+                                    .verticalScroll(rememberScrollState()),
+                                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                            ) {
 
+                            ExportExpiredStep()
+                            }
+
+                            // Pie fijo de acciones
                             AppDialogActionButtons(
                                 confirmText = stringResource(R.string.settings_transfer_regenerate_button),
                                 onConfirm = { generateTransferQr() },

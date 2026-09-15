@@ -8,9 +8,11 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -36,6 +38,7 @@ import com.example.appopt.ui.theme.rememberAppHaptics
  * - Sincroniza la altura de los controles mediante [IntrinsicSize.Min] y [Dimensions.ComponentHeight.buttonDefault] (50.dp).
  * - Idempotencia nativa: previene múltiples pulsaciones rápidas en acciones mutantes o destructivas.
  * - Respuesta háptica semántica automática mediante [rememberAppHaptics].
+ * - Soporte integrado de indicador de carga animado mediante [CircularProgressIndicator].
  *
  * @param onDismiss Callback ejecutado al presionar el botón de salida.
  * @param modifier Modificador opcional de diseño.
@@ -43,6 +46,7 @@ import com.example.appopt.ui.theme.rememberAppHaptics
  * @param confirmText Texto opcional para el botón de acción afirmativa/destructiva.
  * @param onConfirm Callback opcional ejecutado al presionar el botón de confirmación.
  * @param confirmEnabled Bandera para habilitar o deshabilitar el botón de confirmación.
+ * @param isLoading Bandera que indica si la acción está en proceso asíncrono.
  * @param isDestructive Si es verdadero, colorea el botón de confirmación con el esquema de error.
  * @param minHeight Altura mínima obligatoria para los botones (por defecto 50.dp).
  */
@@ -54,11 +58,15 @@ fun AppDialogActionButtons(
     confirmText: String? = null,
     onConfirm: (() -> Unit)? = null,
     confirmEnabled: Boolean = true,
+    isLoading: Boolean = false,
     isDestructive: Boolean = false,
     minHeight: Dp = Dimensions.ComponentHeight.buttonDefault
 ) {
     val appHaptics = rememberAppHaptics()
     var isProcessing by remember { mutableStateOf(false) }
+    val modalDismissHandler = LocalModalDismissHandler.current
+    val closeText = stringResource(R.string.action_close)
+    val accountCloseText = stringResource(R.string.account_modal_close_button)
 
     Row(
         modifier = modifier
@@ -74,8 +82,13 @@ fun AppDialogActionButtons(
         TextButton(
             onClick = {
                 appHaptics.click()
-                onDismiss()
+                if (modalDismissHandler != null && (dismissText == closeText || dismissText == accountCloseText || (confirmText == null && onConfirm == null))) {
+                    modalDismissHandler()
+                } else {
+                    onDismiss()
+                }
             },
+            enabled = !isLoading,
             shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
             modifier = Modifier
                 .fillMaxHeight()
@@ -91,7 +104,7 @@ fun AppDialogActionButtons(
         if (confirmText != null && onConfirm != null) {
             Button(
                 onClick = {
-                    if (!isProcessing) {
+                    if (!isProcessing && !isLoading) {
                         isProcessing = true
                         appHaptics.click()
                         try {
@@ -101,7 +114,7 @@ fun AppDialogActionButtons(
                         }
                     }
                 },
-                enabled = confirmEnabled && !isProcessing,
+                enabled = confirmEnabled && !isProcessing && !isLoading,
                 colors = if (isDestructive) {
                     ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error,
@@ -116,11 +129,19 @@ fun AppDialogActionButtons(
                     .fillMaxHeight()
                     .heightIn(min = minHeight)
             ) {
-                Text(
-                    text = confirmText,
-                    style = MaterialTheme.typography.labelLarge,
-                    textAlign = TextAlign.Center
-                )
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(Dimensions.IconSize.small),
+                        color = if (isDestructive) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = Dimensions.Stroke.regular
+                    )
+                } else {
+                    Text(
+                        text = confirmText,
+                        style = MaterialTheme.typography.labelLarge,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
         }
     }

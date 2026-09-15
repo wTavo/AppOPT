@@ -1,4 +1,7 @@
 package com.example.appopt.ui.screens.scan
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.imePadding
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -84,6 +87,7 @@ import com.example.appopt.ui.components.AccountImportSelectionList
 import com.example.appopt.ui.components.AppAnimatedButton
 import com.example.appopt.ui.components.AppDialogActionButtons
 import com.example.appopt.ui.components.AppModalDialog
+import com.example.appopt.ui.components.LocalModalDismissHandler
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.rememberAppHaptics
@@ -106,7 +110,6 @@ private enum class QrScannerStep {
 fun QrScannerDialog(
     onDismiss: () -> Unit,
     onScanSuccess: () -> Unit = {},
-    onNavigateToManual: (() -> Unit)? = null,
     title: String = stringResource(R.string.scan_title),
     modifier: Modifier = Modifier
 ) {
@@ -161,22 +164,24 @@ fun QrScannerDialog(
     var selectedAccountIds by remember { mutableStateOf<Set<String>>(emptySet()) }
 
     AppModalDialog(
-        onDismissRequest = {
-            if (!isVerifyingPin) {
-                if (currentStep == QrScannerStep.TRANSFER_SELECT_ACCOUNTS || currentStep == QrScannerStep.TRANSFER_PIN) {
-                    currentStep = QrScannerStep.CAMERA
-                    transferPinInput = ""
-                    pinErrorMessage = null
-                    isProcessingBarcode = false
-                    pendingEncryptedPayload = null
-                    pendingEncryptedChunks = null
-                } else {
-                    onDismiss()
-                }
+        onDismissRequest = onDismiss,
+        onBackStep = {
+            if (!isVerifyingPin && (currentStep == QrScannerStep.TRANSFER_SELECT_ACCOUNTS || currentStep == QrScannerStep.TRANSFER_PIN)) {
+                currentStep = QrScannerStep.CAMERA
+                transferPinInput = ""
+                pinErrorMessage = null
+                isProcessingBarcode = false
+                pendingEncryptedPayload = null
+                pendingEncryptedChunks = null
+                true
+            } else {
+                false
             }
         },
         modifier = modifier
     ) {
+        val modalDismissHandler = LocalModalDismissHandler.current
+
         AnimatedContent(
             targetState = currentStep,
             transitionSpec = { Motion.Spec.dialogStepContentTransform() },
@@ -187,16 +192,28 @@ fun QrScannerDialog(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(Dimensions.Spacing.lg),
+                            .padding(Dimensions.Spacing.lg)
+                            .imePadding(),
                         verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        // Cabecera fija
                         Text(
                             text = title,
                             style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.fillMaxWidth()
                         )
+
+                        // Cuerpo central scrolleable aislado
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f, fill = false)
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
 
                         if (!hasCameraPermission) {
                             Surface(
@@ -295,7 +312,11 @@ fun QrScannerDialog(
                                                                         onSingleOtpImported = {
                                                                             appHaptics.success()
                                                                             onScanSuccess()
-                                                                            onDismiss()
+                                                                            if (modalDismissHandler != null) {
+                                                                                modalDismissHandler()
+                                                                            } else {
+                                                                                onDismiss()
+                                                                            }
                                                                         },
                                                                         onTransferPayloadReady = { payloadToDecrypt ->
                                                                             pendingEncryptedPayload = payloadToDecrypt
@@ -377,63 +398,13 @@ fun QrScannerDialog(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
-
-                        if (onNavigateToManual != null) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(IntrinsicSize.Min),
-                                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                TextButton(
-                                    onClick = onDismiss,
-                                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                    contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.none),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxHeight()
-                                        .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.action_close),
-                                        style = MaterialTheme.typography.labelLarge,
-                                        textAlign = TextAlign.Center
-                                    )
-                                }
-
-                                FilledTonalButton(
-                                    onClick = {
-                                        appHaptics.click()
-                                        onDismiss()
-                                        onNavigateToManual()
-                                    },
-                                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                    contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.none),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxHeight()
-                                        .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Key,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(Dimensions.IconSize.small)
-                                    )
-                                    Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                                    Text(
-                                        text = stringResource(R.string.scan_manual_switch_short),
-                                        style = MaterialTheme.typography.labelLarge,
-                                        textAlign = TextAlign.Center
-                                    )
-                                }
-                            }
-                        } else {
-                            AppDialogActionButtons(
-                                onDismiss = onDismiss,
-                                dismissText = stringResource(R.string.action_close)
-                            )
                         }
+
+                        // Pie fijo de acciones
+                        AppDialogActionButtons(
+                            onDismiss = onDismiss,
+                            dismissText = stringResource(R.string.action_close)
+                        )
                     }
                 }
 
@@ -441,19 +412,29 @@ fun QrScannerDialog(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(Dimensions.Spacing.lg),
+                            .padding(Dimensions.Spacing.lg)
+                            .imePadding(),
                         verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                     ) {
+                        // Cabecera fija
                         Text(
                             text = stringResource(R.string.scan_transfer_pin_dialog_title),
                             style = MaterialTheme.typography.titleLarge
                         )
 
-                        Text(
-                            text = stringResource(R.string.scan_transfer_pin_dialog_desc),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        // Cuerpo central scrolleable aislado
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f, fill = false)
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.scan_transfer_pin_dialog_desc),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
 
                         OutlinedTextField(
                             value = transferPinInput,
@@ -482,7 +463,9 @@ fun QrScannerDialog(
                                 color = MaterialTheme.colorScheme.error
                             )
                         }
+                        }
 
+                        // Pie fijo de acciones
                         AppDialogActionButtons(
                             dismissText = stringResource(R.string.settings_drive_details_back),
                             onDismiss = {
@@ -555,19 +538,28 @@ fun QrScannerDialog(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(Dimensions.Spacing.lg),
+                            .padding(Dimensions.Spacing.lg)
+                            .imePadding(),
                         verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                     ) {
+                        // Cabecera fija
                         Text(
                             text = stringResource(R.string.import_selection_title),
                             style = MaterialTheme.typography.titleLarge
                         )
 
-                        Text(
-                            text = stringResource(R.string.import_selection_desc),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        // Cuerpo central scrolleable aislado
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f, fill = false),
+                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.import_selection_desc),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
 
                         AccountImportSelectionList(
                             accounts = parsedAccounts,
@@ -586,7 +578,9 @@ fun QrScannerDialog(
                                 selectedAccountIds = emptySet()
                             }
                         )
+                        }
 
+                        // Pie fijo de acciones
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -622,7 +616,11 @@ fun QrScannerDialog(
                                 },
                                 onActionConfirmed = {
                                     onScanSuccess()
-                                    onDismiss()
+                                    if (modalDismissHandler != null) {
+                                        modalDismissHandler()
+                                    } else {
+                                        onDismiss()
+                                    }
                                 },
                                 enabled = selectedAccountIds.isNotEmpty(),
                                 modifier = Modifier.weight(1f)

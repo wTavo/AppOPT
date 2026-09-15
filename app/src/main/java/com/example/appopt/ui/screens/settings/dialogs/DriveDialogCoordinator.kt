@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
 import com.example.appopt.data.cloud.DriveBackupItem
 import com.example.appopt.data.cloud.GoogleDriveManager
@@ -63,12 +64,12 @@ class DriveDialogCoordinator(
         }
     }
 
-    /** Abre el historial de respaldos en la nube, precargando si la caché expiró. */
+    /** Abre el historial de respaldos en la nube, cargando el estado actualizado desde Google Drive aplicando caché TTL. */
     fun openBackupDetails(uiState: SettingsUiState) {
         val now = System.currentTimeMillis()
-        val lastFetch = uiState.lastHistoryFetchTimestamp
+        val lastFetch = AuthenticatorApp.instance.preferencesManager.getLastBackupHistoryFetchTimestamp()
         val isCacheFresh = (now - lastFetch < SecurityConfig.BACKUP_HISTORY_CACHE_TTL_MILLIS) && uiState.backupHistoryList.isNotEmpty()
-        if (!isCacheFresh) {
+        if (!isCacheFresh && uiState.backupHistoryList.isEmpty()) {
             isHistoryLoadingSynchronous = true
             viewModel.startBackupHistoryLoading()
         }
@@ -89,7 +90,9 @@ class DriveDialogCoordinator(
                         )
                     }
                 },
-                onFinished = { isHistoryLoadingSynchronous = false }
+                onFinished = {
+                    isHistoryLoadingSynchronous = false
+                }
             )
         }
     }
@@ -168,7 +171,10 @@ class DriveDialogCoordinator(
                     GoogleDriveManager.currentAccessToken = null
                     onRequestAuth { freshToken ->
                         driveAccessToken = freshToken
-                        viewModel.forceRefreshBackupHistory(freshToken) {}
+                        viewModel.forceRefreshBackupHistory(
+                            token = freshToken,
+                            onAuthExpired = {}
+                        )
                     }
                 }
             )

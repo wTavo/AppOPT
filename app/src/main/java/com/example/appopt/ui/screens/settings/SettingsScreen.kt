@@ -465,8 +465,7 @@ fun SettingsScreen(
                 onDismiss = { showQrScannerDialog = false },
                 onScanSuccess = {
                     showQrScannerDialog = false
-                },
-                onNavigateToManual = null
+                }
             )
         }
     }

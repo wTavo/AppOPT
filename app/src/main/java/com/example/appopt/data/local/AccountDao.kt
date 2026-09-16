@@ -37,11 +37,6 @@ interface AccountDao {
     @Query("SELECT * FROM totp_accounts WHERE isDeleted = 1 ORDER BY deletedAt DESC")
     fun getDeletedAccounts(): Flow<List<AccountEntity>>
 
-    /**
-     * Obtiene sincrónicamente las cuentas en papelera.
-     */
-    @Query("SELECT * FROM totp_accounts WHERE isDeleted = 1")
-    suspend fun getDeletedAccountsSync(): List<AccountEntity>
 
     /**
      * Obtiene una cuenta específica por su identificador único UUID.

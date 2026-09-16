@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
 import com.example.appopt.data.cloud.DriveBackupItem
-import com.example.appopt.data.cloud.SyncFrequency
 import com.example.appopt.performance.PerformanceMonitor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,7 +24,6 @@ class PreferencesManager(context: Context) {
     )
 
     private val _isHideCodesEnabled = MutableStateFlow(sharedPreferences.getBoolean(KEY_HIDE_CODES, false))
-    val isHideCodesEnabledFlow: StateFlow<Boolean> = _isHideCodesEnabled.asStateFlow()
 
     private val _isDriveConnected = MutableStateFlow(sharedPreferences.getBoolean(KEY_DRIVE_CONNECTED, false))
     val isGoogleDriveConnectedFlow: StateFlow<Boolean> = _isDriveConnected.asStateFlow()
@@ -37,13 +35,10 @@ class PreferencesManager(context: Context) {
     val lastSyncedVaultHashFlow: StateFlow<String?> = _lastSyncedVaultHash.asStateFlow()
 
     private val _isAutoSyncEnabled = MutableStateFlow(sharedPreferences.getBoolean(KEY_AUTO_SYNC_ENABLED, true))
-    val isAutoSyncEnabledFlow: StateFlow<Boolean> = _isAutoSyncEnabled.asStateFlow()
 
     private val _isSyncMobileData = MutableStateFlow(sharedPreferences.getBoolean(KEY_SYNC_MOBILE_DATA, false))
-    val isSyncMobileDataAllowedFlow: StateFlow<Boolean> = _isSyncMobileData.asStateFlow()
 
     private val _isFpsOverlayEnabled = MutableStateFlow(sharedPreferences.getBoolean(KEY_FPS_OVERLAY, true))
-    val isFpsOverlayEnabledFlow: StateFlow<Boolean> = _isFpsOverlayEnabled.asStateFlow()
 
     private val _lastBackupHistoryFetchTimestamp = MutableStateFlow(sharedPreferences.getLong(KEY_LAST_BACKUP_HISTORY_FETCH, 0L))
     val lastBackupHistoryFetchTimestampFlow: StateFlow<Long> = _lastBackupHistoryFetchTimestamp.asStateFlow()
@@ -167,27 +162,6 @@ class PreferencesManager(context: Context) {
         sharedPreferences.edit { putString(KEY_LAST_VAULT_HASH, hash) }
     }
 
-    /**
-     * Retorna la frecuencia configurada para la copia de seguridad automática.
-     */
-    fun getSyncFrequency(): SyncFrequency {
-        val name = sharedPreferences.getString(KEY_SYNC_FREQUENCY, null)
-        return if (name != null) {
-            SyncFrequency.fromName(name)
-        } else {
-            if (isAutoSyncEnabled()) SyncFrequency.DAILY else SyncFrequency.OFF
-        }
-    }
-
-    /**
-     * Guarda la frecuencia configurada para la copia de seguridad automática.
-     */
-    fun setSyncFrequency(frequency: SyncFrequency) {
-        sharedPreferences.edit {
-            putString(KEY_SYNC_FREQUENCY, frequency.name)
-                .putBoolean(KEY_AUTO_SYNC_ENABLED, frequency != SyncFrequency.OFF)
-        }
-    }
 
     /**
      * Retorna si la superposición visual de FPS y registros de rendimiento está habilitada.
@@ -302,7 +276,6 @@ class PreferencesManager(context: Context) {
         private const val KEY_AUTO_SYNC_ENABLED = "key_auto_sync_enabled"
         private const val KEY_SYNC_MOBILE_DATA = "key_sync_mobile_data"
         private const val KEY_LAST_VAULT_HASH = "key_last_vault_hash"
-        private const val KEY_SYNC_FREQUENCY = "key_sync_frequency"
         private const val KEY_FPS_OVERLAY = "key_fps_overlay"
         private const val KEY_LAST_BACKUP_HISTORY_FETCH = "key_last_backup_history_fetch"
         private const val KEY_CACHED_BACKUP_HISTORY = "key_cached_backup_history"

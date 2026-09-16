@@ -176,47 +176,6 @@ object AppCrashTracker {
     }
 
     /**
-     * Genera un informe completo consolidado con crasheos recientes y errores operacionales.
-     *
-     * @param context Contexto de la aplicación.
-     * @return Cadena formateada lista para exportar o copiar.
-     */
-    fun generateFullDiagnosticReport(context: Context): String {
-        val crashReport = getLastCrashReport(context)
-        val entries = nonFatalBuffer.toList()
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
-
-        return buildString {
-            appendLine("=== INFORME DE DIAGNÓSTICO DE APPOPT ===")
-            appendLine("Generado: ${dateFormat.format(Date())}")
-            appendLine("Dispositivo: ${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE})")
-            appendLine()
-
-            if (crashReport != null) {
-                appendLine(crashReport)
-                appendLine()
-            } else {
-                appendLine("Estado de crasheos: Sin crasheos registrados.")
-                appendLine()
-            }
-
-            appendLine("--- ERRORES TÉCNICOS RECIENTES (${entries.size}) ---")
-            if (entries.isEmpty()) {
-                appendLine("Ningún error técnico operacional registrado en la sesión.")
-            } else {
-                entries.forEachIndexed { index, log ->
-                    val time = dateFormat.format(Date(log.timestamp))
-                    appendLine("[$index] $time [${log.severity}] [${log.tag}]: ${log.message}")
-                    if (log.stackTrace != null) {
-                        appendLine("    Detalle: ${log.stackTrace.lines().firstOrNull() ?: ""}")
-                    }
-                }
-            }
-            appendLine("=========================================")
-        }
-    }
-
-    /**
      * Elimina el archivo de reporte de crasheo y vacía el buffer de errores.
      *
      * @param context Contexto de la aplicación.

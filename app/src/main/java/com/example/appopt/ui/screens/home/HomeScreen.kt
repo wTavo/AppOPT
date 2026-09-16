@@ -62,19 +62,17 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
  * - Diálogos modales atómicos: Visualización de detalles y edición de cuentas.
  *
  * @param viewModel ViewModel reactivo que suministra el flujo de cuentas y operaciones de bóveda.
- * @param onNavigateToScanQr Callback para navegar hacia la cámara para escanear QR.
- * @param onNavigateToAddManual Callback para navegar hacia el formulario manual.
  * @param onNavigateToSettings Callback para navegar hacia la pantalla de Ajustes.
- * @param onNavigateToRecentlyDeleted Callback para navegar hacia la papelera de reciclaje.
  * @param modifier Modificador de diseño Compose opcional.
+ * @param onNavigateToRecentlyDeleted Callback para navegar hacia la papelera de reciclaje.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
     onNavigateToSettings: () -> Unit,
-    onNavigateToRecentlyDeleted: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onNavigateToRecentlyDeleted: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
@@ -146,9 +144,9 @@ fun HomeScreen(
 
     // Lambdas estabilizadas: se fijan en la primera composición y no cambian mientras el ViewModel sea el mismo
     val onCopyCode = remember(viewModel) { { code: String, issuer: String -> viewModel.copyCode(code, issuer) } }
-    val onToggleFavorite = remember(viewModel) { viewModel::toggleFavorite }
-    val onNextHotpCode = remember(viewModel) { viewModel::nextHotpCode }
-    val onCommitReorder = remember(viewModel) { viewModel::commitReorder }
+    val onToggleFavorite = remember(viewModel) { { id: String -> viewModel.toggleFavorite(id) } }
+    val onNextHotpCode = remember(viewModel) { { id: String -> viewModel.nextHotpCode(id) } }
+    val onCommitReorder = remember(viewModel) { { ids: List<String> -> viewModel.commitReorder(ids) } }
 
     // Estado del motor de reordenamiento estándar (sh.calvin.reorderable)
     val reorderableLazyListState = rememberReorderableLazyListState(listState) { from, to ->

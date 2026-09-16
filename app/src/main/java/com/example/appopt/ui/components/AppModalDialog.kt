@@ -29,7 +29,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.appopt.ui.navigation.NavigationOriginTracker
@@ -151,7 +150,10 @@ fun AppModalDialog(
                                 .safeDrawingPadding()
                                 .padding(vertical = Dimensions.Spacing.xl)
                                 .fillMaxWidth(0.86f)
-                                .widthIn(min = 280.dp, max = 400.dp)
+                                .widthIn(
+                                    min = Dimensions.ComponentSize.modalMinWidth,
+                                    max = Dimensions.ComponentSize.modalMaxWidth
+                                )
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = null,

@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Estado inmutable que describe el elemento sensible actualmente copiado y su tiempo restante de retención.
@@ -80,7 +81,7 @@ class SecureClipboardManager(
         clearJob = coroutineScope.launch {
             for (sec in autoClearSeconds downTo 1) {
                 _clipboardState.value = ClipboardItemState(label = label, remainingSeconds = sec)
-                delay(1000L)
+                delay(1000L.milliseconds)
             }
             clearIfMatches(text)
             _clipboardState.value = ClipboardItemState()

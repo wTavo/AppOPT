@@ -119,7 +119,7 @@ object TransferCrypto {
      */
     fun generateTransferPin(): String {
         val number = secureRandom.nextInt(1_000_000)
-        return String.format("%06d", number)
+        return String.format(java.util.Locale.US, "%06d", number)
     }
 
     /**
@@ -298,9 +298,7 @@ object TransferCrypto {
             throw IllegalArgumentException("Sobre de transferencia vacío")
         }
 
-        val version = binaryEnvelope[0].toInt() and 0xFF
-
-        return when (version) {
+        return when (val version = binaryEnvelope[0].toInt() and 0xFF) {
             SecurityConfig.TRANSFER_QR_VERSION -> {
                 if (binaryEnvelope.size <= HEADER_V1_OFFSET_CIPHERTEXT) {
                     throw IllegalArgumentException("Tamaño de sobre de transferencia v1 inválido")

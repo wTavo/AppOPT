@@ -2,7 +2,6 @@ package com.example.appopt.ui.screens.settings.dialogs
 
 import androidx.compose.runtime.Composable
 import com.example.appopt.data.cloud.DriveBackupItem
-import com.example.appopt.domain.model.TotpAccount
 import com.example.appopt.ui.screens.settings.SettingsUiState
 
 /**

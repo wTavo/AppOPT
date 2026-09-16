@@ -1,7 +1,6 @@
 package com.example.appopt.util
 
 import android.content.Context
-import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -22,6 +21,7 @@ import com.example.appopt.performance.AppCrashTracker
 import com.example.appopt.performance.PerformanceMonitor
 import java.io.FileOutputStream
 import java.io.OutputStream
+import androidx.core.graphics.createBitmap
 
 /**
  * Generador nativo del informe de rendimiento y diagnóstico del sistema en formato PDF.
@@ -56,7 +56,7 @@ object DiagnosticPdfGenerator {
 
         val bitmapWidth = (PAGE_WIDTH * SCALE_FACTOR).toInt()
         val bitmapHeight = (PAGE_HEIGHT * SCALE_FACTOR).toInt()
-        val highResBitmap = Bitmap.createBitmap(bitmapWidth, bitmapHeight, Bitmap.Config.ARGB_8888)
+        val highResBitmap = createBitmap(bitmapWidth, bitmapHeight)
         val renderCanvas = Canvas(highResBitmap)
 
         // Fondo blanco inicial

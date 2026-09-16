@@ -119,11 +119,11 @@ fun AppTheme(
 fun appSwitchColors(): androidx.compose.material3.SwitchColors {
     val isDark = MaterialTheme.colorScheme.surface == SurfaceDark || MaterialTheme.colorScheme.background == BackgroundDark
     return androidx.compose.material3.SwitchDefaults.colors(
-        uncheckedThumbColor = if (isDark) androidx.compose.ui.graphics.Color.White else TextSecondaryLight,
+        uncheckedThumbColor = if (isDark) Color.White else TextSecondaryLight,
         uncheckedTrackColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else SurfaceVariantLight,
-        uncheckedBorderColor = if (isDark) androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f) else OutlineLight,
+        uncheckedBorderColor = if (isDark) Color.White.copy(alpha = 0.5f) else OutlineLight,
         checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
         checkedTrackColor = MaterialTheme.colorScheme.primary,
-        checkedBorderColor = androidx.compose.ui.graphics.Color.Transparent
+        checkedBorderColor = Color.Transparent
     )
 }

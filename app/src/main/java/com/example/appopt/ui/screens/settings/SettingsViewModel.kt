@@ -3,8 +3,6 @@ package com.example.appopt.ui.screens.settings
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.work.WorkInfo
-import androidx.work.WorkManager
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.data.cloud.CloudVaultSyncManager
 import com.example.appopt.data.cloud.DriveBackupInfo
@@ -183,15 +181,6 @@ class SettingsViewModel : ViewModel() {
         driveVaultHandler.deleteSpecificBackup(token, fileId, passChars, onComplete)
     }
 
-    /** Elimina la totalidad de copias de seguridad en Google Drive. */
-    fun deleteAllBackups(
-        token: String,
-        passChars: CharArray,
-        onComplete: (Boolean) -> Unit
-    ) {
-        driveVaultHandler.deleteAllBackups(token, passChars, onComplete)
-    }
-
     /** Crea una copia de seguridad protegida con contraseña y frase mnemónica. */
     fun createProtectedBackup(
         context: Context,
@@ -205,31 +194,21 @@ class SettingsViewModel : ViewModel() {
 
     /** Descifra y restaura la copia de seguridad más reciente desde Google Drive. */
     fun restoreFromBackup(
-        context: Context,
         token: String,
         passChars: CharArray,
         onComplete: (Result<Int>) -> Unit
     ) {
-        driveVaultHandler.restoreFromBackup(context, token, passChars, onComplete)
+        driveVaultHandler.restoreFromBackup(token, passChars, onComplete)
     }
 
     /** Descifra y restaura una versión histórica específica de Google Drive. */
     fun restoreSpecificBackup(
-        context: Context,
         token: String,
         fileId: String,
         passChars: CharArray,
         onComplete: (Result<Int>) -> Unit
     ) {
-        driveVaultHandler.restoreSpecificBackup(context, token, fileId, passChars, onComplete)
-    }
-
-    /** Exporta las cuentas seleccionadas para transferencia offline. */
-    suspend fun exportAccounts(
-        selectedIds: Set<String>,
-        pin: CharArray? = null
-    ): String = withContext(Dispatchers.IO) {
-        repository.exportAccountsForTransfer(selectedIds, pin)
+        driveVaultHandler.restoreSpecificBackup(token, fileId, passChars, onComplete)
     }
 
     /** Exporta las cuentas seleccionadas divididas en lotes cifrados para multi-QR. */

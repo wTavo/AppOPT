@@ -4,7 +4,6 @@
     <!-- ================================================================= -->
     <string name="app_name">Authenticator</string>
 
-    <string name="action_cancel">Volver</string>
     <string name="action_close">Cerrar</string>
     <string name="action_delete">Eliminar</string>
     <string name="action_edit">Editar</string>
@@ -37,9 +36,7 @@
     <string name="home_empty_description">Protege tus servicios con autenticación de dos factores (2FA). Agrega tu primera cuenta escaneando un código QR.</string>
     <string name="home_scan_qr_option">Escanear código QR</string>
     <string name="home_add_manual_option">Ingresar clave manualmente</string>
-    <string name="home_add_dialog_title">Agregar nueva cuenta</string>
     <string name="home_delete_dialog_title">¿Eliminar cuenta?</string>
-    <string name="home_delete_dialog_message">Esta acción eliminará el secreto de tu bóveda de forma permanente. Asegúrate de tener otro método de acceso o backup antes de continuar.</string>
     <string name="home_next_hotp_code">Generar siguiente código HOTP</string>
     <string name="home_default_issuer">Servicio</string>
 
@@ -67,10 +64,8 @@
     <string name="add_account_issuer_placeholder">Ej. Google, GitHub</string>
     <string name="add_account_name_placeholder">Ej. usuario@correo.com</string>
     <string name="add_account_secret_placeholder">Ej. JBSW4O2K...</string>
-    <string name="field_optional_hint">Opcional</string>
     <string name="add_account_secret_invalid_hint">Clave Base32 no válida</string>
     <string name="add_account_advanced_options">Opciones avanzadas</string>
-    <string name="add_account_advanced_description">La mayoría de los servicios usan SHA1 y 6 dígitos por defecto.</string>
     <string name="add_account_algorithm_label">Algoritmo HMAC</string>
     <string name="add_account_digits_label">Dígitos</string>
     <string name="add_account_digits_format">%1$d dígitos</string>
@@ -80,8 +75,17 @@
     <!-- Pantalla Escáner QR (QR Scanner Screen) -->
     <string name="scan_title">Escanear código QR</string>
     <string name="scan_hint">Apunta la cámara al código QR 2FA</string>
+    <string name="scan_camera_start_action">Iniciar cámara</string>
     <string name="scan_permission_required_title">Se requiere permiso de cámara</string>
     <string name="scan_permission_required_description">La app necesita acceso a la cámara para leer el código QR de configuración localmente.</string>
+    <string name="scan_confirm_title">Confirmar cuenta</string>
+    <string name="scan_confirm_subtitle">Revisa la información antes de guardar esta clave en tu bóveda.</string>
+    <string name="scan_confirm_save_button">Guardar cuenta</string>
+    <string name="scan_confirm_warning_spoofing">Advertencia de seguridad: Se detectaron caracteres inusuales o alfabetos mezclados que podrían simular una marca legítima.</string>
+    <string name="scan_confirm_warning_duplicate">Ya tienes una cuenta para %1$s (%2$s). Si continúas, se agregará como una cuenta adicional.</string>
+    <string name="scan_confirm_phishing_tip">Asegúrate de haber generado este código desde el sitio web o aplicación oficial del servicio.</string>
+    <string name="scan_confirm_type_format">%1$s • %2$d dígitos • %3$d s</string>
+    <string name="scan_confirm_type_hotp_format">%1$s • %2$d dígitos</string>
 
     <!-- Pantalla de Configuraciones (Settings Screen) -->
     <string name="settings_title">Configuraciones</string>
@@ -102,7 +106,6 @@
     <string name="settings_keep_services_description">Si se desactiva, los servicios transferidos se eliminarán de este teléfono tras la exportación.</string>
     <string name="settings_generate_qr_button">Generar código QR</string>
     <string name="settings_export_qr_dialog_title">Escanear para transferir</string>
-    <string name="settings_export_qr_dialog_hint">En tu nuevo teléfono, abre el escáner QR de la app y apunta a este código.</string>
     <string name="settings_export_confirm_done">Listo, servicios transferidos</string>
     <string name="settings_services_deleted_after_export">Los servicios seleccionados fueron eliminados de este dispositivo.</string>
     <string name="settings_transfer_pin_label">PIN de transferencia:</string>
@@ -115,16 +118,9 @@
     <string name="settings_transfer_selected_services_count">%1$d servicios seleccionados</string>
     <string name="settings_transfer_prev_code">Anterior</string>
     <string name="settings_transfer_next_code">Siguiente</string>
-    <string name="settings_transfer_pin_toggle_show">Mostrar PIN</string>
-    <string name="settings_transfer_pin_toggle_hide">Ocultar PIN</string>
     <string name="settings_transfer_view_pin">Ver PIN de transferencia</string>
     <string name="settings_transfer_view_qr">Ver código QR</string>
-    <string name="settings_transfer_qr_blurred_hint">Código QR protegido mientras el PIN está visible</string>
-    <string name="settings_transfer_pin_masked_value">• • •   • • •</string>
-    <string name="scan_transfer_batch_success">Se importaron %1$d servicios. Puedes escanear el siguiente código.</string>
     <string name="scan_transfer_chunk_progress">Lote %1$d de %2$d escaneado. Escanea el código restante.</string>
-    <string name="scan_transfer_chunk_complete">Todos los lotes fueron escaneados. Ingresa el PIN.</string>
-    <string name="scan_transfer_session_mismatch">Este código pertenece a otra sesión de transferencia.</string>
 
     <!-- Copia de Seguridad en Google Drive -->
     <string name="settings_drive_title">Copia de seguridad en Google Drive</string>
@@ -133,59 +129,30 @@
     <string name="settings_drive_status_synced">Conectado</string>
     <string name="settings_drive_status_syncing">Sincronizando</string>
     <string name="settings_drive_last_sync">Última copia: %1$s</string>
-    <string name="settings_drive_last_sync_never">No hay copias de seguridad en Google Drive</string>
     <string name="settings_drive_backup_found">Copia de seguridad disponible en Google Drive</string>
     <string name="settings_drive_press_to_search_backups">Presiona para buscar copias de seguridad</string>
     <string name="settings_drive_connect_button">Conectar cuenta de Google</string>
     <string name="settings_drive_sync_button">Sincronizar ahora</string>
-    <string name="settings_drive_restore_button">Restaurar de Google Drive</string>
     <string name="settings_drive_syncing">Sincronizando con Google Drive…</string>
     <string name="settings_drive_sync_success">Copia de seguridad sincronizada exitosamente en Google Drive</string>
     <string name="settings_drive_restore_success">Se restauraron %1$d servicios desde Google Drive</string>
     <string name="settings_drive_restore_up_to_date">Todos los servicios ya se encuentran actualizados</string>
-    <string name="settings_drive_frequency_title">Frecuencia de la copia</string>
-    <string name="settings_drive_frequency_15min">Cada 15 minutos (Modo prueba)</string>
-    <string name="settings_drive_frequency_hourly">Cada hora (Modo prueba)</string>
-    <string name="settings_drive_frequency_daily">Diariamente</string>
-    <string name="settings_drive_frequency_weekly">Semanalmente</string>
-    <string name="settings_drive_frequency_monthly">Mensualmente</string>
-    <string name="settings_drive_frequency_off">Desactivada</string>
     <string name="settings_drive_auto_sync_title">Copia automática al hacer cambios</string>
     <string name="settings_drive_auto_sync_desc">Guarda tus cuentas en Google Drive automáticamente unos segundos después de agregar o editar un servicio.</string>
     <string name="settings_drive_mobile_data_label">Usar datos móviles para la copia</string>
     <string name="settings_drive_mobile_data_description">Si está desactivado, la copia automática solo se realizará mediante Wi-Fi.</string>
-    <string name="settings_drive_battery_opt_title">Optimización de batería de Android</string>
-    <string name="settings_drive_battery_opt_description">Para garantizar que la copia automática se realice a tiempo en segundo plano, permite que AppOPT funcione sin restricciones de batería.</string>
-    <string name="settings_drive_battery_opt_button">Desactivar restricción</string>
-    <string name="settings_drive_battery_opt_active">Sin restricciones de batería (Óptimo para copia automática)</string>
-    <string name="settings_drive_delete_button">Eliminar copia de Google Drive</string>
-    <string name="settings_drive_delete_confirm_title">Eliminar copia de seguridad</string>
-    <string name="settings_drive_delete_confirm_msg">¿Deseas eliminar permanentemente tu copia de seguridad de Google Drive? Esta acción no se puede deshacer y no podrás restaurar tus servicios desde la nube.</string>
-    <string name="settings_drive_delete_confirm_btn">Eliminar copia</string>
-    <string name="settings_drive_delete_success">Copia de seguridad eliminada de Google Drive</string>
-    <string name="settings_drive_details_title">Detalles de la copia en la nube</string>
-    <string name="settings_drive_details_date">Fecha del respaldo: %1$s</string>
-    <string name="settings_drive_details_encryption">Cifrado: AES-256-GCM de extremo a extremo</string>
     <string name="settings_drive_details_back">Volver</string>
     <string name="settings_drive_history_title">Historial de copias de seguridad</string>
     <string name="settings_drive_history_subtitle">Se conservan automáticamente las últimas 3 versiones de tu bóveda.</string>
     <string name="settings_drive_history_refresh_action">Actualizar</string>
-    <string name="settings_drive_history_refresh_cooldown">Actualizar (%1$d s)</string>
     <string name="settings_drive_history_cooldown_badge">%1$d s</string>
     <string name="settings_drive_history_empty">No hay copias de seguridad disponibles en Google Drive.</string>
-    <string name="settings_drive_history_loading">Cargando versiones de respaldo…</string>
     <string name="settings_drive_restore_version_action">Restaurar</string>
     <string name="settings_drive_delete_version_action">Eliminar</string>
-    <string name="settings_drive_delete_all_action">Eliminar todas las copias</string>
-    <string name="settings_drive_delete_all_confirm_title">¿Eliminar todas las copias de seguridad?</string>
-    <string name="settings_drive_delete_all_confirm_desc">Se borrarán permanentemente todas las versiones de la nube. Esta acción no se puede deshacer.</string>
-    <string name="settings_drive_delete_all_auth_hint">Ingresa tu contraseña maestra, clave de 64 dígitos o frase de 12 palabras para autorizar la eliminación de todas las copias de seguridad de Google Drive.</string>
     <string name="settings_drive_delete_version_confirm_title">¿Eliminar esta versión?</string>
-    <string name="settings_drive_delete_version_confirm_desc">Esta versión de la copia de seguridad será eliminada de forma irreversible.</string>
     <string name="settings_drive_delete_version_auth_hint">Ingresa el método principal asignado a esta copia o tu frase de recuperación de 12 palabras para autorizar su eliminación.</string>
     <string name="settings_drive_version_actual_badge">Actual</string>
     <string name="settings_drive_delete_single_success">Versión eliminada correctamente</string>
-    <string name="settings_drive_delete_all_success">Todas las copias de seguridad fueron eliminadas</string>
     <string name="settings_drive_overwrite_title">Copia existente en Google Drive</string>
     <string name="settings_drive_overwrite_msg">Ya existe una copia de seguridad en Google Drive. Al crear una nueva copia, esta se guardará como la versión actual, desplazando las anteriores y descartando la más antigua si se supera el límite de 3 versiones.</string>
     <string name="settings_drive_overwrite_date">Fecha: %1$s</string>
@@ -209,33 +176,25 @@
     <string name="settings_drive_summary_emergency_title">2. Frase de emergencia (12 palabras BIP-39)</string>
     <string name="settings_drive_method_password">Contraseña maestra</string>
     <string name="settings_drive_method_key">Clave de 64 dígitos</string>
-    <string name="settings_drive_step2_method_preview_label">Tu método principal (paso 1)</string>
     <string name="settings_drive_password_preview_value">••••••••••</string>
     <string name="settings_drive_words_warning">Si pierdes tu método principal y tu frase de 12 palabras, tu bóveda no se podrá recuperar bajo ninguna circunstancia.</string>
     <string name="settings_drive_words_copied">Frase de 12 palabras copiada. Se borrará del portapapeles en 60 segundos.</string>
-    <string name="settings_drive_words_regenerate">Generar nueva frase</string>
     <string name="settings_drive_password_label">Contraseña maestra</string>
     <string name="settings_drive_password_confirm_label">Confirmar contraseña</string>
     <string name="settings_drive_password_warning">Guarda esta contraseña en un lugar seguro. Es el acceso principal a tu copia de seguridad.</string>
     <string name="settings_drive_key_label">Clave criptográfica de 64 dígitos</string>
     <string name="settings_drive_key_warning">Guarda esta clave criptográfica en un lugar seguro. Es el acceso principal a tu copia de seguridad.</string>
     <string name="settings_drive_key_copied">Clave copiada. Se borrará del portapapeles en 60 segundos.</string>
-    <string name="settings_drive_key_regenerate">Generar nueva clave</string>
     <string name="settings_drive_key_regenerate_short">Regenerar</string>
     <string name="settings_drive_copy_key_short">Copiar clave</string>
     <string name="settings_drive_copy_phrase_btn">Copiar frase</string>
     <string name="settings_drive_copied_countdown">%1$d s</string>
     <string name="settings_drive_print_pdf_short">Imprimir</string>
-    <string name="settings_drive_key_bits_badge">256 bits • AES-GCM</string>
-    <string name="settings_drive_copy_60s">Copiar (60 s)</string>
     <string name="settings_drive_next_step">Continuar a recuperación</string>
-    <string name="settings_drive_print_pdf">Imprimir kit de recuperación</string>
-    <string name="settings_drive_print_pdf_hint">El PDF incluirá tu método principal (%1$s) y tus 12 palabras de emergencia. Imprímelo en papel físico o guárdalo en una memoria externa.</string>
     <string name="settings_drive_to_quiz_step">Verificar recuperación</string>
     <string name="settings_drive_quiz_title">Paso 3: Verificación de respaldo</string>
     <string name="settings_drive_quiz_description">Para garantizar que anotaste tu frase de 12 palabras, selecciona la palabra correcta para cada posición solicitada.</string>
     <string name="settings_drive_quiz_question_label">¿Cuál es tu palabra #%1$d?</string>
-    <string name="settings_drive_quiz_review_words">Revisar 12 palabras</string>
     <string name="settings_drive_decrypt_title">Restaurar copia de seguridad</string>
     <string name="settings_drive_decrypt_hint">Ingresa el método principal asignado a esta copia o tu frase de recuperación de 12 palabras para restaurar tu copia de seguridad.</string>
     <string name="settings_drive_decrypt_input_label">Método principal o frase de recuperación</string>
@@ -265,7 +224,6 @@
     <string name="settings_perf_fps_description">Activa el monitor de FPS en tiempo real y el registro privado de métricas y errores técnicos para análisis del sistema.</string>
     <string name="settings_perf_download_pdf">Descargar reporte en PDF</string>
     <string name="settings_perf_clear_report">Borrar historial</string>
-    <string name="settings_perf_report_cleared">Historial de diagnóstico borrado</string>
     <string name="settings_perf_diagnostics_status_ok">Sin eventos ni cierres registrados</string>
     <string name="settings_perf_diagnostics_status_issues">%1$d evento(s) registrado(s)</string>
     <string name="perf_fps_format">%1$d FPS</string>
@@ -317,10 +275,8 @@
     <string name="settings_permission_battery_title">Sin restricciones de batería</string>
     <string name="settings_permission_battery_desc">Evita que Android congele o retrase la copia de seguridad automática en segundo plano.</string>
     <string name="settings_permission_granted">Permitido</string>
-    <string name="settings_permission_not_granted">No permitido</string>
     <string name="settings_permissions_granted_count">Permisos concedidos (%1$d)</string>
     <string name="settings_permission_action_grant">Permitir</string>
-    <string name="settings_permission_action_configure">Configurar</string>
 
     <!-- ================================================================= -->
     <!-- 3. ERRORES, VALIDACIONES Y RETROALIMENTACIÓN ACCIONABLE          -->
@@ -328,34 +284,22 @@
     <!-- ================================================================= -->
 
     <!-- Formulario y Validación de Cuentas (Add / Edit Account) -->
-    <string name="add_account_error_issuer_required">El nombre del servicio es obligatorio</string>
-    <string name="add_account_error_secret_invalid">La clave secreta Base32 no es válida</string>
-    <string name="add_account_error_save_failed">No se pudo guardar la cuenta. Verifica los datos e inténtalo de nuevo.</string>
 
     <!-- Escáner QR y Cámara (QR Scanner) -->
-    <string name="scan_error_invalid_qr">El código QR escaneado no contiene un formato OTP válido.</string>
-    <string name="scan_error_camera_init">No se pudo iniciar la cámara. Comprueba que ninguna otra aplicación la esté usando e inténtalo de nuevo.</string>
     <string name="settings_export_qr_error">No se pudo generar el código QR con los servicios seleccionados. Intenta exportar menos servicios a la vez.</string>
     <string name="scan_transfer_pin_dialog_title">PIN de transferencia</string>
     <string name="scan_transfer_pin_dialog_desc">Ingresa el PIN de 6 dígitos que aparece en la pantalla del otro teléfono:</string>
     <string name="scan_transfer_pin_input_label">PIN (6 dígitos)</string>
     <string name="scan_transfer_pin_confirm_button">Descifrar e importar</string>
-    <string name="scan_transfer_pin_error_incorrect">PIN incorrecto. Verifica los dígitos e inténtalo de nuevo.</string>
     <string name="scan_transfer_pin_error_incorrect_attempts">PIN incorrecto. Te quedan %1$d intentos.</string>
     <string name="scan_transfer_pin_error_max_attempts">Límite de intentos alcanzado. Transferencia cancelada por seguridad.</string>
-    <string name="scan_transfer_qr_blocked">Este código QR fue bloqueado por seguridad. Genera uno nuevo en el otro teléfono.</string>
-    <string name="scan_transfer_pin_error_expired">Este código QR ha expirado. Genera uno nuevo en el dispositivo emisor.</string>
     <string name="scan_transfer_import_success">Se importaron %1$d servicios correctamente</string>
-    <string name="scan_import_single_already_exists">El servicio ya se encuentra registrado en tu bóveda</string>
     <string name="scan_import_all_already_exist">Todos los servicios escaneados ya estaban registrados en tu bóveda</string>
 
     <!-- Sincronización y Respaldo en la Nube (Google Drive E2EE) -->
     <string name="settings_drive_error">No se pudo completar la operación en Google Drive. Verifica tu conexión e inténtalo de nuevo.</string>
     <string name="settings_drive_error_rate_limited">Demasiadas solicitudes a Google Drive. Por favor espera un momento e intenta nuevamente.</string>
     <string name="settings_drive_error_service_unavailable">El servicio de Google Drive no está disponible temporalmente. Inténtalo más tarde.</string>
-    <string name="settings_drive_password_mismatch">Las contraseñas no coinciden</string>
-    <string name="settings_drive_password_too_short">La contraseña debe tener al menos 10 caracteres</string>
-    <string name="settings_drive_quiz_error">Una o más palabras seleccionadas no coinciden. Por favor revisa tus 12 palabras.</string>
     <string name="settings_drive_decrypt_error">Credenciales incorrectas. No se pudo descifrar la copia de seguridad.</string>
 
     <!-- Generación e Impresión del Kit de Emergencia PDF -->
@@ -364,10 +308,7 @@
 
     <!-- Papelera de Reciclaje (30 Días) -->
     <string name="trash_nav_title">Papelera de reciclaje</string>
-    <string name="trash_title">Papelera de reciclaje</string>
     <string name="trash_description">Los servicios eliminados se conservan aquí durante 30 días antes de su eliminación permanente.</string>
-    <string name="trash_badge_count">%1$d en papelera</string>
-    <string name="trash_badge_single">1 en papelera</string>
     <string name="trash_days_remaining">Se eliminará definitivamente en %1$d días</string>
     <string name="trash_hours_remaining">Se eliminará definitivamente hoy</string>
     <string name="trash_restore_button">Restaurar</string>
@@ -384,7 +325,6 @@
     <string name="trash_empty_state_desc">Los servicios que elimines se guardarán aquí durante 30 días por si necesitas recuperarlos.</string>
     <string name="account_details_delete_to_trash_hint">Este servicio se trasladará a la papelera de reciclaje. Podrás restaurarlo durante los próximos 30 días antes de su eliminación definitiva.</string>
     <string name="account_details_move_to_trash_btn">Mover a la papelera</string>
-    <string name="account_details_moved_to_trash_success">Servicio movido a la papelera</string>
 
     <!-- Selector de Cuentas para Importación y Restauración -->
     <string name="import_selection_title">Seleccionar servicios a importar</string>
@@ -395,13 +335,10 @@
     <string name="import_selection_confirm_button">Importar (%1$d)</string>
     <string name="import_selection_badge_new">Nuevo</string>
     <string name="import_selection_badge_existing">En la bóveda</string>
-    <string name="import_selection_empty">No hay servicios seleccionados para importar</string>
     <string name="drive_restore_selection_title">Seleccionar servicios a restaurar</string>
     <string name="drive_restore_selection_desc">Elige los servicios que deseas restaurar desde la copia de seguridad.</string>
     <string name="drive_restore_confirm_button">Restaurar (%1$d)</string>
     <string name="scan_torch_toggle">Alternar linterna</string>
-        <string name="scan_manual_switch">Ingresar clave manual</string>
-    <string name="scan_manual_switch_short">Ingreso manual</string>
     <string name="scan_import_title">Importar servicios</string>
 
 </resources>

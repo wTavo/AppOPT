@@ -1,5 +1,6 @@
 [versions]
 agp = "9.4.0"
+json = "20260814"
 kotlin = "2.4.20"
 ksp = "2.3.6"
 coreKtx = "1.19.0"
@@ -58,6 +59,7 @@ androidx-camera-core = { group = "androidx.camera", name = "camera-core", versio
 androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
 androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
 androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
+json = { module = "org.json:json", version.ref = "json" }
 mlkit-barcode-scanning = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "mlkitBarcode" }
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 

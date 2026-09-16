@@ -1,9 +1,6 @@
 package com.example.appopt
 
 import android.app.Application
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import com.example.appopt.data.local.AppDatabase
 import com.example.appopt.data.local.PreferencesManager
 import com.example.appopt.data.repository.AccountRepositoryImpl
@@ -55,12 +52,6 @@ class AuthenticatorApp : Application() {
      */
     lateinit var preferencesManager: PreferencesManager
         private set
-
-    /**
-     * Alcance global de corrutinas ligado al ciclo de vida de la aplicación.
-     * Utilizado para tareas críticas en segundo plano que deben sobrevivir a la destrucción de pantallas.
-     */
-    val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /**
      * Inicializa las instancias de base de datos, seguridad y repositorios al iniciar la aplicación.

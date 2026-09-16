@@ -242,6 +242,15 @@ fun SettingsScreen(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted -> isNotificationPermissionGranted = granted }
 
+    val batteryOptimizationLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        isBatteryOptimizationIgnored = BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)
+        if (isBatteryOptimizationIgnored) {
+            appHaptics.success()
+        }
+    }
+
     DisposableEffect(Unit) {
         onDispose {
             GoogleDriveManager.clearDownloadCache()
@@ -304,7 +313,13 @@ fun SettingsScreen(
                     }
                 },
                 onRequestBatteryOptimization = {
-                    BatteryOptimizationHelper.requestIgnoreBatteryOptimizations(context)
+                    try {
+                        batteryOptimizationLauncher.launch(
+                            BatteryOptimizationHelper.createIgnoreBatteryOptimizationIntent(context)
+                        )
+                    } catch (_: Exception) {
+                        BatteryOptimizationHelper.requestIgnoreBatteryOptimizations(context)
+                    }
                 }
             )
 

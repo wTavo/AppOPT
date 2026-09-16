@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Reloj centralizado de pulsos de segundo para sincronizar todos los componentes visuales TOTP.
@@ -32,7 +33,7 @@ object TotpClock {
                 val now = System.currentTimeMillis()
                 _currentSecondEpoch.value = now / 1000L
                 val msUntilNext = 1000L - (now % 1000L)
-                delay(msUntilNext.coerceAtLeast(50L))
+                delay(msUntilNext.coerceAtLeast(50L).milliseconds)
             }
         }
     }

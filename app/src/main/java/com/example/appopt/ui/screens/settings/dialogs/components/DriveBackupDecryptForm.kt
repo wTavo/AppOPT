@@ -43,23 +43,24 @@ import com.example.appopt.util.DateTimeFormatter
  * para ingresar la clave o frase de descifrado.
  *
  * @param targetBackup Versión de respaldo que se va a restaurar.
- * @param isActual Indica si la versión corresponde a la copia activa del dispositivo.
  * @param restoreSecretText Texto actual de la contraseña o frase mnemónica ingresada.
  * @param onRestoreSecretChange Callback para actualizar el texto del secreto.
  * @param isRestoreSecretVisible Indica si el texto del campo es visible u oculto.
  * @param onToggleSecretVisibility Callback para alternar la visibilidad de la contraseña.
  * @param modifier Modificador de diseño Compose opcional.
+ * @param isActual Indica si la versión corresponde a la copia activa del dispositivo.
+ * @param hintText Texto de ayuda o instrucción que se muestra debajo del campo.
  */
 @Composable
 fun DriveBackupDecryptForm(
     targetBackup: DriveBackupItem?,
-    isActual: Boolean = false,
     restoreSecretText: String,
     onRestoreSecretChange: (String) -> Unit,
     isRestoreSecretVisible: Boolean,
     onToggleSecretVisibility: () -> Unit,
-    hintText: String = stringResource(R.string.settings_drive_decrypt_hint),
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isActual: Boolean = false,
+    hintText: String = stringResource(R.string.settings_drive_decrypt_hint)
 ) {
     val context = LocalContext.current
     val formattedDate = remember(targetBackup?.modifiedTimeMillis) {

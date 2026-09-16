@@ -75,7 +75,6 @@ object DateTimeFormatter {
                 calendarYesterday.get(Calendar.DAY_OF_YEAR) == calendarTarget.get(Calendar.DAY_OF_YEAR)
 
         return when {
-            diffMinutes < 1 -> context.getString(R.string.time_just_now)
             diffMinutes < 60 -> context.getString(R.string.time_minutes_ago, diffMinutes)
             isSameDay -> context.getString(R.string.time_today_at, timeString)
             isYesterday -> context.getString(R.string.time_yesterday_at, timeString)
@@ -93,14 +92,7 @@ object DateTimeFormatter {
     fun parseIso8601ToMillis(dateStr: String): Long {
         if (dateStr.isBlank()) return System.currentTimeMillis()
         return try {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                java.time.Instant.parse(dateStr).toEpochMilli()
-            } else {
-                val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
-                    timeZone = java.util.TimeZone.getTimeZone("UTC")
-                }
-                format.parse(dateStr)?.time ?: System.currentTimeMillis()
-            }
+            java.time.Instant.parse(dateStr).toEpochMilli()
         } catch (_: Exception) {
             try {
                 val fallbackFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {

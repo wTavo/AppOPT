@@ -26,7 +26,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import com.example.appopt.AuthenticatorApp
@@ -50,16 +49,26 @@ private enum class DriveDecryptStep {
     SELECT_ACCOUNTS
 }
 
+/**
+ * Diálogo modal para el descifrado y restauración directa del respaldo más reciente en Google Drive (Directivas 7, 14, 22 y 23).
+ *
+ * @param onRestore Callback ejecutado con la clave de descifrado ingresada en [CharArray].
+ * @param onDismiss Callback ejecutado para descartar y cerrar el diálogo.
+ * @param modifier Modificador de diseño Compose opcional.
+ * @param backupDateMillis Marca de tiempo de la copia de seguridad remota.
+ * @param deviceName Nombre del dispositivo emisor del respaldo.
+ * @param isActual Indica si la copia remota coincide exactamente con la versión local actual.
+ */
 @Composable
 fun DriveDecryptDialog(
-    backupDateMillis: Long? = null,
-    deviceName: String? = null,
-    isActual: Boolean = false,
     onRestore: (CharArray) -> Unit,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    backupDateMillis: Long? = null,
+    deviceName: String? = null,
+    isActual: Boolean = false
 ) {
-    val context = LocalContext.current
+    val decryptErrorText = stringResource(R.string.settings_drive_decrypt_error)
     val appHaptics = rememberAppHaptics()
     val scope = rememberCoroutineScope()
     val repository = remember { AuthenticatorApp.instance.accountRepository }
@@ -181,15 +190,15 @@ fun DriveDecryptDialog(
                                                 appHaptics.success()
                                                 currentStep = DriveDecryptStep.SELECT_ACCOUNTS
                                             } else {
-                                                decryptErrorMessage = context.getString(R.string.settings_drive_decrypt_error)
+                                                decryptErrorMessage = decryptErrorText
                                                 appHaptics.error()
                                             }
                                         } else {
                                             onRestore(passChars)
                                             onDismiss()
                                         }
-                                    } catch (e: Exception) {
-                                        decryptErrorMessage = e.localizedMessage ?: context.getString(R.string.settings_drive_decrypt_error)
+                                    } catch (_: Exception) {
+                                        decryptErrorMessage = decryptErrorText
                                         appHaptics.error()
                                     } finally {
                                         passChars.fill('0')

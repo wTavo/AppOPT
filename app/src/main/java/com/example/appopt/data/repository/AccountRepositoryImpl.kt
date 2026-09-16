@@ -8,7 +8,6 @@ import com.example.appopt.domain.model.ParsedAccountPreview
 import com.example.appopt.domain.model.TotpAccount
 import com.example.appopt.domain.repository.AccountRepository
 import com.example.appopt.domain.repository.AccountWithCode
-import com.example.appopt.domain.totp.Base32
 import com.example.appopt.domain.totp.OtpUriParser
 import com.example.appopt.domain.totp.TotpEngine
 import com.example.appopt.security.CryptoManager

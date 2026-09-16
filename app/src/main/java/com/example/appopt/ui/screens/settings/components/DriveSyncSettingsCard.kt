@@ -27,7 +27,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -60,8 +59,6 @@ import com.example.appopt.ui.theme.appSwitchColors
  * @param hasUnsyncedChanges Indica si existen cambios locales no sincronizados con la nube.
  * @param lastSyncTimestamp Marca de tiempo en milisegundos de la última sincronización.
  * @param isAutoSyncEnabled Indica si la copia automática al hacer cambios está activada.
- * @param isSyncMobileDataAllowed Indica si se permite sincronizar con datos móviles.
- * @param hasLocalAccounts Indica si existen cuentas o servicios 2FA locales registrados en la bóveda.
  * @param onConnectClick Callback para conectar la cuenta de Google.
  * @param onManualSyncClick Callback para disparar la sincronización inmediata.
  * @param onCreateBackupClick Callback para crear una nueva copia de seguridad.
@@ -70,6 +67,7 @@ import com.example.appopt.ui.theme.appSwitchColors
  * @param onAutoSyncToggle Callback para activar o desactivar la copia automática al hacer cambios.
  * @param onMobileDataToggle Callback para alternar el permiso de datos móviles.
  * @param modifier Modificador de diseño Compose opcional.
+ * @param hasLocalAccounts Indica si existen cuentas o servicios 2FA locales registrados en la bóveda.
  */
 @Composable
 fun DriveSyncSettingsCard(
@@ -81,7 +79,6 @@ fun DriveSyncSettingsCard(
     lastSyncTimestamp: Long,
     isAutoSyncEnabled: Boolean,
     isSyncMobileDataAllowed: Boolean,
-    hasLocalAccounts: Boolean = true,
     onConnectClick: () -> Unit,
     onManualSyncClick: () -> Unit,
     onCreateBackupClick: () -> Unit,
@@ -89,7 +86,8 @@ fun DriveSyncSettingsCard(
     onDisconnectClick: () -> Unit,
     onAutoSyncToggle: (Boolean) -> Unit,
     onMobileDataToggle: (Boolean) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    hasLocalAccounts: Boolean = true
 ) {
     var backupDetailsCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var createBackupCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }

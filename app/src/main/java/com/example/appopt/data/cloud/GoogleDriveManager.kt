@@ -195,7 +195,6 @@ object GoogleDriveManager {
             // Poda automática: eliminar copias que excedan el límite de retención
             pruneOldBackups(accessToken, MAX_BACKUP_VERSIONS)
             clearDownloadCache()
-            Unit
         }
     }
 
@@ -366,52 +365,6 @@ object GoogleDriveManager {
             downloadedFilesCache.remove(fileId)
             Unit
         }
-    }
-
-    /**
-     * Elimina permanentemente todas las copias de seguridad de la carpeta privada de Google Drive.
-     *
-     * @param accessToken Token OAuth2 activo.
-     * @return [Result] con éxito o fallo de la operación.
-     */
-    suspend fun deleteAllBackups(accessToken: String): Result<Unit> = withContext(Dispatchers.IO) {
-        runCatching {
-            val allBackups = fetchAllBackups(accessToken).getOrNull() ?: return@runCatching
-            allBackups.forEach { backup ->
-                val deleteUrl = URL("https://www.googleapis.com/drive/v3/files/${backup.fileId}")
-                val connection = (deleteUrl.openConnection() as HttpURLConnection).apply {
-                    requestMethod = "DELETE"
-                    setRequestProperty("Authorization", "Bearer $accessToken")
-                }
-                val responseCode = connection.responseCode
-                if (responseCode != 404) {
-                    validateResponseCode(responseCode, "eliminar la copia en Google Drive")
-                }
-            }
-            clearDownloadCache()
-        }
-    }
-
-    /**
-     * Elimina la copia más reciente (compatibilidad legacy).
-     */
-    suspend fun deleteBackup(accessToken: String): Result<Unit> = deleteAllBackups(accessToken)
-
-    /**
-     * Consulta la información del respaldo más reciente en Google Drive.
-     *
-     * @param accessToken Token OAuth2 activo.
-     * @return [DriveBackupInfo] con detalles o `null` si no existe.
-     */
-    suspend fun fetchBackupDetails(accessToken: String): DriveBackupInfo? = withContext(Dispatchers.IO) {
-        val allBackups = fetchAllBackups(accessToken).getOrNull() ?: return@withContext null
-        val mostRecent = allBackups.firstOrNull() ?: return@withContext null
-
-        DriveBackupInfo(
-            fileId = mostRecent.fileId,
-            modifiedTimeMillis = mostRecent.modifiedTimeMillis,
-            deviceName = mostRecent.deviceName
-        )
     }
 }
 

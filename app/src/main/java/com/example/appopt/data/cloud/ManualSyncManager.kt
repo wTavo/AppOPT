@@ -6,21 +6,9 @@ import com.example.appopt.security.SecurityConfig
 import com.example.appopt.util.SyncNotificationHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.withContext
-
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-
-/**
- * Evento sellado que representa el resultado terminal de una operación de sincronización en la nube.
- */
-sealed interface SyncEvent {
-    /** Indica que la subida a la nube se completó exitosamente. */
-    data class Success(val timestamp: Long = System.currentTimeMillis()) : SyncEvent
-    /** Indica que la subida falló debido a un error de red o criptográfico. */
-    data class Failure(val timestamp: Long = System.currentTimeMillis(), val error: Throwable? = null) : SyncEvent
-}
+import kotlinx.coroutines.withContext
 
 /**
  * Gestor centralizado y dedicado para la ejecución de sincronizaciones manuales y operaciones de respaldo en la nube.
@@ -33,19 +21,6 @@ sealed interface SyncEvent {
 object ManualSyncManager {
 
     private val syncMutex = Mutex()
-    private val _isSyncing = kotlinx.coroutines.flow.MutableStateFlow(false)
-
-    /**
-     * Flujo reactivo global que indica si una operación de subida o sincronización con Google Drive está en curso.
-     */
-    val isSyncing: kotlinx.coroutines.flow.StateFlow<Boolean> = _isSyncing.asStateFlow()
-
-    private val _lastSyncEvent = kotlinx.coroutines.flow.MutableStateFlow<SyncEvent?>(null)
-
-    /**
-     * Flujo reactivo del último evento terminal de sincronización manual.
-     */
-    val lastSyncEvent: kotlinx.coroutines.flow.StateFlow<SyncEvent?> = _lastSyncEvent.asStateFlow()
 
     /**
      * Ejecuta una sincronización manual inmediata de la bóveda local hacia Google Drive.
@@ -122,7 +97,6 @@ object ManualSyncManager {
             val repository = AuthenticatorApp.instance.accountRepository
             val prefsManager = AuthenticatorApp.instance.preferencesManager
 
-            _isSyncing.value = true
             try {
                 SyncNotificationHelper.showSyncProgressNotification(context.applicationContext)
 
@@ -144,21 +118,16 @@ object ManualSyncManager {
                     prefsManager.setLastSyncTimestamp(now)
                     prefsManager.setLastSyncedVaultHash(currentVaultHash)
                     GoogleDriveManager.currentAccessToken = accessToken
-                    SyncNotificationHelper.showSyncSuccessNotification(context.applicationContext, accounts.size)
-                    _lastSyncEvent.value = SyncEvent.Success(now)
+                    SyncNotificationHelper.showSyncSuccessNotification(context.applicationContext)
                     Result.success(Unit)
                 } else {
                     SyncNotificationHelper.showSyncFailureNotification(context.applicationContext)
                     val error = uploadResult.exceptionOrNull() ?: IllegalStateException("Error al subir copia de seguridad")
-                    _lastSyncEvent.value = SyncEvent.Failure(error = error)
                     Result.failure(error)
                 }
             } catch (e: Exception) {
                 SyncNotificationHelper.showSyncFailureNotification(context.applicationContext)
-                _lastSyncEvent.value = SyncEvent.Failure(error = e)
                 Result.failure(e)
-            } finally {
-                _isSyncing.value = false
             }
         }
     }
@@ -178,14 +147,12 @@ object ManualSyncManager {
     /**
      * Descarga y restaura una versión específica de copia de seguridad desde Google Drive.
      *
-     * @param context Contexto de la aplicación.
      * @param accessToken Token OAuth2 activo.
      * @param fileId Identificador del archivo en Google Drive.
      * @param secretKeyPass Contraseña o clave de descifrado en [CharArray].
      * @return [Result] con el conteo de cuentas restauradas.
      */
     suspend fun restoreSpecificBackup(
-        context: Context,
         accessToken: String,
         fileId: String,
         secretKeyPass: CharArray
@@ -226,13 +193,11 @@ object ManualSyncManager {
     /**
      * Descarga y restaura la copia de seguridad más reciente desde Google Drive.
      *
-     * @param context Contexto de la aplicación.
      * @param accessToken Token OAuth2 activo.
      * @param secretKeyPass Contraseña o clave de descifrado en [CharArray].
      * @return [Result] con el conteo de cuentas restauradas.
      */
     suspend fun restoreFromBackup(
-        context: Context,
         accessToken: String,
         secretKeyPass: CharArray
     ): Result<Int> = withContext(Dispatchers.IO) {
@@ -294,28 +259,6 @@ object ManualSyncManager {
     }
 
     /**
-     * Elimina todas las versiones de copia de seguridad en Google Drive tras validar la contraseña de descifrado.
-     *
-     * @param accessToken Token OAuth2 activo.
-     * @param secretKeyPass Contraseña o clave de descifrado en [CharArray].
-     * @return [Result] con éxito o fallo de la eliminación.
-     */
-    suspend fun deleteAllBackupsWithAuth(
-        accessToken: String,
-        secretKeyPass: CharArray
-    ): Result<Unit> = withContext(Dispatchers.IO) {
-        try {
-            val verifyResult = GoogleDriveManager.downloadBackup(accessToken, secretKeyPass)
-            if (verifyResult.isFailure) {
-                return@withContext Result.failure(verifyResult.exceptionOrNull() ?: IllegalStateException("Clave incorrecta"))
-            }
-            deleteAllBackups(accessToken)
-        } finally {
-            secretKeyPass.fill('0')
-        }
-    }
-
-    /**
      * Elimina una versión específica de copia de seguridad en Google Drive.
      *
      * @param accessToken Token OAuth2 activo.
@@ -342,30 +285,4 @@ object ManualSyncManager {
             Result.failure(deleteResult.exceptionOrNull() ?: IllegalStateException("Error al eliminar la copia de seguridad"))
         }
     }
-
-    /**
-     * Elimina todas las versiones de copia de seguridad en Google Drive y restablece las marcas locales de sincronización.
-     *
-     * @param accessToken Token OAuth2 activo.
-     * @return [Result] con éxito o fallo de la eliminación.
-     */
-    suspend fun deleteAllBackups(accessToken: String): Result<Unit> = withContext(Dispatchers.IO) {
-        val prefsManager = AuthenticatorApp.instance.preferencesManager
-        val deleteResult = GoogleDriveManager.deleteAllBackups(accessToken)
-        if (deleteResult.isSuccess) {
-            prefsManager.setLastSyncTimestamp(0L)
-            prefsManager.setLastSyncedVaultHash("")
-            Result.success(Unit)
-        } else {
-            Result.failure(deleteResult.exceptionOrNull() ?: IllegalStateException("Error al eliminar todas las copias de seguridad"))
-        }
-    }
-
-    /**
-     * Elimina el archivo de respaldo remoto en Google Drive y restablece las marcas locales de sincronización.
-     *
-     * @param accessToken Token OAuth2 activo.
-     * @return [Result] con éxito o fallo de la eliminación.
-     */
-    suspend fun deleteBackup(accessToken: String): Result<Unit> = deleteAllBackups(accessToken)
 }

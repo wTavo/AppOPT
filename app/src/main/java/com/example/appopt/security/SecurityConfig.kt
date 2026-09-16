@@ -155,9 +155,14 @@ object SecurityConfig {
     const val TRANSFER_QR_PBKDF2_ITERATIONS = 10_000
 
     /**
-     * Versión actual del esquema de datos para respaldos en la nube y transferencias JSON.
+     * Versión 1 (legada / mono-clave) del formato de sobre criptográfico de respaldo.
      */
-    const val CURRENT_BACKUP_VERSION = 1
+    const val BACKUP_VERSION_V1 = 1
+
+    /**
+     * Versión actual del esquema de datos para respaldos en la nube y transferencias JSON (v2 con doble ranura de clave).
+     */
+    const val CURRENT_BACKUP_VERSION = 2
 
     /**
      * Versión 1 (legada / mono-código) del esquema del sobre criptográfico de transferencia por código QR.

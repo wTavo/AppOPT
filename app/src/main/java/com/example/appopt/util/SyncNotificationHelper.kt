@@ -5,7 +5,6 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.example.appopt.MainActivity
@@ -35,24 +34,22 @@ object SyncNotificationHelper {
     const val NOTIFICATION_ID_SYNC = 2001
 
     /**
-     * Registra el canal de notificaciones para la sincronización en segundo plano en Android 8.0+ (API 26+).
+     * Registra el canal de notificaciones para la sincronización en segundo plano en el sistema.
      *
      * @param context Contexto de la aplicación.
      */
     fun createNotificationChannel(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = context.getString(R.string.notification_channel_sync_name)
-            val descriptionText = context.getString(R.string.notification_channel_sync_desc)
-            val importance = NotificationManager.IMPORTANCE_DEFAULT
+        val name = context.getString(R.string.notification_channel_sync_name)
+        val descriptionText = context.getString(R.string.notification_channel_sync_desc)
+        val importance = NotificationManager.IMPORTANCE_DEFAULT
 
-            val channel = NotificationChannel(CHANNEL_ID_CLOUD_SYNC, name, importance).apply {
-                description = descriptionText
-                setShowBadge(false)
-            }
-
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-            notificationManager?.createNotificationChannel(channel)
+        val channel = NotificationChannel(CHANNEL_ID_CLOUD_SYNC, name, importance).apply {
+            description = descriptionText
+            setShowBadge(false)
         }
+
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+        notificationManager?.createNotificationChannel(channel)
     }
 
     /**
@@ -104,9 +101,8 @@ object SyncNotificationHelper {
      * Actualiza la notificación de sincronización a estado de éxito finalizado.
      *
      * @param context Contexto de la aplicación.
-     * @param accountsCount Cantidad de cuentas o servicios respaldados.
      */
-    fun showSyncSuccessNotification(context: Context, accountsCount: Int = 0) {
+    fun showSyncSuccessNotification(context: Context) {
         createNotificationChannel(context)
 
         val notificationManager = NotificationManagerCompat.from(context)

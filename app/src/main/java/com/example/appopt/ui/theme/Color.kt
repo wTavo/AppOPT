@@ -5,7 +5,6 @@ import androidx.compose.ui.graphics.Color
 /** Paleta de colores primarios y de acento de la aplicación. */
 val PrimaryBlue = Color(0xFF2563EB)
 val PrimaryBlueDark = Color(0xFF4B82DB) // Azul medio refinado y luminoso para tema oscuro
-val PrimaryBlueLight = Color(0xFF60A5FA)
 val AccentCyan = Color(0xFF06B6D4)
 
 /** Colores semánticos de estado (Urgencia, Advertencia, Éxito, Espera). */

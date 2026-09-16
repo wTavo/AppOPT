@@ -11,20 +11,12 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.security.MessageDigest
-import java.util.UUID
 
 /**
  * Suite de pruebas unitarias automatizadas para la previsualización y selección granular
  * de cuentas a importar o restaurar en la bóveda local.
  */
 class AccountImportPreviewTest {
-
-    private val sha256 = MessageDigest.getInstance("SHA-256")
-
-    private fun hashBytes(bytes: ByteArray): String {
-        return sha256.digest(bytes).joinToString("") { "%02x".format(it) }
-    }
 
     @Test
     fun testParseAccountsForPreviewWithCompactFormat() {

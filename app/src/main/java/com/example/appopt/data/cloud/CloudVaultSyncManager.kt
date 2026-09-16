@@ -1,18 +1,15 @@
 package com.example.appopt.data.cloud
 
 import android.content.Context
-import androidx.work.BackoffPolicy
 import androidx.work.Constraints
-import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
-import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.example.appopt.domain.model.TotpAccount
+import com.example.appopt.security.sha256Hex
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import java.nio.charset.StandardCharsets
-import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 
 import androidx.work.ExistingWorkPolicy
@@ -38,34 +35,11 @@ data class WorkManagerSyncStatus(
 )
 
 /**
- * Frecuencia configurable de la copia de seguridad automática en Google Drive.
- *
- * @property intervalMinutes Intervalo en minutos entre ejecuciones periódicas (0 para desactivada).
- */
-enum class SyncFrequency(val intervalMinutes: Long) {
-    MINUTES_15(15L),
-    HOURLY(60L),
-    DAILY(1440L),
-    WEEKLY(10080L),
-    MONTHLY(43200L),
-    OFF(0L);
-
-    companion object {
-        /**
-         * Retorna la frecuencia a partir de su nombre o [DAILY] por defecto.
-         */
-        fun fromName(name: String?): SyncFrequency {
-            return entries.firstOrNull { it.name.equals(name, ignoreCase = true) } ?: DAILY
-        }
-    }
-}
-
-/**
  * Gestor centralizado de sincronización periódica en la nube y cálculo de huellas criptográficas SHA-256.
  *
  * Responsabilidades:
  * - Calcula la huella digital SHA-256 del contenido exportado para evitar peticiones redundantes.
- * - Orquesta las tareas periódicas en segundo plano con [WorkManager] respetando restricciones de red, batería y frecuencia.
+ * - Orquesta las tareas periódicas en segundo plano con [WorkManager] respetando restricciones de red y batería.
  */
 object CloudVaultSyncManager {
 
@@ -78,9 +52,7 @@ object CloudVaultSyncManager {
      * @return Cadena hexadecimal de 64 caracteres representativa del contenido exacto.
      */
     fun computeVaultHash(payload: String): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        val hashBytes = digest.digest(payload.toByteArray(StandardCharsets.UTF_8))
-        return hashBytes.joinToString("") { "%02x".format(it) }
+        return payload.toByteArray(StandardCharsets.UTF_8).sha256Hex()
     }
 
     /**
@@ -102,45 +74,14 @@ object CloudVaultSyncManager {
     }
 
     /**
-     * Programa o cancela la tarea periódica de sincronización en segundo plano con [WorkManager].
+     * Cancela todas las tareas programadas de sincronización en segundo plano con [WorkManager].
      *
      * @param context Contexto de la aplicación.
-     * @param frequency Frecuencia configurada ([SyncFrequency.DAILY], [SyncFrequency.WEEKLY], [SyncFrequency.MONTHLY] o [SyncFrequency.OFF]).
-     * @param allowMobileData Indica si la sincronización tiene permiso para usar datos móviles (4G/5G).
      */
-    fun schedulePeriodicSync(
-        context: Context,
-        frequency: SyncFrequency,
-        allowMobileData: Boolean
-    ) {
+    fun cancelAllSync(context: Context) {
         val workManager = WorkManager.getInstance(context)
-
-        if (frequency == SyncFrequency.OFF) {
-            workManager.cancelUniqueWork(PERIODIC_WORK_NAME)
-            return
-        }
-
-        val networkType = if (allowMobileData) {
-            NetworkType.CONNECTED
-        } else {
-            NetworkType.UNMETERED
-        }
-
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(networkType)
-            .setRequiresBatteryNotLow(true)
-            .build()
-
-        val syncRequest = PeriodicWorkRequestBuilder<AutoSyncWorker>(frequency.intervalMinutes, TimeUnit.MINUTES)
-            .setConstraints(constraints)
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, TimeUnit.MINUTES)
-            .build()
-
-        workManager.enqueueUniquePeriodicWork(
-            PERIODIC_WORK_NAME,
-            ExistingPeriodicWorkPolicy.UPDATE,
-            syncRequest
-        )
+        workManager.cancelUniqueWork(PERIODIC_WORK_NAME)
+        workManager.cancelUniqueWork(REACTIVE_WORK_NAME)
     }
 
     const val REACTIVE_WORK_NAME = "appopt_cloud_vault_reactive_sync"

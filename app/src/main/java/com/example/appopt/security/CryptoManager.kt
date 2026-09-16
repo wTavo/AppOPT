@@ -123,5 +123,31 @@ class CryptoManager(
         fun zeroize(bytes: ByteArray) {
             bytes.fill(0)
         }
+
+        /**
+         * Sobreescribe un arreglo de caracteres con ceros en memoria RAM para mitigar riesgos de persistencia de contraseñas.
+         *
+         * @param chars Arreglo de caracteres a limpiar.
+         */
+        fun zeroize(chars: CharArray) {
+            chars.fill('0')
+        }
+
+        /**
+         * Calcula el hash criptográfico SHA-256 de un arreglo de bytes y lo retorna en formato hexadecimal.
+         *
+         * @param bytes Arreglo de bytes a procesar.
+         * @return Cadena hexadecimal de 64 caracteres representativa del hash SHA-256.
+         */
+        fun sha256Hex(bytes: ByteArray): String {
+            val digest = java.security.MessageDigest.getInstance("SHA-256")
+            return digest.digest(bytes).joinToString("") { "%02x".format(it) }
+        }
     }
 }
+
+/**
+ * Extensión de conveniencia para calcular el hash SHA-256 en formato hexadecimal de un [ByteArray].
+ */
+fun ByteArray.sha256Hex(): String = CryptoManager.sha256Hex(this)
+

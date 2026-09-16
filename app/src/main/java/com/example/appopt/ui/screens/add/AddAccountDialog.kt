@@ -39,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -72,14 +73,14 @@ import com.example.appopt.ui.theme.rememberAppHaptics
  * Directiva 4 (Espaciados centralizados y límite de altura scrolleable) y Directiva 22 (AppAnimatedButton con confirmación).
  *
  * @param onDismiss Callback invocado para cerrar el diálogo.
- * @param onAccountSaved Callback opcional invocado al guardar exitosamente la cuenta.
  * @param modifier Modificador de diseño Compose opcional.
+ * @param onAccountSaved Callback opcional invocado al guardar exitosamente la cuenta.
  */
 @Composable
 fun AddAccountDialog(
     onDismiss: () -> Unit,
-    onAccountSaved: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onAccountSaved: () -> Unit = {}
 ) {
     val repository = remember { AuthenticatorApp.instance.accountRepository }
     val appHaptics = rememberAppHaptics()
@@ -88,7 +89,7 @@ fun AddAccountDialog(
     var accountName by remember { mutableStateOf("") }
     var secretInput by remember { mutableStateOf("") }
     var selectedAlgorithm by remember { mutableStateOf(OtpAlgorithm.SHA1) }
-    var selectedDigits by remember { mutableStateOf(6) }
+    var selectedDigits by remember { mutableIntStateOf(6) }
     var showAdvancedOptions by remember { mutableStateOf(false) }
 
     val sanitizedSecret = remember(secretInput) { Base32.sanitize(secretInput) }

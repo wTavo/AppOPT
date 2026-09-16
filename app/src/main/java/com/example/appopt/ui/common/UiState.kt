@@ -15,9 +15,6 @@ import androidx.compose.runtime.Immutable
 @Immutable
 sealed interface UiState<out T> {
 
-    /** Estado inicial en reposo sin operaciones activas. */
-    data object Idle : UiState<Nothing>
-
     /** Estado de carga activa con progreso indeterminado o bloqueo visual. */
     data object Loading : UiState<Nothing>
 
@@ -28,13 +25,11 @@ sealed interface UiState<out T> {
     data object Empty : UiState<Nothing>
 
     /**
-     * Estado de fallo con mensaje de error o recurso de texto internacionalizado.
+     * Estado de fallo con mensaje de error opcional.
      *
      * @property message Mensaje de error en texto plano (opcional).
-     * @property messageRes Identificador de recurso `R.string.*` (opcional).
      */
     data class Error(
-        val message: String? = null,
-        val messageRes: Int? = null
+        val message: String? = null
     ) : UiState<Nothing>
 }

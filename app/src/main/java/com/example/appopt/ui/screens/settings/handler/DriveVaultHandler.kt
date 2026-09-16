@@ -6,7 +6,6 @@ import com.example.appopt.data.cloud.CloudVaultSyncManager
 import com.example.appopt.data.cloud.DriveBackupInfo
 import com.example.appopt.data.cloud.GoogleDriveManager
 import com.example.appopt.data.cloud.ManualSyncManager
-import com.example.appopt.data.cloud.SyncFrequency
 import com.example.appopt.security.SecurityConfig
 import com.example.appopt.ui.screens.settings.SettingsUiState
 import kotlinx.coroutines.CoroutineScope
@@ -46,7 +45,7 @@ class DriveVaultHandler(
         prefsManager.setGoogleDriveConnected(false)
         prefsManager.setLastSyncTimestamp(0L)
         prefsManager.setLastSyncedVaultHash("")
-        CloudVaultSyncManager.schedulePeriodicSync(context, SyncFrequency.OFF, false)
+        CloudVaultSyncManager.cancelAllSync(context)
     }
 
     /**
@@ -219,47 +218,6 @@ class DriveVaultHandler(
     }
 
     /**
-     * Elimina la totalidad de copias de seguridad en Google Drive.
-     *
-     * @param token Token de acceso de Google Drive.
-     * @param passChars Contraseña o frase de descifrado requerida.
-     * @param onComplete Callback con el resultado booleano.
-     */
-    fun deleteAllBackups(
-        token: String,
-        passChars: CharArray,
-        onComplete: (Boolean) -> Unit
-    ) {
-        scope.launch {
-            internalState.update { it.copy(isFetchingBackupHistory = true, isRefreshingBackupHistory = true) }
-            try {
-                val result = withContext(Dispatchers.IO) {
-                    ManualSyncManager.deleteAllBackupsWithAuth(token, passChars)
-                }
-                if (result.isSuccess) {
-                    prefsManager.setLastBackupHistoryFetchTimestamp(0L)
-                    prefsManager.setCachedBackupHistory(emptyList())
-                    internalState.update {
-                        it.copy(
-                            backupHistoryList = emptyList(),
-                            driveBackupExists = false,
-                            driveBackupInfo = null
-                        )
-                    }
-                    prefsManager.setLastSyncTimestamp(0L)
-                    prefsManager.setLastSyncedVaultHash("")
-                    onComplete(true)
-                } else {
-                    onComplete(false)
-                }
-            } finally {
-                passChars.fill('0')
-                internalState.update { it.copy(isFetchingBackupHistory = false, isRefreshingBackupHistory = false) }
-            }
-        }
-    }
-
-    /**
      * Crea una copia de seguridad protegida con contraseña y frase mnemónica.
      *
      * @param context Contexto de la aplicación.
@@ -300,13 +258,11 @@ class DriveVaultHandler(
     /**
      * Descifra y restaura la copia de seguridad más reciente desde Google Drive.
      *
-     * @param context Contexto de la aplicación.
      * @param token Token de acceso de Google Drive.
      * @param passChars Caracteres de descifrado.
      * @param onComplete Callback con el [Result] de la restauración.
      */
     fun restoreFromBackup(
-        context: Context,
         token: String,
         passChars: CharArray,
         onComplete: (Result<Int>) -> Unit
@@ -315,7 +271,7 @@ class DriveVaultHandler(
             internalState.update { it.copy(isDriveLoading = true) }
             try {
                 val result = withContext(Dispatchers.IO) {
-                    ManualSyncManager.restoreFromBackup(context, token, passChars)
+                    ManualSyncManager.restoreFromBackup(token, passChars)
                 }
                 if (result.isSuccess) {
                     prefsManager.setLastBackupHistoryFetchTimestamp(0L)
@@ -331,14 +287,12 @@ class DriveVaultHandler(
     /**
      * Descifra y restaura una versión histórica específica de Google Drive.
      *
-     * @param context Contexto de la aplicación.
      * @param token Token de acceso de Google Drive.
      * @param fileId Identificador del archivo en Drive.
      * @param passChars Caracteres de descifrado.
      * @param onComplete Callback con el [Result] de la restauración.
      */
     fun restoreSpecificBackup(
-        context: Context,
         token: String,
         fileId: String,
         passChars: CharArray,
@@ -348,7 +302,7 @@ class DriveVaultHandler(
             internalState.update { it.copy(isDriveLoading = true) }
             try {
                 val result = withContext(Dispatchers.IO) {
-                    ManualSyncManager.restoreSpecificBackup(context, token, fileId, passChars)
+                    ManualSyncManager.restoreSpecificBackup(token, fileId, passChars)
                 }
                 if (result.isSuccess) {
                     prefsManager.setLastBackupHistoryFetchTimestamp(0L)

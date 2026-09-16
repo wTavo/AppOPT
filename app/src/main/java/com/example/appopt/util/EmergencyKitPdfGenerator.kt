@@ -1,7 +1,6 @@
 package com.example.appopt.util
 
 import android.content.Context
-import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -19,6 +18,8 @@ import android.print.PrintManager
 import com.example.appopt.R
 import java.io.FileOutputStream
 import java.io.OutputStream
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.withRotation
 
 /**
  * Generador nativo y blindado del Kit de Recuperación de Emergencia (*Emergency Kit*) en formato PDF.
@@ -60,7 +61,7 @@ object EmergencyKitPdfGenerator {
         // 1. Crear lienzo de alta resolución (300 DPI) para rasterización gráfica
         val bitmapWidth = (PAGE_WIDTH * SCALE_FACTOR).toInt()
         val bitmapHeight = (PAGE_HEIGHT * SCALE_FACTOR).toInt()
-        val highResBitmap = Bitmap.createBitmap(bitmapWidth, bitmapHeight, Bitmap.Config.ARGB_8888)
+        val highResBitmap = createBitmap(bitmapWidth, bitmapHeight)
         val renderCanvas = Canvas(highResBitmap)
 
         // Fondo blanco inicial
@@ -169,15 +170,14 @@ object EmergencyKitPdfGenerator {
             isAntiAlias = true
         }
 
-        canvas.save()
-        canvas.rotate(-32f, PAGE_WIDTH / 2f, PAGE_HEIGHT / 2f)
-        val text = context.getString(R.string.emergency_kit_watermark_text)
-        for (y in -200..1200 step 140) {
-            for (x in -300..900 step 360) {
-                canvas.drawText(text, x.toFloat(), y.toFloat(), watermarkPaint)
+        canvas.withRotation(-32f, PAGE_WIDTH / 2f, PAGE_HEIGHT / 2f) {
+            val text = context.getString(R.string.emergency_kit_watermark_text)
+            for (y in -200..1200 step 140) {
+                for (x in -300..900 step 360) {
+                    drawText(text, x.toFloat(), y.toFloat(), watermarkPaint)
+                }
             }
         }
-        canvas.restore()
     }
 
     private fun renderPdfContent(
@@ -292,21 +292,19 @@ object EmergencyKitPdfGenerator {
         canvas.drawRoundRect(wordsGridRect, 8f, 8f, cardBackgroundPaint)
         canvas.drawRoundRect(wordsGridRect, 8f, 8f, cardBorderPaint)
 
-        var wordY = currentY + 20f
         val firstColX = leftMargin + 16f
         val secondColX = leftMargin + colWidth + 16f
+        val baseWordY = currentY + 20f
 
         for (i in 0 until 6) {
+            val wordY = baseWordY + (i * rowHeight)
             val leftWord = if (i < mnemonicWords.size) "${i + 1}. ${mnemonicWords[i]}" else ""
             val rightIndex = i + 6
             val rightWord = if (rightIndex < mnemonicWords.size) "${rightIndex + 1}. ${mnemonicWords[rightIndex]}" else ""
 
             canvas.drawText(leftWord, firstColX, wordY, monoPaint)
             canvas.drawText(rightWord, secondColX, wordY, monoPaint)
-            wordY += rowHeight
         }
-
-        currentY = wordsGridRect.bottom + 24f
 
         // 5. Pie de página de seguridad y advertencia
         val warningRect = RectF(leftMargin, PAGE_HEIGHT - 110f, leftMargin + contentWidth, PAGE_HEIGHT - 50f)

@@ -3,7 +3,6 @@ package com.example.appopt.ui.screens.settings.dialogs
 import android.content.Context
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -128,7 +127,7 @@ class DriveDialogCoordinator(
         showDriveDecryptDialog = false
         fun executeRestore(token: String) {
             val passCharsCopy = passChars.clone()
-            viewModel.restoreFromBackup(context, token, passCharsCopy) { result ->
+            viewModel.restoreFromBackup(token, passCharsCopy) { result ->
                 result.onSuccess { count ->
                     passChars.fill('0')
                     scope.launch {
@@ -186,7 +185,7 @@ class DriveDialogCoordinator(
         showBackupDetailsDialog = false
         fun executeRestore(token: String) {
             val passCharsCopy = passChars.clone()
-            viewModel.restoreSpecificBackup(context, token, item.fileId, passCharsCopy) { result ->
+            viewModel.restoreSpecificBackup(token, item.fileId, passCharsCopy) { result ->
                 result.onSuccess { count ->
                     passChars.fill('0')
                     scope.launch {

@@ -104,9 +104,6 @@ object Dimensions {
 
         /** Tamaño del indicador circular de progreso TOTP (44.dp). */
         val progressIndicator: Dp = 44.dp
-
-        /** Altura estimada de tarjeta OTP para cálculo de offsets en arrastre (112.dp). */
-        val otpCardEstimatedHeight: Dp = 112.dp
     }
 
     /**
@@ -136,6 +133,12 @@ object Dimensions {
 
         /** Altura de las tarjetas táctiles de selección de método (ej. contraseña vs clave de 64 dígitos, 68.dp). */
         val methodSelectorCard: Dp = 68.dp
+
+        /** Ancho mínimo estándar para ventanas modales (280.dp). */
+        val modalMinWidth: Dp = 280.dp
+
+        /** Ancho máximo estándar para ventanas modales (400.dp). */
+        val modalMaxWidth: Dp = 400.dp
     }
 
     /**
@@ -148,18 +151,9 @@ object Dimensions {
         /** Borde regular para tarjetas en arrastre (1.5.dp). */
         val regular: Dp = 1.5.dp
 
-        /** Borde grueso para marco de cámara o indicadores (3.dp). */
-        val thick: Dp = 3.dp
 
         /** Grosor del arco circular de progreso TOTP (3.5.dp). */
         val progressArc: Dp = 3.5.dp
     }
 
-    /**
-     * Desplazamientos y offsets para animaciones de entrada y movimiento.
-     */
-    object Offset {
-        /** Desplazamiento vertical inicial para la animación de entrada escalonada en cascada (28.dp). */
-        val staggerSlideDistance: Dp = 28.dp
-    }
 }

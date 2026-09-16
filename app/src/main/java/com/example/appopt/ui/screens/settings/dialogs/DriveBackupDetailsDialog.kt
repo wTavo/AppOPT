@@ -21,7 +21,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -66,24 +65,41 @@ private enum class DriveDetailsSubState {
     DELETE_SINGLE
 }
 
+/**
+ * Diálogo modal para la visualización del historial de versiones de respaldo en Google Drive,
+ * restauración granular in-situ y borrado autenticado (Directivas 7, 14, 22 y 23).
+ *
+ * @param backupItems Lista de elementos de respaldo detectados en Google Drive.
+ * @param isLoading Indica si la consulta remota de versiones está en ejecución.
+ * @param onRestoreBackup Callback ejecutado al confirmar la restauración de una versión con su clave de descifrado.
+ * @param onDeleteSpecificBackup Callback ejecutado al eliminar una versión específica con autenticación.
+ * @param onDismiss Callback ejecutado para cerrar el diálogo modal.
+ * @param modifier Modificador de diseño Compose opcional.
+ * @param lastFetchTimestamp Marca de tiempo de la última consulta de versiones para control de enfriamiento (cooldown).
+ * @param lastSyncTimestamp Marca de tiempo de la última sincronización local confirmada.
+ * @param lastSyncedHash Firma hash de la última copia de seguridad local confirmada.
+ * @param hasUnsyncedChanges Indica si la bóveda local difiere de la versión en la nube.
+ * @param onForceRefresh Callback para forzar la sincronización y refresco del historial.
+ */
 @Composable
 fun DriveBackupDetailsDialog(
     backupItems: List<DriveBackupItem>,
     isLoading: Boolean,
+    onRestoreBackup: (DriveBackupItem, CharArray) -> Unit,
+    onDeleteSpecificBackup: (DriveBackupItem, CharArray) -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
     lastFetchTimestamp: Long = 0L,
     lastSyncTimestamp: Long = 0L,
     lastSyncedHash: String = "",
     hasUnsyncedChanges: Boolean = false,
-    onForceRefresh: () -> Unit = {},
-    onRestoreBackup: (DriveBackupItem, CharArray) -> Unit,
-    onDeleteSpecificBackup: (DriveBackupItem, CharArray) -> Unit,
-    onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
+    onForceRefresh: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val appHaptics = rememberAppHaptics()
     val scope = rememberCoroutineScope()
     val repository = remember { AuthenticatorApp.instance.accountRepository }
+    val decryptErrorText = stringResource(R.string.settings_drive_decrypt_error)
 
     var pendingRestoreBackup by remember { mutableStateOf<DriveBackupItem?>(null) }
     var restoreSecretText by remember { mutableStateOf("") }
@@ -124,32 +140,24 @@ fun DriveBackupDetailsDialog(
 
     var currentSubState by remember { mutableStateOf(DriveDetailsSubState.HISTORY) }
 
-    LaunchedEffect(pendingRestoreBackup, pendingDeleteBackup) {
-        if (pendingRestoreBackup != null && currentSubState != DriveDetailsSubState.RESTORE_SELECT_ACCOUNTS) {
-            currentSubState = DriveDetailsSubState.RESTORE_DECRYPT
-        } else if (pendingDeleteBackup != null) {
-            currentSubState = DriveDetailsSubState.DELETE_SINGLE
-        } else if (currentSubState != DriveDetailsSubState.RESTORE_SELECT_ACCOUNTS) {
-            currentSubState = DriveDetailsSubState.HISTORY
-        }
-    }
-
     AppModalDialog(
         onDismissRequest = onDismiss,
         onBackStep = {
-            if (currentSubState == DriveDetailsSubState.RESTORE_SELECT_ACCOUNTS) {
-                currentSubState = DriveDetailsSubState.RESTORE_DECRYPT
-                true
-            } else if (currentSubState == DriveDetailsSubState.RESTORE_DECRYPT || currentSubState == DriveDetailsSubState.DELETE_SINGLE) {
-                pendingRestoreBackup = null
-                pendingDeleteBackup = null
-                restoreSecretText = ""
-                deleteSecretText = ""
-                decryptErrorMessage = null
-                currentSubState = DriveDetailsSubState.HISTORY
-                true
-            } else {
-                false
+            when (currentSubState) {
+                DriveDetailsSubState.RESTORE_SELECT_ACCOUNTS -> {
+                    currentSubState = DriveDetailsSubState.RESTORE_DECRYPT
+                    true
+                }
+                DriveDetailsSubState.RESTORE_DECRYPT, DriveDetailsSubState.DELETE_SINGLE -> {
+                    restoreSecretText = ""
+                    deleteSecretText = ""
+                    decryptErrorMessage = null
+                    currentSubState = DriveDetailsSubState.HISTORY
+                    true
+                }
+                else -> {
+                    false
+                }
             }
         },
         modifier = modifier
@@ -245,7 +253,7 @@ fun DriveBackupDetailsDialog(
                                                 appHaptics.success()
                                                 currentSubState = DriveDetailsSubState.RESTORE_SELECT_ACCOUNTS
                                             } else {
-                                                decryptErrorMessage = context.getString(R.string.settings_drive_decrypt_error)
+                                                decryptErrorMessage = decryptErrorText
                                                 appHaptics.error()
                                             }
                                         } else {
@@ -254,8 +262,8 @@ fun DriveBackupDetailsDialog(
                                             restoreSecretText = ""
                                             currentSubState = DriveDetailsSubState.HISTORY
                                         }
-                                    } catch (e: Exception) {
-                                        decryptErrorMessage = e.localizedMessage ?: context.getString(R.string.settings_drive_decrypt_error)
+                                    } catch (_: Exception) {
+                                        decryptErrorMessage = decryptErrorText
                                         appHaptics.error()
                                     } finally {
                                         passChars.fill('0')
@@ -265,7 +273,6 @@ fun DriveBackupDetailsDialog(
                             },
                             dismissText = stringResource(R.string.settings_drive_details_back),
                             onDismiss = {
-                                pendingRestoreBackup = null
                                 restoreSecretText = ""
                                 decryptErrorMessage = null
                                 currentSubState = DriveDetailsSubState.HISTORY
@@ -424,7 +431,6 @@ fun DriveBackupDetailsDialog(
                             },
                             dismissText = stringResource(R.string.settings_drive_details_back),
                             onDismiss = {
-                                pendingDeleteBackup = null
                                 deleteSecretText = ""
                                 currentSubState = DriveDetailsSubState.HISTORY
                             },

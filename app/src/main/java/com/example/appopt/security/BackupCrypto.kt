@@ -20,8 +20,8 @@ object BackupCrypto {
     private const val PBKDF2_ITERATIONS = SecurityConfig.PBKDF2_BACKUP_ITERATIONS
     private const val KEY_LENGTH_BITS = SecurityConfig.BACKUP_KEY_SIZE_BITS
     private const val SALT_LENGTH_BYTES = 16
-    private const val BACKUP_VERSION_V1 = 1
-    private const val CURRENT_BACKUP_VERSION = 2
+    private const val BACKUP_VERSION_V1 = SecurityConfig.BACKUP_VERSION_V1
+    private const val CURRENT_BACKUP_VERSION = SecurityConfig.CURRENT_BACKUP_VERSION
 
     private val secureRandom = SecureRandom()
 

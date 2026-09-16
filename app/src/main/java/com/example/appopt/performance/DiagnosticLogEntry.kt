@@ -9,9 +9,7 @@ enum class DiagnosticSeverity {
     /** Advertencia sobre una condición no óptima pero no crítica. */
     WARNING,
     /** Error operacional capturado (ej. fallo de red o formato inesperado). */
-    ERROR,
-    /** Cierre forzoso o excepción no controlada que detuvo el proceso. */
-    CRASH
+    ERROR
 }
 
 /**

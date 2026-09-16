@@ -155,10 +155,17 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 
 ---
 
-## 16. Estándar de Pruebas Unitarias de Regresión Criptográfica e Instalación Automática (*Testing & Automated Device Installation*)
-- **PROHIBIDO** introducir nuevos motores de cálculo, algoritmos de derivación, parsers de URI o funciones de firma sin su correspondiente suite de pruebas unitarias automatizadas.
-- **OBLIGATORIO** incluir pruebas en `app/src/test/` con 100% de cobertura en escenarios límite (*edge cases*): cadenas vacías, entradas nulas, formatos Base32 con/sin padding, alteraciones de orden y marcas de tiempo extremas.
-- **OBLIGATORIO** tras finalizar las modificaciones de código y validar las pruebas unitarias con `./gradlew testDebugUnitTest`, ejecutar `./gradlew installRelease` para compilar e instalar automáticamente el APK en los dispositivos o emuladores conectados.
+## 16. Estándar de la Pirámide de Pruebas e Instalación Automática (*Testing Pyramid & Automated Device Installation*)
+- **PROHIBIDO** introducir nuevos motores de cálculo, algoritmos de derivación, parsers de URI, funciones de firma o flujos de usuario críticos sin su correspondiente cobertura en la pirámide de pruebas.
+- **OBLIGATORIO la Base de la Pirámide (Pruebas Unitarias Rápidas en `app/src/test/`):**
+  - Cobertura estricta al 100% en escenarios límite (*edge cases*): cadenas vacías, entradas nulas, formatos Base32 con/sin padding, alteraciones de orden, sanitización homoglífica y marcas de tiempo extremas.
+  - Aislamiento absoluto de Android Framework y ejecución ultra rápida en JVM sin emulador.
+- **OBLIGATORIO la Cúspide de la Pirámide (Pruebas Instrumentadas de UI en `app/src/androidTest/`):**
+  - Validar interacciones críticas de Compose (altas de cuenta, diálogos modales, renderizado de códigos y estados vacíos) en entorno Android real o emulado.
+  - Usar obligatoriamente `createAndroidComposeRule<TestActivity>()` donde `TestActivity` esté configurada para pruebas desatendidas (`setShowWhenLocked(true)`, `setTurnScreenOn(true)` y `FLAG_KEEP_SCREEN_ON`), garantizando que la ejecución no falle si el dispositivo físico está bloqueado o con pantalla apagada.
+- **OBLIGATORIO la Verificación y Despliegue Automatizado:**
+  - Tras finalizar las modificaciones de código, validar primero la suite de pruebas con `./gradlew testDebugUnitTest`.
+  - Ejecutar `./gradlew installRelease` para compilar con optimización R8 e instalar automáticamente el APK en los dispositivos o emuladores conectados.
 
 ---
 
@@ -231,4 +238,17 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
   1. La base de datos local y los algoritmos criptográficos son completamente autónomos y funcionan al 100% sin red.
   2. Las operaciones en la nube (Google Drive) deben ejecutarse de forma asíncrona y no bloqueante, manejando estados de desconexión sin degradar la experiencia local.
   3. Ante la denegación de permisos de cámara o notificaciones, presentar vistas informativas y alternativas claras (ej. entrada manual de clave o enlaces directos a los ajustes del sistema) sin interrumpir el flujo del usuario.
+
+---
+
+## 26. Blindaje Antifraude, Prevención de Ingeniería Social y Sanitización Óptica (*Anti-Spoofing & Pre-Commit Verification*)
+- **PROHIBIDO** persistir directamente cuentas escaneadas por QR o importadas sin antes permitir que el usuario verifique conscientemente la identidad visual del emisor y la cuenta.
+- **PROHIBIDO** permitir caracteres invisibles, espacios de ancho cero (*zero-width characters*) o códigos de control Unicode en los campos de emisor (*issuer*) y nombre de cuenta (*label*).
+- **PROHIBIDO** silenciar o ignorar colisiones de homóglifos o scripts mixtos (ej. caracteres cirílicos idénticos visualmente a caracteres latinos como 'а', 'о', 'р') diseñados para suplantar marcas legítimas (*IDN Homograph Attack*).
+- **OBLIGATORIO sanitización y análisis antifraude previo al commit (`SecurityAnalysisUtils`):**
+  1. **Sanitización de invisibles:** Eliminar caracteres de formato Unicode invisibles (`\u200B` a `\u200F`, `\uFEFF`, etc.) antes de validar o persistir.
+  2. **Detección de scripts mixtos:** Alertar al usuario de forma explícita si el emisor o cuenta mezcla alfabetos dispares para imitar marcas reconocidas.
+  3. **Detección de colisiones y duplicados:** Advertir visualmente si ya existe una cuenta con el mismo emisor y usuario en la bóveda antes de sobrescribir o crear duplicados involuntarios.
+  4. **Pre-Commit Security Card:** Mostrar en el diálogo de escaneo (`QrScannerDialog`) una tarjeta de verificación previa con el avatar de marca oficial, emisor, usuario, tipo de OTP y advertencias de seguridad antes del guardado definitivo.
+
 

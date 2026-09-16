@@ -2,7 +2,6 @@ package com.example.appopt.data.cloud
 
 import android.content.Context
 import com.example.appopt.AuthenticatorApp
-import com.example.appopt.security.SecurityConfig
 import com.example.appopt.util.SyncNotificationHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -15,6 +14,7 @@ import kotlinx.coroutines.withContext
  *
  * Responsabilidades:
  * - Unifica la lógica de exportación, cálculo de firmas SHA-256 y actualización de marcas de tiempo.
+ * - Custodia la clave simétrica de la bóveda ([CloudVaultKeyStore]) y preserva las ranuras de descifrado.
  * - Garantiza Cero Conocimiento (*Zero Trust*) sobrescribiendo claves en memoria ([CharArray.fill]).
  * - Emite notificaciones de sistema y actualiza el estado de persistencia de forma idempotente y atómica.
  */
@@ -23,7 +23,8 @@ object ManualSyncManager {
     private val syncMutex = Mutex()
 
     /**
-     * Ejecuta una sincronización manual inmediata de la bóveda local hacia Google Drive.
+     * Ejecuta una sincronización manual inmediata de la bóveda local hacia Google Drive utilizando
+     * la clave de bóveda custodiada en Android Keystore ([CloudVaultKeyStore]).
      *
      * @param context Contexto de la aplicación.
      * @param accessToken Token OAuth2 activo de Google Identity Services.
@@ -33,17 +34,15 @@ object ManualSyncManager {
         context: Context,
         accessToken: String
     ): Result<Unit> = withContext(Dispatchers.IO) {
-        val autoSyncKey = SecurityConfig.AUTO_SYNC_VAULT_KEY.toCharArray()
-        try {
-            uploadVaultSnapshot(
-                context = context,
-                accessToken = accessToken,
-                secretKeyPass = autoSyncKey,
-                emergencyMnemonic = null
+        val session = CloudVaultKeyStore.getVaultKeyAndSlots(context)
+            ?: return@withContext Result.failure(
+                IllegalStateException("No hay clave de bóveda custodiada para sincronización automática")
             )
-        } finally {
-            autoSyncKey.fill('0')
-        }
+        uploadVaultSnapshot(
+            context = context,
+            accessToken = accessToken,
+            existingSession = session
+        )
     }
 
     /**
@@ -66,7 +65,8 @@ object ManualSyncManager {
                 context = context,
                 accessToken = accessToken,
                 secretKeyPass = secretKeyPass,
-                emergencyMnemonic = emergencyMnemonic
+                emergencyMnemonic = emergencyMnemonic,
+                existingSession = null
             )
         } finally {
             secretKeyPass.fill('0')
@@ -77,21 +77,23 @@ object ManualSyncManager {
     /**
      * Canalización unificada de subida a Google Drive con bloqueo de concurrencia y cancelación defensiva.
      *
-     * Extrae las credenciales, computa la huella SHA-256, cancela tareas reactivas pendientes en WorkManager,
-     * transmite a Google Drive, actualiza la marca de tiempo de última copia en [com.example.appopt.data.local.PreferencesManager]
-     * y emite la notificación del sistema correspondiente.
+     * Extrae las credenciales, computa la huella SHA-256, transmite a Google Drive,
+     * actualiza la marca de tiempo de última copia en [com.example.appopt.data.local.PreferencesManager],
+     * guarda la sesión de clave en [CloudVaultKeyStore] y emite la notificación del sistema correspondiente.
      *
      * @param context Contexto de la aplicación.
      * @param accessToken Token OAuth2 activo.
-     * @param secretKeyPass Clave o contraseña de cifrado.
+     * @param secretKeyPass Clave o contraseña de cifrado opcional si se deriva una nueva clave.
      * @param emergencyMnemonic Frase mnemónica de emergencia opcional.
+     * @param existingSession Sesión existente con vaultKey y slots para re-cifrado en segundo plano.
      * @return [Result] con el resultado de la subida.
      */
     suspend fun uploadVaultSnapshot(
         context: Context,
         accessToken: String,
-        secretKeyPass: CharArray,
-        emergencyMnemonic: CharArray? = null
+        secretKeyPass: CharArray? = null,
+        emergencyMnemonic: CharArray? = null,
+        existingSession: CloudVaultKeyStore.VaultKeySession? = null
     ): Result<Unit> = withContext(Dispatchers.IO) {
         syncMutex.withLock {
             val repository = AuthenticatorApp.instance.accountRepository
@@ -110,10 +112,13 @@ object ManualSyncManager {
                     rawBackupJson = payload,
                     secretKeyPass = secretKeyPass,
                     emergencyMnemonic = emergencyMnemonic,
+                    existingSession = existingSession,
                     deviceId = deviceId
                 )
 
                 if (uploadResult.isSuccess) {
+                    val session = uploadResult.getOrThrow()
+                    CloudVaultKeyStore.saveVaultKeyAndSlots(context.applicationContext, session)
                     val now = System.currentTimeMillis()
                     prefsManager.setLastSyncTimestamp(now)
                     prefsManager.setLastSyncedVaultHash(currentVaultHash)
@@ -147,6 +152,9 @@ object ManualSyncManager {
     /**
      * Descarga y restaura una versión específica de copia de seguridad desde Google Drive.
      *
+     * Al descifrar exitosamente el sobre criptográfico V2, custodia la sesión de clave ([CloudVaultKeyStore.VaultKeySession])
+     * en Android Keystore para habilitar sincronizaciones automáticas posteriores sin requerir volver a solicitar la clave.
+     *
      * @param accessToken Token OAuth2 activo.
      * @param fileId Identificador del archivo en Google Drive.
      * @param secretKeyPass Contraseña o clave de descifrado en [CharArray].
@@ -161,12 +169,13 @@ object ManualSyncManager {
         val prefsManager = AuthenticatorApp.instance.preferencesManager
 
         try {
-            val downloadResult = GoogleDriveManager.downloadBackupById(accessToken, fileId, secretKeyPass)
+            val downloadResult = GoogleDriveManager.downloadBackupDetailedById(accessToken, fileId, secretKeyPass)
             if (downloadResult.isFailure) {
                 return@withContext Result.failure(downloadResult.exceptionOrNull() ?: IllegalStateException("Error al descargar respaldo"))
             }
 
-            val jsonPayload = downloadResult.getOrThrow()
+            val downloaded = downloadResult.getOrThrow()
+            val jsonPayload = downloaded.plainJson
             val mergeResult = repository.mergeAccountsFromRemote(jsonPayload)
             val count = if (mergeResult.isSuccess) {
                 mergeResult.getOrThrow()
@@ -179,6 +188,7 @@ object ManualSyncManager {
                 }
             }
 
+            CloudVaultKeyStore.saveVaultKeyAndSlots(AuthenticatorApp.instance.applicationContext, downloaded.session)
             prefsManager.setGoogleDriveConnected(true)
             GoogleDriveManager.currentAccessToken = accessToken
 
@@ -193,6 +203,9 @@ object ManualSyncManager {
     /**
      * Descarga y restaura la copia de seguridad más reciente desde Google Drive.
      *
+     * Al descifrar exitosamente el sobre criptográfico V2, custodia la sesión de clave ([CloudVaultKeyStore.VaultKeySession])
+     * en Android Keystore para habilitar sincronizaciones automáticas posteriores sin requerir volver a solicitar la clave.
+     *
      * @param accessToken Token OAuth2 activo.
      * @param secretKeyPass Contraseña o clave de descifrado en [CharArray].
      * @return [Result] con el conteo de cuentas restauradas.
@@ -205,12 +218,13 @@ object ManualSyncManager {
         val prefsManager = AuthenticatorApp.instance.preferencesManager
 
         try {
-            val downloadResult = GoogleDriveManager.downloadBackup(accessToken, secretKeyPass)
+            val downloadResult = GoogleDriveManager.downloadBackupDetailed(accessToken, secretKeyPass)
             if (downloadResult.isFailure) {
                 return@withContext Result.failure(downloadResult.exceptionOrNull() ?: IllegalStateException("Error al descargar respaldo"))
             }
 
-            val jsonPayload = downloadResult.getOrThrow()
+            val downloaded = downloadResult.getOrThrow()
+            val jsonPayload = downloaded.plainJson
             val mergeResult = repository.mergeAccountsFromRemote(jsonPayload)
             val count = if (mergeResult.isSuccess) {
                 mergeResult.getOrThrow()
@@ -223,6 +237,7 @@ object ManualSyncManager {
                 }
             }
 
+            CloudVaultKeyStore.saveVaultKeyAndSlots(AuthenticatorApp.instance.applicationContext, downloaded.session)
             prefsManager.setGoogleDriveConnected(true)
             GoogleDriveManager.currentAccessToken = accessToken
 

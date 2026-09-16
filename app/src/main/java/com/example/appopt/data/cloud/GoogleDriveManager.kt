@@ -140,19 +140,51 @@ object GoogleDriveManager {
      * @param deviceId Identificador único persistente del dispositivo emisor para control de versiones.
      * @return [Result] exitoso si el archivo fue creado y podado correctamente.
      */
+    /**
+     * Sube una nueva versión de copia de seguridad sellada a Google Drive en `appDataFolder`.
+     * Tras la subida exitosa, ejecuta la poda automática conservando únicamente las [MAX_BACKUP_VERSIONS] versiones más recientes.
+     *
+     * @param accessToken Token OAuth2 activo.
+     * @param rawBackupJson Estructura JSON de cuentas a cifrar.
+     * @param secretKeyPass Contraseña o clave de 64 dígitos en [CharArray] si se crea un nuevo respaldo.
+     * @param emergencyMnemonic Frase mnemónica de 12 palabras opcional en [CharArray].
+     * @param existingSession Sesión existente de clave simétrica y ranuras para sincronización en segundo plano.
+     * @param deviceId Identificador único persistente del dispositivo emisor para control de versiones.
+     * @return [Result] con [CloudVaultKeyStore.VaultKeySession] resultante para su custodia persistente.
+     */
     suspend fun uploadBackup(
         accessToken: String,
         rawBackupJson: String,
-        secretKeyPass: CharArray,
+        secretKeyPass: CharArray? = null,
         emergencyMnemonic: CharArray? = null,
+        existingSession: CloudVaultKeyStore.VaultKeySession? = null,
         deviceId: String = ""
-    ): Result<Unit> = withContext(Dispatchers.IO) {
+    ): Result<CloudVaultKeyStore.VaultKeySession> = withContext(Dispatchers.IO) {
         runCatching {
-            val encryptedBytes = if (emergencyMnemonic != null) {
-                BackupCrypto.encryptDualBackup(rawBackupJson, secretKeyPass, emergencyMnemonic)
+            val (encryptedBytes, session) = if (existingSession != null) {
+                val bytes = BackupCrypto.encryptWithExistingKey(
+                    plainJson = rawBackupJson,
+                    vaultKey = existingSession.vaultKey,
+                    mainSlot = existingSession.mainSlot,
+                    emergencySlot = existingSession.emergencySlot
+                )
+                bytes to existingSession
+            } else if (secretKeyPass != null) {
+                val encResult = BackupCrypto.encryptBackupResult(
+                    plainJson = rawBackupJson,
+                    primaryPassword = secretKeyPass,
+                    emergencyMnemonic = emergencyMnemonic
+                )
+                val newSession = CloudVaultKeyStore.VaultKeySession(
+                    vaultKey = encResult.vaultKey,
+                    mainSlot = encResult.mainSlot,
+                    emergencySlot = encResult.emergencySlot
+                )
+                encResult.envelopeBytes to newSession
             } else {
-                BackupCrypto.encryptBackup(rawBackupJson, secretKeyPass)
+                throw IllegalArgumentException("Se requiere una contraseña o una sesión activa de clave para cifrar el respaldo")
             }
+
             val encryptedEnvelopeString = String(encryptedBytes, StandardCharsets.UTF_8)
             val deviceName = "${android.os.Build.MANUFACTURER.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }} ${android.os.Build.MODEL}".trim()
 
@@ -195,6 +227,8 @@ object GoogleDriveManager {
             // Poda automática: eliminar copias que excedan el límite de retención
             pruneOldBackups(accessToken, MAX_BACKUP_VERSIONS)
             clearDownloadCache()
+
+            session
         }
     }
 
@@ -282,6 +316,67 @@ object GoogleDriveManager {
     }
 
     /**
+     * Resultado detallado de descarga que incluye el JSON descifrado y la sesión de clave simétrica con ranuras.
+     *
+     * @property plainJson Contenido descifrado en formato JSON.
+     * @property session Sesión de clave para su custodia en Android Keystore ([CloudVaultKeyStore]).
+     */
+    data class DownloadedBackupResult(
+        val plainJson: String,
+        val session: CloudVaultKeyStore.VaultKeySession
+    )
+
+    private fun fetchRawEncryptedContent(accessToken: String, fileId: String): String {
+        val now = System.currentTimeMillis()
+        val cached = downloadedFilesCache[fileId]
+        if (cached != null && (now - cached.fetchedAtMillis < com.example.appopt.security.SecurityConfig.BACKUP_DOWNLOAD_CACHE_TTL_MILLIS)) {
+            return cached.encryptedContent
+        }
+        val downloadUrl = URL("https://www.googleapis.com/drive/v3/files/$fileId?alt=media")
+        val connection = (downloadUrl.openConnection() as HttpURLConnection).apply {
+            requestMethod = "GET"
+            setRequestProperty("Authorization", "Bearer $accessToken")
+        }
+
+        val responseCode = connection.responseCode
+        validateResponseCode(responseCode, "descargar respaldo de Drive")
+
+        val content = BufferedReader(InputStreamReader(connection.inputStream, StandardCharsets.UTF_8)).use { reader ->
+            reader.readText()
+        }
+        downloadedFilesCache[fileId] = CachedEncryptedFile(fileId, content, now)
+        return content
+    }
+
+    /**
+     * Descarga y descifra una versión específica de copia de seguridad recuperando la sesión de clave y ranuras.
+     *
+     * @param accessToken Token OAuth2 activo.
+     * @param fileId Identificador del archivo en Google Drive.
+     * @param secretKeyPass Contraseña o PIN de descifrado en [CharArray].
+     * @return [Result] con [DownloadedBackupResult].
+     */
+    suspend fun downloadBackupDetailedById(
+        accessToken: String,
+        fileId: String,
+        secretKeyPass: CharArray
+    ): Result<DownloadedBackupResult> = withContext(Dispatchers.IO) {
+        runCatching {
+            val content = fetchRawEncryptedContent(accessToken, fileId)
+            val decryptedResult = BackupCrypto.decryptBackupDetailed(content.toByteArray(StandardCharsets.UTF_8), secretKeyPass)
+            val payload = decryptedResult.getOrThrow()
+            DownloadedBackupResult(
+                plainJson = payload.plainJson,
+                session = CloudVaultKeyStore.VaultKeySession(
+                    vaultKey = payload.vaultKey,
+                    mainSlot = payload.mainSlot,
+                    emergencySlot = payload.emergencySlot
+                )
+            )
+        }
+    }
+
+    /**
      * Descarga y descifra una versión específica de copia de seguridad por su identificador único de archivo.
      *
      * @param accessToken Token OAuth2 activo.
@@ -294,35 +389,25 @@ object GoogleDriveManager {
         fileId: String,
         secretKeyPass: CharArray
     ): Result<String> = withContext(Dispatchers.IO) {
-        runCatching {
-            val now = System.currentTimeMillis()
-            val cached = downloadedFilesCache[fileId]
-            val downloadedContent = if (cached != null && (now - cached.fetchedAtMillis < com.example.appopt.security.SecurityConfig.BACKUP_DOWNLOAD_CACHE_TTL_MILLIS)) {
-                cached.encryptedContent
-            } else {
-                val downloadUrl = URL("https://www.googleapis.com/drive/v3/files/$fileId?alt=media")
-                val connection = (downloadUrl.openConnection() as HttpURLConnection).apply {
-                    requestMethod = "GET"
-                    setRequestProperty("Authorization", "Bearer $accessToken")
-                }
+        downloadBackupDetailedById(accessToken, fileId, secretKeyPass).map { it.plainJson }
+    }
 
-                val responseCode = connection.responseCode
-                validateResponseCode(responseCode, "descargar respaldo de Drive")
+    /**
+     * Descarga la copia de seguridad más reciente de Google Drive recuperando la sesión de clave y ranuras.
+     *
+     * @param accessToken Token OAuth2 activo.
+     * @param secretKeyPass Contraseña o clave de descifrado en [CharArray].
+     * @return [Result] con [DownloadedBackupResult].
+     */
+    suspend fun downloadBackupDetailed(
+        accessToken: String,
+        secretKeyPass: CharArray
+    ): Result<DownloadedBackupResult> = withContext(Dispatchers.IO) {
+        val backupsResult = fetchAllBackups(accessToken)
+        val mostRecent = backupsResult.getOrNull()?.firstOrNull()
+            ?: return@withContext Result.failure(NoSuchElementException("No se encontró ninguna copia de seguridad en tu Google Drive"))
 
-                val content = BufferedReader(InputStreamReader(connection.inputStream, StandardCharsets.UTF_8)).use { reader ->
-                    reader.readText()
-                }
-                downloadedFilesCache[fileId] = CachedEncryptedFile(fileId, content, now)
-                content
-            }
-
-            if (downloadedContent.contains("\"ciphertext\"")) {
-                val decryptedResult = BackupCrypto.decryptBackup(downloadedContent.toByteArray(StandardCharsets.UTF_8), secretKeyPass)
-                decryptedResult.getOrThrow()
-            } else {
-                downloadedContent
-            }
-        }
+        downloadBackupDetailedById(accessToken, mostRecent.fileId, secretKeyPass)
     }
 
     /**
@@ -336,11 +421,7 @@ object GoogleDriveManager {
         accessToken: String,
         secretKeyPass: CharArray
     ): Result<String> = withContext(Dispatchers.IO) {
-        val backupsResult = fetchAllBackups(accessToken)
-        val mostRecent = backupsResult.getOrNull()?.firstOrNull()
-            ?: return@withContext Result.failure(NoSuchElementException("No se encontró ninguna copia de seguridad en tu Google Drive"))
-
-        downloadBackupById(accessToken, mostRecent.fileId, secretKeyPass)
+        downloadBackupDetailed(accessToken, secretKeyPass).map { it.plainJson }
     }
 
     /**

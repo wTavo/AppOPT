@@ -80,11 +80,6 @@ object SecurityConfig {
     const val REACTIVE_SYNC_DEBOUNCE_SECONDS = 20L
 
     /**
-     * Semilla de derivación interna para la clave simétrica de sincronización automática en la nube.
-     */
-    const val AUTO_SYNC_VAULT_KEY = "AppOPT_AutoSync_Vault_E2EE_v1"
-
-    /**
      * Nombre del archivo SQLite de la base de datos local Room.
      */
     const val ROOM_DATABASE_NAME = "authenticator_vault.db"
@@ -155,14 +150,9 @@ object SecurityConfig {
     const val TRANSFER_QR_PBKDF2_ITERATIONS = 10_000
 
     /**
-     * Versión 1 (legada / mono-clave) del formato de sobre criptográfico de respaldo.
+     * Versión actual del esquema de sobre criptográfico para respaldos en la nube (con soporte de doble ranura de clave).
      */
-    const val BACKUP_VERSION_V1 = 1
-
-    /**
-     * Versión actual del esquema de datos para respaldos en la nube y transferencias JSON (v2 con doble ranura de clave).
-     */
-    const val CURRENT_BACKUP_VERSION = 2
+    const val CURRENT_BACKUP_VERSION = 1
 
     /**
      * Versión 1 (legada / mono-código) del esquema del sobre criptográfico de transferencia por código QR.

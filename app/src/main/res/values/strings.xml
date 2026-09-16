@@ -32,8 +32,8 @@
     <string name="home_search_placeholder">Buscar servicio o cuenta…</string>
     <string name="home_lock_vault">Bloquear bóveda</string>
     <string name="home_add_account">Agregar cuenta</string>
-    <string name="home_empty_title">Sin cuentas configuradas</string>
-    <string name="home_empty_description">Protege tus servicios con autenticación de dos factores (2FA). Agrega tu primera cuenta escaneando un código QR.</string>
+    <string name="home_empty_title">Sin servicios registrados</string>
+    <string name="home_empty_description">Protege tus servicios con autenticación de dos factores (2FA).</string>
     <string name="home_scan_qr_option">Escanear código QR</string>
     <string name="home_add_manual_option">Ingresar clave manualmente</string>
     <string name="home_delete_dialog_title">¿Eliminar cuenta?</string>

@@ -318,15 +318,10 @@ fun DriveProtectDialog(
                                                 generated64Key.toCharArray()
                                             }
                                             val mnemonicPass = generatedMnemonicWords.joinToString(" ").toCharArray()
-                                            try {
-                                                onProtectAndSync(primaryPass, mnemonicPass)
-                                            } finally {
-                                                primaryPass.fill('0')
-                                                mnemonicPass.fill('0')
-                                                masterPasswordText = ""
-                                                masterPasswordConfirmText = ""
-                                                generated64Key = ""
-                                            }
+                                            masterPasswordText = ""
+                                            masterPasswordConfirmText = ""
+                                            generated64Key = ""
+                                            onProtectAndSync(primaryPass, mnemonicPass)
                                         } else {
                                             appHaptics.error()
                                             isQuizError = true

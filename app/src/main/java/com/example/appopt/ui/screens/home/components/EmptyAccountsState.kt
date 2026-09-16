@@ -5,54 +5,37 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.QrCodeScanner
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.LayoutCoordinates
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import com.example.appopt.R
-import com.example.appopt.ui.navigation.NavigationOriginTracker
 import com.example.appopt.ui.theme.Dimensions
 
 /**
  * Estado visual ilustrado que se muestra cuando la bóveda local no contiene ninguna cuenta registrada.
  *
- * @param onScanQr Callback invocado al presionar el botón de escanear código QR.
- * @param onAddManual Callback invocado al presionar el botón de ingreso manual.
+ * Muestra el icono central de la bóveda, el título informativo y una descripción que guía al usuario
+ * a utilizar el botón flotante central (+) para registrar sus servicios.
+ *
  * @param modifier Modificador de diseño Compose opcional.
  */
 @Composable
 fun EmptyAccountsState(
-    onScanQr: () -> Unit,
-    onAddManual: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var scanQrCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
-    var addManualCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
-
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -82,7 +65,8 @@ fun EmptyAccountsState(
 
         Text(
             text = stringResource(R.string.home_empty_title),
-            style = MaterialTheme.typography.titleLarge
+            style = MaterialTheme.typography.titleLarge,
+            textAlign = TextAlign.Center
         )
 
         Spacer(modifier = Modifier.height(Dimensions.Spacing.sm))
@@ -93,55 +77,5 @@ fun EmptyAccountsState(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
-
-        Spacer(modifier = Modifier.height(Dimensions.Spacing.xxl))
-
-        Button(
-            onClick = {
-                NavigationOriginTracker.updateFromCoordinates(scanQrCoordinates)
-                onScanQr()
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(Dimensions.ComponentHeight.buttonDefault)
-                .onGloballyPositioned { scanQrCoordinates = it },
-            shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-        ) {
-            Icon(
-                imageVector = Icons.Filled.QrCodeScanner,
-                contentDescription = null,
-                modifier = Modifier.size(Dimensions.IconSize.medium)
-            )
-            Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
-            Text(
-                text = stringResource(R.string.home_scan_qr_option),
-                style = MaterialTheme.typography.labelLarge
-            )
-        }
-
-        Spacer(modifier = Modifier.height(Dimensions.Spacing.md))
-
-        OutlinedButton(
-            onClick = {
-                NavigationOriginTracker.updateFromCoordinates(addManualCoordinates)
-                onAddManual()
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(Dimensions.ComponentHeight.buttonDefault)
-                .onGloballyPositioned { addManualCoordinates = it },
-            shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Keyboard,
-                contentDescription = null,
-                modifier = Modifier.size(Dimensions.IconSize.medium)
-            )
-            Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
-            Text(
-                text = stringResource(R.string.home_add_manual_option),
-                style = MaterialTheme.typography.labelLarge
-            )
-        }
     }
 }

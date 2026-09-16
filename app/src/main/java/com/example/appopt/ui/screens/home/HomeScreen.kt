@@ -228,8 +228,6 @@ fun HomeScreen(
             }
             uiState is UiState.Empty -> {
                 EmptyAccountsState(
-                    onScanQr = { isQrScannerDialogOpen = true },
-                    onAddManual = { isManualAddDialogOpen = true },
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(

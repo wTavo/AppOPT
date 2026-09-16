@@ -38,6 +38,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
+import com.example.appopt.data.cloud.CloudVaultKeyStore
 import com.example.appopt.data.cloud.DriveBackupItem
 import com.example.appopt.data.cloud.GoogleDriveManager
 import com.example.appopt.domain.model.ParsedAccountPreview
@@ -106,6 +107,7 @@ fun DriveBackupDetailsDialog(
     var isRestoreSecretVisible by remember { mutableStateOf(false) }
     var isDecryptingBackup by remember { mutableStateOf(false) }
     var decryptErrorMessage by remember { mutableStateOf<String?>(null) }
+    var downloadedSession by remember { mutableStateOf<CloudVaultKeyStore.VaultKeySession?>(null) }
 
     var parsedAccounts by remember { mutableStateOf<List<ParsedAccountPreview>>(emptyList()) }
     var selectedAccountIds by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -237,15 +239,17 @@ fun DriveBackupDetailsDialog(
                                 scope.launch {
                                     try {
                                         val downloadResult = if (token.isNotBlank() && targetItem.fileId.isNotBlank()) {
-                                            GoogleDriveManager.downloadBackupById(token, targetItem.fileId, passChars)
+                                            GoogleDriveManager.downloadBackupDetailedById(token, targetItem.fileId, passChars)
                                         } else if (token.isNotBlank()) {
-                                            GoogleDriveManager.downloadBackup(token, passChars)
+                                            GoogleDriveManager.downloadBackupDetailed(token, passChars)
                                         } else {
                                             null
                                         }
 
                                         if (downloadResult != null && downloadResult.isSuccess) {
-                                            val jsonString = downloadResult.getOrThrow()
+                                            val detailed = downloadResult.getOrThrow()
+                                            downloadedSession = detailed.session
+                                            val jsonString = detailed.plainJson
                                             val previews = repository.parseAccountsForPreview(jsonString)
                                             if (previews.isNotEmpty()) {
                                                 parsedAccounts = previews
@@ -359,6 +363,12 @@ fun DriveBackupDetailsDialog(
                                 onClick = {
                                     val accountsToImport = parsedAccounts.filter { it.id in selectedAccountIds }
                                     repository.importSelectedAccounts(accountsToImport)
+                                    downloadedSession?.let { session ->
+                                        CloudVaultKeyStore.saveVaultKeyAndSlots(context.applicationContext, session)
+                                        val prefsManager = AuthenticatorApp.instance.preferencesManager
+                                        prefsManager.setGoogleDriveConnected(true)
+                                        pendingRestoreBackup?.let { prefsManager.setLastSyncTimestamp(it.modifiedTimeMillis) }
+                                    }
                                     true
                                 },
                                 onActionConfirmed = {

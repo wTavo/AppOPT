@@ -1,6 +1,8 @@
 package com.example.appopt.ui.screens.settings.dialogs
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
@@ -9,13 +11,14 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -31,8 +34,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import com.example.appopt.R
 import com.example.appopt.data.cloud.DriveBackupInfo
+import com.example.appopt.ui.components.AppAnimatedButton
 import com.example.appopt.ui.components.AppModalDialog
 import com.example.appopt.ui.components.LocalModalDismissHandler
+import com.example.appopt.ui.components.ModalTone
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.util.DateTimeFormatter
@@ -40,11 +45,18 @@ import com.example.appopt.util.DateTimeFormatter
 /**
  * Diálogo modal de advertencia preventiva cuando existe un respaldo previo en la nube y se intenta sobrescribir.
  *
+ * Cumple estrictamente con:
+ * - Directiva 14: Estructura tripartita inmutable (Cabecera fija, cuerpo central scrolleable aislado y pie fijo).
+ * - Directiva 14: Tono destructivo [ModalTone.DESTRUCTIVE] con fondo y borde de alerta diferenciados.
+ * - Directiva 14: Botón «Cerrar» a la izquierda y acción de sobrescritura a la derecha.
+ * - Directiva 22: Idempotencia y confirmación visual animada mediante [AppAnimatedButton].
+ * - Directiva 23: Simetría de controles mediante [IntrinsicSize.Min] y altura estándar de 50.dp.
+ *
  * @param backupInfo Metadatos de la copia de seguridad existente en Google Drive.
  * @param formattedLastSync Marca de tiempo de sincronización formateada alternativa.
  * @param onConfirmOverwrite Callback invocado al confirmar la sobrescritura del respaldo.
  * @param onRestoreInstead Callback invocado si el usuario prefiere restaurar la copia existente.
- * @param onDismiss Callback invocado para cancelar y cerrar el modal.
+ * @param onDismiss Callback invocado para cerrar el modal sin realizar cambios.
  * @param modifier Modificador de diseño Compose opcional.
  */
 @Composable
@@ -67,33 +79,38 @@ fun DriveOverwriteWarningDialog(
 
     AppModalDialog(
         onDismissRequest = onDismiss,
+        tone = ModalTone.DESTRUCTIVE,
         modifier = modifier
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(Dimensions.Spacing.lg)
+                .imePadding(),
             verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
         ) {
-            // Cabecera fija
+            // 1. Cabecera fija superior
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
             ) {
                 Icon(
-                    imageVector = Icons.Filled.Shield,
+                    imageVector = Icons.Filled.Warning,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(Dimensions.IconSize.hero)
+                    modifier = Modifier.size(Dimensions.IconSize.large)
                 )
 
                 Text(
                     text = stringResource(R.string.settings_drive_overwrite_title),
                     style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.error,
                     textAlign = TextAlign.Center
                 )
             }
 
-            // Cuerpo central scrolleable
+            // 2. Cuerpo central scrolleable aislado
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -104,12 +121,18 @@ fun DriveOverwriteWarningDialog(
                 Text(
                     text = stringResource(R.string.settings_drive_overwrite_msg),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
                 )
 
+                // Tarjeta con metadatos de la copia existente
                 Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                    border = BorderStroke(
+                        width = Dimensions.Stroke.thin,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
@@ -128,86 +151,97 @@ fun DriveOverwriteWarningDialog(
                         )
                     }
                 }
+
+                // Tarjeta interactiva para la opción alternativa de restauración
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                    border = BorderStroke(
+                        width = Dimensions.Stroke.thin,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(Dimensions.Spacing.md),
+                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = stringResource(R.string.settings_drive_overwrite_restore_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Button(
+                            onClick = {
+                                appHaptics.click()
+                                onRestoreInstead()
+                            },
+                            colors = ButtonDefaults.filledTonalButtonColors(),
+                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                            contentPadding = PaddingValues(
+                                horizontal = Dimensions.Spacing.md,
+                                vertical = Dimensions.Spacing.xs
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = Dimensions.ComponentHeight.buttonCompact)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.settings_drive_overwrite_restore_btn),
+                                style = MaterialTheme.typography.labelLarge,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
             }
 
-            // Pie fijo de acciones
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+            // 3. Pie fijo inferior de acciones simétricas con botón Cerrar a la izquierda
+            val modalDismissHandler = LocalModalDismissHandler.current
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
+                TextButton(
+                    onClick = {
+                        appHaptics.click()
+                        modalDismissHandler?.invoke() ?: onDismiss()
+                    },
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                    contentPadding = PaddingValues(
+                        horizontal = Dimensions.Spacing.md,
+                        vertical = Dimensions.Spacing.none
+                    ),
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(IntrinsicSize.Min),
-                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
-                    verticalAlignment = Alignment.CenterVertically
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
                 ) {
-                    Button(
-                        onClick = {
-                            appHaptics.click()
-                            onRestoreInstead()
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        ),
-                        contentPadding = PaddingValues(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs),
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.settings_drive_overwrite_restore_btn),
-                            style = MaterialTheme.typography.labelLarge,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-
-                    Button(
-                        onClick = {
-                            appHaptics.click()
-                            onConfirmOverwrite()
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error,
-                            contentColor = MaterialTheme.colorScheme.onError
-                        ),
-                        contentPadding = PaddingValues(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs),
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.settings_drive_overwrite_confirm_btn),
-                            style = MaterialTheme.typography.labelLarge,
-                            textAlign = TextAlign.Center
-                        )
-                    }
+                    Text(
+                        text = stringResource(R.string.action_close),
+                        style = MaterialTheme.typography.labelLarge,
+                        textAlign = TextAlign.Center
+                    )
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    val modalDismissHandler = LocalModalDismissHandler.current
-                    TextButton(
-                        onClick = {
-                            appHaptics.click()
-                            modalDismissHandler?.invoke() ?: onDismiss()
-                        },
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.action_close),
-                            style = MaterialTheme.typography.labelLarge,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
+                AppAnimatedButton(
+                    text = stringResource(R.string.settings_drive_overwrite_confirm_btn),
+                    onClick = {
+                        onConfirmOverwrite()
+                        true
+                    },
+                    onActionConfirmed = {
+                        modalDismissHandler?.invoke() ?: onDismiss()
+                    },
+                    containerColor = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
     }

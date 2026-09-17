@@ -139,6 +139,9 @@ object Dimensions {
 
         /** Ancho máximo estándar para ventanas modales (400.dp). */
         val modalMaxWidth: Dp = 400.dp
+
+        /** Radio de desenfoque de fondo para ventanas modales en hardware compositor y Skia (20.dp). */
+        val modalBlurRadius: Dp = 20.dp
     }
 
     /**

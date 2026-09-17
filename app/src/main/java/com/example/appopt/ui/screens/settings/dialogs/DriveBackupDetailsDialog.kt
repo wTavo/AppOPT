@@ -48,6 +48,7 @@ import com.example.appopt.ui.components.AccountImportSelectionList
 import com.example.appopt.ui.components.AppAnimatedButton
 import com.example.appopt.ui.components.AppDialogActionButtons
 import com.example.appopt.ui.components.AppModalDialog
+import com.example.appopt.ui.components.ModalTone
 import com.example.appopt.ui.screens.settings.dialogs.components.DriveBackupDecryptForm
 import com.example.appopt.ui.screens.settings.dialogs.components.DriveBackupItemCard
 import com.example.appopt.ui.theme.Dimensions
@@ -162,6 +163,7 @@ fun DriveBackupDetailsDialog(
                 }
             }
         },
+        tone = if (currentSubState == DriveDetailsSubState.DELETE_SINGLE) ModalTone.DESTRUCTIVE else ModalTone.STANDARD,
         modifier = modifier
     ) {
         AnimatedContent(

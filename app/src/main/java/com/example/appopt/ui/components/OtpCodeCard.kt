@@ -1,5 +1,6 @@
 package com.example.appopt.ui.components
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -108,11 +109,16 @@ fun OtpCodeCard(
 
     var cardCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
+    val cardElevation by animateDpAsState(
+        targetValue = if (isDragging) Dimensions.Elevation.cardDragging else Dimensions.Elevation.cardDefault,
+        animationSpec = Motion.Spec.quickFadeSpec(),
+        label = "card_drag_elevation"
+    )
+
     Card(
         modifier = modifier
             .fillMaxWidth()
             .onGloballyPositioned { cardCoordinates = it }
-            .clip(RoundedCornerShape(Dimensions.CornerRadius.large))
             .clickable(
                 enabled = !isDragging,
                 interactionSource = interactionSource,
@@ -135,8 +141,15 @@ fun OtpCodeCard(
         colors = CardDefaults.cardColors(
             containerColor = if (isDragging) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
         ),
-        shape = RoundedCornerShape(Dimensions.CornerRadius.large),
-        border = if (isDragging) BorderStroke(Dimensions.Stroke.regular, MaterialTheme.colorScheme.primary) else null
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = cardElevation
+        ),
+        border = if (isDragging) {
+            BorderStroke(Dimensions.Stroke.regular, MaterialTheme.colorScheme.primary)
+        } else {
+            BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+        },
+        shape = RoundedCornerShape(Dimensions.CornerRadius.large)
     ) {
         Column(
             modifier = Modifier

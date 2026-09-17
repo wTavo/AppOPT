@@ -1,5 +1,7 @@
 package com.example.appopt.ui.navigation
 
+import android.os.Build
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
@@ -7,10 +9,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -18,6 +22,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.appopt.AuthenticatorApp
+import com.example.appopt.ui.components.ModalOverlayController
 import com.example.appopt.ui.screens.home.HomeScreen
 import com.example.appopt.ui.screens.home.HomeViewModel
 import com.example.appopt.ui.screens.lock.LockScreen
@@ -42,11 +47,37 @@ fun AppNavigation() {
     val appLockManager = AuthenticatorApp.instance.appLockManager
     val isUnlocked by appLockManager.isUnlocked.collectAsStateWithLifecycle()
     val navController = rememberNavController()
+    val isModalActive by ModalOverlayController.isModalActive.collectAsStateWithLifecycle()
+    val modalBlurRadius by animateDpAsState(
+        targetValue = if (isModalActive) Dimensions.ComponentSize.modalBlurRadius else Dimensions.Spacing.none,
+        animationSpec = if (isModalActive) {
+            Motion.Spec.modalScrimEnterSpec()
+        } else {
+            Motion.Spec.modalScrimExitSpec()
+        },
+        label = "app_navigation_modal_blur"
+    )
+
+    // Defensa en profundidad: si la bóveda se bloquea, limpia cualquier registro residual
+    LaunchedEffect(isUnlocked) {
+        if (!isUnlocked) {
+            ModalOverlayController.clearAll()
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
+            modifier = Modifier
+                .fillMaxSize()
+                .then(
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && modalBlurRadius > Dimensions.Spacing.none) {
+                        Modifier.blur(modalBlurRadius)
+                    } else {
+                        Modifier
+                    }
+                ),
             exitTransition = {
                 scaleOut(
                     targetScale = Motion.Scale.NAV_BACKGROUND_SHRINK,
@@ -82,7 +113,7 @@ fun AppNavigation() {
                     scaleOut(
                         targetScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
                         transformOrigin = NavigationOriginTracker.currentOrigin,
-                        animationSpec = Motion.Spec.navButtonExpandScaleSpec()
+                        animationSpec = Motion.Spec.navButtonCollapseScaleSpec()
                     ) + fadeOut(animationSpec = Motion.Spec.navButtonCollapseFadeSpec())
                 }
             ) {
@@ -104,7 +135,7 @@ fun AppNavigation() {
                     scaleOut(
                         targetScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
                         transformOrigin = NavigationOriginTracker.currentOrigin,
-                        animationSpec = Motion.Spec.navButtonExpandScaleSpec()
+                        animationSpec = Motion.Spec.navButtonCollapseScaleSpec()
                     ) + fadeOut(animationSpec = Motion.Spec.navButtonCollapseFadeSpec())
                 }
             ) {

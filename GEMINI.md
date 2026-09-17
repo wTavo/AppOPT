@@ -40,6 +40,8 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
   - `Dimensions.ComponentSize.*` para límites y componentes estándar (`modalListMaxHeight`, `actionIconButton`, `qrCodeDisplay`, etc.).
   - `Dimensions.ComponentHeight.*` para alturas (`buttonDefault`, `buttonCompact`, `progressIndicator`).
 - **OBLIGATORIO** incluir siempre un espacio o margen inferior de respiro calibrado (`Dimensions.Spacing.lg` / `Dimensions.Spacing.md` o `Spacer(modifier = Modifier.height(Dimensions.Spacing.sm))` al final del contenedor vertical) al final de cada pantalla o lista para garantizar una separación visual limpia, estética y cómoda al toque sin exceso de espacio en cualquier dispositivo.
+- **OBLIGATORIO la profundidad táctil y elevaciones perimetrales estandarizadas:**
+  - Aplicar elevaciones y sombras consistentes (`Dimensions.Elevation.cardDefault`, sombras perimetrales suaves con `ambientColor` y `spotColor` sutiles) en las tarjetas de sección (`SettingsSectionCard`), tarjetas de servicio en la pantalla de inicio y controles principales (barra de búsqueda, botón de visibilidad de códigos), garantizando un contraste táctil limpio y relieve tridimensional óptimo tanto en tema claro como oscuro sin artefactos visuales.
 
 ---
 
@@ -131,6 +133,23 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
   - **«Volver» (`R.string.settings_drive_details_back`):** Para regresar de un sub-paso, pantalla secundaria, modo edición o abortar una confirmación/acción destructiva sin ejecutarla.
   - **Posición Material Design 3 (Ergonomía móvil):**
     - **Diálogos de 2 botones (Acción + Descarte):** El botón de salida/regreso («Cerrar» o «Volver») debe ubicarse SIEMPRE a la **izquierda** (como `TextButton`), mientras que el botón de acción afirmativa/mutante/destructiva se ubica a la **derecha** (como `Button` primario o de error).
+- **OBLIGATORIO la simetría equitativa (50/50) en botones de diálogo (Directiva 23):**
+  - **PROHIBIDO** que en diálogos de 2 botones el botón de descarte y el de acción tengan anchos dispares o calculados por contenido (`wrap_content`).
+  - **OBLIGATORIO** fijar pesos simétricos (`Modifier.weight(1f)`) en ambos botones mediante `AppDialogActionButtons` o contenedores `Row` dedicados con `Arrangement.spacedBy(Dimensions.Spacing.sm)` y altura mínima estandarizada `Dimensions.ComponentHeight.buttonDefault` (50.dp).
+  - En diálogos con un único botón de descarte solitario («Cerrar»), alinearlo a la derecha (`Arrangement.End`) conservando su ancho natural sin estirarlo innecesariamente.
+- **OBLIGATORIO la categorización semántica y tonal de diálogos modales (`ModalTone`) con inmutabilidad geométrica:**
+  - **PROHIBIDO** alterar las geometrías perimetrales (16.dp), paddings interiores (16.dp), alturas de botones (50.dp) o espaciados entre bloques (12.dp) según la categoría del diálogo. Los espaciados y dimensiones son estrictamente idénticos e inmutables en todas las categorías.
+  - **OBLIGATORIO** clasificar los modales mediante el parámetro `tone: ModalTone`:
+    - `ModalTone.STANDARD`: Para flujos ordinarios, altas, edición y configuración. Aplica fondo neutro `surface`, borde sutil `outlineVariant` al 15% de opacidad y velo scrim oscuro estándar.
+    - `ModalTone.DESTRUCTIVE`: Para acciones críticas, irreversibles o de alto impacto (desvincular cuentas en la nube, reemplazar copias existentes de respaldo, vaciar papelera o eliminar definitivamente cuentas):
+      1. Fondo de tarjeta sutilmente teñido de advertencia (`errorContainer.copy(alpha = 0.14f)` compuesto sobre `surface`).
+      2. Borde perimetral en tono `error` al 38% de opacidad.
+      3. Velo de fondo desenfocado (Skia Blur) con tinte scrim de advertencia (`error.copy(alpha = 0.28f)`).
+      4. Icono centrado y título principal en color `MaterialTheme.colorScheme.error`.
+      5. Botón de confirmación con esquema de color de error (`isDestructive = true` o `AppAnimatedButton(containerColor = error)`).
+- **OBLIGATORIO la gestión determinista del velo de desenfoque (*Zero-Ghost Blur Lifecycle*):**
+  - **PROHIBIDO** gobernar el desenfoque de fondo mediante banderas booleanas aisladas o contadores sueltos que puedan quedar huérfanos al desmontarse diálogos o ante navegaciones defensivas del sistema (*Sticky / Orphan Blur*).
+  - **OBLIGATORIO** registrar cada modal en `ModalOverlayController` mediante un identificador único en su composición (`registerModal(id)` / `unregisterModal(id)`) o consumir `LocalModalDismissHandler`, garantizando que el desenfoque solo esté activo mientras exista al menos un diálogo modal visible y se limpie atómicamente de inmediato al cerrarse el último modal.
 - **OBLIGATORIO** implementar navegación defensiva hacia atrás en `onDismissRequest`: presionar afuera o el botón atrás del sistema debe revertir al estado/paso anterior antes de cerrar el modal por completo.
 - **OBLIGATORIO la jerarquía de animaciones en transiciones de diálogos (*Unified Monolithic Dynamic Island Morphing*):**
   - **PROHIBIDO** fragmentar diálogos modales interactivos en múltiples ranuras animadas independientes (`title`, `text`, `confirmButton`) que compitan entre sí y provoquen colisiones de layout o desbordes en la parte inferior.

@@ -75,7 +75,8 @@ fun DeletedAccountCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = Dimensions.Elevation.cardDefault)
+        elevation = CardDefaults.cardElevation(defaultElevation = Dimensions.Elevation.cardDefault),
+        border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
     ) {
         Column(
             modifier = Modifier

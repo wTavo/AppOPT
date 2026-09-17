@@ -10,6 +10,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -18,8 +19,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -165,8 +168,9 @@ fun HomeTopHeader(
         AnimatedContent(
             targetState = isSearchActive,
             transitionSpec = {
-                fadeIn(animationSpec = Motion.Spec.quickFadeSpec()) togetherWith
-                        fadeOut(animationSpec = Motion.Spec.quickFadeSpec())
+                (fadeIn(animationSpec = Motion.Spec.quickFadeSpec()) togetherWith
+                        fadeOut(animationSpec = Motion.Spec.quickFadeSpec()))
+                    .using(SizeTransform(clip = false))
             },
             label = "headerSearchOverlayAnimation"
         ) { searchOpen ->
@@ -234,7 +238,9 @@ fun HomeTopHeader(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(Dimensions.ComponentHeight.buttonDefault),
+                        .wrapContentHeight()
+                        .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                        .padding(vertical = Dimensions.Spacing.xs),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {

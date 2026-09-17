@@ -67,22 +67,34 @@ fun AppDialogActionButtons(
     val modalDismissHandler = LocalModalDismissHandler.current
     val closeText = stringResource(R.string.action_close)
     val accountCloseText = stringResource(R.string.account_modal_close_button)
+    val hasConfirmAction = confirmText != null && onConfirm != null
 
     Row(
         modifier = modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min),
-        horizontalArrangement = if (confirmText != null && onConfirm != null) {
-            Arrangement.spacedBy(Dimensions.Spacing.xs, Alignment.End)
+        horizontalArrangement = if (hasConfirmAction) {
+            Arrangement.spacedBy(Dimensions.Spacing.sm)
         } else {
             Arrangement.End
         },
         verticalAlignment = Alignment.CenterVertically
     ) {
+        val dismissModifier = if (hasConfirmAction) {
+            Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .heightIn(min = minHeight)
+        } else {
+            Modifier
+                .fillMaxHeight()
+                .heightIn(min = minHeight)
+        }
+
         TextButton(
             onClick = {
                 appHaptics.click()
-                if (modalDismissHandler != null && (dismissText == closeText || dismissText == accountCloseText || (confirmText == null && onConfirm == null))) {
+                if (modalDismissHandler != null && (dismissText == closeText || dismissText == accountCloseText || !hasConfirmAction)) {
                     modalDismissHandler()
                 } else {
                     onDismiss()
@@ -90,9 +102,8 @@ fun AppDialogActionButtons(
             },
             enabled = !isLoading,
             shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-            modifier = Modifier
-                .fillMaxHeight()
-                .heightIn(min = minHeight)
+            contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.none),
+            modifier = dismissModifier
         ) {
             Text(
                 text = dismissText,
@@ -101,7 +112,7 @@ fun AppDialogActionButtons(
             )
         }
 
-        if (confirmText != null && onConfirm != null) {
+        if (hasConfirmAction) {
             Button(
                 onClick = {
                     if (!isProcessing && !isLoading) {
@@ -124,8 +135,9 @@ fun AppDialogActionButtons(
                     ButtonDefaults.buttonColors()
                 },
                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.xs),
+                contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.none),
                 modifier = Modifier
+                    .weight(1f)
                     .fillMaxHeight()
                     .heightIn(min = minHeight)
             ) {

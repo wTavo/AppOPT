@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteForever
@@ -24,8 +25,9 @@ import com.example.appopt.ui.theme.Dimensions
  * Diálogo modal reutilizable para confirmaciones destructivas y alertas críticas (Directivas 14, 22 y 23).
  *
  * Características:
- * - Renderizado en ventana estática fluida mediante [AppModalDialog] con animación de escala desde el botón emisor.
- * - Icono de alerta con tinte de error centrado y tamaño estándar ([Dimensions.IconSize.large]).
+ * - Renderizado en ventana estática fluida mediante [AppModalDialog] con tono destructivo ([ModalTone.DESTRUCTIVE]).
+ * - Fondo de tarjeta sutilmente teñido de advertencia y borde perimetral en tono de error.
+ * - Icono de alerta dentro de un Hero Badge circular tonal centrado.
  * - Tipografía Material 3 estandarizada ([MaterialTheme.typography.titleLarge] y [MaterialTheme.typography.bodyMedium]).
  * - Barra de botones unificada mediante [AppDialogActionButtons] con soporte de idempotencia y altura mínima obligatoria de 50.dp.
  * - Descarte seguro («Cerrar» o «Volver») posicionado a la izquierda y acción afirmativa destructiva a la derecha.
@@ -52,10 +54,13 @@ fun AppDestructiveConfirmDialog(
 ) {
     AppModalDialog(
         onDismissRequest = onDismiss,
+        tone = ModalTone.DESTRUCTIVE,
         modifier = modifier
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(Dimensions.Spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -69,7 +74,7 @@ fun AppDestructiveConfirmDialog(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = MaterialTheme.colorScheme.error,
                 textAlign = TextAlign.Center
             )
 

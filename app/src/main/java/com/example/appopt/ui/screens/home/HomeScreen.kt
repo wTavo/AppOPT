@@ -194,18 +194,11 @@ fun HomeScreen(
                         contentType = { "otp_card" }
                     ) { item ->
                         ReorderableItem(reorderableLazyListState, key = item.account.id) { isDragging ->
-                            val elevation by animateDpAsState(
-                                targetValue = if (isDragging) Dimensions.Elevation.cardDragging else Dimensions.Elevation.cardDefault,
-                                animationSpec = Motion.Spec.quickFadeSpec(),
-                                label = "card_drag_elevation"
-                            )
-
                             OtpCodeCard(
                                 accountWithCode = item,
                                 hideCodes = isHideCodesEnabled,
                                 isDragging = isDragging,
                                 modifier = Modifier
-                                    .shadow(elevation, RoundedCornerShape(Dimensions.CornerRadius.large))
                                     .longPressDraggableHandle(
                                         enabled = !isSearchActive && searchQuery.isBlank(),
                                         onDragStarted = {
@@ -295,16 +288,14 @@ fun HomeScreen(
         // Modal de Ingreso Manual
         if (isManualAddDialogOpen) {
             AddAccountDialog(
-                onDismiss = { isManualAddDialogOpen = false },
-                onAccountSaved = { isManualAddDialogOpen = false }
+                onDismiss = { isManualAddDialogOpen = false }
             )
         }
 
         // Modal de Escaneo de Códigos QR
         if (isQrScannerDialogOpen) {
             QrScannerDialog(
-                onDismiss = { isQrScannerDialogOpen = false },
-                onScanSuccess = { isQrScannerDialogOpen = false }
+                onDismiss = { isQrScannerDialogOpen = false }
             )
         }
 

@@ -1,5 +1,6 @@
 package com.example.appopt.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -51,6 +52,13 @@ fun SettingsSectionCard(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = Dimensions.Elevation.cardDefault
+        ),
+        border = BorderStroke(
+            Dimensions.Stroke.thin,
+            MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
         ),
         shape = RoundedCornerShape(Dimensions.CornerRadius.large)
     ) {

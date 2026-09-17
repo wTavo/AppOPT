@@ -44,11 +44,14 @@ object Motion {
         /** Duración del bucle de brillo ambiental (*ambient shine*) en estado de sincronización exitosa (4000ms). */
         const val AMBIENT_SHINE_LOOP = 4000
 
-        /** Duración de la animación de escala para expansión y colapso desde botón (380ms). */
+        /** Duración de la animación de escala para expansión desde botón (380ms). */
         const val NAV_EXPAND_SCALE = 380
 
-        /** Duración del desvanecimiento final de opacidad en la salida al replegarse al botón (100ms). */
-        const val NAV_COLLAPSE_FADE = 100
+        /** Duración ágil para repliegue y colapso de modales y pantallas hacia su botón de origen (220ms). */
+        const val NAV_COLLAPSE_SCALE = 220
+
+        /** Duración del desvanecimiento final de opacidad en la salida al replegarse al botón (90ms). */
+        const val NAV_COLLAPSE_FADE = 90
 
         /** Duración del desvanecimiento entrante suave para pasos internos de diálogos y modales (180ms). */
         const val DIALOG_STEP_FADE_IN = 180
@@ -122,10 +125,28 @@ object Motion {
             easing = EasingCurve.Standard
         )
 
+        /** Especificación de escalado para repliegue ágil hacia el botón de origen. */
+        fun <T> navButtonCollapseScaleSpec() = tween<T>(
+            durationMillis = Duration.NAV_COLLAPSE_SCALE,
+            easing = EasingCurve.Standard
+        )
+
         /** Especificación de desvanecimiento en salida retrasado para desvanecerse solo al final del colapso en el botón. */
         fun <T> navButtonCollapseFadeSpec() = tween<T>(
             durationMillis = Duration.NAV_COLLAPSE_FADE,
-            delayMillis = Duration.NAV_EXPAND_SCALE - Duration.NAV_COLLAPSE_FADE,
+            delayMillis = Duration.NAV_COLLAPSE_SCALE - Duration.NAV_COLLAPSE_FADE,
+            easing = EasingCurve.Standard
+        )
+
+        /** Especificación de transición entrante para fondo y desenfoque modal (380ms). */
+        fun <T> modalScrimEnterSpec() = tween<T>(
+            durationMillis = Duration.NAV_EXPAND_SCALE,
+            easing = EasingCurve.Standard
+        )
+
+        /** Especificación de transición saliente ágil para fondo y desenfoque modal (220ms). */
+        fun <T> modalScrimExitSpec() = tween<T>(
+            durationMillis = Duration.NAV_COLLAPSE_SCALE,
             easing = EasingCurve.Standard
         )
 

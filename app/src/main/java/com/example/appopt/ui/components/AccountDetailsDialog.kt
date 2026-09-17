@@ -153,6 +153,7 @@ fun AccountDetailsDialog(
                 false
             }
         },
+        tone = if (showDeleteConfirm) ModalTone.DESTRUCTIVE else ModalTone.STANDARD,
         modifier = modifier
     ) {
         AnimatedContent(

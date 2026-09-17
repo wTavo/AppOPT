@@ -182,8 +182,10 @@ fun AppModalDialog(
 
         val scrimAlpha by animateFloatAsState(
             targetValue = if (visibleState.targetState) targetScrimAlpha else 0.0f,
+            // Al entrar usa desvanecimiento rápido (150ms) en lugar de 380ms para evitar
+            // recomposiciones excesivas del árbol del diálogo durante la apertura
             animationSpec = if (visibleState.targetState) {
-                Motion.Spec.modalScrimEnterSpec()
+                Motion.Spec.quickFadeSpec()
             } else {
                 Motion.Spec.modalScrimExitSpec()
             },
@@ -215,8 +217,10 @@ fun AppModalDialog(
                         .background(scrimBaseColor)
                 )
 
-                // Animación de expansión y repliegue contextual — solo escala la tarjeta (no la pantalla completa)
-                // Esto reduce el área de repintado de la GPU de 100% a ~74% del viewport
+                // Animación de expansión y repliegue contextual idéntica a las pantallas de navegación.
+                // IMPORTANTE: fillMaxSize es obligatorio para que transformOrigin (en coordenadas de pantalla
+                // normalizadas desde NavigationOriginTracker) calcule el pivot correctamente: scaleIn aplica
+                // el pivot relativo al composable que anima, que debe ser la pantalla completa.
                 AnimatedVisibility(
                     visibleState = visibleState,
                     enter = scaleIn(
@@ -229,45 +233,51 @@ fun AppModalDialog(
                         transformOrigin = transformOrigin,
                         animationSpec = Motion.Spec.navButtonCollapseScaleSpec()
                     ) + fadeOut(animationSpec = Motion.Spec.navButtonCollapseFadeSpec()),
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    val cardColor = when (tone) {
-                        ModalTone.STANDARD -> MaterialTheme.colorScheme.surface
-                        ModalTone.DESTRUCTIVE -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.14f)
-                            .compositeOver(MaterialTheme.colorScheme.surface)
-                    }
-
-                    val cardBorder = BorderStroke(
-                        width = Dimensions.Stroke.thin,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f)
-                    )
-
-                    // Tarjeta modal del diálogo — única área renderizada y animada en GPU
-                    Surface(
-                        modifier = modifier
-                            .safeDrawingPadding()
-                            .padding(vertical = Dimensions.Spacing.xl)
-                            .fillMaxWidth(0.86f)
-                            .widthIn(
-                                min = Dimensions.ComponentSize.modalMinWidth,
-                                max = Dimensions.ComponentSize.modalMaxWidth
-                            )
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = {} // Intercepta clics dentro de la tarjeta para evitar descarte accidental
-                            ),
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.large),
-                        color = cardColor,
-                        border = cardBorder,
-                        tonalElevation = Dimensions.Elevation.modal,
-                        shadowElevation = Dimensions.Elevation.modal
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(Dimensions.Spacing.lg)
+                        val cardColor = when (tone) {
+                            ModalTone.STANDARD -> MaterialTheme.colorScheme.surface
+                            ModalTone.DESTRUCTIVE -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.14f)
+                                .compositeOver(MaterialTheme.colorScheme.surface)
+                        }
+
+                        val cardBorder = BorderStroke(
+                            width = Dimensions.Stroke.thin,
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f)
+                        )
+
+                        // Tarjeta modal del diálogo
+                        Surface(
+                            modifier = modifier
+                                .safeDrawingPadding()
+                                .padding(vertical = Dimensions.Spacing.xl)
+                                .fillMaxWidth(0.86f)
+                                .widthIn(
+                                    min = Dimensions.ComponentSize.modalMinWidth,
+                                    max = Dimensions.ComponentSize.modalMaxWidth
+                                )
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = {} // Intercepta clics dentro de la tarjeta para evitar descarte accidental
+                                ),
+                            shape = RoundedCornerShape(Dimensions.CornerRadius.large),
+                            color = cardColor,
+                            border = cardBorder,
+                            tonalElevation = Dimensions.Elevation.modal,
+                            shadowElevation = Dimensions.Elevation.modal
                         ) {
-                            content()
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(Dimensions.Spacing.lg)
+                            ) {
+                                content()
+                            }
                         }
                     }
                 }

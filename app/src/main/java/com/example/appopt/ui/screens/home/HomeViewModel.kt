@@ -196,7 +196,8 @@ class HomeViewModel : ViewModel() {
                 UiState.Success(filtered)
             }
         }
-    }.stateIn(
+    }.flowOn(Dispatchers.Default)
+    .stateIn(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
         initialValue = UiState.Loading

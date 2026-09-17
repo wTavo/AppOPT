@@ -44,7 +44,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.layout.LayoutCoordinates
-import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onPlaced
 import com.example.appopt.ui.navigation.NavigationOriginTracker
 
 /**
@@ -175,7 +175,7 @@ fun HomeFloatingDock(
                 ),
                 modifier = Modifier
                     .size(Dimensions.ComponentSize.heroFab)
-                    .onGloballyPositioned { fabCoordinates = it }
+                    .onPlaced { fabCoordinates = it }
             ) {
                 Icon(
                     imageVector = Icons.Filled.Add,
@@ -198,7 +198,7 @@ fun HomeFloatingDock(
                     }
                 },
                 modifier = Modifier
-                    .onGloballyPositioned { trashCoordinates = it }
+                    .onPlaced { trashCoordinates = it }
                     .graphicsLayer { alpha = dockRestAlpha }
             ) {
                 BadgedBox(
@@ -236,7 +236,7 @@ fun HomeFloatingDock(
                     }
                 },
                 modifier = Modifier
-                    .onGloballyPositioned { settingsCoordinates = it }
+                    .onPlaced { settingsCoordinates = it }
                     .graphicsLayer { alpha = dockRestAlpha }
             ) {
                 Icon(

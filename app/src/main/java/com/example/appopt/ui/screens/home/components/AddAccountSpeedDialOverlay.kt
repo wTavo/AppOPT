@@ -1,11 +1,9 @@
 package com.example.appopt.ui.screens.home.components
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
+import androidx.compose.animation.core.updateTransition
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -30,6 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,17 +67,47 @@ fun AddAccountSpeedDialOverlay(
 ) {
     val appHaptics = rememberAppHaptics()
 
-    // 1. Capa Scrim translúcida de fondo para descartar (detrás del dock inferior)
-    AnimatedVisibility(
-        visible = isOpen,
-        enter = fadeIn(animationSpec = tween(durationMillis = Motion.Duration.FAST, easing = Motion.EasingCurve.Standard)),
-        exit = fadeOut(animationSpec = tween(durationMillis = Motion.Duration.FAST, easing = Motion.EasingCurve.Standard)),
-        modifier = Modifier.fillMaxSize().zIndex(10f)
-    ) {
+    val transition = updateTransition(targetState = isOpen, label = "speed_dial_transition")
+
+    val scrimAlpha by transition.animateFloat(
+        transitionSpec = {
+            tween(durationMillis = Motion.Duration.FAST, easing = Motion.EasingCurve.Standard)
+        },
+        label = "speed_dial_scrim_alpha"
+    ) { open ->
+        if (open) 0.40f else 0.0f
+    }
+
+    val cardScale by transition.animateFloat(
+        transitionSpec = {
+            if (targetState) {
+                tween(durationMillis = Motion.Duration.MEDIUM, easing = Motion.EasingCurve.Emphasized)
+            } else {
+                tween(durationMillis = Motion.Duration.FAST, easing = Motion.EasingCurve.Standard)
+            }
+        },
+        label = "speed_dial_card_scale"
+    ) { open ->
+        if (open) 1.0f else Motion.Scale.MODAL_COLLAPSE_SCALE
+    }
+
+    val cardAlpha by transition.animateFloat(
+        transitionSpec = {
+            tween(durationMillis = Motion.Duration.FAST, easing = Motion.EasingCurve.Standard)
+        },
+        label = "speed_dial_card_alpha"
+    ) { open ->
+        if (open) 1.0f else 0.0f
+    }
+
+    if (isOpen || transition.currentState) {
+        // 1. Capa Scrim translúcida de fondo para descartar (detrás del dock inferior, GPU alpha)
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.40f))
+                .zIndex(10f)
+                .graphicsLayer { alpha = scrimAlpha }
+                .background(Color.Black)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -88,28 +117,18 @@ fun AddAccountSpeedDialOverlay(
                     }
                 )
         )
-    }
 
-    // 2. Tarjeta flotante Speed Dial situada inmediatamente sobre el botón (+) del dock
-    AnimatedVisibility(
-        visible = isOpen,
-        enter = scaleIn(
-            initialScale = Motion.Scale.MODAL_COLLAPSE_SCALE,
-            transformOrigin = TransformOrigin(pivotFractionX = 0.50f, pivotFractionY = 1.0f),
-            animationSpec = tween(durationMillis = Motion.Duration.MEDIUM, easing = Motion.EasingCurve.Emphasized)
-        ) + fadeIn(animationSpec = tween(durationMillis = Motion.Duration.FAST, easing = Motion.EasingCurve.Standard)),
-        exit = scaleOut(
-            targetScale = Motion.Scale.MODAL_COLLAPSE_SCALE,
-            transformOrigin = TransformOrigin(pivotFractionX = 0.50f, pivotFractionY = 1.0f),
-            animationSpec = tween(durationMillis = Motion.Duration.FAST, easing = Motion.EasingCurve.Standard)
-        ) + fadeOut(animationSpec = tween(durationMillis = Motion.Duration.FAST, easing = Motion.EasingCurve.Standard)),
-        modifier = modifier
-            .fillMaxSize()
-            .zIndex(25f)
-    ) {
+        // 2. Tarjeta flotante Speed Dial situada inmediatamente sobre el botón (+) del dock (GPU scale & alpha)
         Box(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxSize()
+                .zIndex(25f)
+                .graphicsLayer {
+                    scaleX = cardScale
+                    scaleY = cardScale
+                    alpha = cardAlpha
+                    transformOrigin = TransformOrigin(pivotFractionX = 0.50f, pivotFractionY = 1.0f)
+                }
                 .navigationBarsPadding()
                 .padding(bottom = Dimensions.ComponentSize.heroFab + Dimensions.Spacing.xl + Dimensions.Spacing.sm),
             contentAlignment = Alignment.BottomCenter

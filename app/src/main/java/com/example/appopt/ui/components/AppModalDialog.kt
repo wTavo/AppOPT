@@ -3,13 +3,9 @@ package com.example.appopt.ui.components
 import java.util.UUID
 import android.os.Build
 import android.view.WindowManager
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -162,23 +158,54 @@ fun AppModalDialog(
             }
         }
 
+        val transition = updateTransition(visibleState, label = "modal_dialog_transition")
+
         // Velo sutil para realce de bordes (18% en Android 12+ con blur, 50% clásico en Android 10/11; reforzado en destructivos)
         val targetScrimAlpha = remember(tone) {
             val base = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 0.18f else 0.50f
             if (tone == ModalTone.DESTRUCTIVE) base + 0.10f else base
         }
 
-        val scrimAlpha by animateFloatAsState(
-            targetValue = if (visibleState.targetState) targetScrimAlpha else 0.0f,
-            // Al entrar usa desvanecimiento rápido (150ms) en lugar de 380ms para evitar
-            // recomposiciones excesivas del árbol del diálogo durante la apertura
-            animationSpec = if (visibleState.targetState) {
-                Motion.Spec.quickFadeSpec()
-            } else {
-                Motion.Spec.modalScrimExitSpec()
+        val scrimAlpha by transition.animateFloat(
+            transitionSpec = {
+                if (targetState) {
+                    Motion.Spec.quickFadeSpec()
+                } else {
+                    Motion.Spec.modalScrimExitSpec()
+                }
             },
             label = "modal_scrim_alpha"
-        )
+        ) { isVisible ->
+            if (isVisible) targetScrimAlpha else 0.0f
+        }
+
+        // Animación de escala GPU: nace y muere en 0.20f (MODAL_COLLAPSE_SCALE) anclada al botón emisor
+        val modalScale by transition.animateFloat(
+            transitionSpec = {
+                if (targetState) {
+                    Motion.Spec.navButtonExpandScaleSpec()
+                } else {
+                    Motion.Spec.navButtonCollapseScaleSpec()
+                }
+            },
+            label = "modal_scale"
+        ) { isVisible ->
+            if (isVisible) 1.0f else Motion.Scale.MODAL_COLLAPSE_SCALE
+        }
+
+        // Animación de desvanecimiento GPU: rápida al entrar y sincronizada al final del colapso al salir
+        val modalAlpha by transition.animateFloat(
+            transitionSpec = {
+                if (targetState) {
+                    Motion.Spec.quickFadeSpec()
+                } else {
+                    Motion.Spec.navButtonCollapseFadeSpec()
+                }
+            },
+            label = "modal_alpha"
+        ) { isVisible ->
+            if (isVisible) 1.0f else 0.0f
+        }
 
         CompositionLocalProvider(LocalModalDismissHandler provides dismissWithAnimation) {
             Box(
@@ -205,67 +232,58 @@ fun AppModalDialog(
                         .background(scrimBaseColor)
                 )
 
-                // Animación de expansión y repliegue contextual idéntica a las pantallas de navegación.
-                // IMPORTANTE: fillMaxSize es obligatorio para que transformOrigin (en coordenadas de pantalla
-                // normalizadas desde NavigationOriginTracker) calcule el pivot correctamente: scaleIn aplica
-                // el pivot relativo al composable que anima, que debe ser la pantalla completa.
-                AnimatedVisibility(
-                    visibleState = visibleState,
-                    enter = scaleIn(
-                        initialScale = Motion.Scale.NAV_SCREEN_ENTER_SCALE,
-                        transformOrigin = transformOrigin,
-                        animationSpec = Motion.Spec.navButtonExpandScaleSpec()
-                    ) + fadeIn(animationSpec = Motion.Spec.quickFadeSpec()),
-                    exit = scaleOut(
-                        targetScale = Motion.Scale.NAV_SCREEN_ENTER_SCALE,
-                        transformOrigin = transformOrigin,
-                        animationSpec = Motion.Spec.navButtonCollapseScaleSpec()
-                    ) + fadeOut(animationSpec = Motion.Spec.navButtonCollapseFadeSpec()),
-                    modifier = Modifier.fillMaxSize()
+                // Capa modal animada al 100% en fase de Draw por hardware GPU (RenderNode):
+                // La escala (desde 0.20f) y el desvanecimiento se ejecutan por transformaciones de matriz
+                // en hardware nativo con transformOrigin exacto del botón emisor, sin recomposiciones ni relayouts.
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            scaleX = modalScale
+                            scaleY = modalScale
+                            alpha = modalAlpha
+                            this.transformOrigin = transformOrigin
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
+                    val cardColor = when (tone) {
+                        ModalTone.STANDARD -> MaterialTheme.colorScheme.surface
+                        ModalTone.DESTRUCTIVE -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.14f)
+                            .compositeOver(MaterialTheme.colorScheme.surface)
+                    }
+
+                    val cardBorder = BorderStroke(
+                        width = Dimensions.Stroke.thin,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f)
+                    )
+
+                    // Tarjeta modal del diálogo
+                    Surface(
+                        modifier = modifier
+                            .safeDrawingPadding()
+                            .padding(vertical = Dimensions.Spacing.xl)
+                            .fillMaxWidth(0.86f)
+                            .widthIn(
+                                min = Dimensions.ComponentSize.modalMinWidth,
+                                max = Dimensions.ComponentSize.modalMaxWidth
+                            )
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = {} // Intercepta clics dentro de la tarjeta para evitar descarte accidental
+                            ),
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.large),
+                        color = cardColor,
+                        border = cardBorder,
+                        tonalElevation = Dimensions.Elevation.modal,
+                        shadowElevation = Dimensions.Elevation.modal
                     ) {
-                        val cardColor = when (tone) {
-                            ModalTone.STANDARD -> MaterialTheme.colorScheme.surface
-                            ModalTone.DESTRUCTIVE -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.14f)
-                                .compositeOver(MaterialTheme.colorScheme.surface)
-                        }
-
-                        val cardBorder = BorderStroke(
-                            width = Dimensions.Stroke.thin,
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f)
-                        )
-
-                        // Tarjeta modal del diálogo
-                        Surface(
-                            modifier = modifier
-                                .safeDrawingPadding()
-                                .padding(vertical = Dimensions.Spacing.xl)
-                                .fillMaxWidth(0.86f)
-                                .widthIn(
-                                    min = Dimensions.ComponentSize.modalMinWidth,
-                                    max = Dimensions.ComponentSize.modalMaxWidth
-                                )
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = {} // Intercepta clics dentro de la tarjeta para evitar descarte accidental
-                                ),
-                            shape = RoundedCornerShape(Dimensions.CornerRadius.large),
-                            color = cardColor,
-                            border = cardBorder,
-                            tonalElevation = Dimensions.Elevation.modal,
-                            shadowElevation = Dimensions.Elevation.modal
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(Dimensions.Spacing.lg)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(Dimensions.Spacing.lg)
-                            ) {
-                                content()
-                            }
+                            content()
                         }
                     }
                 }

@@ -94,12 +94,12 @@ fun AddAccountSpeedDialOverlay(
     AnimatedVisibility(
         visible = isOpen,
         enter = scaleIn(
-            initialScale = Motion.Scale.NAV_SCREEN_ENTER_SCALE,
+            initialScale = Motion.Scale.MODAL_COLLAPSE_SCALE,
             transformOrigin = TransformOrigin(pivotFractionX = 0.50f, pivotFractionY = 1.0f),
             animationSpec = tween(durationMillis = Motion.Duration.MEDIUM, easing = Motion.EasingCurve.Emphasized)
         ) + fadeIn(animationSpec = tween(durationMillis = Motion.Duration.FAST, easing = Motion.EasingCurve.Standard)),
         exit = scaleOut(
-            targetScale = Motion.Scale.NAV_SCREEN_ENTER_SCALE,
+            targetScale = Motion.Scale.MODAL_COLLAPSE_SCALE,
             transformOrigin = TransformOrigin(pivotFractionX = 0.50f, pivotFractionY = 1.0f),
             animationSpec = tween(durationMillis = Motion.Duration.FAST, easing = Motion.EasingCurve.Standard)
         ) + fadeOut(animationSpec = tween(durationMillis = Motion.Duration.FAST, easing = Motion.EasingCurve.Standard)),

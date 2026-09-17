@@ -179,7 +179,7 @@ fun AppModalDialog(
             if (isVisible) targetScrimAlpha else 0.0f
         }
 
-        // Animación de escala GPU: nace y muere en 0.20f (MODAL_COLLAPSE_SCALE) anclada al botón emisor
+        // Animación de escala GPU: nace y muere en 0.0f (MODAL_COLLAPSE_SCALE) anclada al botón emisor
         val modalScale by transition.animateFloat(
             transitionSpec = {
                 if (targetState) {

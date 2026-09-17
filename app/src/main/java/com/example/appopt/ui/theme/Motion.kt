@@ -73,8 +73,8 @@ object Motion {
         /** Escala inicial y final replegada al punto cero del icono del botón (0%). */
         const val NAV_BUTTON_COLLAPSE = 0.0f
 
-        /** Escala inicial y final compacta estilizada para apertura y repliegue de diálogos modales (20%). */
-        const val MODAL_COLLAPSE_SCALE = 0.20f
+        /** Escala inicial y final replegada al punto cero del icono del botón para modales y overlays (0%). */
+        const val MODAL_COLLAPSE_SCALE = 0.0f
 
         /** Escala inicial fluida con anclaje al botón de origen para evitar singularidad cero (80%). */
         const val NAV_SCREEN_ENTER_SCALE = 0.80f

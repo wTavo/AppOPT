@@ -76,8 +76,8 @@ object Motion {
         /** Escala inicial y final replegada al punto cero del icono del botón para modales y overlays (0%). */
         const val MODAL_COLLAPSE_SCALE = 0.0f
 
-        /** Escala inicial fluida con anclaje al botón de origen para evitar singularidad cero (80%). */
-        const val NAV_SCREEN_ENTER_SCALE = 0.80f
+        /** Escala inicial y final replegada al punto cero del icono del botón para pantallas (0%). */
+        const val NAV_SCREEN_ENTER_SCALE = 0.0f
 
         /** Escala de contracción en profundidad para la pantalla de fondo en transición de esquina (94%). */
         const val NAV_BACKGROUND_SHRINK = 0.94f

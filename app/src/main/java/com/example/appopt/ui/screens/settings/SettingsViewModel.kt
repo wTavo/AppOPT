@@ -82,7 +82,12 @@ class SettingsViewModel : ViewModel() {
     .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = SettingsUiState()
+        initialValue = _internalState.value.copy(
+            isDriveConnected = prefsManager.isGoogleDriveConnectedFlow.value,
+            lastSyncTimestamp = prefsManager.lastSyncTimestampFlow.value,
+            lastSyncedHash = prefsManager.lastSyncedVaultHashFlow.value.orEmpty(),
+            lastHistoryFetchTimestamp = prefsManager.lastBackupHistoryFetchTimestampFlow.value
+        )
     )
 
     init {

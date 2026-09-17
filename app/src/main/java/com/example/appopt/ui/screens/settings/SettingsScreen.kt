@@ -48,6 +48,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
@@ -186,30 +187,55 @@ fun SettingsScreen(
         }
     }
 
-    // Diagnóstico en tiempo real de permisos y reloj del sistema
+    // Diagnóstico en tiempo real de permisos: inicialización síncrona con el estado real
+    // para garantizar que desde el fotograma 0 se muestre el color correcto (sin parpadeos rojo -> verde)
+    val initialCamera = remember {
+        ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+    }
+    val initialNotification = remember {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        } else {
+            NotificationManagerCompat.from(context).areNotificationsEnabled()
+        }
+    }
+    val initialBattery = remember {
+        BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)
+    }
+
+    var isCameraPermissionGranted by remember { mutableStateOf(initialCamera) }
+    var isNotificationPermissionGranted by remember { mutableStateOf(initialNotification) }
+    var isBatteryOptimizationIgnored by remember { mutableStateOf(initialBattery) }
+
+    // Proceso 1: Actualización de permisos al regresar de Configuración del sistema (ON_RESUME)
     val lifecycleOwner = LocalLifecycleOwner.current
-    var currentTick by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    var isCameraPermissionGranted by remember { mutableStateOf(false) }
-    var isNotificationPermissionGranted by remember { mutableStateOf(false) }
-    var isBatteryOptimizationIgnored by remember { mutableStateOf(false) }
-
-    LaunchedEffect(lifecycleOwner, uiState.isDriveConnected, uiState.lastSyncTimestamp) {
-        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            isCameraPermissionGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-            isNotificationPermissionGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-            } else {
-                NotificationManagerCompat.from(context).areNotificationsEnabled()
-            }
-            isBatteryOptimizationIgnored = BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)
-
-            if (uiState.isDriveConnected && uiState.lastSyncTimestamp > 0L) {
-                while (isActive) {
-                    val now = System.currentTimeMillis()
-                    currentTick = now
-                    val millisUntilNextMinute = 60_000L - (now % 60_000L)
-                    delay(millisUntilNextMinute.coerceAtLeast(1_000L).milliseconds)
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                isCameraPermissionGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+                isNotificationPermissionGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+                } else {
+                    NotificationManagerCompat.from(context).areNotificationsEnabled()
                 }
+                isBatteryOptimizationIgnored = BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    // Proceso 2: Reloj aislado de actualización de tiempo relativo de sincronización (cada minuto)
+    var currentTick by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(uiState.isDriveConnected, uiState.lastSyncTimestamp) {
+        if (uiState.isDriveConnected && uiState.lastSyncTimestamp > 0L) {
+            while (isActive) {
+                val now = System.currentTimeMillis()
+                currentTick = now
+                val millisUntilNextMinute = 60_000L - (now % 60_000L)
+                delay(millisUntilNextMinute.coerceAtLeast(1_000L).milliseconds)
             }
         }
     }

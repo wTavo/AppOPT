@@ -152,25 +152,13 @@ fun AppModalDialog(
         onDismissRequest = handleDismissOrBack,
         properties = properties
     ) {
-        val density = LocalDensity.current
         val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
-        val targetBlurPx = remember(density) {
-            with(density) { Dimensions.ComponentSize.modalBlurRadius.roundToPx() }
-        }
 
-        // Limpia el oscurecimiento estático del OS y aplica desenfoque por hardware nativo en Android 12+ (API 31+) una sola vez
-        LaunchedEffect(dialogWindow, targetBlurPx) {
+        // Limpia el oscurecimiento estático del OS para que el scrim animado de Compose GPU gobierne el fondo
+        LaunchedEffect(dialogWindow) {
             dialogWindow?.let { window ->
                 window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
                 window.setDimAmount(0f)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    try {
-                        window.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
-                        window.setBackgroundBlurRadius(targetBlurPx)
-                    } catch (_: Exception) {
-                        // Manejo defensivo en hardware o configuraciones que restrinjan blur
-                    }
-                }
             }
         }
 

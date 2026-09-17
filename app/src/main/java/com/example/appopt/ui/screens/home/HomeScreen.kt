@@ -122,12 +122,12 @@ fun HomeScreen(
         }
     }
 
-    // Sincroniza la lista local con las emisiones del ViewModel evitando rebotes o parpadeos
+    // Sincroniza la lista local con las emisiones del ViewModel mediante diff incremental:
+    // Solo actualiza los elementos que realmente cambiaron, evitando que LazyColumn redibuje
+    // todas las tarjetas en cada emisión del ticker (cada ~30s al rotar el código OTP).
     LaunchedEffect(currentSuccessAccounts) {
-        if (!isDraggingAny) {
-            localAccounts.clear()
-            localAccounts.addAll(currentSuccessAccounts)
-        } else {
+        if (isDraggingAny) {
+            // Durante arrastre: solo actualizar códigos sin alterar el orden visual
             val codeMap = currentSuccessAccounts.associate { it.account.id to it.code }
             for (i in localAccounts.indices) {
                 val item = localAccounts[i]
@@ -136,6 +136,27 @@ fun HomeScreen(
                     localAccounts[i] = item.copy(code = updatedCode)
                 }
             }
+        } else {
+            // Fuera de arrastre: diff incremental por ID para minimizar invalidaciones en LazyColumn
+            val newById = currentSuccessAccounts.associateBy { it.account.id }
+            val localIds = localAccounts.map { it.account.id }.toSet()
+            val newIds = newById.keys
+
+            // 1. Actualizar elementos existentes cuyo código o datos hayan cambiado
+            for (i in localAccounts.indices) {
+                val item = localAccounts[i]
+                val updated = newById[item.account.id]
+                if (updated != null && updated != item) {
+                    localAccounts[i] = updated
+                }
+            }
+
+            // 2. Eliminar elementos que ya no existen (eliminaciones de cuenta)
+            localAccounts.removeAll { it.account.id !in newIds }
+
+            // 3. Añadir elementos nuevos que no estaban (altas de cuenta)
+            val toAdd = currentSuccessAccounts.filter { it.account.id !in localIds }
+            localAccounts.addAll(toAdd)
         }
     }
 

@@ -66,19 +66,17 @@ fun AppNavigation() {
         }
     }
 
+    val isApi31Plus = remember { Build.VERSION.SDK_INT >= Build.VERSION_CODES.S }
+
     Box(modifier = Modifier.fillMaxSize()) {
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
-            modifier = Modifier
-                .fillMaxSize()
-                .then(
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        Modifier.blur(modalBlurRadius)
-                    } else {
-                        Modifier
-                    }
-                ),
+            modifier = if (isApi31Plus) {
+                Modifier.fillMaxSize().blur(modalBlurRadius)
+            } else {
+                Modifier.fillMaxSize()
+            },
             exitTransition = {
                 scaleOut(
                     targetScale = Motion.Scale.NAV_BACKGROUND_SHRINK,

@@ -270,4 +270,19 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
   3. **Detección de colisiones y duplicados:** Advertir visualmente si ya existe una cuenta con el mismo emisor y usuario en la bóveda antes de sobrescribir o crear duplicados involuntarios.
   4. **Pre-Commit Security Card:** Mostrar en el diálogo de escaneo (`QrScannerDialog`) una tarjeta de verificación previa con el avatar de marca oficial, emisor, usuario, tipo de OTP y advertencias de seguridad antes del guardado definitivo.
 
+---
 
+## 27. Desacoplamiento de Fases de Renderizado y Confinamiento CPU vs. GPU (*Rendering Pipeline & GPU Hardware Confinement*)
+- **PROHIBIDO** ejecutar transformaciones geométricas animadas (escalas, rotaciones, traslaciones) u opacidades variables animadas forzando las fases de Composición (*Composition*) o Medición (*Layout / Measure pass*) mediante modificadores dependientes de recomposición o cambios de tamaño de contenedor (ej. `Modifier.fillMaxSize(animatedFraction)`, `Modifier.width(animatedDp)`, o lecturas de `animate*AsState` en el cuerpo del Composable sin diferir a la fase de dibujo).
+- **PROHIBIDO** delegar a la GPU tareas de cómputo algorítmico, criptografía, derivación de claves, formateo de texto, parsers de URI, o filtrado de colecciones (responsabilidad exclusiva del procesador CPU en hilos de fondo).
+- **PROHIBIDO** mantener capas de renderizado fuera de pantalla (*offscreen buffers / RenderEffects*) activas en la GPU de forma estática o innecesaria cuando no haya contenido que requiera el efecto (ej. `Modifier.blur(0.dp)` continuo durante la navegación ordinaria).
+- **PROHIBIDO** apilar capas redundantes de desenfoque compitiendo entre el WindowManager nativo del sistema operativo y Compose Skia GPU (ej. invocar `FLAG_BLUR_BEHIND` IPC al mismo tiempo que `Modifier.blur()` en el NavHost).
+- **OBLIGATORIO Confinamiento estricto a la GPU (Fase de Dibujo / RenderNode en RenderThread):**
+  1. **Transformaciones Geométricas Animadas:** Toda animación de escala (`scaleX`, `scaleY`), rotación (`rotationZ`) o traslación (`translationX`, `translationY`) debe diferirse a la fase de Draw consumiendo la lambda de `Modifier.graphicsLayer { ... }` o `drawWithContent`.
+  2. **Opacidades y Scrims Animados:** Animar la opacidad en la GPU mediante `graphicsLayer { alpha = ... }` en lugar de recomponer con `Color.copy(alpha = ...)`.
+  3. **Multiplicación de Matrices por Hardware:** Aprovechar la capacidad nativa de la GPU para matrices 2D/3D sin invalidar ni re-medir la geometría de la tarjeta o pantalla en cada fotograma.
+  4. **Activación Condicional de Shaders:** Condicionar la aplicación de `Modifier.blur()` para que solo exista cuando el radio sea estrictamente mayor a cero (`modalBlurRadius > Dimensions.Spacing.none`), liberando el ancho de banda de memoria GPU durante el uso ordinario.
+- **OBLIGATORIO Confinamiento estricto al Procesador (CPU):**
+  1. **Cómputo Criptográfico:** Derivación PBKDF2, AES-256-GCM, cálculo TOTP/HOTP y huellas SHA-256 deben ejecutarse en `Dispatchers.Default` (Directiva 18).
+  2. **Estructura y Medición de Layout (*Measure Pass*):** Medir y componer los elementos de la interfaz **una sola vez** al inicio, delegando su animación subsiguiente al RenderNode.
+  3. **Lógica de Estado y Persistencia:** ViewModels, Room, DataStore, SharedPreferences, diff incremental de listas y verificación síncrona de permisos en memoria (`ContextCompat.checkSelfPermission`) deben ejecutarse en la CPU.

@@ -286,3 +286,32 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
   1. **Cómputo Criptográfico:** Derivación PBKDF2, AES-256-GCM, cálculo TOTP/HOTP y huellas SHA-256 deben ejecutarse en `Dispatchers.Default` (Directiva 18).
   2. **Estructura y Medición de Layout (*Measure Pass*):** Medir y componer los elementos de la interfaz **una sola vez** al inicio, delegando su animación subsiguiente al RenderNode.
   3. **Lógica de Estado y Persistencia:** ViewModels, Room, DataStore, SharedPreferences, diff incremental de listas y verificación síncrona de permisos en memoria (`ContextCompat.checkSelfPermission`) deben ejecutarse en la CPU.
+- **OBLIGATORIO Criterio de Decisión Taxonómico para Nuevas Funcionalidades (Árbol de Decisión CPU vs. GPU):**
+  - Ante cualquier nueva adición, refactorización o componente visual en el proyecto, clasificar el flujo bajo esta regla binaria:
+    1. **Asignación OBLIGATORIA a la GPU (Fase de Draw / RenderNode / Hardware Layer):**
+       - **Pregunta clave:** *«¿La operación solo altera la apariencia visual (matrices de transformación, píxeles, colores, opacidades, sombras, recorte o shaders) sin alterar el espacio estructural ni desplazar a los elementos hermanos en el layout?»*
+       - **Ejemplos mandatorios:**
+         - Animaciones de modales, popups y diálogos (escala, desvanecimiento, morphing).
+         - Gestos táctiles de arrastre (*Drag & Drop*) y deslizamiento (*Swipe-to-Dismiss*): animar `translationX` / `translationY` en `graphicsLayer`.
+         - Rotaciones de flechas, iconos e indicadores de carga (`rotationZ`).
+         - Arcos de progreso temporal, temporizadores TOTP y trazos de `Canvas` (`drawArc`, `drawCircle`).
+         - Efectos de desenfoque de fondo (*Skia Blur*), viñeteado y tinte de scrims.
+         - Recorte de bordes redondeados y elevaciones de sombras dinámicas (`clip = true`, `shadowElevation`).
+    2. **Asignación OBLIGATORIA al Procesador (CPU):**
+       - **Pregunta clave:** *«¿La operación requiere procesamiento lógico/algorítmico, lectura de almacenamiento/red/memoria, o altera la cantidad, orden o dimensiones intrínsecas que afectan el flujo de otros elementos?»*
+       - **Sub-confinamiento estricto de hilos en CPU:**
+         - **CPU — Hilo Principal (`Dispatchers.Main`):**
+           - Composición declarativa inicial de la UI y maquetación estructural (*Measure / Placement pass*).
+           - Despacho y recepción de eventos de toque del usuario.
+           - Instanciación de ViewModels y renderizado del primer frame.
+         - **CPU — Hilos de Cómputo Algorítmico (`Dispatchers.Default`):**
+           - Generación de contraseñas de un solo uso (TOTP RFC 6238 / HOTP RFC 4226).
+           - Cifrado/descifrado AES-256-GCM y derivación PBKDF2.
+           - Decodificación y análisis de imágenes / frames de cámara para códigos QR (CameraX / ML Kit / ZXing).
+           - Generación de kits de emergencia y serialización/deserialización de PDFs o esquemas JSON.
+           - Cálculo de huellas digitales criptográficas (SHA-256) y comparaciones diferenciales complejas en listas.
+         - **CPU — Hilos de Entrada/Salida (`Dispatchers.IO`):**
+           - Lectura, escritura y migraciones en base de datos local SQLite / Room.
+           - Persistencia en `SharedPreferences` y `DataStore`.
+           - Comunicaciones HTTP REST con Google Drive API.
+           - Operaciones de lectura y escritura en almacenamiento local de archivos.

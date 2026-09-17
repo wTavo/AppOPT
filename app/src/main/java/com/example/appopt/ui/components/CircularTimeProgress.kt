@@ -7,6 +7,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.StrokeCap
@@ -56,7 +57,8 @@ fun CircularTimeProgress(
     )
 
     val trackColor = MaterialTheme.colorScheme.surfaceVariant
-    val strokeWidthPx = with(LocalDensity.current) { Dimensions.Stroke.progressArc.toPx() }
+    val density = LocalDensity.current
+    val strokeWidthPx = remember(density) { with(density) { Dimensions.Stroke.progressArc.toPx() } }
     val secondsLabel = stringResource(R.string.card_seconds_abbrev)
 
     Box(

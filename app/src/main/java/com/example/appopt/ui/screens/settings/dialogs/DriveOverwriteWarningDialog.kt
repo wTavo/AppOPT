@@ -4,12 +4,9 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
@@ -25,7 +22,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -34,9 +30,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import com.example.appopt.R
 import com.example.appopt.data.cloud.DriveBackupInfo
-import com.example.appopt.ui.components.AppAnimatedButton
+import com.example.appopt.ui.components.AppDialogActionButtons
 import com.example.appopt.ui.components.AppModalDialog
-import com.example.appopt.ui.components.LocalModalDismissHandler
 import com.example.appopt.ui.components.ModalTone
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
@@ -47,10 +42,10 @@ import com.example.appopt.util.DateTimeFormatter
  *
  * Cumple estrictamente con:
  * - Directiva 14: Estructura tripartita inmutable (Cabecera fija, cuerpo central scrolleable aislado y pie fijo).
- * - Directiva 14: Tono destructivo [ModalTone.DESTRUCTIVE] con fondo y borde de alerta diferenciados.
- * - Directiva 14: Botón «Cerrar» a la izquierda y acción de sobrescritura a la derecha.
- * - Directiva 22: Idempotencia y confirmación visual animada mediante [AppAnimatedButton].
- * - Directiva 23: Simetría de controles mediante [IntrinsicSize.Min] y altura estándar de 50.dp.
+ * - Directiva 14: Tono destructivo [ModalTone.DESTRUCTIVE] con fondo y borde diferenciados.
+ * - Directiva 14: Barra unificada de acciones mediante [AppDialogActionButtons] («Cerrar» a la izquierda y acción destructiva a la derecha).
+ * - Directiva 22: Idempotencia y confirmación visual animada.
+ * - Directiva 23: Simetría de controles y altura estándar de 50.dp.
  *
  * @param backupInfo Metadatos de la copia de seguridad existente en Google Drive.
  * @param formattedLastSync Marca de tiempo de sincronización formateada alternativa.
@@ -200,49 +195,13 @@ fun DriveOverwriteWarningDialog(
             }
 
             // 3. Pie fijo inferior de acciones simétricas con botón Cerrar a la izquierda
-            val modalDismissHandler = LocalModalDismissHandler.current
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Min),
-                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextButton(
-                    onClick = {
-                        appHaptics.click()
-                        modalDismissHandler?.invoke() ?: onDismiss()
-                    },
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                    contentPadding = PaddingValues(
-                        horizontal = Dimensions.Spacing.md,
-                        vertical = Dimensions.Spacing.none
-                    ),
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                ) {
-                    Text(
-                        text = stringResource(R.string.action_close),
-                        style = MaterialTheme.typography.labelLarge,
-                        textAlign = TextAlign.Center
-                    )
-                }
-
-                AppAnimatedButton(
-                    text = stringResource(R.string.settings_drive_overwrite_confirm_btn),
-                    onClick = {
-                        onConfirmOverwrite()
-                        true
-                    },
-                    onActionConfirmed = {
-                        modalDismissHandler?.invoke() ?: onDismiss()
-                    },
-                    containerColor = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            AppDialogActionButtons(
+                dismissText = stringResource(R.string.action_close),
+                onDismiss = onDismiss,
+                confirmText = stringResource(R.string.settings_drive_overwrite_confirm_btn),
+                onConfirm = onConfirmOverwrite,
+                isDestructive = true
+            )
         }
     }
 }

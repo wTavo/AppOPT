@@ -6,7 +6,7 @@ import android.view.WindowManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
@@ -27,7 +27,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -36,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.Dialog
@@ -56,7 +56,8 @@ enum class ModalTone {
 
     /**
      * Diálogo de alerta crítica o destructiva ("negativo"): sobrescrituras, desvinculaciones o eliminaciones irreversibles.
-     * Incorpora un fondo sutilmente teñido de advertencia y un borde perimetral en tono de error para realzar su severidad.
+     * Incorpora un fondo sutilmente teñido de advertencia, velo de advertencia y controles en esquema de error,
+     * conservando el borde perimetral neutro estándar para máxima sobriedad y consistencia visual.
      */
     DESTRUCTIVE
 }
@@ -157,25 +158,15 @@ fun AppModalDialog(
             with(density) { Dimensions.ComponentSize.modalBlurRadius.roundToPx() }
         }
 
-        val animatedBlurPx by animateIntAsState(
-            targetValue = if (visibleState.targetState) targetBlurPx else 0,
-            animationSpec = if (visibleState.targetState) {
-                Motion.Spec.modalScrimEnterSpec()
-            } else {
-                Motion.Spec.modalScrimExitSpec()
-            },
-            label = "modal_blur_behind"
-        )
-
-        // Limpia el oscurecimiento estático del OS y aplica desenfoque por hardware en Android 12+ (API 31+)
-        SideEffect {
+        // Limpia el oscurecimiento estático del OS y aplica desenfoque por hardware nativo en Android 12+ (API 31+) una sola vez
+        LaunchedEffect(dialogWindow, targetBlurPx) {
             dialogWindow?.let { window ->
                 window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
                 window.setDimAmount(0f)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     try {
                         window.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
-                        window.setBackgroundBlurRadius(animatedBlurPx)
+                        window.setBackgroundBlurRadius(targetBlurPx)
                     } catch (_: Exception) {
                         // Manejo defensivo en hardware o configuraciones que restrinjan blur
                     }
@@ -200,11 +191,9 @@ fun AppModalDialog(
         )
 
         CompositionLocalProvider(LocalModalDismissHandler provides dismissWithAnimation) {
-            // Fondo traslúcido con desenfoque a pantalla completa con descarte al hacer clic afuera
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = scrimAlpha))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -212,16 +201,30 @@ fun AppModalDialog(
                     ),
                 contentAlignment = Alignment.Center
             ) {
+                // Velo oscurecido de fondo (scrim) animado en capa GPU independiente sin afectar la opacidad de la tarjeta
+                val scrimBaseColor = if (tone == ModalTone.DESTRUCTIVE) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    Color.Black
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer { alpha = scrimAlpha }
+                        .background(scrimBaseColor)
+                )
+
                 // Animación exacta de expansión y repliegue contextual idéntica a las pantallas de navegación
                 AnimatedVisibility(
                     visibleState = visibleState,
                     enter = scaleIn(
-                        initialScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
+                        initialScale = Motion.Scale.NAV_SCREEN_ENTER_SCALE,
                         transformOrigin = transformOrigin,
                         animationSpec = Motion.Spec.navButtonExpandScaleSpec()
-                    ),
+                    ) + fadeIn(animationSpec = Motion.Spec.quickFadeSpec()),
                     exit = scaleOut(
-                        targetScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
+                        targetScale = Motion.Scale.NAV_SCREEN_ENTER_SCALE,
                         transformOrigin = transformOrigin,
                         animationSpec = Motion.Spec.navButtonCollapseScaleSpec()
                     ) + fadeOut(animationSpec = Motion.Spec.navButtonCollapseFadeSpec()),
@@ -237,16 +240,10 @@ fun AppModalDialog(
                                 .compositeOver(MaterialTheme.colorScheme.surface)
                         }
 
-                        val cardBorder = when (tone) {
-                            ModalTone.STANDARD -> BorderStroke(
-                                width = Dimensions.Stroke.thin,
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f)
-                            )
-                            ModalTone.DESTRUCTIVE -> BorderStroke(
-                                width = Dimensions.Stroke.thin,
-                                color = MaterialTheme.colorScheme.error.copy(alpha = 0.38f)
-                            )
-                        }
+                        val cardBorder = BorderStroke(
+                            width = Dimensions.Stroke.thin,
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f)
+                        )
 
                         // Tarjeta modal del diálogo
                         Surface(

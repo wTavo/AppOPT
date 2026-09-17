@@ -2,6 +2,7 @@ package com.example.appopt.ui.navigation
 
 import android.os.Build
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
@@ -72,7 +73,7 @@ fun AppNavigation() {
             modifier = Modifier
                 .fillMaxSize()
                 .then(
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && modalBlurRadius > Dimensions.Spacing.none) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         Modifier.blur(modalBlurRadius)
                     } else {
                         Modifier
@@ -104,14 +105,14 @@ fun AppNavigation() {
                 route = Screen.Settings.route,
                 enterTransition = {
                     scaleIn(
-                        initialScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
+                        initialScale = Motion.Scale.NAV_SCREEN_ENTER_SCALE,
                         transformOrigin = NavigationOriginTracker.currentOrigin,
                         animationSpec = Motion.Spec.navButtonExpandScaleSpec()
-                    )
+                    ) + fadeIn(animationSpec = Motion.Spec.quickFadeSpec())
                 },
                 popExitTransition = {
                     scaleOut(
-                        targetScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
+                        targetScale = Motion.Scale.NAV_SCREEN_ENTER_SCALE,
                         transformOrigin = NavigationOriginTracker.currentOrigin,
                         animationSpec = Motion.Spec.navButtonCollapseScaleSpec()
                     ) + fadeOut(animationSpec = Motion.Spec.navButtonCollapseFadeSpec())
@@ -126,14 +127,14 @@ fun AppNavigation() {
                 route = Screen.RecentlyDeleted.route,
                 enterTransition = {
                     scaleIn(
-                        initialScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
+                        initialScale = Motion.Scale.NAV_SCREEN_ENTER_SCALE,
                         transformOrigin = NavigationOriginTracker.currentOrigin,
                         animationSpec = Motion.Spec.navButtonExpandScaleSpec()
-                    )
+                    ) + fadeIn(animationSpec = Motion.Spec.quickFadeSpec())
                 },
                 popExitTransition = {
                     scaleOut(
-                        targetScale = Motion.Scale.NAV_BUTTON_COLLAPSE,
+                        targetScale = Motion.Scale.NAV_SCREEN_ENTER_SCALE,
                         transformOrigin = NavigationOriginTracker.currentOrigin,
                         animationSpec = Motion.Spec.navButtonCollapseScaleSpec()
                     ) + fadeOut(animationSpec = Motion.Spec.navButtonCollapseFadeSpec())

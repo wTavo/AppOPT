@@ -189,21 +189,9 @@ fun SettingsScreen(
     // Diagnóstico en tiempo real de permisos y reloj del sistema
     val lifecycleOwner = LocalLifecycleOwner.current
     var currentTick by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    var isCameraPermissionGranted by remember {
-        mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
-    }
-    var isNotificationPermissionGranted by remember {
-        mutableStateOf(
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-            } else {
-                NotificationManagerCompat.from(context).areNotificationsEnabled()
-            }
-        )
-    }
-    var isBatteryOptimizationIgnored by remember {
-        mutableStateOf(BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context))
-    }
+    var isCameraPermissionGranted by remember { mutableStateOf(false) }
+    var isNotificationPermissionGranted by remember { mutableStateOf(false) }
+    var isBatteryOptimizationIgnored by remember { mutableStateOf(false) }
 
     LaunchedEffect(lifecycleOwner, uiState.isDriveConnected, uiState.lastSyncTimestamp) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {

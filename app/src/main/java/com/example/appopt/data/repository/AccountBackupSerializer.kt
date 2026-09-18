@@ -139,7 +139,7 @@ object AccountBackupSerializer {
         }
 
         val plainJson = rootObject.toString()
-        val targetBatches = maxOf(1, (entities.size + SecurityConfig.TRANSFER_QR_BATCH_SIZE - 1) / SecurityConfig.TRANSFER_QR_BATCH_SIZE)
+        val targetBatches = maxOf(SecurityConfig.TRANSFER_QR_MIN_BATCH_COUNT, (entities.size + SecurityConfig.TRANSFER_QR_BATCH_SIZE - 1) / SecurityConfig.TRANSFER_QR_BATCH_SIZE)
         val durationSeconds = SecurityConfig.calculateTransferExpirationSeconds(targetBatches)
         return TransferCrypto.encryptTransferPayloadInChunks(
             accountsJson = plainJson,

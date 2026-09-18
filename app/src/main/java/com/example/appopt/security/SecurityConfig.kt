@@ -133,25 +133,31 @@ object SecurityConfig {
     const val TRANSFER_QR_MAX_PIN_ATTEMPTS = 5
 
     /**
-     * Tiempo de expiración en segundos para la validez del código QR de transferencia cifrado (90 segundos base).
+     * Cantidad mínima obligatoria de fragmentos QR generados para cualquier transferencia.
+     * Garantiza el esquema Todo o Nada (All-or-Nothing), impidiendo que una sola fotografía exponga datos descifrables.
+     */
+    const val TRANSFER_QR_MIN_BATCH_COUNT = 2
+
+    /**
+     * Tiempo base de expiración en segundos para la validez de la transferencia (90 segundos para el mínimo de 2 códigos).
      */
     const val TRANSFER_QR_EXPIRATION_SECONDS = 90
 
     /**
-     * Tiempo adicional en segundos asignado por cada lote o código QR complementario en transferencias multi-QR.
+     * Tiempo adicional en segundos asignado por cada lote o código QR complementario que supere el mínimo de 2.
      */
-    const val TRANSFER_QR_EXTRA_SECONDS_PER_BATCH = 30
+    const val TRANSFER_QR_EXTRA_SECONDS_PER_BATCH = 20
 
     /**
      * Calcula el tiempo total de expiración en segundos proporcional a la cantidad de fragmentos QR.
-     * Base: 90 segundos para 1 código + 30 segundos por cada lote adicional.
+     * Base: 90 segundos para 2 códigos (mínimo) + 20 segundos por cada lote adicional.
      *
      * @param batchCount Cantidad total de fragmentos o códigos QR generados.
      * @return Tiempo de validez en segundos.
      */
     fun calculateTransferExpirationSeconds(batchCount: Int): Int {
-        val safeCount = maxOf(1, batchCount)
-        return TRANSFER_QR_EXPIRATION_SECONDS + (safeCount - 1) * TRANSFER_QR_EXTRA_SECONDS_PER_BATCH
+        val extraBatches = maxOf(0, batchCount - TRANSFER_QR_MIN_BATCH_COUNT)
+        return TRANSFER_QR_EXPIRATION_SECONDS + extraBatches * TRANSFER_QR_EXTRA_SECONDS_PER_BATCH
     }
 
     /**

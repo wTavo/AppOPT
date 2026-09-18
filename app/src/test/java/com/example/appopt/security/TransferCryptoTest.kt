@@ -272,4 +272,17 @@ class TransferCryptoTest {
         assertTrue(result2.isSuccess)
         assertEquals(json11, result2.getOrThrow())
     }
+
+    /**
+     * Valida que la duración base para el mínimo de 2 códigos QR sea de 90 segundos,
+     * y aumente proporcionalmente (+20s) por cada lote adicional.
+     */
+    @Test
+    fun testTransferExpirationCalculation() {
+        assertEquals(2, SecurityConfig.TRANSFER_QR_MIN_BATCH_COUNT)
+        assertEquals(90, SecurityConfig.calculateTransferExpirationSeconds(1))
+        assertEquals(90, SecurityConfig.calculateTransferExpirationSeconds(2))
+        assertEquals(110, SecurityConfig.calculateTransferExpirationSeconds(3))
+        assertEquals(130, SecurityConfig.calculateTransferExpirationSeconds(4))
+    }
 }

@@ -128,6 +128,7 @@ fun QrScannerDialog(
 
     var currentStep by remember { mutableStateOf(QrScannerStep.CAMERA) }
 
+    var isCameraActive by remember { mutableStateOf(false) }
     var isProcessingBarcode by remember { mutableStateOf(false) }
     var lastScannedPayload by remember { mutableStateOf<String?>(null) }
 
@@ -236,6 +237,8 @@ fun QrScannerDialog(
                         ) {
                             CameraXBarcodeScannerView(
                                 isProcessingBarcode = isProcessingBarcode,
+                                isCameraActive = isCameraActive,
+                                onCameraActiveChange = { isCameraActive = it },
                                 onBarcodeScanned = { rawValue ->
                                     if (rawValue != lastScannedPayload) {
                                         lastScannedPayload = rawValue

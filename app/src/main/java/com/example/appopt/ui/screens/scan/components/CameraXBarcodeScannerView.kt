@@ -75,6 +75,8 @@ import java.util.concurrent.Executors
  * @param isProcessingBarcode Bandera que pausa la emisión de nuevos códigos mientras se procesa el actual.
  * @param onBarcodeScanned Callback invocado cuando se detecta un código QR válido.
  * @param modifier Modificador de diseño Compose.
+ * @param isCameraActive Indica si la cámara ha sido activada por el usuario o por navegación previa.
+ * @param onCameraActiveChange Callback invocado cuando el estado de activación de la cámara cambia.
  * @param onNavigateToManual Callback opcional invocado si el usuario decide ingresar la clave manualmente ante falta de permisos.
  * @param overlayContent Contenido composable superpuesto opcional alineado en el contenedor de cámara.
  */
@@ -84,6 +86,8 @@ fun CameraXBarcodeScannerView(
     isProcessingBarcode: Boolean,
     onBarcodeScanned: (String) -> Unit,
     modifier: Modifier = Modifier,
+    isCameraActive: Boolean = false,
+    onCameraActiveChange: (Boolean) -> Unit = {},
     onNavigateToManual: () -> Unit = {},
     overlayContent: @Composable BoxScope.() -> Unit = {}
 ) {
@@ -97,8 +101,9 @@ fun CameraXBarcodeScannerView(
         )
     }
 
-    var isCameraActive by remember { mutableStateOf(hasCameraPermission) }
-    var isCameraInitializing by remember { mutableStateOf(false) }
+    var isCameraInitializing by remember(isCameraActive) {
+        mutableStateOf(isCameraActive && hasCameraPermission)
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -106,6 +111,7 @@ fun CameraXBarcodeScannerView(
             hasCameraPermission = isGranted
             if (!isGranted) {
                 isCameraInitializing = false
+                onCameraActiveChange(false)
             }
         }
     )
@@ -141,7 +147,7 @@ fun CameraXBarcodeScannerView(
                         if (!hasCameraPermission) {
                             permissionLauncher.launch(Manifest.permission.CAMERA)
                         }
-                        isCameraActive = true
+                        onCameraActiveChange(true)
                     },
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                     modifier = Modifier.heightIn(min = Dimensions.ComponentHeight.buttonDefault)

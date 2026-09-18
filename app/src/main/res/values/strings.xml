@@ -126,6 +126,8 @@
     <string name="scan_transfer_chunk_duplicate_title">Código %1$d ya capturado</string>
     <string name="scan_transfer_chunk_duplicate_desc">Pasa al código restante en el otro teléfono</string>
     <string name="scan_transfer_chunk_pill_label">Código %1$d</string>
+    <string name="scan_transfer_center_captured_badge">¡Código %1$d capturado!</string>
+    <string name="scan_transfer_chunk_count_header">%1$d de %2$d códigos capturados</string>
 
     <!-- Copia de Seguridad en Google Drive -->
     <string name="settings_drive_title">Copia de seguridad en Google Drive</string>

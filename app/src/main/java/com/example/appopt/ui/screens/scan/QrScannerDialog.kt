@@ -1,8 +1,18 @@
 package com.example.appopt.ui.screens.scan
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
@@ -16,10 +26,12 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Info
@@ -127,6 +139,7 @@ fun QrScannerDialog(
     var totalExpectedChunks by remember { mutableIntStateOf(0) }
     var lastCapturedChunkIndex by remember { mutableIntStateOf(0) }
     var duplicateChunkIndex by remember { mutableStateOf<Int?>(null) }
+    var capturedChunkAnimationIndex by remember { mutableStateOf<Int?>(null) }
 
     var pendingSingleOtp by remember { mutableStateOf<ParsedOtpData?>(null) }
     var pendingEncryptedPayload by remember { mutableStateOf<String?>(null) }
@@ -147,6 +160,7 @@ fun QrScannerDialog(
         totalExpectedChunks = 0
         lastCapturedChunkIndex = 0
         duplicateChunkIndex = null
+        capturedChunkAnimationIndex = null
         onDismiss()
     }
 
@@ -159,6 +173,7 @@ fun QrScannerDialog(
                     pendingSingleOtp = null
                     isProcessingBarcode = false
                     lastScannedPayload = null
+                    capturedChunkAnimationIndex = null
                     currentStep = QrScannerStep.CAMERA
                     true
                 }
@@ -176,6 +191,7 @@ fun QrScannerDialog(
                         lastScannedPayload = null
                         lastCapturedChunkIndex = 0
                         duplicateChunkIndex = null
+                        capturedChunkAnimationIndex = null
                         true
                     } else {
                         false
@@ -240,10 +256,18 @@ fun QrScannerDialog(
                                                     totalExpectedChunks = totalChunks
                                                     lastCapturedChunkIndex = 0
                                                     duplicateChunkIndex = null
+                                                    capturedChunkAnimationIndex = null
                                                 },
                                                 onChunkScanned = { chunkIndex ->
                                                     lastCapturedChunkIndex = chunkIndex
                                                     duplicateChunkIndex = null
+                                                    capturedChunkAnimationIndex = chunkIndex
+                                                    scope.launch {
+                                                        delay(850L.milliseconds)
+                                                        if (capturedChunkAnimationIndex == chunkIndex) {
+                                                            capturedChunkAnimationIndex = null
+                                                        }
+                                                    }
                                                     scope.launch {
                                                         delay(300L.milliseconds)
                                                         isProcessingBarcode = false
@@ -285,6 +309,9 @@ fun QrScannerDialog(
                                             )
                                         }
                                     }
+                                },
+                                overlayContent = {
+                                    QrCaptureSuccessBadge(capturedChunkIndex = capturedChunkAnimationIndex)
                                 }
                             )
 
@@ -305,6 +332,20 @@ fun QrScannerDialog(
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                         verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
                                     ) {
+                                        // Cantidad de códigos QR que lleva capturados
+                                        Text(
+                                            text = stringResource(
+                                                R.string.scan_transfer_chunk_count_header,
+                                                sessionChunks.size,
+                                                totalExpectedChunks
+                                            ),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            textAlign = TextAlign.Center
+                                        )
+
+                                        // Fila de pastillas (Pills) con el estado individual de cada fragmento
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.spacedBy(
@@ -366,32 +407,24 @@ fun QrScannerDialog(
                                         }
 
                                         val isDuplicate = duplicateChunkIndex != null
-                                        val statusTitle = if (isDuplicate) {
-                                            stringResource(R.string.scan_transfer_chunk_duplicate_title, duplicateChunkIndex ?: 1)
-                                        } else {
-                                            stringResource(
-                                                R.string.scan_transfer_chunk_captured_title,
-                                                sessionChunks.size,
-                                                totalExpectedChunks
+                                        if (isDuplicate) {
+                                            Text(
+                                                text = stringResource(
+                                                    R.string.scan_transfer_chunk_duplicate_title,
+                                                    duplicateChunkIndex ?: 1
+                                                ),
+                                                style = MaterialTheme.typography.titleSmall,
+                                                color = MaterialTheme.colorScheme.error,
+                                                textAlign = TextAlign.Center,
+                                                fontWeight = FontWeight.SemiBold
                                             )
                                         }
+
                                         val statusDesc = if (isDuplicate) {
                                             stringResource(R.string.scan_transfer_chunk_duplicate_desc)
                                         } else {
                                             stringResource(R.string.scan_transfer_chunk_captured_desc)
                                         }
-
-                                        Text(
-                                            text = statusTitle,
-                                            style = MaterialTheme.typography.titleSmall,
-                                            color = if (isDuplicate) {
-                                                MaterialTheme.colorScheme.error
-                                            } else {
-                                                MaterialTheme.colorScheme.primary
-                                            },
-                                            textAlign = TextAlign.Center,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
 
                                         Text(
                                             text = statusDesc,
@@ -885,6 +918,7 @@ fun QrScannerDialog(
                                     lastScannedPayload = null
                                     lastCapturedChunkIndex = 0
                                     duplicateChunkIndex = null
+                                    capturedChunkAnimationIndex = null
                                 },
                                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                                 contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.none),
@@ -1000,6 +1034,7 @@ private suspend fun handleScannedBarcode(
                     onChunkScanned(chunk.index)
 
                     if (sessionChunks.size == chunk.total) {
+                        delay(750L.milliseconds)
                         onChunksReady(sessionChunks.values.toList())
                     }
                 }
@@ -1013,4 +1048,92 @@ private suspend fun handleScannedBarcode(
     }
 
     onError()
+}
+
+/**
+ * Insignia animada central proyectada sobre el visor de cámara al capturar exitosamente un código QR.
+ *
+ * Emerge con animación de rebote elástico suave y desaparece automáticamente tras confirmar la captura.
+ *
+ * @param capturedChunkIndex Índice numérico del código QR capturado, o `null` si no hay animación activa.
+ * @param modifier Modificador de diseño Compose.
+ */
+@Composable
+private fun BoxScope.QrCaptureSuccessBadge(
+    capturedChunkIndex: Int?,
+    modifier: Modifier = Modifier
+) {
+    AnimatedVisibility(
+        visible = capturedChunkIndex != null,
+        enter = fadeIn(
+            animationSpec = tween(
+                durationMillis = Motion.Duration.FAST,
+                easing = Motion.EasingCurve.Standard
+            )
+        ) + scaleIn(
+            initialScale = 0.75f,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMediumLow
+            )
+        ),
+        exit = fadeOut(
+            animationSpec = tween(
+                durationMillis = Motion.Duration.FAST,
+                easing = Motion.EasingCurve.Standard
+            )
+        ) + scaleOut(
+            targetScale = 0.85f,
+            animationSpec = tween(
+                durationMillis = Motion.Duration.FAST,
+                easing = Motion.EasingCurve.Standard
+            )
+        ),
+        modifier = modifier.align(Alignment.Center)
+    ) {
+        Surface(
+            shape = RoundedCornerShape(Dimensions.CornerRadius.large),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+            border = BorderStroke(
+                width = Dimensions.Stroke.regular,
+                color = MaterialTheme.colorScheme.primary
+            ),
+            shadowElevation = Dimensions.Elevation.cardDragging,
+            modifier = Modifier.padding(Dimensions.Spacing.md)
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs),
+                modifier = Modifier.padding(
+                    horizontal = Dimensions.Spacing.lg,
+                    vertical = Dimensions.Spacing.md
+                )
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(Dimensions.IconSize.hero)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(Dimensions.IconSize.large)
+                        )
+                    }
+                }
+                Text(
+                    text = stringResource(
+                        R.string.scan_transfer_center_captured_badge,
+                        capturedChunkIndex ?: 1
+                    ),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
 }

@@ -15,6 +15,7 @@ import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -75,6 +76,7 @@ import java.util.concurrent.Executors
  * @param onBarcodeScanned Callback invocado cuando se detecta un código QR válido.
  * @param modifier Modificador de diseño Compose.
  * @param onNavigateToManual Callback opcional invocado si el usuario decide ingresar la clave manualmente ante falta de permisos.
+ * @param overlayContent Contenido composable superpuesto opcional alineado en el contenedor de cámara.
  */
 @OptIn(ExperimentalGetImage::class)
 @Composable
@@ -82,7 +84,8 @@ fun CameraXBarcodeScannerView(
     isProcessingBarcode: Boolean,
     onBarcodeScanned: (String) -> Unit,
     modifier: Modifier = Modifier,
-    onNavigateToManual: () -> Unit = {}
+    onNavigateToManual: () -> Unit = {},
+    overlayContent: @Composable BoxScope.() -> Unit = {}
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -277,6 +280,8 @@ fun CameraXBarcodeScannerView(
                     )
                 }
             }
+
+            overlayContent()
         }
     }
 }

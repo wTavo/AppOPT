@@ -144,7 +144,7 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
     - `ModalTone.DESTRUCTIVE`: Para acciones críticas, irreversibles o de alto impacto (desvincular cuentas en la nube, reemplazar copias existentes de respaldo, vaciar papelera o eliminar definitivamente cuentas):
       1. Fondo de tarjeta sutilmente teñido de advertencia (`errorContainer.copy(alpha = 0.14f)` compuesto sobre `surface`).
       2. Borde perimetral neutro estándar `outlineVariant` al 15% de opacidad para consistencia geométrica sin saturación cromática.
-      3. Velo de fondo desenfocado (Skia Blur) con tinte scrim de advertencia (`error.copy(alpha = 0.28f)`).
+      3. Velo de fondo desenfocado estándar neutro (Color.Black) idéntico a los modales estándar, sin tinte de advertencia.
       4. Icono centrado y título principal en color `MaterialTheme.colorScheme.error`.
       5. Botón de confirmación con esquema de color de error (`isDestructive = true` en `AppDialogActionButtons` o `AppAnimatedButton(containerColor = error)`).
 - **OBLIGATORIO la gestión determinista del velo de desenfoque (*Zero-Ghost Blur Lifecycle*):**

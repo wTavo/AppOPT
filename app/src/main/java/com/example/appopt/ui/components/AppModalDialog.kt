@@ -168,10 +168,9 @@ fun AppModalDialog(
 
         val transition = updateTransition(visibleState, label = "modal_dialog_transition")
 
-        // Velo sutil para realce de bordes (18% en Android 12+ con blur, 50% clásico en Android 10/11; reforzado en destructivos)
-        val targetScrimAlpha = remember(tone) {
-            val base = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 0.18f else 0.50f
-            if (tone == ModalTone.DESTRUCTIVE) base + 0.10f else base
+        // Velo sutil para realce de bordes (18% en Android 12+ con blur, 50% clásico en Android 10/11)
+        val targetScrimAlpha = remember {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 0.18f else 0.50f
         }
 
         val scrimAlpha by transition.animateFloat(
@@ -227,17 +226,11 @@ fun AppModalDialog(
                 contentAlignment = Alignment.Center
             ) {
                 // Velo oscurecido de fondo (scrim) animado en capa GPU independiente sin afectar la opacidad de la tarjeta
-                val scrimBaseColor = if (tone == ModalTone.DESTRUCTIVE) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    Color.Black
-                }
-
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .graphicsLayer { alpha = scrimAlpha }
-                        .background(scrimBaseColor)
+                        .background(Color.Black)
                 )
 
                 // Capa modal animada al 100% en fase de Draw por hardware GPU (RenderNode):

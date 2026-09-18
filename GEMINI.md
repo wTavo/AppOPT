@@ -142,7 +142,7 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
   - **OBLIGATORIO** clasificar los modales mediante el parámetro `tone: ModalTone`:
     - `ModalTone.STANDARD`: Para flujos ordinarios, altas, edición y configuración. Aplica fondo neutro `surface`, borde sutil `outlineVariant` al 15% de opacidad y velo scrim oscuro estándar.
     - `ModalTone.DESTRUCTIVE`: Para acciones críticas, irreversibles o de alto impacto (desvincular cuentas en la nube, reemplazar copias existentes de respaldo, vaciar papelera o eliminar definitivamente cuentas):
-      1. Fondo de tarjeta sutilmente teñido de advertencia (`errorContainer.copy(alpha = 0.14f)` compuesto sobre `surface`).
+      1. Fondo de tarjeta oscuro constante e idéntico tanto en tema claro como oscuro (esquema oscuro forzado con tipografía de alto contraste para identificación visual inmediata del impacto destructivo).
       2. Borde perimetral neutro estándar `outlineVariant` al 15% de opacidad para consistencia geométrica sin saturación cromática.
       3. Velo de fondo desenfocado estándar neutro (Color.Black) idéntico a los modales estándar, sin tinte de advertencia.
       4. Icono centrado y título principal en color `MaterialTheme.colorScheme.error`.

@@ -170,10 +170,8 @@ fun AppModalDialog(
 
         val transition = updateTransition(visibleState, label = "modal_dialog_transition")
 
-        // Velo sutil para realce de bordes (18% en Android 12+ con blur, 50% clásico en Android 10/11)
-        val targetScrimAlpha = remember {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 0.18f else 0.50f
-        }
+        // Velo oscurecido estándar de Material Design 3 (50% de opacidad para contraste y foco óptimos)
+        val targetScrimAlpha = 0.50f
 
         val scrimAlpha by transition.animateFloat(
             transitionSpec = {

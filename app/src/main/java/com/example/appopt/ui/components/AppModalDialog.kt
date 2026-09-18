@@ -1,6 +1,5 @@
 package com.example.appopt.ui.components
 
-import java.util.UUID
 import android.os.Build
 import android.view.WindowManager
 import androidx.compose.animation.animateColorAsState
@@ -22,7 +21,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
@@ -103,34 +101,10 @@ fun AppModalDialog(
         }
     }
 
-    val modalId = remember {
-        UUID.randomUUID().toString().also { id ->
-            ModalOverlayController.registerModal(id)
-        }
-    }
-
     // Al concluir la animación de salida hacia el botón, desmonta el diálogo
     LaunchedEffect(visibleState.isIdle, visibleState.currentState, visibleState.targetState) {
         if (visibleState.isIdle && !visibleState.currentState && !visibleState.targetState) {
             onDismissRequest()
-        }
-    }
-
-    // Sincroniza el desenfoque en la capa de navegación inferior (Compose Skia GPU).
-    // Garantiza matemáticamente que al componerse se registre y que al desmontarse
-    // (por salida animada, forzada o bloqueo de app) se dé de baja indefectiblemente.
-    DisposableEffect(modalId) {
-        ModalOverlayController.registerModal(modalId)
-        onDispose {
-            ModalOverlayController.unregisterModal(modalId)
-        }
-    }
-
-    // Al iniciar la animación de salida (repliegue hacia el botón), disipa el desenfoque
-    // en paralelo con la tarjeta hacia Dimensions.Spacing.none (0.dp).
-    LaunchedEffect(visibleState.targetState) {
-        if (!visibleState.targetState) {
-            ModalOverlayController.unregisterModal(modalId)
         }
     }
 

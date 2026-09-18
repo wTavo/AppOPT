@@ -121,8 +121,6 @@
     <string name="settings_transfer_next_code">Siguiente</string>
     <string name="settings_transfer_view_pin">Ver la clave</string>
     <string name="settings_transfer_view_qr">Ver código QR</string>
-    <string name="scan_transfer_chunk_progress">Lote %1$d de %2$d escaneado. Escanea el código restante.</string>
-    <string name="scan_transfer_chunk_captured_title">¡Código %1$d de %2$d capturado!</string>
     <string name="scan_transfer_chunk_captured_desc">Enfoca el código restante en el otro teléfono</string>
     <string name="scan_transfer_chunk_duplicate_title">Código %1$d ya capturado</string>
     <string name="scan_transfer_chunk_duplicate_desc">Pasa al código restante en el otro teléfono</string>
@@ -303,7 +301,6 @@
     <string name="scan_transfer_pin_error_incorrect_attempts">Clave incorrecta. Te quedan %1$d intentos.</string>
     <string name="scan_transfer_pin_error_max_attempts">Límite de intentos alcanzado. Transferencia cancelada por seguridad.</string>
     <string name="scan_transfer_error_expired">El código QR ha expirado. Genera uno nuevo en el otro teléfono.</string>
-    <string name="scan_transfer_import_success">Se importaron %1$d servicios correctamente</string>
     <string name="scan_import_all_already_exist">Todos los servicios escaneados ya estaban registrados en tu bóveda</string>
 
     <!-- Sincronización y Respaldo en la Nube (Google Drive E2EE) -->

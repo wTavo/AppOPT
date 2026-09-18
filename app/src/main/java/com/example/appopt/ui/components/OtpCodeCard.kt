@@ -115,42 +115,48 @@ fun OtpCodeCard(
         label = "card_drag_elevation"
     )
 
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .onPlaced { cardCoordinates = it }
-            .clickable(
-                enabled = !isDragging,
-                interactionSource = interactionSource,
-                indication = ripple(),
-                onClick = {
-                    NavigationOriginTracker.updateFromCoordinates(cardCoordinates)
-                    appHaptics.click()
-                    onCardClick()
-                }
-            )
-            .semantics {
-                contentDescription = AccessibilityUtils.buildAccountCardContentDescription(
-                    context = context,
-                    issuer = account.issuer,
-                    accountName = account.accountName,
-                    code = accountWithCode.code,
-                    isFavorite = account.isFavorite
+        val primaryColor = MaterialTheme.colorScheme.primary
+        val outlineBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+        val cardBorder = remember(isDragging, primaryColor, outlineBorderColor) {
+            if (isDragging) {
+                BorderStroke(Dimensions.Stroke.regular, primaryColor)
+            } else {
+                BorderStroke(Dimensions.Stroke.thin, outlineBorderColor)
+            }
+        }
+
+        Card(
+            modifier = modifier
+                .fillMaxWidth()
+                .onPlaced { cardCoordinates = it }
+                .clickable(
+                    enabled = !isDragging,
+                    interactionSource = interactionSource,
+                    indication = ripple(),
+                    onClick = {
+                        NavigationOriginTracker.updateFromCoordinates(cardCoordinates)
+                        appHaptics.click()
+                        onCardClick()
+                    }
                 )
-            },
-        colors = CardDefaults.cardColors(
-            containerColor = if (isDragging) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = cardElevation
-        ),
-        border = if (isDragging) {
-            BorderStroke(Dimensions.Stroke.regular, MaterialTheme.colorScheme.primary)
-        } else {
-            BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
-        },
-        shape = RoundedCornerShape(Dimensions.CornerRadius.large)
-    ) {
+                .semantics {
+                    contentDescription = AccessibilityUtils.buildAccountCardContentDescription(
+                        context = context,
+                        issuer = account.issuer,
+                        accountName = account.accountName,
+                        code = accountWithCode.code,
+                        isFavorite = account.isFavorite
+                    )
+                },
+            colors = CardDefaults.cardColors(
+                containerColor = if (isDragging) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(
+                defaultElevation = cardElevation
+            ),
+            border = cardBorder,
+            shape = RoundedCornerShape(Dimensions.CornerRadius.large)
+        ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()

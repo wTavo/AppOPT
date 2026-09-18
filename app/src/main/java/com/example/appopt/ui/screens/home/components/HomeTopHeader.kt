@@ -90,11 +90,11 @@ fun HomeTopHeader(
     searchQuery: String,
     isHideCodesEnabled: Boolean,
     cloudSyncState: CloudSyncUiState,
-    isVaultSynced: Boolean = false,
     onSearchActiveChange: (Boolean) -> Unit,
     onSearchQueryChange: (String) -> Unit,
     onToggleHideCodes: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isVaultSynced: Boolean = false
 ) {
     val appHaptics = rememberAppHaptics()
 

@@ -71,9 +71,9 @@ fun HomeFloatingDock(
     onAddAccountClick: () -> Unit,
     onNavigateToRecentlyDeleted: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    modifier: Modifier = Modifier,
     isAddMenuOpen: Boolean = false,
-    deletedAccountsCount: Int = 0,
-    modifier: Modifier = Modifier
+    deletedAccountsCount: Int = 0
 ) {
     val appHaptics = rememberAppHaptics()
     val context: Context = LocalContext.current

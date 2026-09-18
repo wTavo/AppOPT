@@ -1,48 +1,6 @@
 package com.example.appopt.ui.screens.scan
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.HourglassEmpty
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -52,19 +10,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
-import com.example.appopt.domain.model.OtpType
 import com.example.appopt.domain.model.ParsedAccountPreview
 import com.example.appopt.domain.totp.OtpUriParser
 import com.example.appopt.domain.totp.ParsedOtpData
@@ -72,17 +22,14 @@ import com.example.appopt.security.CryptoManager
 import com.example.appopt.security.SecurityConfig
 import com.example.appopt.security.TransferCrypto
 import com.example.appopt.security.TransferQrChunk
-import com.example.appopt.ui.components.AccountImportSelectionList
-import com.example.appopt.ui.components.AppAnimatedButton
-import com.example.appopt.ui.components.AppDialogActionButtons
 import com.example.appopt.ui.components.AppModalDialog
 import com.example.appopt.ui.components.LocalModalDismissHandler
-import com.example.appopt.ui.components.ServiceBrandAvatar
-import com.example.appopt.ui.screens.scan.components.CameraXBarcodeScannerView
-import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.screens.scan.components.QrScanCameraStep
+import com.example.appopt.ui.screens.scan.components.QrScanSingleOtpStep
+import com.example.appopt.ui.screens.scan.components.QrScanTransferPinStep
+import com.example.appopt.ui.screens.scan.components.QrScanTransferSelectStep
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.rememberAppHaptics
-import com.example.appopt.util.SecurityAnalysisUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
@@ -117,8 +64,9 @@ enum class QrScannerMode {
  * Estándares aplicados:
  * - Directiva 14: Máquina de estados monolítica dentro de [AppModalDialog] con navegación defensiva ([onBackStep]).
  * - Directiva 14: Estructura tripartita inmutable (Cabecera y Botones fijos con cuerpo central scrolleable).
- * - Directiva 22: Idempotencia y feedback háptico con [AppAnimatedButton] y [AppHaptics].
+ * - Directiva 22: Idempotencia y feedback háptico con [com.example.appopt.ui.components.AppAnimatedButton] y [com.example.appopt.ui.theme.AppHaptics].
  * - Directiva 9: Zeroización de memoria tras procesar claves criptográficas.
+ * - Directiva 28: Inicio bajo demanda y filtrado silencioso según [mode].
  * - Prevención Antifraude: Verificación previa con detección de homóglifos, duplicados y consejos antiphishing.
  *
  * @param onDismiss Callback para cerrar el diálogo.
@@ -233,747 +181,257 @@ fun QrScannerDialog(
         ) { step ->
             when (step) {
                 QrScannerStep.CAMERA -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(Dimensions.Spacing.lg)
-                            .imePadding(),
-                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        // 1. Cabecera fija
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                    QrScanCameraStep(
+                        title = title,
+                        mode = mode,
+                        isCameraActive = isCameraActive,
+                        isProcessingBarcode = isProcessingBarcode,
+                        sessionChunks = sessionChunks,
+                        totalExpectedChunks = totalExpectedChunks,
+                        duplicateChunkIndex = duplicateChunkIndex,
+                        capturedChunkAnimationIndex = capturedChunkAnimationIndex,
+                        onCameraActiveChange = { isCameraActive = it },
+                        onBarcodeScanned = { rawValue ->
+                            if (rawValue != lastScannedPayload) {
+                                lastScannedPayload = rawValue
+                                isProcessingBarcode = true
 
-                        // 2. Cuerpo central scrolleable aislado
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f, fill = false)
-                                .verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            CameraXBarcodeScannerView(
-                                isProcessingBarcode = isProcessingBarcode,
-                                isCameraActive = isCameraActive,
-                                onCameraActiveChange = { isCameraActive = it },
-                                onBarcodeScanned = { rawValue ->
-                                    if (rawValue != lastScannedPayload) {
-                                        lastScannedPayload = rawValue
-                                        isProcessingBarcode = true
-
-                                        scope.launch {
-                                            handleScannedBarcode(
-                                                rawValue = rawValue,
-                                                mode = mode,
-                                                appHaptics = appHaptics,
-                                                blockedSessionIds = blockedSessionIds,
-                                                blockedPayloadFingerprints = blockedPayloadFingerprints,
-                                                sessionChunks = sessionChunks,
-                                                currentSessionId = currentSessionId,
-                                                onSessionUpdated = { newSessionId, totalChunks ->
-                                                    currentSessionId = newSessionId
-                                                    totalExpectedChunks = totalChunks
-                                                    lastCapturedChunkIndex = 0
-                                                    duplicateChunkIndex = null
+                                scope.launch {
+                                    handleScannedBarcode(
+                                        rawValue = rawValue,
+                                        mode = mode,
+                                        appHaptics = appHaptics,
+                                        blockedSessionIds = blockedSessionIds,
+                                        blockedPayloadFingerprints = blockedPayloadFingerprints,
+                                        sessionChunks = sessionChunks,
+                                        currentSessionId = currentSessionId,
+                                        onSessionUpdated = { newSessionId, totalChunks ->
+                                            currentSessionId = newSessionId
+                                            totalExpectedChunks = totalChunks
+                                            lastCapturedChunkIndex = 0
+                                            duplicateChunkIndex = null
+                                            capturedChunkAnimationIndex = null
+                                        },
+                                        onChunkScanned = { chunkIndex ->
+                                            lastCapturedChunkIndex = chunkIndex
+                                            duplicateChunkIndex = null
+                                            capturedChunkAnimationIndex = chunkIndex
+                                            scope.launch {
+                                                delay(850L.milliseconds)
+                                                if (capturedChunkAnimationIndex == chunkIndex) {
                                                     capturedChunkAnimationIndex = null
-                                                },
-                                                onChunkScanned = { chunkIndex ->
-                                                    lastCapturedChunkIndex = chunkIndex
-                                                    duplicateChunkIndex = null
-                                                    capturedChunkAnimationIndex = chunkIndex
-                                                    scope.launch {
-                                                        delay(850L.milliseconds)
-                                                        if (capturedChunkAnimationIndex == chunkIndex) {
-                                                            capturedChunkAnimationIndex = null
-                                                        }
-                                                    }
-                                                    scope.launch {
-                                                        delay(300L.milliseconds)
-                                                        isProcessingBarcode = false
-                                                    }
-                                                },
-                                                onChunkDuplicate = { chunkIndex ->
-                                                    duplicateChunkIndex = chunkIndex
-                                                    scope.launch {
-                                                        delay(500L.milliseconds)
-                                                        isProcessingBarcode = false
-                                                    }
-                                                },
-                                                onSingleOtpScanned = { parsedOtp ->
-                                                    appHaptics.dragTick()
-                                                    pendingSingleOtp = parsedOtp
-                                                    currentStep = QrScannerStep.CONFIRM_SINGLE_OTP
-                                                },
-                                                onTransferPayloadReady = { payloadToDecrypt ->
-                                                    pendingEncryptedPayload = payloadToDecrypt
-                                                    pendingEncryptedChunks = null
-                                                    transferPinInput = ""
-                                                    pinErrorMessage = null
-                                                    failedPinAttempts = 0
-                                                    currentStep = QrScannerStep.TRANSFER_PIN
-                                                },
-                                                onChunksReady = { chunksToDecrypt ->
-                                                    pendingEncryptedChunks = chunksToDecrypt
-                                                    pendingEncryptedPayload = null
-                                                    transferPinInput = ""
-                                                    pinErrorMessage = null
-                                                    failedPinAttempts = 0
-                                                    currentStep = QrScannerStep.TRANSFER_PIN
-                                                },
-                                                onIgnored = {
-                                                    scope.launch {
-                                                        delay(200L.milliseconds)
-                                                        isProcessingBarcode = false
-                                                    }
-                                                },
-                                                onError = {
-                                                    appHaptics.error()
-                                                    delay(Motion.Duration.FEEDBACK_TOAST.toLong().milliseconds)
-                                                    isProcessingBarcode = false
-                                                }
-                                            )
-                                        }
-                                    }
-                                },
-                                overlayContent = {
-                                    if (mode == QrScannerMode.TRANSFER_MIGRATION) {
-                                        QrCaptureSuccessBadge(capturedChunkIndex = capturedChunkAnimationIndex)
-                                    }
-                                }
-                            )
-
-                            if (mode == QrScannerMode.TRANSFER_MIGRATION && totalExpectedChunks > 1 && sessionChunks.size < totalExpectedChunks) {
-                                Surface(
-                                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                    border = BorderStroke(
-                                        width = Dimensions.Stroke.thin,
-                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                                    ),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(Dimensions.Spacing.md),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
-                                    ) {
-                                        // Cantidad de códigos QR que lleva capturados
-                                        Text(
-                                            text = stringResource(
-                                                R.string.scan_transfer_chunk_count_header,
-                                                sessionChunks.size,
-                                                totalExpectedChunks
-                                            ),
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            textAlign = TextAlign.Center
-                                        )
-
-                                        // Fila de pastillas (Pills) con el estado individual de cada fragmento
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(
-                                                Dimensions.Spacing.sm,
-                                                Alignment.CenterHorizontally
-                                            ),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            for (chunkIndex in 1..totalExpectedChunks) {
-                                                val isScanned = sessionChunks.containsKey(chunkIndex)
-                                                val pillContainerColor = if (isScanned) {
-                                                    MaterialTheme.colorScheme.primaryContainer
-                                                } else {
-                                                    MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
-                                                }
-                                                val pillContentColor = if (isScanned) {
-                                                    MaterialTheme.colorScheme.onPrimaryContainer
-                                                } else {
-                                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                                }
-
-                                                Surface(
-                                                    shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
-                                                    color = pillContainerColor,
-                                                    border = if (!isScanned) {
-                                                        BorderStroke(
-                                                            width = Dimensions.Stroke.thin,
-                                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                                                        )
-                                                    } else null
-                                                ) {
-                                                    Row(
-                                                        modifier = Modifier.padding(
-                                                            horizontal = Dimensions.Spacing.sm,
-                                                            vertical = Dimensions.Spacing.xs
-                                                        ),
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
-                                                    ) {
-                                                        Icon(
-                                                            imageVector = if (isScanned) {
-                                                                Icons.Default.CheckCircle
-                                                            } else {
-                                                                Icons.Default.HourglassEmpty
-                                                            },
-                                                            contentDescription = null,
-                                                            tint = pillContentColor,
-                                                            modifier = Modifier.size(Dimensions.IconSize.small)
-                                                        )
-                                                        Text(
-                                                            text = stringResource(R.string.scan_transfer_chunk_pill_label, chunkIndex),
-                                                            style = MaterialTheme.typography.labelMedium,
-                                                            fontWeight = if (isScanned) FontWeight.Bold else FontWeight.Normal,
-                                                            color = pillContentColor
-                                                        )
-                                                    }
                                                 }
                                             }
+                                            scope.launch {
+                                                delay(300L.milliseconds)
+                                                isProcessingBarcode = false
+                                            }
+                                        },
+                                        onChunkDuplicate = { chunkIndex ->
+                                            duplicateChunkIndex = chunkIndex
+                                            scope.launch {
+                                                delay(500L.milliseconds)
+                                                isProcessingBarcode = false
+                                            }
+                                        },
+                                        onSingleOtpScanned = { parsedOtp ->
+                                            appHaptics.dragTick()
+                                            pendingSingleOtp = parsedOtp
+                                            currentStep = QrScannerStep.CONFIRM_SINGLE_OTP
+                                        },
+                                        onTransferPayloadReady = { payloadToDecrypt ->
+                                            pendingEncryptedPayload = payloadToDecrypt
+                                            pendingEncryptedChunks = null
+                                            transferPinInput = ""
+                                            pinErrorMessage = null
+                                            failedPinAttempts = 0
+                                            currentStep = QrScannerStep.TRANSFER_PIN
+                                        },
+                                        onChunksReady = { chunksToDecrypt ->
+                                            pendingEncryptedChunks = chunksToDecrypt
+                                            pendingEncryptedPayload = null
+                                            transferPinInput = ""
+                                            pinErrorMessage = null
+                                            failedPinAttempts = 0
+                                            currentStep = QrScannerStep.TRANSFER_PIN
+                                        },
+                                        onIgnored = {
+                                            scope.launch {
+                                                delay(200L.milliseconds)
+                                                isProcessingBarcode = false
+                                            }
+                                        },
+                                        onError = {
+                                            appHaptics.error()
+                                            delay(Motion.Duration.FEEDBACK_TOAST.toLong().milliseconds)
+                                            isProcessingBarcode = false
                                         }
-
-                                        val isDuplicate = duplicateChunkIndex != null
-                                        if (isDuplicate) {
-                                            Text(
-                                                text = stringResource(
-                                                    R.string.scan_transfer_chunk_duplicate_title,
-                                                    duplicateChunkIndex ?: 1
-                                                ),
-                                                style = MaterialTheme.typography.titleSmall,
-                                                color = MaterialTheme.colorScheme.error,
-                                                textAlign = TextAlign.Center,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                        }
-
-                                        val statusDesc = if (isDuplicate) {
-                                            stringResource(R.string.scan_transfer_chunk_duplicate_desc)
-                                        } else {
-                                            stringResource(R.string.scan_transfer_chunk_captured_desc)
-                                        }
-
-                                        Text(
-                                            text = statusDesc,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            textAlign = TextAlign.Center
-                                        )
-                                    }
+                                    )
                                 }
-                            } else {
-                                Text(
-                                    text = if (mode == QrScannerMode.TRANSFER_MIGRATION) {
-                                        stringResource(R.string.scan_import_hint)
-                                    } else {
-                                        stringResource(R.string.scan_hint)
-                                    },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Center
-                                )
                             }
-                        }
-
-                        // 3. Pie fijo de acciones
-                        AppDialogActionButtons(
-                            onDismiss = handleDismiss,
-                            dismissText = stringResource(R.string.action_close)
-                        )
-                    }
+                        },
+                        onClose = handleDismiss
+                    )
                 }
 
                 QrScannerStep.CONFIRM_SINGLE_OTP -> {
                     val otp = pendingSingleOtp
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(Dimensions.Spacing.lg)
-                            .imePadding(),
-                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
-                    ) {
-                        // 1. Cabecera fija
-                        Text(
-                            text = stringResource(R.string.scan_confirm_title),
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.fillMaxWidth()
+                    if (otp != null) {
+                        QrScanSingleOtpStep(
+                            otp = otp,
+                            existingAccounts = existingAccounts,
+                            onBack = {
+                                otp.secretBytes.let { CryptoManager.zeroize(it) }
+                                pendingSingleOtp = null
+                                isProcessingBarcode = false
+                                lastScannedPayload = null
+                                currentStep = QrScannerStep.CAMERA
+                            },
+                            onSave = {
+                                repository.saveAccount(
+                                    issuer = otp.issuer,
+                                    accountName = otp.accountName,
+                                    secretBytes = otp.secretBytes,
+                                    algorithm = otp.algorithm,
+                                    digits = otp.digits,
+                                    period = otp.period,
+                                    type = otp.type,
+                                    counter = otp.counter
+                                )
+                                CryptoManager.zeroize(otp.secretBytes)
+                                true
+                            },
+                            onSaveConfirmed = {
+                                appHaptics.success()
+                                onScanSuccess()
+                                if (modalDismissHandler != null) {
+                                    modalDismissHandler()
+                                } else {
+                                    onDismiss()
+                                }
+                            }
                         )
-
-                        // 2. Cuerpo central scrolleable aislado
-                        if (otp != null) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f, fill = false)
-                                    .verticalScroll(rememberScrollState()),
-                                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.scan_confirm_subtitle),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Center
-                                )
-
-                                // Tarjeta visual de identidad del servicio
-                                Surface(
-                                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(Dimensions.Spacing.md),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
-                                    ) {
-                                        ServiceBrandAvatar(
-                                            issuer = otp.issuer,
-                                            size = Dimensions.IconSize.hero
-                                        )
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = otp.issuer,
-                                                style = MaterialTheme.typography.titleMedium,
-                                                color = MaterialTheme.colorScheme.onSurface,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                            Text(
-                                                text = otp.accountName,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                            Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
-                                            val technicalInfo = if (otp.type == OtpType.TOTP) {
-                                                stringResource(
-                                                    R.string.scan_confirm_type_format,
-                                                    otp.type.name,
-                                                    otp.digits,
-                                                    otp.period
-                                                )
-                                            } else {
-                                                stringResource(
-                                                    R.string.scan_confirm_type_hotp_format,
-                                                    otp.type.name,
-                                                    otp.digits
-                                                )
-                                            }
-                                            Text(
-                                                text = technicalInfo,
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
-                                        }
-                                    }
-                                }
-
-                                // Diagnóstico de homóglifos o caracteres invisibles
-                                val spoofingResult = remember(otp.issuer, otp.accountName) {
-                                    val issuerCheck = SecurityAnalysisUtils.detectUnicodeSpoofing(otp.issuer)
-                                    if (issuerCheck.isSuspicious) issuerCheck else SecurityAnalysisUtils.detectUnicodeSpoofing(otp.accountName)
-                                }
-                                if (spoofingResult.isSuspicious) {
-                                    Surface(
-                                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                        color = MaterialTheme.colorScheme.errorContainer,
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(Dimensions.Spacing.md),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Warning,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.error,
-                                                modifier = Modifier.size(Dimensions.IconSize.medium)
-                                            )
-                                            Text(
-                                                text = stringResource(R.string.scan_confirm_warning_spoofing),
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onErrorContainer
-                                            )
-                                        }
-                                    }
-                                }
-
-                                // Diagnóstico de cuenta existente o duplicada
-                                val existingDuplicate = remember(otp.issuer, otp.accountName, existingAccounts) {
-                                    SecurityAnalysisUtils.findExistingDuplicate(existingAccounts, otp.issuer, otp.accountName)
-                                }
-                                if (existingDuplicate != null) {
-                                    Surface(
-                                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(Dimensions.Spacing.md),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Info,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                                modifier = Modifier.size(Dimensions.IconSize.medium)
-                                            )
-                                            Text(
-                                                text = stringResource(
-                                                    R.string.scan_confirm_warning_duplicate,
-                                                    otp.issuer,
-                                                    otp.accountName
-                                                ),
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                                            )
-                                        }
-                                    }
-                                }
-
-                                // Tarjeta educativa antiphishing
-                                Surface(
-                                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(Dimensions.Spacing.md),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Security,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(Dimensions.IconSize.medium)
-                                        )
-                                        Text(
-                                            text = stringResource(R.string.scan_confirm_phishing_tip),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                            }
-
-                            // 3. Pie fijo de acciones simétricas
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(IntrinsicSize.Min),
-                                horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                TextButton(
-                                    onClick = {
-                                        otp.secretBytes.let { CryptoManager.zeroize(it) }
-                                        pendingSingleOtp = null
-                                        isProcessingBarcode = false
-                                        lastScannedPayload = null
-                                        currentStep = QrScannerStep.CAMERA
-                                    },
-                                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                    contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.none),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxHeight()
-                                        .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.settings_drive_details_back),
-                                        style = MaterialTheme.typography.labelLarge,
-                                        textAlign = TextAlign.Center
-                                    )
-                                }
-
-                                AppAnimatedButton(
-                                    text = stringResource(R.string.scan_confirm_save_button),
-                                    onClick = {
-                                        scope.launch {
-                                            repository.saveAccount(
-                                                issuer = otp.issuer,
-                                                accountName = otp.accountName,
-                                                secretBytes = otp.secretBytes,
-                                                algorithm = otp.algorithm,
-                                                digits = otp.digits,
-                                                period = otp.period,
-                                                type = otp.type,
-                                                counter = otp.counter
-                                            )
-                                            CryptoManager.zeroize(otp.secretBytes)
-                                        }
-                                        true
-                                    },
-                                    onActionConfirmed = {
-                                        appHaptics.success()
-                                        onScanSuccess()
-                                        if (modalDismissHandler != null) {
-                                            modalDismissHandler()
-                                        } else {
-                                            onDismiss()
-                                        }
-                                    },
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                        }
                     }
                 }
 
                 QrScannerStep.TRANSFER_PIN -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(Dimensions.Spacing.lg)
-                            .imePadding(),
-                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
-                    ) {
-                        // 1. Cabecera fija
-                        Text(
-                            text = stringResource(R.string.scan_transfer_pin_dialog_title),
-                            style = MaterialTheme.typography.titleLarge
-                        )
-
-                        // 2. Cuerpo central scrolleable aislado
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f, fill = false)
-                                .verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.scan_transfer_pin_dialog_desc),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-
-                            OutlinedTextField(
-                                value = transferPinInput,
-                                onValueChange = { input ->
-                                    val cleaned = input.filter { it.isLetterOrDigit() }.take(SecurityConfig.TRANSFER_KEY_LENGTH).uppercase()
-                                    transferPinInput = cleaned
-                                    pinErrorMessage = null
-                                },
-                                label = { Text(stringResource(R.string.scan_transfer_pin_input_label)) },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Ascii,
-                                    capitalization = KeyboardCapitalization.Characters
-                                ),
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                modifier = Modifier.fillMaxWidth(),
-                                textStyle = MaterialTheme.typography.headlineSmall.copy(
-                                    fontFamily = FontFamily.Monospace,
-                                    fontWeight = FontWeight.Bold,
-                                    textAlign = TextAlign.Center
-                                )
-                            )
-
-                            if (pinErrorMessage != null) {
-                                Text(
-                                    text = pinErrorMessage.orEmpty(),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error
-                                )
+                    QrScanTransferPinStep(
+                        pin = transferPinInput,
+                        onPinChange = {
+                            transferPinInput = it
+                            pinErrorMessage = null
+                        },
+                        errorMessage = pinErrorMessage,
+                        isVerifyingPin = isVerifyingPin,
+                        onBack = {
+                            if (!isVerifyingPin) {
+                                resetToCamera()
                             }
-                        }
+                        },
+                        onConfirm = {
+                            if (transferPinInput.length !in setOf(SecurityConfig.TRANSFER_QR_PIN_LENGTH, SecurityConfig.TRANSFER_KEY_LENGTH)) {
+                                return@QrScanTransferPinStep
+                            }
 
-                        // 3. Pie fijo de acciones
-                        AppDialogActionButtons(
-                            dismissText = stringResource(R.string.settings_drive_details_back),
-                            onDismiss = {
-                                if (!isVerifyingPin) {
-                                    resetToCamera()
-                                }
-                            },
-                            confirmText = stringResource(R.string.scan_transfer_pin_confirm_button),
-                            onConfirm = {
-                                if (transferPinInput.length !in setOf(SecurityConfig.TRANSFER_QR_PIN_LENGTH, SecurityConfig.TRANSFER_KEY_LENGTH)) {
-                                    return@AppDialogActionButtons
-                                }
+                            isVerifyingPin = true
+                            val pinChars = transferPinInput.toCharArray()
 
-                                isVerifyingPin = true
-                                val pinChars = transferPinInput.toCharArray()
-
-                                scope.launch {
-                                    val result = try {
-                                        if (pendingEncryptedChunks != null) {
-                                            TransferCrypto.decryptAssembledChunks(
-                                                pendingEncryptedChunks.orEmpty(),
-                                                pinChars
-                                            )
-                                        } else if (pendingEncryptedPayload != null) {
-                                            TransferCrypto.decryptTransferPayload(
-                                                pendingEncryptedPayload.orEmpty(),
-                                                pinChars
-                                            )
-                                        } else {
-                                            Result.failure(IllegalArgumentException())
-                                        }
-                                    } finally {
-                                        CryptoManager.zeroize(pinChars)
+                            scope.launch {
+                                val result = try {
+                                    if (pendingEncryptedChunks != null) {
+                                        TransferCrypto.decryptAssembledChunks(
+                                            pendingEncryptedChunks.orEmpty(),
+                                            pinChars
+                                        )
+                                    } else if (pendingEncryptedPayload != null) {
+                                        TransferCrypto.decryptTransferPayload(
+                                            pendingEncryptedPayload.orEmpty(),
+                                            pinChars
+                                        )
+                                    } else {
+                                        Result.failure(IllegalArgumentException())
                                     }
+                                } finally {
+                                    CryptoManager.zeroize(pinChars)
+                                }
 
-                                    result.fold(
-                                        onSuccess = { decryptedJson ->
-                                            val previews = repository.parseAccountsForPreview(decryptedJson)
-                                            if (previews.isNotEmpty()) {
-                                                parsedAccounts = previews
-                                                selectedAccountIds = previews.map { it.id }.toSet()
-                                                currentStep = QrScannerStep.TRANSFER_SELECT_ACCOUNTS
-                                            } else {
-                                                pinErrorMessage = importAllAlreadyExistErrorText
-                                                appHaptics.error()
-                                            }
-                                            isVerifyingPin = false
-                                        },
-                                        onFailure = { error ->
-                                            if (error is TransferCrypto.ExpiredTransferException) {
-                                                pinErrorMessage = qrExpiredErrorText
+                                result.fold(
+                                    onSuccess = { decryptedJson ->
+                                        val previews = repository.parseAccountsForPreview(decryptedJson)
+                                        if (previews.isNotEmpty()) {
+                                            parsedAccounts = previews
+                                            selectedAccountIds = previews.map { it.id }.toSet()
+                                            currentStep = QrScannerStep.TRANSFER_SELECT_ACCOUNTS
+                                        } else {
+                                            pinErrorMessage = importAllAlreadyExistErrorText
+                                            appHaptics.error()
+                                        }
+                                        isVerifyingPin = false
+                                    },
+                                    onFailure = { error ->
+                                        if (error is TransferCrypto.ExpiredTransferException) {
+                                            pinErrorMessage = qrExpiredErrorText
+                                            appHaptics.error()
+                                            delay(Motion.Duration.FEEDBACK_TOAST.toLong().milliseconds)
+                                            resetToCamera()
+                                        } else {
+                                            failedPinAttempts++
+                                            val remaining = SecurityConfig.TRANSFER_QR_MAX_PIN_ATTEMPTS - failedPinAttempts
+
+                                            if (remaining <= 0) {
+                                                if (currentSessionId != 0L) {
+                                                    blockedSessionIds.add(currentSessionId)
+                                                }
+                                                pendingEncryptedPayload?.let { blockedPayloadFingerprints.add(it.hashCode()) }
+                                                pinErrorMessage = pinMaxAttemptsErrorText
                                                 appHaptics.error()
                                                 delay(Motion.Duration.FEEDBACK_TOAST.toLong().milliseconds)
                                                 resetToCamera()
                                             } else {
-                                                failedPinAttempts++
-                                                val remaining = SecurityConfig.TRANSFER_QR_MAX_PIN_ATTEMPTS - failedPinAttempts
-
-                                                if (remaining <= 0) {
-                                                    if (currentSessionId != 0L) {
-                                                        blockedSessionIds.add(currentSessionId)
-                                                    }
-                                                    pendingEncryptedPayload?.let { blockedPayloadFingerprints.add(it.hashCode()) }
-                                                    pinErrorMessage = pinMaxAttemptsErrorText
-                                                    appHaptics.error()
-                                                    delay(Motion.Duration.FEEDBACK_TOAST.toLong().milliseconds)
-                                                    resetToCamera()
-                                                } else {
-                                                    pinErrorMessage = String.format(pinIncorrectAttemptsFormat, remaining)
-                                                    appHaptics.error()
-                                                }
+                                                pinErrorMessage = String.format(pinIncorrectAttemptsFormat, remaining)
+                                                appHaptics.error()
                                             }
-                                            isVerifyingPin = false
                                         }
-                                    )
-                                }
-                            },
-                            confirmEnabled = (transferPinInput.length == SecurityConfig.TRANSFER_KEY_LENGTH || transferPinInput.length == SecurityConfig.TRANSFER_QR_PIN_LENGTH) && !isVerifyingPin
-                        )
-                    }
+                                        isVerifyingPin = false
+                                    }
+                                )
+                            }
+                        }
+                    )
                 }
 
                 QrScannerStep.TRANSFER_SELECT_ACCOUNTS -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(Dimensions.Spacing.lg)
-                            .imePadding(),
-                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
-                    ) {
-                        // 1. Cabecera fija
-                        Text(
-                            text = stringResource(R.string.import_selection_title),
-                            style = MaterialTheme.typography.titleLarge
-                        )
-
-                        // 2. Cuerpo central scrolleable aislado
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f, fill = false),
-                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.import_selection_desc),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-
-                            AccountImportSelectionList(
-                                accounts = parsedAccounts,
-                                selectedIds = selectedAccountIds,
-                                onToggleAccount = { id ->
-                                    selectedAccountIds = if (id in selectedAccountIds) {
-                                        selectedAccountIds - id
-                                    } else {
-                                        selectedAccountIds + id
-                                    }
-                                },
-                                onSelectAll = {
-                                    selectedAccountIds = parsedAccounts.map { it.id }.toSet()
-                                },
-                                onDeselectAll = {
-                                    selectedAccountIds = emptySet()
-                                }
-                            )
-                        }
-
-                        // 3. Pie fijo de acciones
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(IntrinsicSize.Min),
-                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            TextButton(
-                                onClick = {
-                                    resetToCamera()
-                                },
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.none),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.settings_drive_details_back),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    textAlign = TextAlign.Center
-                                )
+                    QrScanTransferSelectStep(
+                        parsedAccounts = parsedAccounts,
+                        selectedAccountIds = selectedAccountIds,
+                        onToggleAccount = { id ->
+                            selectedAccountIds = if (id in selectedAccountIds) {
+                                selectedAccountIds - id
+                            } else {
+                                selectedAccountIds + id
                             }
-
-                            AppAnimatedButton(
-                                text = stringResource(R.string.import_selection_confirm_button, selectedAccountIds.size),
-                                onClick = {
-                                    val accountsToImport = parsedAccounts.filter { it.id in selectedAccountIds }
-                                    repository.importSelectedAccounts(accountsToImport)
-                                    true
-                                },
-                                onActionConfirmed = {
-                                    onScanSuccess()
-                                    if (modalDismissHandler != null) {
-                                        modalDismissHandler()
-                                    } else {
-                                        onDismiss()
-                                    }
-                                },
-                                enabled = selectedAccountIds.isNotEmpty(),
-                                modifier = Modifier.weight(1f)
-                            )
+                        },
+                        onSelectAll = {
+                            selectedAccountIds = parsedAccounts.map { it.id }.toSet()
+                        },
+                        onDeselectAll = {
+                            selectedAccountIds = emptySet()
+                        },
+                        onBack = resetToCamera,
+                        onImportAccounts = {
+                            val accountsToImport = parsedAccounts.filter { it.id in selectedAccountIds }
+                            repository.importSelectedAccounts(accountsToImport)
+                            true
+                        },
+                        onImportConfirmed = {
+                            onScanSuccess()
+                            if (modalDismissHandler != null) {
+                                modalDismissHandler()
+                            } else {
+                                onDismiss()
+                            }
                         }
-                    }
+                    )
                 }
             }
         }
@@ -1079,94 +537,6 @@ private suspend fun handleScannedBarcode(
                 }
             } else {
                 onIgnored()
-            }
-        }
-    }
-}
-
-/**
- * Insignia animada central proyectada sobre el visor de cámara al capturar exitosamente un código QR.
- *
- * Emerge con animación de rebote elástico suave y desaparece automáticamente tras confirmar la captura.
- *
- * @param capturedChunkIndex Índice numérico del código QR capturado, o `null` si no hay animación activa.
- * @param modifier Modificador de diseño Compose.
- */
-@Composable
-private fun BoxScope.QrCaptureSuccessBadge(
-    capturedChunkIndex: Int?,
-    modifier: Modifier = Modifier
-) {
-    AnimatedVisibility(
-        visible = capturedChunkIndex != null,
-        enter = fadeIn(
-            animationSpec = tween(
-                durationMillis = Motion.Duration.FAST,
-                easing = Motion.EasingCurve.Standard
-            )
-        ) + scaleIn(
-            initialScale = 0.75f,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessMediumLow
-            )
-        ),
-        exit = fadeOut(
-            animationSpec = tween(
-                durationMillis = Motion.Duration.FAST,
-                easing = Motion.EasingCurve.Standard
-            )
-        ) + scaleOut(
-            targetScale = 0.85f,
-            animationSpec = tween(
-                durationMillis = Motion.Duration.FAST,
-                easing = Motion.EasingCurve.Standard
-            )
-        ),
-        modifier = modifier.align(Alignment.Center)
-    ) {
-        Surface(
-            shape = RoundedCornerShape(Dimensions.CornerRadius.large),
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
-            border = BorderStroke(
-                width = Dimensions.Stroke.regular,
-                color = MaterialTheme.colorScheme.primary
-            ),
-            shadowElevation = Dimensions.Elevation.cardDragging,
-            modifier = Modifier.padding(Dimensions.Spacing.md)
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs),
-                modifier = Modifier.padding(
-                    horizontal = Dimensions.Spacing.lg,
-                    vertical = Dimensions.Spacing.md
-                )
-            ) {
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.size(Dimensions.IconSize.hero)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(Dimensions.IconSize.large)
-                        )
-                    }
-                }
-                Text(
-                    text = stringResource(
-                        R.string.scan_transfer_center_captured_badge,
-                        capturedChunkIndex ?: 1
-                    ),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center
-                )
             }
         }
     }

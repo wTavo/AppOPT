@@ -43,9 +43,9 @@ fun SettingsSectionCard(
     title: String,
     description: String,
     icon: ImageVector,
+    modifier: Modifier = Modifier,
     iconTint: Color = MaterialTheme.colorScheme.primary,
     headerTrailing: @Composable (() -> Unit)? = null,
-    modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit = {}
 ) {
     Card(

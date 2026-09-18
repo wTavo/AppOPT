@@ -81,8 +81,8 @@ enum class AnimatedButtonState {
 fun AppAnimatedButton(
     text: String,
     onClick: suspend () -> Boolean,
-    onActionConfirmed: () -> Unit = {},
     modifier: Modifier = Modifier,
+    onActionConfirmed: () -> Unit = {},
     enabled: Boolean = true,
     containerColor: Color? = null,
     height: Dp = Dimensions.ComponentHeight.buttonDefault,

@@ -86,7 +86,7 @@ fun AppNavigation() {
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
-            modifier = if (isApi31Plus && modalBlurRadius > Dimensions.Spacing.none) {
+            modifier = if (isApi31Plus && (isModalActive || modalBlurRadius > Dimensions.Spacing.none)) {
                 Modifier.fillMaxSize().blur(modalBlurRadius)
             } else {
                 Modifier.fillMaxSize()

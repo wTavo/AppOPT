@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -100,7 +101,11 @@ fun AppModalDialog(
         }
     }
 
-    val modalId = remember { UUID.randomUUID().toString() }
+    val modalId = remember {
+        UUID.randomUUID().toString().also { id ->
+            ModalOverlayController.registerModal(id)
+        }
+    }
 
     // Al concluir la animación de salida hacia el botón, desmonta el diálogo
     LaunchedEffect(visibleState.isIdle, visibleState.currentState, visibleState.targetState) {
@@ -149,9 +154,12 @@ fun AppModalDialog(
         properties = properties
     ) {
         val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
-
-        // Limpia el oscurecimiento estático del OS para que el scrim animado de Compose GPU gobierne el fondo
-        LaunchedEffect(dialogWindow) {
+        // Limpia el oscurecimiento estático del OS de forma síncrona antes del primer fotograma
+        dialogWindow?.let { window ->
+            window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+            window.setDimAmount(0f)
+        }
+        SideEffect {
             dialogWindow?.let { window ->
                 window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
                 window.setDimAmount(0f)

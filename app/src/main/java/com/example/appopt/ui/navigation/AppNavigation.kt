@@ -1,7 +1,7 @@
 package com.example.appopt.ui.navigation
 
 import android.os.Build
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -16,7 +16,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.asComposeRenderEffect
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -53,10 +55,12 @@ fun AppNavigation() {
     val isUnlocked by appLockManager.isUnlocked.collectAsStateWithLifecycle()
     val navController = rememberNavController()
     val isModalActive by ModalOverlayController.isModalActive.collectAsStateWithLifecycle()
-    val modalBlurRadius by animateDpAsState(
-        targetValue = if (isModalActive) Dimensions.ComponentSize.modalBlurRadius else Dimensions.Spacing.none,
+    val density = LocalDensity.current
+    val targetBlurPx = remember(density) { with(density) { Dimensions.ComponentSize.modalBlurRadius.toPx() } }
+    val blurProgress by animateFloatAsState(
+        targetValue = if (isModalActive) 1.0f else 0.0f,
         animationSpec = if (isModalActive) Motion.Spec.modalScrimEnterSpec() else Motion.Spec.modalScrimExitSpec(),
-        label = "app_navigation_modal_blur"
+        label = "app_navigation_modal_blur_progress"
     )
 
     // Defensa en profundidad: si la bóveda se bloquea, limpia cualquier registro residual
@@ -86,11 +90,18 @@ fun AppNavigation() {
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
-            modifier = if (isApi31Plus && (isModalActive || modalBlurRadius > Dimensions.Spacing.none)) {
-                Modifier.fillMaxSize().blur(modalBlurRadius)
-            } else {
-                Modifier.fillMaxSize()
-            },
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    if (isApi31Plus && blurProgress > 0.001f) {
+                        val currentRadius = targetBlurPx * blurProgress
+                        renderEffect = android.graphics.RenderEffect.createBlurEffect(
+                            currentRadius.coerceAtLeast(1f),
+                            currentRadius.coerceAtLeast(1f),
+                            android.graphics.Shader.TileMode.CLAMP
+                        ).asComposeRenderEffect()
+                    }
+                },
             exitTransition = {
                 scaleOut(
                     targetScale = Motion.Scale.NAV_BACKGROUND_SHRINK,

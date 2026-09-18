@@ -109,6 +109,7 @@ fun QrScannerDialog(
     val importAllAlreadyExistErrorText = stringResource(R.string.scan_import_all_already_exist)
     val pinMaxAttemptsErrorText = stringResource(R.string.scan_transfer_pin_error_max_attempts)
     val pinIncorrectAttemptsFormat = stringResource(R.string.scan_transfer_pin_error_incorrect_attempts)
+    val qrExpiredErrorText = stringResource(R.string.scan_transfer_error_expired)
 
     var currentStep by remember { mutableStateOf(QrScannerStep.CAMERA) }
 
@@ -656,24 +657,35 @@ fun QrScannerDialog(
                                             }
                                             isVerifyingPin = false
                                         },
-                                        onFailure = { _ ->
-                                            failedPinAttempts++
-                                            val remaining = SecurityConfig.TRANSFER_QR_MAX_PIN_ATTEMPTS - failedPinAttempts
-
-                                            if (remaining <= 0) {
-                                                if (currentSessionId != 0L) {
-                                                    blockedSessionIds.add(currentSessionId)
-                                                }
-                                                pendingEncryptedPayload?.let { blockedPayloadFingerprints.add(it.hashCode()) }
-                                                pinErrorMessage = pinMaxAttemptsErrorText
+                                        onFailure = { error ->
+                                            if (error is TransferCrypto.ExpiredTransferException) {
+                                                pinErrorMessage = qrExpiredErrorText
                                                 appHaptics.error()
                                                 delay(Motion.Duration.FEEDBACK_TOAST.toLong().milliseconds)
                                                 currentStep = QrScannerStep.CAMERA
                                                 isProcessingBarcode = false
                                                 lastScannedPayload = null
+                                                transferPinInput = ""
                                             } else {
-                                                pinErrorMessage = String.format(pinIncorrectAttemptsFormat, remaining)
-                                                appHaptics.error()
+                                                failedPinAttempts++
+                                                val remaining = SecurityConfig.TRANSFER_QR_MAX_PIN_ATTEMPTS - failedPinAttempts
+
+                                                if (remaining <= 0) {
+                                                    if (currentSessionId != 0L) {
+                                                        blockedSessionIds.add(currentSessionId)
+                                                    }
+                                                    pendingEncryptedPayload?.let { blockedPayloadFingerprints.add(it.hashCode()) }
+                                                    pinErrorMessage = pinMaxAttemptsErrorText
+                                                    appHaptics.error()
+                                                    delay(Motion.Duration.FEEDBACK_TOAST.toLong().milliseconds)
+                                                    currentStep = QrScannerStep.CAMERA
+                                                    isProcessingBarcode = false
+                                                    lastScannedPayload = null
+                                                    transferPinInput = ""
+                                                } else {
+                                                    pinErrorMessage = String.format(pinIncorrectAttemptsFormat, remaining)
+                                                    appHaptics.error()
+                                                }
                                             }
                                             isVerifyingPin = false
                                         }

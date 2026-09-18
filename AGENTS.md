@@ -328,3 +328,14 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 - **OBLIGATORIO el filtrado estricto por modo de operación (`QrScannerMode`):**
   1. **`QrScannerMode.SINGLE_ACCOUNT` (Home / Menú «+»):** Procesa exclusivamente códigos OTP individuales (`otpauth://`). Si la cámara detecta códigos de transferencia o ajenos, **los ignora en silencio** sin emitir errores ni interrumpir la cámara.
   2. **`QrScannerMode.TRANSFER_MIGRATION` (Ajustes / Transferencia de cuentas):** Protegido obligatoriamente con autenticación biométrica previa. Procesa exclusivamente paquetes de migración/transferencia por lotes cifrados (`appopt-transfer://`). Si detecta códigos individuales, **los ignora en silencio**.
+
+---
+
+## 29. Modularidad de Archivos, Límites de Extensión y Desacoplamiento de Subcomponentes (*File Size Limits & Sub-Component Modularization*)
+- **PROHIBIDO** crear o mantener archivos monolíticos sobrecargados que superen el límite recomendado de **350–400 líneas de código** en vistas, composables, diálogos, ViewModels o clases de lógica.
+- **PROHIBIDO** acumular múltiples pasos de un flujo modal, formularios auxiliares o sub-vistas completas dentro del mismo archivo del diálogo principal (*God Files / Monolithic Components*).
+- **OBLIGATORIO analizar proactivamente oportunidades de partición y modularización:**
+  1. Ante cualquier nuevo desarrollo, adición de funcionalidades o crecimiento de un archivo hacia más de 300–350 líneas, **analizar obligatoriamente la descomposición en nuevos archivos especializados**.
+  2. En diálogos modales multi-etapa (`AppModalDialog`), extraer cada paso, sub-formulario o pantalla secundaria a un archivo `.kt` independiente dentro del sub-paquete `components/` correspondiente (ej. `ui/screens/scan/components/QrScanCameraStep.kt`, `QrScanSingleOtpStep.kt`, `QrScanTransferPinStep.kt`, `QrScanTransferSelectStep.kt`).
+  3. En pantallas principales, desacoplar tarjetas de sección, cabeceras, docks flotantes y estados vacíos en componentes dedicados dentro del sub-paquete `components/`.
+  4. Mantener cada archivo enfocado estrictamente en una única responsabilidad (*Single Responsibility Principle - SRP*), con 100% de documentación KDoc, imports limpios y sin sobrecarga ciclomática.

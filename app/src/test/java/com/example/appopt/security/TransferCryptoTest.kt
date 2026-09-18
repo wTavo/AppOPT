@@ -15,13 +15,42 @@ class TransferCryptoTest {
     private val wrongPin = "111222".toCharArray()
 
     /**
-     * Valida que el generador de PIN produzca exactamente 6 dígitos numéricos.
+     * Valida que el generador de clave produzca exactamente 8 caracteres del alfabeto Base32 seguro.
      */
     @Test
     fun testGeneratePinFormat() {
         val pin = TransferCrypto.generateTransferPin()
-        assertEquals(6, pin.length)
-        assertTrue(pin.all { it.isDigit() })
+        assertEquals(SecurityConfig.TRANSFER_KEY_LENGTH, pin.length)
+        assertTrue(pin.all { it in SecurityConfig.TRANSFER_KEY_ALPHABET })
+    }
+
+    /**
+     * Valida que una clave alfanumérica de 8 caracteres cifre y descifre correctamente,
+     * incluso cuando el receptor la ingresa con formato con guion, minúsculas o espacios.
+     */
+    @Test
+    fun testEncryptAndDecryptWith8CharKeyAndNormalization() {
+        val key8 = "K7NP4M9X".toCharArray()
+        val encrypted = TransferCrypto.encryptTransferPayload(
+            accountsJson = sampleAccountsJson,
+            pin = key8,
+            durationSeconds = 90
+        )
+
+        // Descifrado con formato idéntico
+        val res1 = TransferCrypto.decryptTransferPayload(encrypted, "K7NP4M9X".toCharArray())
+        assertTrue(res1.isSuccess)
+        assertEquals(sampleAccountsJson, res1.getOrThrow())
+
+        // Descifrado con guion y espacios (K7NP - 4M9X)
+        val res2 = TransferCrypto.decryptTransferPayload(encrypted, "K7NP - 4M9X".toCharArray())
+        assertTrue(res2.isSuccess)
+        assertEquals(sampleAccountsJson, res2.getOrThrow())
+
+        // Descifrado en minúsculas con guion pegado (k7np-4m9x)
+        val res3 = TransferCrypto.decryptTransferPayload(encrypted, "k7np-4m9x".toCharArray())
+        assertTrue(res3.isSuccess)
+        assertEquals(sampleAccountsJson, res3.getOrThrow())
     }
 
     /**

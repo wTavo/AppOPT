@@ -42,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -572,14 +573,16 @@ fun QrScannerDialog(
                             OutlinedTextField(
                                 value = transferPinInput,
                                 onValueChange = { input ->
-                                    if (input.length <= 6 && input.all { it.isDigit() }) {
-                                        transferPinInput = input
-                                        pinErrorMessage = null
-                                    }
+                                    val cleaned = input.filter { it.isLetterOrDigit() }.take(SecurityConfig.TRANSFER_KEY_LENGTH).uppercase()
+                                    transferPinInput = cleaned
+                                    pinErrorMessage = null
                                 },
                                 label = { Text(stringResource(R.string.scan_transfer_pin_input_label)) },
                                 singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Ascii,
+                                    capitalization = KeyboardCapitalization.Characters
+                                ),
                                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                                 modifier = Modifier.fillMaxWidth(),
                                 textStyle = MaterialTheme.typography.headlineSmall.copy(
@@ -614,7 +617,7 @@ fun QrScannerDialog(
                             },
                             confirmText = stringResource(R.string.scan_transfer_pin_confirm_button),
                             onConfirm = {
-                                if (transferPinInput.length != 6) {
+                                if (transferPinInput.length !in setOf(SecurityConfig.TRANSFER_QR_PIN_LENGTH, SecurityConfig.TRANSFER_KEY_LENGTH)) {
                                     return@AppDialogActionButtons
                                 }
 
@@ -677,7 +680,7 @@ fun QrScannerDialog(
                                     )
                                 }
                             },
-                            confirmEnabled = transferPinInput.length == SecurityConfig.TRANSFER_QR_PIN_LENGTH && !isVerifyingPin
+                            confirmEnabled = (transferPinInput.length == SecurityConfig.TRANSFER_KEY_LENGTH || transferPinInput.length == SecurityConfig.TRANSFER_QR_PIN_LENGTH) && !isVerifyingPin
                         )
                     }
                 }

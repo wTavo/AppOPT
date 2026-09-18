@@ -113,13 +113,18 @@ object TransferCrypto {
     class IncompleteTransferException(message: String = "Faltan fragmentos para completar la transferencia") : Exception(message)
 
     /**
-     * Genera un PIN aleatorio numérico de 6 dígitos utilizando un generador criptográficamente seguro (CSPRNG).
+     * Genera una clave aleatoria alfanumérica de 8 caracteres utilizando el alfabeto Base32 seguro
+     * ([SecurityConfig.TRANSFER_KEY_ALPHABET]) y un generador criptográficamente seguro (CSPRNG).
      *
-     * @return Cadena de 6 dígitos (ej. "482915").
+     * @return Cadena de 8 caracteres en mayúsculas (ej. "K7NP4M9X").
      */
     fun generateTransferPin(): String {
-        val number = secureRandom.nextInt(1_000_000)
-        return String.format(java.util.Locale.US, "%06d", number)
+        val alphabet = SecurityConfig.TRANSFER_KEY_ALPHABET
+        val chars = CharArray(SecurityConfig.TRANSFER_KEY_LENGTH)
+        for (i in chars.indices) {
+            chars[i] = alphabet[secureRandom.nextInt(alphabet.length)]
+        }
+        return String(chars)
     }
 
     /**
@@ -205,11 +210,17 @@ object TransferCrypto {
         val compressedPlainBytes = compress(rawPlainBytes)
         CryptoManager.zeroize(rawPlainBytes)
 
+        val normalizedPinChars = String(pin)
+            .replace("-", "")
+            .replace(" ", "")
+            .uppercase()
+            .toCharArray()
+
         var derivedKeyBytes: ByteArray? = null
 
         try {
             val keySpec = PBEKeySpec(
-                pin,
+                normalizedPinChars,
                 salt,
                 SecurityConfig.TRANSFER_QR_PBKDF2_ITERATIONS,
                 SecurityConfig.BACKUP_KEY_SIZE_BITS
@@ -269,6 +280,7 @@ object TransferCrypto {
 
             return resultQrStrings
         } finally {
+            CryptoManager.zeroize(normalizedPinChars)
             CryptoManager.zeroize(compressedPlainBytes)
             derivedKeyBytes?.let { CryptoManager.zeroize(it) }
         }
@@ -414,12 +426,18 @@ object TransferCrypto {
             val salt = first.salt
             val iv = first.iv
 
+            val normalizedPinChars = String(pin)
+                .replace("-", "")
+                .replace(" ", "")
+                .uppercase()
+                .toCharArray()
+
             var derivedKeyBytes: ByteArray? = null
             var decryptedCompressedBytes: ByteArray? = null
 
             try {
                 val keySpec = PBEKeySpec(
-                    pin,
+                    normalizedPinChars,
                     salt,
                     SecurityConfig.TRANSFER_QR_PBKDF2_ITERATIONS,
                     SecurityConfig.BACKUP_KEY_SIZE_BITS
@@ -463,6 +481,7 @@ object TransferCrypto {
 
                 decryptedPayloadString.substring(separatorIndex + 1)
             } finally {
+                CryptoManager.zeroize(normalizedPinChars)
                 derivedKeyBytes?.let { CryptoManager.zeroize(it) }
                 decryptedCompressedBytes?.let { CryptoManager.zeroize(it) }
             }

@@ -151,7 +151,11 @@ fun ExportQrCarouselStep(
         val currentBitmap = transferQrBitmaps.getOrNull(currentQrIndex)
         val imageBitmap = androidx.compose.runtime.remember(currentBitmap) { currentBitmap?.asImageBitmap() }
         val formattedPin = androidx.compose.runtime.remember(transferPin) {
-            if (transferPin.length == 6) "${transferPin.substring(0, 3)} ${transferPin.substring(3)}" else transferPin
+            when (transferPin.length) {
+                8 -> "${transferPin.substring(0, 4)} - ${transferPin.substring(4)}"
+                6 -> "${transferPin.substring(0, 3)} ${transferPin.substring(3)}"
+                else -> transferPin
+            }
         }
 
         if (imageBitmap != null) {

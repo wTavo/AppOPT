@@ -112,7 +112,18 @@ object SecurityConfig {
     const val BACKUP_DOWNLOAD_CACHE_TTL_MILLIS = 120_000L
 
     /**
-     * Longitud en dígitos para el PIN de transferencia de servicios por código QR.
+     * Longitud en caracteres para la clave alfanumérica de transferencia de servicios por código QR.
+     */
+    const val TRANSFER_KEY_LENGTH = 8
+
+    /**
+     * Alfabeto Base32 Crockford sin caracteres ambiguos (excluye 0, O, 1, I) para la clave de transferencia.
+     * Ofrece 32 caracteres seguros, generando 1.1 billones de combinaciones con 8 caracteres.
+     */
+    const val TRANSFER_KEY_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+
+    /**
+     * Longitud en dígitos para el PIN de transferencia de servicios por código QR (esquema legado).
      */
     const val TRANSFER_QR_PIN_LENGTH = 6
 

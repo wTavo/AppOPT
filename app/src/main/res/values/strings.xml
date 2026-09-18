@@ -108,17 +108,17 @@
     <string name="settings_export_qr_dialog_title">Escanear para transferir</string>
     <string name="settings_export_confirm_done">Listo, servicios transferidos</string>
     <string name="settings_services_deleted_after_export">Los servicios seleccionados fueron eliminados de este dispositivo.</string>
-    <string name="settings_transfer_pin_label">PIN de transferencia:</string>
-    <string name="settings_transfer_pin_hint">Ingresa este PIN en el otro teléfono para descifrar tus servicios.</string>
+    <string name="settings_transfer_pin_label">Clave de transferencia</string>
+    <string name="settings_transfer_pin_hint">Ingresa esta clave en el otro teléfono para descifrar tus servicios.</string>
     <string name="settings_transfer_expires_in">Expira en %1$d s</string>
     <string name="settings_transfer_expired_title">Código QR expirado</string>
-    <string name="settings_transfer_expired_desc">Por seguridad, el código QR y el PIN han caducado por tiempo límite.</string>
+    <string name="settings_transfer_expired_desc">Por seguridad, el código QR y la clave han caducado por tiempo límite.</string>
     <string name="settings_transfer_regenerate_button">Generar nuevo código</string>
     <string name="settings_transfer_page_indicator">Código %1$d de %2$d</string>
     <string name="settings_transfer_selected_services_count">%1$d servicios seleccionados</string>
     <string name="settings_transfer_prev_code">Anterior</string>
     <string name="settings_transfer_next_code">Siguiente</string>
-    <string name="settings_transfer_view_pin">Ver PIN de transferencia</string>
+    <string name="settings_transfer_view_pin">Ver clave de transferencia</string>
     <string name="settings_transfer_view_qr">Ver código QR</string>
     <string name="scan_transfer_chunk_progress">Lote %1$d de %2$d escaneado. Escanea el código restante.</string>
 
@@ -288,11 +288,11 @@
 
     <!-- Escáner QR y Cámara (QR Scanner) -->
     <string name="settings_export_qr_error">No se pudo generar el código QR con los servicios seleccionados. Intenta exportar menos servicios a la vez.</string>
-    <string name="scan_transfer_pin_dialog_title">PIN de transferencia</string>
-    <string name="scan_transfer_pin_dialog_desc">Ingresa el PIN de 6 dígitos que aparece en la pantalla del otro teléfono:</string>
-    <string name="scan_transfer_pin_input_label">PIN (6 dígitos)</string>
+    <string name="scan_transfer_pin_dialog_title">Clave de transferencia</string>
+    <string name="scan_transfer_pin_dialog_desc">Ingresa la clave de 8 caracteres que aparece en la pantalla del otro teléfono:</string>
+    <string name="scan_transfer_pin_input_label">Clave (8 caracteres)</string>
     <string name="scan_transfer_pin_confirm_button">Descifrar e importar</string>
-    <string name="scan_transfer_pin_error_incorrect_attempts">PIN incorrecto. Te quedan %1$d intentos.</string>
+    <string name="scan_transfer_pin_error_incorrect_attempts">Clave incorrecta. Te quedan %1$d intentos.</string>
     <string name="scan_transfer_pin_error_max_attempts">Límite de intentos alcanzado. Transferencia cancelada por seguridad.</string>
     <string name="scan_transfer_import_success">Se importaron %1$d servicios correctamente</string>
     <string name="scan_import_all_already_exist">Todos los servicios escaneados ya estaban registrados en tu bóveda</string>

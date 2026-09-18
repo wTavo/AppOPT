@@ -55,12 +55,22 @@ fun AppNavigation() {
     val isUnlocked by appLockManager.isUnlocked.collectAsStateWithLifecycle()
     val navController = rememberNavController()
     val isModalActive by ModalOverlayController.isModalActive.collectAsStateWithLifecycle()
+    val isApi31Plus = remember { Build.VERSION.SDK_INT >= Build.VERSION_CODES.S }
     val density = LocalDensity.current
     val targetBlurPx = remember(density) { with(density) { Dimensions.ComponentSize.modalBlurRadius.toPx() } }
-    val blurProgress by animateFloatAsState(
+    val fixedBlurEffect = remember(targetBlurPx, isApi31Plus) {
+        if (isApi31Plus) {
+            android.graphics.RenderEffect.createBlurEffect(
+                targetBlurPx,
+                targetBlurPx,
+                android.graphics.Shader.TileMode.CLAMP
+            ).asComposeRenderEffect()
+        } else null
+    }
+    val blurAlpha by animateFloatAsState(
         targetValue = if (isModalActive) 1.0f else 0.0f,
         animationSpec = if (isModalActive) Motion.Spec.modalScrimEnterSpec() else Motion.Spec.modalScrimExitSpec(),
-        label = "app_navigation_modal_blur_progress"
+        label = "app_navigation_modal_blur_alpha"
     )
 
     // Defensa en profundidad: si la bóveda se bloquea, limpia cualquier registro residual
@@ -84,8 +94,6 @@ fun AppNavigation() {
         }
     }
 
-    val isApi31Plus = remember { Build.VERSION.SDK_INT >= Build.VERSION_CODES.S }
-
     Box(modifier = Modifier.fillMaxSize()) {
         NavHost(
             navController = navController,
@@ -93,13 +101,10 @@ fun AppNavigation() {
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    if (isApi31Plus && blurProgress > 0.001f) {
-                        val currentRadius = targetBlurPx * blurProgress
-                        renderEffect = android.graphics.RenderEffect.createBlurEffect(
-                            currentRadius.coerceAtLeast(1f),
-                            currentRadius.coerceAtLeast(1f),
-                            android.graphics.Shader.TileMode.CLAMP
-                        ).asComposeRenderEffect()
+                    if (isApi31Plus && blurAlpha > 0.001f) {
+                        renderEffect = fixedBlurEffect
+                    } else {
+                        renderEffect = null
                     }
                 },
             exitTransition = {

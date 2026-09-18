@@ -144,12 +144,12 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
     - `ModalTone.DESTRUCTIVE`: Para acciones críticas, irreversibles o de alto impacto (desvincular cuentas en la nube, reemplazar copias existentes de respaldo, vaciar papelera o eliminar definitivamente cuentas):
       1. Fondo de tarjeta oscuro constante e idéntico tanto en tema claro como oscuro (esquema oscuro forzado con tipografía de alto contraste para identificación visual inmediata del impacto destructivo).
       2. Borde perimetral neutro estándar `outlineVariant` al 15% de opacidad para consistencia geométrica sin saturación cromática.
-      3. Velo de fondo desenfocado estándar neutro (Color.Black) idéntico a los modales estándar, sin tinte de advertencia.
+      3. Velo de fondo oscurecido estándar neutro (Color.Black al 50% de opacidad) idéntico a los modales estándar, sin tinte de advertencia.
       4. Icono centrado y título principal en color `MaterialTheme.colorScheme.error`.
       5. Botón de confirmación con esquema de color de error (`isDestructive = true` en `AppDialogActionButtons` o `AppAnimatedButton(containerColor = error)`).
-- **OBLIGATORIO la gestión determinista del velo de desenfoque (*Zero-Ghost Blur Lifecycle*):**
-  - **PROHIBIDO** gobernar el desenfoque de fondo mediante banderas booleanas aisladas o contadores sueltos que puedan quedar huérfanos al desmontarse diálogos o ante navegaciones defensivas del sistema (*Sticky / Orphan Blur*).
-  - **OBLIGATORIO** registrar cada modal en `ModalOverlayController` mediante un identificador único en su composición (`registerModal(id)` / `unregisterModal(id)`) o consumir `LocalModalDismissHandler`, garantizando que el desenfoque solo esté activo mientras exista al menos un diálogo modal visible y se limpie atómicamente de inmediato al cerrarse el último modal.
+- **OBLIGATORIO la gestión del velo oscurecido estándar de Material Design 3 (*Zero-Jank Scrim Lifecycle*):**
+  - **PROHIBIDO** el uso de algoritmos de desenfoque gaussiano en tiempo real (`RenderEffect` / `Modifier.blur()`) sobre la pantalla completa durante las transiciones de diálogos modales para evitar saturación de la GPU y tirones en pantallas de 90/120Hz.
+  - **OBLIGATORIO** utilizar el velo oscurecido (*Scrim*) estándar de Material Design 3 al 50% de opacidad (`targetScrimAlpha = 0.50f`) animado en la fase de dibujo (`graphicsLayer { alpha = scrimAlpha }`) consumiendo `Motion.Spec.modalScrimEnterSpec()` y `Motion.Spec.modalScrimExitSpec()`, garantizando foco visual, contraste óptimo y 60/90/120 FPS estables sin sobrecarga computacional.
 - **OBLIGATORIO** implementar navegación defensiva hacia atrás en `onDismissRequest`: presionar afuera o el botón atrás del sistema debe revertir al estado/paso anterior antes de cerrar el modal por completo.
 - **OBLIGATORIO la jerarquía de animaciones en transiciones de diálogos (*Unified Monolithic Dynamic Island Morphing*):**
   - **PROHIBIDO** fragmentar diálogos modales interactivos en múltiples ranuras animadas independientes (`title`, `text`, `confirmButton`) que compitan entre sí y provoquen colisiones de layout o desbordes en la parte inferior.
@@ -315,3 +315,16 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
            - Persistencia en `SharedPreferences` y `DataStore`.
            - Comunicaciones HTTP REST con Google Drive API.
            - Operaciones de lectura y escritura en almacenamiento local de archivos.
+
+---
+
+## 28. Especialización de Escaneo QR y Ciclo de Vida Bajo Demanda de Cámara (`QrScannerMode` & Camera Lifecycle)
+- **PROHIBIDO** encender la cámara automáticamente de golpe al abrir el diálogo modal de escaneo (`QrScannerDialog`).
+- **PROHIBIDO** procesar códigos de transferencia o migración masiva en el escáner de alta rápida del Home sin autenticación biométrica previa, o emitir alertas de error invasivas ante códigos de otros formatos.
+- **OBLIGATORIO el inicio bajo demanda y retroalimentación asíncrona real:**
+  1. Mostrar siempre el contenedor inicial con el botón **«Iniciar cámara»** (`R.string.scan_camera_start_action`).
+  2. Al pulsar el botón, mostrar el indicador de carga asíncrono real (`CircularProgressIndicator`) mientras CameraX solicita permisos (si faltan) y vincula los casos de uso al ciclo de vida (`bindToLifecycle`), ocultando el indicador en cuanto la vista previa esté activa.
+  3. Preservar el estado de cámara activa si el usuario navega a sub-pantallas del diálogo (ingreso de PIN o selector de cuentas) y pulsa «Volver» dentro de la misma sesión del diálogo modal.
+- **OBLIGATORIO el filtrado estricto por modo de operación (`QrScannerMode`):**
+  1. **`QrScannerMode.SINGLE_ACCOUNT` (Home / Menú «+»):** Procesa exclusivamente códigos OTP individuales (`otpauth://`). Si la cámara detecta códigos de transferencia o ajenos, **los ignora en silencio** sin emitir errores ni interrumpir la cámara.
+  2. **`QrScannerMode.TRANSFER_MIGRATION` (Ajustes / Transferencia de cuentas):** Protegido obligatoriamente con autenticación biométrica previa. Procesa exclusivamente paquetes de migración/transferencia por lotes cifrados (`appopt-transfer://`). Si detecta códigos individuales, **los ignora en silencio**.

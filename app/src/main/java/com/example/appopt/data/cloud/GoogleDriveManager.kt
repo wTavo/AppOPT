@@ -210,19 +210,23 @@ object GoogleDriveManager {
                 put("parents", org.json.JSONArray().apply { put("appDataFolder") })
             }.toString()
 
-            OutputStreamWriter(connection.outputStream, StandardCharsets.UTF_8).use { writer ->
-                writer.write("--$boundary\r\n")
-                writer.write("Content-Type: application/json; charset=UTF-8\r\n\r\n")
-                writer.write(metadataJson)
-                writer.write("\r\n--$boundary\r\n")
-                writer.write("Content-Type: application/json\r\n\r\n")
-                writer.write(encryptedEnvelopeString)
-                writer.write("\r\n--$boundary--\r\n")
-                writer.flush()
-            }
+            try {
+                OutputStreamWriter(connection.outputStream, StandardCharsets.UTF_8).use { writer ->
+                    writer.write("--$boundary\r\n")
+                    writer.write("Content-Type: application/json; charset=UTF-8\r\n\r\n")
+                    writer.write(metadataJson)
+                    writer.write("\r\n--$boundary\r\n")
+                    writer.write("Content-Type: application/json\r\n\r\n")
+                    writer.write(encryptedEnvelopeString)
+                    writer.write("\r\n--$boundary--\r\n")
+                    writer.flush()
+                }
 
-            val responseCode = connection.responseCode
-            validateResponseCode(responseCode, "crear respaldo en Drive")
+                val responseCode = connection.responseCode
+                validateResponseCode(responseCode, "crear respaldo en Drive")
+            } finally {
+                connection.disconnect()
+            }
 
             // Poda automática: eliminar copias que excedan el límite de retención
             pruneOldBackups(accessToken, MAX_BACKUP_VERSIONS)
@@ -247,11 +251,15 @@ object GoogleDriveManager {
                 setRequestProperty("Authorization", "Bearer $accessToken")
             }
 
-            val responseCode = connection.responseCode
-            validateResponseCode(responseCode, "listar copias de seguridad de Drive")
+            val responseText = try {
+                val responseCode = connection.responseCode
+                validateResponseCode(responseCode, "listar copias de seguridad de Drive")
 
-            val responseText = BufferedReader(InputStreamReader(connection.inputStream, StandardCharsets.UTF_8)).use {
-                it.readText()
+                BufferedReader(InputStreamReader(connection.inputStream, StandardCharsets.UTF_8)).use {
+                    it.readText()
+                }
+            } finally {
+                connection.disconnect()
             }
 
             val json = JSONObject(responseText)
@@ -338,11 +346,15 @@ object GoogleDriveManager {
             setRequestProperty("Authorization", "Bearer $accessToken")
         }
 
-        val responseCode = connection.responseCode
-        validateResponseCode(responseCode, "descargar respaldo de Drive")
+        val content = try {
+            val responseCode = connection.responseCode
+            validateResponseCode(responseCode, "descargar respaldo de Drive")
 
-        val content = BufferedReader(InputStreamReader(connection.inputStream, StandardCharsets.UTF_8)).use { reader ->
-            reader.readText()
+            BufferedReader(InputStreamReader(connection.inputStream, StandardCharsets.UTF_8)).use { reader ->
+                reader.readText()
+            }
+        } finally {
+            connection.disconnect()
         }
         downloadedFilesCache[fileId] = CachedEncryptedFile(fileId, content, now)
         return content
@@ -439,9 +451,13 @@ object GoogleDriveManager {
                 setRequestProperty("Authorization", "Bearer $accessToken")
             }
 
-            val responseCode = connection.responseCode
-            if (responseCode != 404) {
-                validateResponseCode(responseCode, "eliminar la copia en Google Drive")
+            try {
+                val responseCode = connection.responseCode
+                if (responseCode != 404) {
+                    validateResponseCode(responseCode, "eliminar la copia en Google Drive")
+                }
+            } finally {
+                connection.disconnect()
             }
             downloadedFilesCache.remove(fileId)
             Unit

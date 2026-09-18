@@ -375,14 +375,15 @@ object BackupCrypto {
             val derivedKeyBytes = factory.generateSecret(keySpec).encoded
             keySpec.clearPassword()
 
-            val wrapSecretKey = SecretKeySpec(derivedKeyBytes, "AES")
-            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-            val spec = GCMParameterSpec(128, iv)
-            cipher.init(Cipher.DECRYPT_MODE, wrapSecretKey, spec)
-
-            val recoveredKey = cipher.doFinal(wrappedKey)
-            CryptoManager.zeroize(derivedKeyBytes)
-            recoveredKey
+            try {
+                val wrapSecretKey = SecretKeySpec(derivedKeyBytes, "AES")
+                val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+                val spec = GCMParameterSpec(128, iv)
+                cipher.init(Cipher.DECRYPT_MODE, wrapSecretKey, spec)
+                cipher.doFinal(wrappedKey)
+            } finally {
+                CryptoManager.zeroize(derivedKeyBytes)
+            }
         } catch (_: Exception) {
             null
         }

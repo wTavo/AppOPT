@@ -52,19 +52,31 @@ class CryptoManager(
         load(null)
     }
 
+    @Volatile
+    private var cachedSecretKey: SecretKey? = null
+
     /**
      * Obtiene la clave maestra existente en el hardware seguro o genera una nueva de 256 bits si no existe.
+     * Utiliza un manejador en memoria en caché ([cachedSecretKey]) para eliminar llamadas IPC redundantes a keystore2.
      *
      * @return [SecretKey] gestionada por el AndroidKeyStore.
      */
     private fun getOrCreateSecretKey(): SecretKey {
-        if (keyStore.containsAlias(keyAlias)) {
-            val entry = keyStore.getEntry(keyAlias, null) as? KeyStore.SecretKeyEntry
-            if (entry != null) {
-                return entry.secretKey
+        cachedSecretKey?.let { return it }
+        return synchronized(this) {
+            cachedSecretKey?.let { return it }
+            val key = if (keyStore.containsAlias(keyAlias)) {
+                val entry = keyStore.getEntry(keyAlias, null) as? KeyStore.SecretKeyEntry
+                entry?.secretKey ?: generateSecretKey()
+            } else {
+                generateSecretKey()
             }
+            cachedSecretKey = key
+            key
         }
+    }
 
+    private fun generateSecretKey(): SecretKey {
         val keyGenerator = KeyGenerator.getInstance(
             KeyProperties.KEY_ALGORITHM_AES,
             SecurityConfig.ANDROID_KEYSTORE_PROVIDER

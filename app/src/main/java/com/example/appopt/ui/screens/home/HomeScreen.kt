@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.appopt.AuthenticatorApp
@@ -185,10 +186,16 @@ fun HomeScreen(
     }
 
     // Cálculo dinámico de resguardo vertical para evitar que el header flotante y el dock tapen las tarjetas en cualquier dispositivo
-    val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val listTopPadding = statusBarTop + Dimensions.ComponentHeight.buttonDefault + (Dimensions.Spacing.sm * 2) + Dimensions.Spacing.md
-    val listBottomPadding = navBarBottom + Dimensions.Spacing.lg + Dimensions.ComponentSize.heroFab + (Dimensions.Spacing.sm * 2) + Dimensions.Spacing.lg
+    val density = LocalDensity.current
+    val statusBars = WindowInsets.statusBars
+    val navigationBars = WindowInsets.navigationBars
+    val (listTopPadding, listBottomPadding) = remember(density, statusBars, navigationBars) {
+        val statusBarTop = statusBars.asPaddingValues(density).calculateTopPadding()
+        val navBarBottom = navigationBars.asPaddingValues(density).calculateBottomPadding()
+        val top = statusBarTop + Dimensions.ComponentHeight.buttonDefault + (Dimensions.Spacing.sm * 2) + Dimensions.Spacing.md
+        val bottom = navBarBottom + Dimensions.Spacing.lg + Dimensions.ComponentSize.heroFab + (Dimensions.Spacing.sm * 2) + Dimensions.Spacing.lg
+        top to bottom
+    }
 
     Box(
         modifier = modifier

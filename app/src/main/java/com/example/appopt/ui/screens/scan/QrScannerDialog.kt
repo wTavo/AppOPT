@@ -95,7 +95,24 @@ private enum class QrScannerStep {
 }
 
 /**
- * Diálogo modal para escaneo de códigos QR (alta de cuentas individuales y transferencias en lote cifradas con PIN).
+ * Modos de filtrado y operación del escáner de códigos QR.
+ */
+enum class QrScannerMode {
+    /**
+     * Modo exclusivo para alta de servicios 2FA individuales (`otpauth://`).
+     * Ignora silenciosamente transferencias por lotes o formatos incompatibles.
+     */
+    SINGLE_ACCOUNT,
+
+    /**
+     * Modo exclusivo para importación y transferencia de cuentas por lotes cifrados (`appopt-transfer://`).
+     * Ignora silenciosamente códigos OTP individuales estándar.
+     */
+    TRANSFER_MIGRATION
+}
+
+/**
+ * Diálogo modal para escaneo de códigos QR con filtrado estricto por modo de operación.
  *
  * Estándares aplicados:
  * - Directiva 14: Máquina de estados monolítica dentro de [AppModalDialog] con navegación defensiva ([onBackStep]).
@@ -106,6 +123,7 @@ private enum class QrScannerStep {
  *
  * @param onDismiss Callback para cerrar el diálogo.
  * @param modifier Modificador de diseño Compose.
+ * @param mode Modo de filtrado y operación del escáner ([QrScannerMode.SINGLE_ACCOUNT] o [QrScannerMode.TRANSFER_MIGRATION]).
  * @param onScanSuccess Callback invocado tras la importación exitosa de una o más cuentas.
  * @param title Título del diálogo.
  */
@@ -113,8 +131,13 @@ private enum class QrScannerStep {
 fun QrScannerDialog(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    mode: QrScannerMode = QrScannerMode.SINGLE_ACCOUNT,
     onScanSuccess: () -> Unit = {},
-    title: String = stringResource(R.string.scan_title)
+    title: String = if (mode == QrScannerMode.TRANSFER_MIGRATION) {
+        stringResource(R.string.scan_import_title)
+    } else {
+        stringResource(R.string.scan_title)
+    }
 ) {
     val appHaptics = rememberAppHaptics()
     val scope = rememberCoroutineScope()
@@ -247,6 +270,7 @@ fun QrScannerDialog(
                                         scope.launch {
                                             handleScannedBarcode(
                                                 rawValue = rawValue,
+                                                mode = mode,
                                                 appHaptics = appHaptics,
                                                 blockedSessionIds = blockedSessionIds,
                                                 blockedPayloadFingerprints = blockedPayloadFingerprints,
@@ -302,6 +326,12 @@ fun QrScannerDialog(
                                                     failedPinAttempts = 0
                                                     currentStep = QrScannerStep.TRANSFER_PIN
                                                 },
+                                                onIgnored = {
+                                                    scope.launch {
+                                                        delay(200L.milliseconds)
+                                                        isProcessingBarcode = false
+                                                    }
+                                                },
                                                 onError = {
                                                     appHaptics.error()
                                                     delay(Motion.Duration.FEEDBACK_TOAST.toLong().milliseconds)
@@ -312,11 +342,13 @@ fun QrScannerDialog(
                                     }
                                 },
                                 overlayContent = {
-                                    QrCaptureSuccessBadge(capturedChunkIndex = capturedChunkAnimationIndex)
+                                    if (mode == QrScannerMode.TRANSFER_MIGRATION) {
+                                        QrCaptureSuccessBadge(capturedChunkIndex = capturedChunkAnimationIndex)
+                                    }
                                 }
                             )
 
-                            if (totalExpectedChunks > 1 && sessionChunks.size < totalExpectedChunks) {
+                            if (mode == QrScannerMode.TRANSFER_MIGRATION && totalExpectedChunks > 1 && sessionChunks.size < totalExpectedChunks) {
                                 Surface(
                                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -437,7 +469,11 @@ fun QrScannerDialog(
                                 }
                             } else {
                                 Text(
-                                    text = stringResource(R.string.scan_hint),
+                                    text = if (mode == QrScannerMode.TRANSFER_MIGRATION) {
+                                        stringResource(R.string.scan_import_hint)
+                                    } else {
+                                        stringResource(R.string.scan_hint)
+                                    },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center
@@ -945,12 +981,18 @@ fun QrScannerDialog(
 }
 
 /**
- * Procesa de forma segura un código QR escaneado (individual otpauth:// o transferencia de respaldo).
+ * Procesa y filtra de forma segura un código QR escaneado según el [mode] activo.
  *
- * Administra la detección de fragmentos individuales y transferencias multi-código con orden flexible,
- * emitiendo retroalimentación táctil y visual ante capturas exitosas o códigos duplicados.
+ * En modo [QrScannerMode.SINGLE_ACCOUNT]:
+ * - Procesa exclusivamente códigos OTP individuales (`otpauth://`).
+ * - Ignora silenciosamente códigos de transferencia u otros formatos no pertinentes.
+ *
+ * En modo [QrScannerMode.TRANSFER_MIGRATION]:
+ * - Procesa exclusivamente códigos de transferencia por lotes cifrados (`appopt-transfer://`).
+ * - Ignora silenciosamente códigos OTP individuales estándar u otros formatos.
  *
  * @param rawValue Cadena bruta leída por el escáner.
+ * @param mode Modo de filtrado y operación del escáner.
  * @param appHaptics Controlador de vibración y háptica del sistema.
  * @param blockedSessionIds Identificadores de sesiones bloqueadas por exceso de intentos.
  * @param blockedPayloadFingerprints Huellas de cargas útiles bloqueadas.
@@ -962,10 +1004,12 @@ fun QrScannerDialog(
  * @param onSingleOtpScanned Callback invocado al escanear una clave OTP individual (otpauth://).
  * @param onTransferPayloadReady Callback invocado para transferencias de un único fragmento.
  * @param onChunksReady Callback invocado cuando se recopilan todos los fragmentos requeridos.
- * @param onError Callback invocado ante fallos de análisis o bloqueos por seguridad.
+ * @param onIgnored Callback invocado cuando el código no corresponde al modo activo para reanudar el escaneo silenciosamente.
+ * @param onError Callback invocado ante fallos de análisis o bloqueos por seguridad en códigos pertinentes.
  */
 private suspend fun handleScannedBarcode(
     rawValue: String,
+    mode: QrScannerMode,
     appHaptics: com.example.appopt.ui.theme.AppHaptics,
     blockedSessionIds: Set<Long>,
     blockedPayloadFingerprints: Set<Int>,
@@ -977,61 +1021,67 @@ private suspend fun handleScannedBarcode(
     onSingleOtpScanned: (ParsedOtpData) -> Unit,
     onTransferPayloadReady: (String) -> Unit,
     onChunksReady: (List<TransferQrChunk>) -> Unit,
+    onIgnored: () -> Unit,
     onError: suspend () -> Unit
 ) {
-    if (rawValue.startsWith("otpauth://", ignoreCase = true)) {
-        val parseResult = OtpUriParser.parse(rawValue)
-        if (parseResult.isSuccess) {
-            val otpData = parseResult.getOrThrow()
-            onSingleOtpScanned(otpData)
-        } else {
-            onError()
+    when (mode) {
+        QrScannerMode.SINGLE_ACCOUNT -> {
+            if (rawValue.startsWith("otpauth://", ignoreCase = true)) {
+                val parseResult = OtpUriParser.parse(rawValue)
+                if (parseResult.isSuccess) {
+                    val otpData = parseResult.getOrThrow()
+                    onSingleOtpScanned(otpData)
+                } else {
+                    onError()
+                }
+            } else {
+                onIgnored()
+            }
         }
-        return
-    }
-
-    if (rawValue.startsWith(TransferCrypto.QR_TRANSFER_PREFIX, ignoreCase = true)) {
-        if (rawValue.hashCode() in blockedPayloadFingerprints) {
-            onError()
-            return
-        }
-
-        try {
-            val chunk = TransferCrypto.parseTransferChunk(rawValue)
-            if (chunk.total > 1) {
-                if (chunk.sessionId in blockedSessionIds) {
+        QrScannerMode.TRANSFER_MIGRATION -> {
+            if (rawValue.startsWith(TransferCrypto.QR_TRANSFER_PREFIX, ignoreCase = true)) {
+                if (rawValue.hashCode() in blockedPayloadFingerprints) {
                     onError()
                     return
                 }
 
-                if (chunk.sessionId != currentSessionId) {
-                    sessionChunks.clear()
-                    onSessionUpdated(chunk.sessionId, chunk.total)
-                }
+                try {
+                    val chunk = TransferCrypto.parseTransferChunk(rawValue)
+                    if (chunk.total > 1) {
+                        if (chunk.sessionId in blockedSessionIds) {
+                            onError()
+                            return
+                        }
 
-                if (sessionChunks.containsKey(chunk.index)) {
-                    appHaptics.click()
-                    onChunkDuplicate(chunk.index)
-                } else {
-                    sessionChunks[chunk.index] = chunk
-                    appHaptics.success()
-                    onChunkScanned(chunk.index)
+                        if (chunk.sessionId != currentSessionId) {
+                            sessionChunks.clear()
+                            onSessionUpdated(chunk.sessionId, chunk.total)
+                        }
 
-                    if (sessionChunks.size == chunk.total) {
-                        delay(750L.milliseconds)
-                        onChunksReady(sessionChunks.values.toList())
+                        if (sessionChunks.containsKey(chunk.index)) {
+                            appHaptics.click()
+                            onChunkDuplicate(chunk.index)
+                        } else {
+                            sessionChunks[chunk.index] = chunk
+                            appHaptics.success()
+                            onChunkScanned(chunk.index)
+
+                            if (sessionChunks.size == chunk.total) {
+                                delay(750L.milliseconds)
+                                onChunksReady(sessionChunks.values.toList())
+                            }
+                        }
+                    } else {
+                        onTransferPayloadReady(rawValue)
                     }
+                } catch (_: Exception) {
+                    onTransferPayloadReady(rawValue)
                 }
             } else {
-                onTransferPayloadReady(rawValue)
+                onIgnored()
             }
-        } catch (_: Exception) {
-            onTransferPayloadReady(rawValue)
         }
-        return
     }
-
-    onError()
 }
 
 /**

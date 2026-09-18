@@ -56,6 +56,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.appopt.R
 import com.example.appopt.data.cloud.GoogleDriveManager
 import com.example.appopt.ui.screens.scan.QrScannerDialog
+import com.example.appopt.ui.screens.scan.QrScannerMode
 import com.example.appopt.ui.screens.settings.components.DriveSyncSettingsCard
 import com.example.appopt.ui.screens.settings.components.PerformanceSettingsCard
 import com.example.appopt.ui.screens.settings.components.PermissionsSettingsCard
@@ -490,6 +491,7 @@ fun SettingsScreen(
     if (isUnlocked) {
         if (showQrScannerDialog) {
             QrScannerDialog(
+                mode = QrScannerMode.TRANSFER_MIGRATION,
                 title = stringResource(R.string.scan_import_title),
                 onDismiss = { showQrScannerDialog = false },
                 onScanSuccess = {

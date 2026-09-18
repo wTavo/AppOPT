@@ -75,6 +75,7 @@
     <!-- Pantalla Escáner QR (QR Scanner Screen) -->
     <string name="scan_title">Escanear código QR</string>
     <string name="scan_hint">Apunta la cámara al código QR 2FA</string>
+    <string name="scan_import_hint">Apunta la cámara al código QR de transferencia</string>
     <string name="scan_camera_start_action">Iniciar cámara</string>
     <string name="scan_permission_required_title">Se requiere permiso de cámara</string>
     <string name="scan_permission_required_description">La app necesita acceso a la cámara para leer el código QR de configuración localmente.</string>

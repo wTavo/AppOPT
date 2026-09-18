@@ -44,6 +44,7 @@ import com.example.appopt.ui.screens.home.components.EmptyAccountsState
 import com.example.appopt.ui.screens.home.components.HomeFloatingDock
 import com.example.appopt.ui.screens.home.components.HomeTopHeader
 import com.example.appopt.ui.screens.scan.QrScannerDialog
+import com.example.appopt.ui.screens.scan.QrScannerMode
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.rememberAppHaptics
@@ -320,9 +321,10 @@ fun HomeScreen(
             )
         }
 
-        // Modal de Escaneo de Códigos QR
+        // Modal de Escaneo de Códigos QR (Alta individual de cuentas)
         if (isQrScannerDialogOpen) {
             QrScannerDialog(
+                mode = QrScannerMode.SINGLE_ACCOUNT,
                 onDismiss = { isQrScannerDialogOpen = false }
             )
         }

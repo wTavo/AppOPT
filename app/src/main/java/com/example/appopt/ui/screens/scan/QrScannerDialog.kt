@@ -1,6 +1,7 @@
 package com.example.appopt.ui.screens.scan
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -19,6 +20,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Warning
@@ -122,6 +125,8 @@ fun QrScannerDialog(
     val sessionChunks = remember { mutableStateMapOf<Int, TransferQrChunk>() }
     var currentSessionId by remember { mutableLongStateOf(0L) }
     var totalExpectedChunks by remember { mutableIntStateOf(0) }
+    var lastCapturedChunkIndex by remember { mutableIntStateOf(0) }
+    var duplicateChunkIndex by remember { mutableStateOf<Int?>(null) }
 
     var pendingSingleOtp by remember { mutableStateOf<ParsedOtpData?>(null) }
     var pendingEncryptedPayload by remember { mutableStateOf<String?>(null) }
@@ -140,6 +145,8 @@ fun QrScannerDialog(
         sessionChunks.clear()
         currentSessionId = 0L
         totalExpectedChunks = 0
+        lastCapturedChunkIndex = 0
+        duplicateChunkIndex = null
         onDismiss()
     }
 
@@ -167,6 +174,8 @@ fun QrScannerDialog(
                         currentSessionId = 0L
                         totalExpectedChunks = 0
                         lastScannedPayload = null
+                        lastCapturedChunkIndex = 0
+                        duplicateChunkIndex = null
                         true
                     } else {
                         false
@@ -229,6 +238,23 @@ fun QrScannerDialog(
                                                 onSessionUpdated = { newSessionId, totalChunks ->
                                                     currentSessionId = newSessionId
                                                     totalExpectedChunks = totalChunks
+                                                    lastCapturedChunkIndex = 0
+                                                    duplicateChunkIndex = null
+                                                },
+                                                onChunkScanned = { chunkIndex ->
+                                                    lastCapturedChunkIndex = chunkIndex
+                                                    duplicateChunkIndex = null
+                                                    scope.launch {
+                                                        delay(300L.milliseconds)
+                                                        isProcessingBarcode = false
+                                                    }
+                                                },
+                                                onChunkDuplicate = { chunkIndex ->
+                                                    duplicateChunkIndex = chunkIndex
+                                                    scope.launch {
+                                                        delay(500L.milliseconds)
+                                                        isProcessingBarcode = false
+                                                    }
                                                 },
                                                 onSingleOtpScanned = { parsedOtp ->
                                                     appHaptics.dragTick()
@@ -262,26 +288,127 @@ fun QrScannerDialog(
                                 }
                             )
 
-                            val scanStatusText = if (totalExpectedChunks > 1 && sessionChunks.size < totalExpectedChunks) {
-                                stringResource(
-                                    R.string.scan_transfer_chunk_progress,
-                                    sessionChunks.size,
-                                    totalExpectedChunks
-                                )
-                            } else {
-                                stringResource(R.string.scan_hint)
-                            }
+                            if (totalExpectedChunks > 1 && sessionChunks.size < totalExpectedChunks) {
+                                Surface(
+                                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    border = BorderStroke(
+                                        width = Dimensions.Stroke.thin,
+                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(Dimensions.Spacing.md),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(
+                                                Dimensions.Spacing.sm,
+                                                Alignment.CenterHorizontally
+                                            ),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            for (chunkIndex in 1..totalExpectedChunks) {
+                                                val isScanned = sessionChunks.containsKey(chunkIndex)
+                                                val pillContainerColor = if (isScanned) {
+                                                    MaterialTheme.colorScheme.primaryContainer
+                                                } else {
+                                                    MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
+                                                }
+                                                val pillContentColor = if (isScanned) {
+                                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                                } else {
+                                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                                }
 
-                            Text(
-                                text = scanStatusText,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (totalExpectedChunks > 1 && sessionChunks.size < totalExpectedChunks) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                                textAlign = TextAlign.Center
-                            )
+                                                Surface(
+                                                    shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
+                                                    color = pillContainerColor,
+                                                    border = if (!isScanned) {
+                                                        BorderStroke(
+                                                            width = Dimensions.Stroke.thin,
+                                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                                        )
+                                                    } else null
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.padding(
+                                                            horizontal = Dimensions.Spacing.sm,
+                                                            vertical = Dimensions.Spacing.xs
+                                                        ),
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = if (isScanned) {
+                                                                Icons.Default.CheckCircle
+                                                            } else {
+                                                                Icons.Default.HourglassEmpty
+                                                            },
+                                                            contentDescription = null,
+                                                            tint = pillContentColor,
+                                                            modifier = Modifier.size(Dimensions.IconSize.small)
+                                                        )
+                                                        Text(
+                                                            text = stringResource(R.string.scan_transfer_chunk_pill_label, chunkIndex),
+                                                            style = MaterialTheme.typography.labelMedium,
+                                                            fontWeight = if (isScanned) FontWeight.Bold else FontWeight.Normal,
+                                                            color = pillContentColor
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        val isDuplicate = duplicateChunkIndex != null
+                                        val statusTitle = if (isDuplicate) {
+                                            stringResource(R.string.scan_transfer_chunk_duplicate_title, duplicateChunkIndex ?: 1)
+                                        } else {
+                                            stringResource(
+                                                R.string.scan_transfer_chunk_captured_title,
+                                                sessionChunks.size,
+                                                totalExpectedChunks
+                                            )
+                                        }
+                                        val statusDesc = if (isDuplicate) {
+                                            stringResource(R.string.scan_transfer_chunk_duplicate_desc)
+                                        } else {
+                                            stringResource(R.string.scan_transfer_chunk_captured_desc)
+                                        }
+
+                                        Text(
+                                            text = statusTitle,
+                                            style = MaterialTheme.typography.titleSmall,
+                                            color = if (isDuplicate) {
+                                                MaterialTheme.colorScheme.error
+                                            } else {
+                                                MaterialTheme.colorScheme.primary
+                                            },
+                                            textAlign = TextAlign.Center,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+
+                                        Text(
+                                            text = statusDesc,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                }
+                            } else {
+                                Text(
+                                    text = stringResource(R.string.scan_hint),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
 
                         // 3. Pie fijo de acciones
@@ -756,6 +883,8 @@ fun QrScannerDialog(
                                     currentStep = QrScannerStep.CAMERA
                                     isProcessingBarcode = false
                                     lastScannedPayload = null
+                                    lastCapturedChunkIndex = 0
+                                    duplicateChunkIndex = null
                                 },
                                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                                 contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.none),
@@ -799,6 +928,23 @@ fun QrScannerDialog(
 
 /**
  * Procesa de forma segura un código QR escaneado (individual otpauth:// o transferencia de respaldo).
+ *
+ * Administra la detección de fragmentos individuales y transferencias multi-código con orden flexible,
+ * emitiendo retroalimentación táctil y visual ante capturas exitosas o códigos duplicados.
+ *
+ * @param rawValue Cadena bruta leída por el escáner.
+ * @param appHaptics Controlador de vibración y háptica del sistema.
+ * @param blockedSessionIds Identificadores de sesiones bloqueadas por exceso de intentos.
+ * @param blockedPayloadFingerprints Huellas de cargas útiles bloqueadas.
+ * @param sessionChunks Mapa de fragmentos acumulados para la sesión activa.
+ * @param currentSessionId Identificador de la sesión activa de transferencia.
+ * @param onSessionUpdated Callback invocado cuando se detecta una nueva sesión o cambia la cantidad esperada de fragmentos.
+ * @param onChunkScanned Callback invocado al registrar exitosamente un fragmento nuevo.
+ * @param onChunkDuplicate Callback invocado al re-escanear un fragmento ya presente en la sesión.
+ * @param onSingleOtpScanned Callback invocado al escanear una clave OTP individual (otpauth://).
+ * @param onTransferPayloadReady Callback invocado para transferencias de un único fragmento.
+ * @param onChunksReady Callback invocado cuando se recopilan todos los fragmentos requeridos.
+ * @param onError Callback invocado ante fallos de análisis o bloqueos por seguridad.
  */
 private suspend fun handleScannedBarcode(
     rawValue: String,
@@ -808,6 +954,8 @@ private suspend fun handleScannedBarcode(
     sessionChunks: MutableMap<Int, TransferQrChunk>,
     currentSessionId: Long,
     onSessionUpdated: (Long, Int) -> Unit,
+    onChunkScanned: (Int) -> Unit,
+    onChunkDuplicate: (Int) -> Unit,
     onSingleOtpScanned: (ParsedOtpData) -> Unit,
     onTransferPayloadReady: (String) -> Unit,
     onChunksReady: (List<TransferQrChunk>) -> Unit,
@@ -843,11 +991,17 @@ private suspend fun handleScannedBarcode(
                     onSessionUpdated(chunk.sessionId, chunk.total)
                 }
 
-                sessionChunks[chunk.index] = chunk
-                appHaptics.dragTick()
+                if (sessionChunks.containsKey(chunk.index)) {
+                    appHaptics.click()
+                    onChunkDuplicate(chunk.index)
+                } else {
+                    sessionChunks[chunk.index] = chunk
+                    appHaptics.success()
+                    onChunkScanned(chunk.index)
 
-                if (sessionChunks.size == chunk.total) {
-                    onChunksReady(sessionChunks.values.toList())
+                    if (sessionChunks.size == chunk.total) {
+                        onChunksReady(sessionChunks.values.toList())
+                    }
                 }
             } else {
                 onTransferPayloadReady(rawValue)

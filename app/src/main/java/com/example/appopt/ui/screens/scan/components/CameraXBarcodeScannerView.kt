@@ -91,14 +91,14 @@ fun CameraXBarcodeScannerView(
     val lifecycleOwner = LocalLifecycleOwner.current
     val appHaptics = rememberAppHaptics()
 
-    var isCameraActive by remember { mutableStateOf(false) }
-    var isCameraInitializing by remember { mutableStateOf(false) }
-
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
         )
     }
+
+    var isCameraActive by remember { mutableStateOf(hasCameraPermission) }
+    var isCameraInitializing by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),

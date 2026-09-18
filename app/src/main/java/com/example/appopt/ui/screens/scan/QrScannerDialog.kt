@@ -152,15 +152,30 @@ fun QrScannerDialog(
     var parsedAccounts by remember { mutableStateOf<List<ParsedAccountPreview>>(emptyList()) }
     var selectedAccountIds by remember { mutableStateOf<Set<String>>(emptySet()) }
 
-    val handleDismiss: () -> Unit = {
+    val resetToCamera: () -> Unit = {
         pendingSingleOtp?.secretBytes?.let { CryptoManager.zeroize(it) }
         pendingSingleOtp = null
+        pendingEncryptedPayload = null
+        pendingEncryptedChunks = null
         sessionChunks.clear()
         currentSessionId = 0L
         totalExpectedChunks = 0
+        transferPinInput = ""
+        pinErrorMessage = null
+        failedPinAttempts = 0
+        isVerifyingPin = false
+        parsedAccounts = emptyList()
+        selectedAccountIds = emptySet()
+        lastScannedPayload = null
         lastCapturedChunkIndex = 0
         duplicateChunkIndex = null
         capturedChunkAnimationIndex = null
+        isProcessingBarcode = false
+        currentStep = QrScannerStep.CAMERA
+    }
+
+    val handleDismiss: () -> Unit = {
+        resetToCamera()
         onDismiss()
     }
 
@@ -169,29 +184,12 @@ fun QrScannerDialog(
         onBackStep = {
             when (currentStep) {
                 QrScannerStep.CONFIRM_SINGLE_OTP -> {
-                    pendingSingleOtp?.secretBytes?.let { CryptoManager.zeroize(it) }
-                    pendingSingleOtp = null
-                    isProcessingBarcode = false
-                    lastScannedPayload = null
-                    capturedChunkAnimationIndex = null
-                    currentStep = QrScannerStep.CAMERA
+                    resetToCamera()
                     true
                 }
                 QrScannerStep.TRANSFER_SELECT_ACCOUNTS, QrScannerStep.TRANSFER_PIN -> {
                     if (!isVerifyingPin) {
-                        currentStep = QrScannerStep.CAMERA
-                        transferPinInput = ""
-                        pinErrorMessage = null
-                        isProcessingBarcode = false
-                        pendingEncryptedPayload = null
-                        pendingEncryptedChunks = null
-                        sessionChunks.clear()
-                        currentSessionId = 0L
-                        totalExpectedChunks = 0
-                        lastScannedPayload = null
-                        lastCapturedChunkIndex = 0
-                        duplicateChunkIndex = null
-                        capturedChunkAnimationIndex = null
+                        resetToCamera()
                         true
                     } else {
                         false
@@ -767,13 +765,7 @@ fun QrScannerDialog(
                             dismissText = stringResource(R.string.settings_drive_details_back),
                             onDismiss = {
                                 if (!isVerifyingPin) {
-                                    currentStep = QrScannerStep.CAMERA
-                                    transferPinInput = ""
-                                    pinErrorMessage = null
-                                    isProcessingBarcode = false
-                                    pendingEncryptedPayload = null
-                                    pendingEncryptedChunks = null
-                                    lastScannedPayload = null
+                                    resetToCamera()
                                 }
                             },
                             confirmText = stringResource(R.string.scan_transfer_pin_confirm_button),
@@ -822,10 +814,7 @@ fun QrScannerDialog(
                                                 pinErrorMessage = qrExpiredErrorText
                                                 appHaptics.error()
                                                 delay(Motion.Duration.FEEDBACK_TOAST.toLong().milliseconds)
-                                                currentStep = QrScannerStep.CAMERA
-                                                isProcessingBarcode = false
-                                                lastScannedPayload = null
-                                                transferPinInput = ""
+                                                resetToCamera()
                                             } else {
                                                 failedPinAttempts++
                                                 val remaining = SecurityConfig.TRANSFER_QR_MAX_PIN_ATTEMPTS - failedPinAttempts
@@ -838,10 +827,7 @@ fun QrScannerDialog(
                                                     pinErrorMessage = pinMaxAttemptsErrorText
                                                     appHaptics.error()
                                                     delay(Motion.Duration.FEEDBACK_TOAST.toLong().milliseconds)
-                                                    currentStep = QrScannerStep.CAMERA
-                                                    isProcessingBarcode = false
-                                                    lastScannedPayload = null
-                                                    transferPinInput = ""
+                                                    resetToCamera()
                                                 } else {
                                                     pinErrorMessage = String.format(pinIncorrectAttemptsFormat, remaining)
                                                     appHaptics.error()
@@ -913,12 +899,7 @@ fun QrScannerDialog(
                         ) {
                             TextButton(
                                 onClick = {
-                                    currentStep = QrScannerStep.CAMERA
-                                    isProcessingBarcode = false
-                                    lastScannedPayload = null
-                                    lastCapturedChunkIndex = 0
-                                    duplicateChunkIndex = null
-                                    capturedChunkAnimationIndex = null
+                                    resetToCamera()
                                 },
                                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                                 contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.none),

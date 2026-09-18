@@ -38,7 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.LayoutCoordinates
-import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import com.example.appopt.R
@@ -184,7 +184,7 @@ fun DriveSyncSettingsCard(
                     } else null,
                     modifier = Modifier
                         .weight(1f)
-                        .onGloballyPositioned { backupDetailsCoordinates = it }
+                        .onPlaced { backupDetailsCoordinates = it }
                 )
 
                 val isDisconnectAllowed = !isDriveLoading
@@ -197,7 +197,7 @@ fun DriveSyncSettingsCard(
                         shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                         color = MaterialTheme.colorScheme.errorContainer,
                         modifier = Modifier
-                            .onGloballyPositioned { disconnectCoordinates = it }
+                            .onPlaced { disconnectCoordinates = it }
                             .clickable {
                                 NavigationOriginTracker.updateFromCoordinates(disconnectCoordinates)
                                 onDisconnectClick()
@@ -270,7 +270,7 @@ fun DriveSyncSettingsCard(
                         enabled = !isDriveLoading,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .onGloballyPositioned { createBackupCoordinates = it },
+                            .onPlaced { createBackupCoordinates = it },
                         shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                     ) {
                         Text(

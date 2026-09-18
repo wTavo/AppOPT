@@ -28,7 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.LayoutCoordinates
-import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import com.example.appopt.R
@@ -136,7 +136,7 @@ fun DeletedAccountCard(
                         .weight(1f)
                         .fillMaxHeight()
                         .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                        .onGloballyPositioned { deleteCoordinates = it },
+                        .onPlaced { deleteCoordinates = it },
                     contentPadding = PaddingValues(horizontal = Dimensions.Spacing.xs, vertical = Dimensions.Spacing.xs),
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                     colors = ButtonDefaults.outlinedButtonColors(

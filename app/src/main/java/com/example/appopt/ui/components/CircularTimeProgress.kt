@@ -59,6 +59,9 @@ fun CircularTimeProgress(
     val trackColor = MaterialTheme.colorScheme.surfaceVariant
     val density = LocalDensity.current
     val strokeWidthPx = remember(density) { with(density) { Dimensions.Stroke.progressArc.toPx() } }
+    val progressStroke = remember(strokeWidthPx) {
+        Stroke(width = strokeWidthPx, cap = StrokeCap.Round)
+    }
     val secondsLabel = stringResource(R.string.card_seconds_abbrev)
 
     Box(
@@ -76,7 +79,7 @@ fun CircularTimeProgress(
                 startAngle = 0f,
                 sweepAngle = 360f,
                 useCenter = false,
-                style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round)
+                style = progressStroke
             )
             // Arco de progreso
             drawArc(
@@ -84,7 +87,7 @@ fun CircularTimeProgress(
                 startAngle = -90f,
                 sweepAngle = sweepAngle,
                 useCenter = false,
-                style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round)
+                style = progressStroke
             )
         }
 

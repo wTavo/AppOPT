@@ -28,7 +28,7 @@ object NavigationOriginTracker {
     /**
      * Registra las coordenadas del componente emisor calculando su centro relativo exacto.
      *
-     * @param coordinates Coordenadas globales del Composable obtenidas mediante `onGloballyPositioned`.
+     * @param coordinates Coordenadas del Composable obtenidas mediante `onPlaced`.
      */
     fun updateFromCoordinates(coordinates: LayoutCoordinates?) {
         if (coordinates != null && coordinates.isAttached) {

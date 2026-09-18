@@ -17,7 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.LayoutCoordinates
-import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.res.stringResource
 import com.example.appopt.R
 import com.example.appopt.domain.model.TotpAccount
@@ -61,7 +61,7 @@ fun TransferSettingsCard(
                     },
                     modifier = Modifier
                         .weight(1f)
-                        .onGloballyPositioned { exportCoordinates = it },
+                        .onPlaced { exportCoordinates = it },
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                 ) {
                     Text(
@@ -77,7 +77,7 @@ fun TransferSettingsCard(
                     },
                     modifier = Modifier
                         .weight(1f)
-                        .onGloballyPositioned { importCoordinates = it },
+                        .onPlaced { importCoordinates = it },
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
                 ) {
                     Text(
@@ -94,7 +94,7 @@ fun TransferSettingsCard(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .onGloballyPositioned { importCoordinates = it },
+                    .onPlaced { importCoordinates = it },
                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
             ) {
                 Text(

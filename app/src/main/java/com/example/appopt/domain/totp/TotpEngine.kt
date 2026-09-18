@@ -1,8 +1,6 @@
 package com.example.appopt.domain.totp
 
 import com.example.appopt.domain.model.OtpAlgorithm
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
@@ -75,10 +73,15 @@ object TotpEngine {
         require(digits in 6..8) { "La cantidad de dígitos debe ser 6, 7 u 8" }
 
         // Convertir el contador a un arreglo de 8 bytes en formato Big-Endian (RFC 4226)
-        val counterBytes = ByteBuffer.allocate(8)
-            .order(ByteOrder.BIG_ENDIAN)
-            .putLong(counter)
-            .array()
+        val counterBytes = ByteArray(8)
+        counterBytes[0] = (counter ushr 56).toByte()
+        counterBytes[1] = (counter ushr 48).toByte()
+        counterBytes[2] = (counter ushr 40).toByte()
+        counterBytes[3] = (counter ushr 32).toByte()
+        counterBytes[4] = (counter ushr 24).toByte()
+        counterBytes[5] = (counter ushr 16).toByte()
+        counterBytes[6] = (counter ushr 8).toByte()
+        counterBytes[7] = counter.toByte()
 
         val mac = Mac.getInstance(algorithm.hmacAlgorithm)
         val keySpec = SecretKeySpec(secretBytes, algorithm.hmacAlgorithm)

@@ -43,7 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.LayoutCoordinates
-import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -128,7 +128,7 @@ fun RecentlyDeletedScreen(
                                 appHaptics.click()
                                 showEmptyTrashConfirmDialog = true
                             },
-                            modifier = Modifier.onGloballyPositioned { emptyTrashCoordinates = it }
+                            modifier = Modifier.onPlaced { emptyTrashCoordinates = it }
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.DeleteSweep,

@@ -118,7 +118,7 @@
     <string name="settings_transfer_selected_services_count">%1$d servicios seleccionados</string>
     <string name="settings_transfer_prev_code">Anterior</string>
     <string name="settings_transfer_next_code">Siguiente</string>
-    <string name="settings_transfer_view_pin">Ver clave de transferencia</string>
+    <string name="settings_transfer_view_pin">Ver la clave</string>
     <string name="settings_transfer_view_qr">Ver código QR</string>
     <string name="scan_transfer_chunk_progress">Lote %1$d de %2$d escaneado. Escanea el código restante.</string>
 

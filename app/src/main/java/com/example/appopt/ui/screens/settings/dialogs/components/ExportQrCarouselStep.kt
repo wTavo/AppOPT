@@ -1,8 +1,14 @@
 package com.example.appopt.ui.screens.settings.dialogs.components
 
 import android.graphics.Bitmap
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -263,13 +269,34 @@ fun ExportQrCarouselStep(
                         .fillMaxWidth()
                         .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
                 ) {
-                    Crossfade(
+                    AnimatedContent(
                         targetState = isPinVisible,
-                        animationSpec = tween(
-                            durationMillis = Motion.Duration.FAST,
-                            easing = Motion.EasingCurve.Standard
-                        ),
-                        label = "qrPinButtonCrossfade"
+                        transitionSpec = {
+                            val direction = if (targetState) 1 else -1
+                            (slideInVertically(
+                                animationSpec = tween(
+                                    durationMillis = Motion.Duration.FAST,
+                                    easing = Motion.EasingCurve.Standard
+                                )
+                            ) { height -> direction * height / 2 } + fadeIn(
+                                animationSpec = tween(
+                                    durationMillis = Motion.Duration.FAST,
+                                    easing = Motion.EasingCurve.Standard
+                                )
+                            )) togetherWith
+                                (slideOutVertically(
+                                    animationSpec = tween(
+                                        durationMillis = Motion.Duration.FAST,
+                                        easing = Motion.EasingCurve.Standard
+                                    )
+                                ) { height -> -direction * height / 2 } + fadeOut(
+                                    animationSpec = tween(
+                                        durationMillis = Motion.Duration.FAST,
+                                        easing = Motion.EasingCurve.Standard
+                                    )
+                                ))
+                        },
+                        label = "qrPinButtonTransition"
                     ) { showingPin ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,

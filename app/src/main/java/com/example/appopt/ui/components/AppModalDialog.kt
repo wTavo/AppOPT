@@ -169,7 +169,7 @@ fun AppModalDialog(
         val scrimAlpha by transition.animateFloat(
             transitionSpec = {
                 if (targetState) {
-                    Motion.Spec.quickFadeSpec()
+                    Motion.Spec.modalScrimEnterSpec()
                 } else {
                     Motion.Spec.modalScrimExitSpec()
                 }

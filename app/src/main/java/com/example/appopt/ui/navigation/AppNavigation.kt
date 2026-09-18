@@ -2,7 +2,6 @@ package com.example.appopt.ui.navigation
 
 import android.os.Build
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -56,11 +55,7 @@ fun AppNavigation() {
     val isModalActive by ModalOverlayController.isModalActive.collectAsStateWithLifecycle()
     val modalBlurRadius by animateDpAsState(
         targetValue = if (isModalActive) Dimensions.ComponentSize.modalBlurRadius else Dimensions.Spacing.none,
-        // Entrada: snap() instantáneo elimina los ~22 renders GPU consecutivos con Skia blur
-        // a pantalla completa que provocaban jank. El blur aparece en 1 frame; el ojo sigue
-        // la tarjeta escalando (380ms) y no percibe el fondo.
-        // Salida: desvanece suavemente en 220ms para un cierre orgánico.
-        animationSpec = if (isModalActive) snap() else Motion.Spec.modalScrimExitSpec(),
+        animationSpec = if (isModalActive) Motion.Spec.modalScrimEnterSpec() else Motion.Spec.modalScrimExitSpec(),
         label = "app_navigation_modal_blur"
     )
 

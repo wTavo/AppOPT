@@ -261,7 +261,7 @@ fun AppModalDialog(
 
                     val cardColor by animateColorAsState(
                         targetValue = targetCardColor,
-                        animationSpec = Motion.Spec.buttonColorSpec(),
+                        animationSpec = Motion.Spec.dialogStepColorSpec(),
                         label = "modal_card_color"
                     )
 
@@ -273,13 +273,25 @@ fun AppModalDialog(
 
                     val cardBorderColor by animateColorAsState(
                         targetValue = targetBorderColor,
-                        animationSpec = Motion.Spec.buttonColorSpec(),
+                        animationSpec = Motion.Spec.dialogStepColorSpec(),
                         label = "modal_border_color"
                     )
 
                     val cardBorder = BorderStroke(
                         width = Dimensions.Stroke.thin,
                         color = cardBorderColor
+                    )
+
+                    val targetContentColor = if (tone == ModalTone.DESTRUCTIVE) {
+                        DarkColorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    }
+
+                    val contentColor by animateColorAsState(
+                        targetValue = targetContentColor,
+                        animationSpec = Motion.Spec.dialogStepColorSpec(),
+                        label = "modal_content_color"
                     )
 
                     // Tarjeta modal del diálogo
@@ -299,7 +311,7 @@ fun AppModalDialog(
                             ),
                         shape = RoundedCornerShape(Dimensions.CornerRadius.large),
                         color = cardColor,
-                        contentColor = if (tone == ModalTone.DESTRUCTIVE) DarkColorScheme.onSurface else MaterialTheme.colorScheme.onSurface,
+                        contentColor = contentColor,
                         border = cardBorder,
                         tonalElevation = Dimensions.Elevation.modal,
                         shadowElevation = Dimensions.Elevation.modal

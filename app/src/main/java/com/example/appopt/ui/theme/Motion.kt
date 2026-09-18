@@ -119,6 +119,12 @@ object Motion {
             easing = EasingCurve.Standard
         )
 
+        /** Especificación ágil de transición de color para mutación de tono en pasos de diálogos modales (150ms). */
+        fun <T> dialogStepColorSpec() = tween<T>(
+            durationMillis = Duration.FAST,
+            easing = EasingCurve.Standard
+        )
+
         /** Especificación de expansión/colapso para el modo de privacidad de códigos. */
         fun <T> privacyCollapseSpec() = tween<T>(
             durationMillis = Duration.MEDIUM,

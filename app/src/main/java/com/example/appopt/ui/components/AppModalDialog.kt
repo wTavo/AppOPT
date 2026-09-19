@@ -71,12 +71,12 @@ val LocalModalDismissHandler = staticCompositionLocalOf<(() -> Unit)?> { null }
  * Al fijar [DialogProperties.usePlatformDefaultWidth] en `false`, la ventana del sistema operativo
  * permanece a pantalla completa sin enviar llamadas IPC continuas a `WindowManagerService`.
  * La capa modal nace y se expande con la misma animación (`scaleIn` + `scaleOut`) de las pantallas
- * desde el centro del botón que disparó la acción ([NavigationOriginTracker.currentOrigin]),
+ * desde el centro del botón que disparó la acción ([NavigationOriginTracker.modalOrigin]),
  * y se repliega fluidamente de regreso a ese mismo botón al cerrarse antes de desmontar el diálogo.
  *
  * @param onDismissRequest Callback invocado para desmontar el diálogo tras finalizar la animación de salida.
  * @param modifier Modificador Compose opcional para la tarjeta visual.
- * @param transformOrigin Punto pivote normalizado de origen para la animación de escala (por defecto toma las coordenadas del emisor en [NavigationOriginTracker]).
+ * @param transformOrigin Punto pivote normalizado de origen para la animación de escala (por defecto toma las coordenadas del emisor en [NavigationOriginTracker.modalOrigin]).
  * @param onBackStep Callback opcional para navegación defensiva en modales multietapa: si retorna `true`, consume el evento retrocediendo un paso internamente sin desmontar la tarjeta; si retorna `false` o es `null`, repliega y desmonta el diálogo.
  * @param tone Tono semántico de severidad ([ModalTone.STANDARD] neutro por defecto, o [ModalTone.DESTRUCTIVE] con fondo oscuro forzado y contraste de alerta para acciones críticas en modo claro y oscuro).
  * @param properties Propiedades de configuración del diálogo modal.
@@ -86,7 +86,7 @@ val LocalModalDismissHandler = staticCompositionLocalOf<(() -> Unit)?> { null }
 fun AppModalDialog(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
-    transformOrigin: TransformOrigin = NavigationOriginTracker.currentOrigin,
+    transformOrigin: TransformOrigin = NavigationOriginTracker.modalOrigin,
     onBackStep: (() -> Boolean)? = null,
     tone: ModalTone = ModalTone.STANDARD,
     properties: DialogProperties = DialogProperties(

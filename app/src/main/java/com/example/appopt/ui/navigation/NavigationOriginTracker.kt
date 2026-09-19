@@ -8,15 +8,24 @@ import androidx.compose.ui.layout.findRootCoordinates
 import androidx.compose.ui.unit.IntSize
 
 /**
- * Administrador de coordenadas y origen de animación dinámica para transiciones de navegación.
+ * Administrador de coordenadas y orígenes de animación dinámica para transiciones de navegación y diálogos modales.
  *
- * Captura en tiempo real los límites y el centro exacto en píxeles del componente que dispara
- * la navegación ([LayoutCoordinates]), calculando el [TransformOrigin] normalizado respecto a la ventana raíz.
- * Esto garantiza que la animación nazca y muera con precisión milimétrica en el centro real del botón
- * en cualquier resolución, densidad o modo de barra de navegación de Android.
+ * Principio de diseño:
+ * - Aísla estrictamente el origen de navegación de pantallas ([settingsOrigin], [recentlyDeletedOrigin])
+ *   del origen de apertura de modales ([modalOrigin]).
+ * - Evita colisiones de pivote cuando se abren y cierran diálogos dentro de una pantalla antes de navegar hacia atrás.
  */
 object NavigationOriginTracker {
-    /** Origen de transformación dinámico actual para la animación de entrada y salida. */
+    /** Origen de transformación dinámico para la pantalla de Ajustes (botón de ajustes en el dock inferior). */
+    var settingsOrigin: TransformOrigin = TransformOrigin(0.80f, 0.91f)
+
+    /** Origen de transformación dinámico para la pantalla de Papelera (botón de papelera en el dock inferior). */
+    var recentlyDeletedOrigin: TransformOrigin = TransformOrigin(0.65f, 0.91f)
+
+    /** Origen de transformación dinámico para diálogos modales (tarjeta o botón emisor del modal). */
+    var modalOrigin: TransformOrigin = TransformOrigin(0.50f, 0.50f)
+
+    /** Origen de transformación dinámico actual para compatibilidad general. */
     var currentOrigin: TransformOrigin = TransformOrigin(0.50f, 0.91f)
 
     /** Centro absoluto en píxeles del componente emisor en la ventana raíz. */
@@ -26,22 +35,69 @@ object NavigationOriginTracker {
     var rootSizePx: IntSize? = null
 
     /**
-     * Registra las coordenadas del componente emisor calculando su centro relativo exacto.
+     * Registra las coordenadas del botón de Ajustes en el dock inferior.
+     *
+     * @param coordinates Coordenadas del Composable de Ajustes obtenidas mediante `onPlaced`.
+     */
+    fun updateSettingsOrigin(coordinates: LayoutCoordinates?) {
+        val origin = calculateOrigin(coordinates)
+        if (origin != null) {
+            settingsOrigin = origin
+            currentOrigin = origin
+        }
+    }
+
+    /**
+     * Registra las coordenadas del botón de Papelera en el dock inferior.
+     *
+     * @param coordinates Coordenadas del Composable de Papelera obtenidas mediante `onPlaced`.
+     */
+    fun updateRecentlyDeletedOrigin(coordinates: LayoutCoordinates?) {
+        val origin = calculateOrigin(coordinates)
+        if (origin != null) {
+            recentlyDeletedOrigin = origin
+            currentOrigin = origin
+        }
+    }
+
+    /**
+     * Registra las coordenadas del componente que abre un diálogo modal.
+     *
+     * @param coordinates Coordenadas del Composable emisor del modal obtenidas mediante `onPlaced`.
+     */
+    fun updateModalOrigin(coordinates: LayoutCoordinates?) {
+        val origin = calculateOrigin(coordinates)
+        if (origin != null) {
+            modalOrigin = origin
+        }
+    }
+
+    /**
+     * Registra las coordenadas de un componente emisor calculando su centro relativo exacto.
      *
      * @param coordinates Coordenadas del Composable obtenidas mediante `onPlaced`.
      */
     fun updateFromCoordinates(coordinates: LayoutCoordinates?) {
+        val origin = calculateOrigin(coordinates)
+        if (origin != null) {
+            currentOrigin = origin
+            modalOrigin = origin
+        }
+    }
+
+    private fun calculateOrigin(coordinates: LayoutCoordinates?): TransformOrigin? {
         if (coordinates != null && coordinates.isAttached) {
             val bounds = coordinates.boundsInRoot()
             val root = coordinates.findRootCoordinates()
             originCenterPx = bounds.center
             rootSizePx = root.size
             if (root.size.width > 0 && root.size.height > 0) {
-                currentOrigin = TransformOrigin(
+                return TransformOrigin(
                     pivotFractionX = (bounds.center.x / root.size.width.toFloat()).coerceIn(0f, 1f),
                     pivotFractionY = (bounds.center.y / root.size.height.toFloat()).coerceIn(0f, 1f)
                 )
             }
         }
+        return null
     }
 }

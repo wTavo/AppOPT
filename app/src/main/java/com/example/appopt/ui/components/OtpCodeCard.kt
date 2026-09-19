@@ -134,7 +134,7 @@ fun OtpCodeCard(
                     interactionSource = interactionSource,
                     indication = ripple(),
                     onClick = {
-                        NavigationOriginTracker.updateFromCoordinates(cardCoordinates)
+                        NavigationOriginTracker.updateModalOrigin(cardCoordinates)
                         appHaptics.click()
                         onCardClick()
                     }

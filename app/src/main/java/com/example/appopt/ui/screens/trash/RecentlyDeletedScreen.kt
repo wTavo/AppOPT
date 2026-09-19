@@ -124,7 +124,7 @@ fun RecentlyDeletedScreen(
                     if (deletedAccounts.isNotEmpty()) {
                         IconButton(
                             onClick = {
-                                NavigationOriginTracker.updateFromCoordinates(emptyTrashCoordinates)
+                                NavigationOriginTracker.updateModalOrigin(emptyTrashCoordinates)
                                 appHaptics.click()
                                 showEmptyTrashConfirmDialog = true
                             },

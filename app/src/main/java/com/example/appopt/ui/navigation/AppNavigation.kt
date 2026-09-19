@@ -75,14 +75,14 @@ fun AppNavigation() {
                 enterTransition = {
                     scaleIn(
                         initialScale = Motion.Scale.NAV_SCREEN_ENTER_SCALE,
-                        transformOrigin = NavigationOriginTracker.currentOrigin,
+                        transformOrigin = NavigationOriginTracker.settingsOrigin,
                         animationSpec = Motion.Spec.navButtonExpandScaleSpec()
                     ) + fadeIn(animationSpec = Motion.Spec.quickFadeSpec())
                 },
                 popExitTransition = {
                     scaleOut(
                         targetScale = Motion.Scale.NAV_SCREEN_ENTER_SCALE,
-                        transformOrigin = NavigationOriginTracker.currentOrigin,
+                        transformOrigin = NavigationOriginTracker.settingsOrigin,
                         animationSpec = Motion.Spec.navButtonCollapseScaleSpec()
                     ) + fadeOut(animationSpec = Motion.Spec.navButtonCollapseFadeSpec())
                 }
@@ -97,14 +97,14 @@ fun AppNavigation() {
                 enterTransition = {
                     scaleIn(
                         initialScale = Motion.Scale.NAV_SCREEN_ENTER_SCALE,
-                        transformOrigin = NavigationOriginTracker.currentOrigin,
+                        transformOrigin = NavigationOriginTracker.recentlyDeletedOrigin,
                         animationSpec = Motion.Spec.navButtonExpandScaleSpec()
                     ) + fadeIn(animationSpec = Motion.Spec.quickFadeSpec())
                 },
                 popExitTransition = {
                     scaleOut(
                         targetScale = Motion.Scale.NAV_SCREEN_ENTER_SCALE,
-                        transformOrigin = NavigationOriginTracker.currentOrigin,
+                        transformOrigin = NavigationOriginTracker.recentlyDeletedOrigin,
                         animationSpec = Motion.Spec.navButtonCollapseScaleSpec()
                     ) + fadeOut(animationSpec = Motion.Spec.navButtonCollapseFadeSpec())
                 }

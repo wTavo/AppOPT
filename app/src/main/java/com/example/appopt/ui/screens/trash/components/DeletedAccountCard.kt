@@ -129,7 +129,7 @@ fun DeletedAccountCard(
             ) {
                 OutlinedButton(
                     onClick = {
-                        NavigationOriginTracker.updateFromCoordinates(deleteCoordinates)
+                        NavigationOriginTracker.updateModalOrigin(deleteCoordinates)
                         onPermanentDelete()
                     },
                     modifier = Modifier

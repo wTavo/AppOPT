@@ -168,7 +168,7 @@ fun DriveSyncSettingsCard(
                     },
                     onClick = if (!isSyncingActive) {
                         {
-                            NavigationOriginTracker.updateFromCoordinates(backupDetailsCoordinates)
+                            NavigationOriginTracker.updateModalOrigin(backupDetailsCoordinates)
                             onBackupDetailsClick()
                         }
                     } else null,
@@ -199,7 +199,7 @@ fun DriveSyncSettingsCard(
                         modifier = Modifier
                             .onPlaced { disconnectCoordinates = it }
                             .clickable {
-                                NavigationOriginTracker.updateFromCoordinates(disconnectCoordinates)
+                                NavigationOriginTracker.updateModalOrigin(disconnectCoordinates)
                                 onDisconnectClick()
                             }
                     ) {
@@ -264,7 +264,7 @@ fun DriveSyncSettingsCard(
                 } else if (hasLocalAccounts) {
                     Button(
                         onClick = {
-                            NavigationOriginTracker.updateFromCoordinates(createBackupCoordinates)
+                            NavigationOriginTracker.updateModalOrigin(createBackupCoordinates)
                             onCreateBackupClick()
                         },
                         enabled = !isDriveLoading,

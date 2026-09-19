@@ -56,7 +56,7 @@ fun TransferSettingsCard(
             ) {
                 Button(
                     onClick = {
-                        NavigationOriginTracker.updateFromCoordinates(exportCoordinates)
+                        NavigationOriginTracker.updateModalOrigin(exportCoordinates)
                         onExportClick()
                     },
                     modifier = Modifier
@@ -72,7 +72,7 @@ fun TransferSettingsCard(
 
                 OutlinedButton(
                     onClick = {
-                        NavigationOriginTracker.updateFromCoordinates(importCoordinates)
+                        NavigationOriginTracker.updateModalOrigin(importCoordinates)
                         onImportClick()
                     },
                     modifier = Modifier
@@ -89,7 +89,7 @@ fun TransferSettingsCard(
         } else {
             Button(
                 onClick = {
-                    NavigationOriginTracker.updateFromCoordinates(importCoordinates)
+                    NavigationOriginTracker.updateModalOrigin(importCoordinates)
                     onImportClick()
                 },
                 modifier = Modifier

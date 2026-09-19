@@ -162,7 +162,7 @@ fun HomeFloatingDock(
             // 3. Hero (+) / (X) FAB: 100% brillante y elevado en primer plano
             FloatingActionButton(
                 onClick = {
-                    NavigationOriginTracker.updateFromCoordinates(fabCoordinates)
+                    NavigationOriginTracker.updateModalOrigin(fabCoordinates)
                     appHaptics.click()
                     onAddAccountClick()
                 },
@@ -192,7 +192,7 @@ fun HomeFloatingDock(
                     if (isAddMenuOpen) {
                         onAddAccountClick()
                     } else {
-                        NavigationOriginTracker.updateFromCoordinates(trashCoordinates)
+                        NavigationOriginTracker.updateRecentlyDeletedOrigin(trashCoordinates)
                         appHaptics.click()
                         onNavigateToRecentlyDeleted()
                     }
@@ -230,7 +230,7 @@ fun HomeFloatingDock(
                     if (isAddMenuOpen) {
                         onAddAccountClick()
                     } else {
-                        NavigationOriginTracker.updateFromCoordinates(settingsCoordinates)
+                        NavigationOriginTracker.updateSettingsOrigin(settingsCoordinates)
                         appHaptics.click()
                         onNavigateToSettings()
                     }

@@ -38,7 +38,45 @@ object AccountMergeEngine {
         val isFavorite: Boolean,
         val orderIndex: Int,
         val updatedAt: Long
-    )
+    ) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as ParsedJsonAccount
+
+            if (id != other.id) return false
+            if (!secretBytes.contentEquals(other.secretBytes)) return false
+            if (issuer != other.issuer) return false
+            if (accountName != other.accountName) return false
+            if (algorithm != other.algorithm) return false
+            if (digits != other.digits) return false
+            if (period != other.period) return false
+            if (type != other.type) return false
+            if (counter != other.counter) return false
+            if (isFavorite != other.isFavorite) return false
+            if (orderIndex != other.orderIndex) return false
+            if (updatedAt != other.updatedAt) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = id.hashCode()
+            result = 31 * result + secretBytes.contentHashCode()
+            result = 31 * result + issuer.hashCode()
+            result = 31 * result + accountName.hashCode()
+            result = 31 * result + algorithm.hashCode()
+            result = 31 * result + digits
+            result = 31 * result + period
+            result = 31 * result + type.hashCode()
+            result = 31 * result + counter.hashCode()
+            result = 31 * result + isFavorite.hashCode()
+            result = 31 * result + orderIndex
+            result = 31 * result + updatedAt.hashCode()
+            return result
+        }
+    }
 
     /**
      * Parsea un payload JSON (formato estándar "accounts" o compacto "a") a una lista de [ParsedJsonAccount].

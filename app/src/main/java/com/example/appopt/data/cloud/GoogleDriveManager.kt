@@ -136,17 +136,6 @@ object GoogleDriveManager {
      *
      * @param accessToken Token OAuth2 activo.
      * @param rawBackupJson Estructura JSON de cuentas a cifrar.
-     * @param secretKeyPass Contraseña o clave de 64 dígitos en [CharArray].
-     * @param emergencyMnemonic Frase mnemónica de 12 palabras opcional en [CharArray].
-     * @param deviceId Identificador único persistente del dispositivo emisor para control de versiones.
-     * @return [Result] exitoso si el archivo fue creado y podado correctamente.
-     */
-    /**
-     * Sube una nueva versión de copia de seguridad sellada a Google Drive en `appDataFolder`.
-     * Tras la subida exitosa, ejecuta la poda automática conservando únicamente las [MAX_BACKUP_VERSIONS] versiones más recientes.
-     *
-     * @param accessToken Token OAuth2 activo.
-     * @param rawBackupJson Estructura JSON de cuentas a cifrar.
      * @param secretKeyPass Contraseña o clave de 64 dígitos en [CharArray] si se crea un nuevo respaldo.
      * @param emergencyMnemonic Frase mnemónica de 12 palabras opcional en [CharArray].
      * @param existingSession Sesión existente de clave simétrica y ranuras para sincronización en segundo plano.

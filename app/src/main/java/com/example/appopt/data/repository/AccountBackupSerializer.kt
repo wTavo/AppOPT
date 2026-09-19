@@ -1,10 +1,6 @@
 package com.example.appopt.data.repository
 
-import com.example.appopt.data.local.AccountDao
 import com.example.appopt.data.local.AccountEntity
-import com.example.appopt.domain.model.OtpAlgorithm
-import com.example.appopt.domain.model.OtpType
-import com.example.appopt.domain.model.ParsedAccountPreview
 import com.example.appopt.domain.totp.Base32
 import com.example.appopt.security.CryptoManager
 import com.example.appopt.security.SecurityConfig
@@ -13,16 +9,15 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Serializador y deserializador seguro para operaciones de transferencia, exportación en lotes
- * y fusión de copias de seguridad de cuentas 2FA en la nube o local.
+ * Serializador seguro para operaciones de transferencia y exportación en lotes multi-QR
+ * de cuentas 2FA en la nube o local.
  *
  * Principios de diseño:
- * - Aislamiento de lógica de parsing JSON y sobre criptográfico (Directivas 8 y 9).
+ * - Aislamiento de lógica de serialización JSON y sobre criptográfico (Directivas 8 y 9).
  * - Zeroización inmediata de claves Base32 y arreglos de bytes en memoria tras la serialización.
  * - Validación defensiva de esquemas y claves compuestas para prevención de duplicados.
  */
 object AccountBackupSerializer {
-
 
     /**
      * Serializa una lista de cuentas para transferencia y opcionalmente las cifra con PIN.
@@ -137,7 +132,6 @@ object AccountBackupSerializer {
             put("v", 1)
             put("a", jsonArray)
         }
-
         val plainJson = rootObject.toString()
         val targetBatches = maxOf(SecurityConfig.TRANSFER_QR_MIN_BATCH_COUNT, (entities.size + SecurityConfig.TRANSFER_QR_BATCH_SIZE - 1) / SecurityConfig.TRANSFER_QR_BATCH_SIZE)
         val durationSeconds = SecurityConfig.calculateTransferExpirationSeconds(targetBatches)
@@ -148,65 +142,4 @@ object AccountBackupSerializer {
             targetChunkCount = targetBatches
         )
     }
-
-
-    /**
-     * Fusiona de forma no destructiva las cuentas provenientes de una copia remota de Google Drive con la base de datos local.
-     * Delega la ejecución en [AccountMergeEngine].
-     */
-    suspend fun mergeRemoteBackup(
-        remoteBackupJson: String,
-        accountDao: AccountDao,
-        cryptoManager: CryptoManager,
-        onInvalidateCache: (String) -> Unit
-    ): Result<Int> = AccountMergeEngine.mergeRemoteBackup(
-        remoteBackupJson,
-        accountDao,
-        cryptoManager,
-        onInvalidateCache
-    )
-
-    /**
-     * Guarda o fusiona un servicio individual verificando si ya existe en la base de datos por hash de clave secreta.
-     * Delega la ejecución en [AccountMergeEngine].
-     */
-    suspend fun mergeSingleAccount(
-        issuer: String,
-        accountName: String,
-        secretBytes: ByteArray,
-        algorithm: OtpAlgorithm,
-        digits: Int,
-        period: Int,
-        type: OtpType,
-        counter: Long,
-        accountDao: AccountDao,
-        cryptoManager: CryptoManager,
-        onInvalidateCache: (String) -> Unit
-    ): Int = AccountMergeEngine.mergeSingleAccount(
-        issuer,
-        accountName,
-        secretBytes,
-        algorithm,
-        digits,
-        period,
-        type,
-        counter,
-        accountDao,
-        cryptoManager,
-        onInvalidateCache
-    )
-
-    /**
-     * Parsea un payload JSON estructurado para previsualizar las cuentas antes de su importación.
-     * Delega la ejecución en [AccountMergeEngine].
-     */
-    suspend fun parseAccountsForPreview(
-        jsonString: String,
-        accountDao: AccountDao,
-        cryptoManager: CryptoManager
-    ): List<ParsedAccountPreview> = AccountMergeEngine.parseAccountsForPreview(
-        jsonString,
-        accountDao,
-        cryptoManager
-    )
 }

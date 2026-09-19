@@ -428,7 +428,7 @@ class AccountRepositoryImpl(
             val data = parseResult.getOrThrow()
             return withContext(Dispatchers.IO) {
                 runCatching {
-                    AccountBackupSerializer.mergeSingleAccount(
+                    AccountMergeEngine.mergeSingleAccount(
                         issuer = data.issuer,
                         accountName = data.accountName,
                         secretBytes = data.secretBytes,
@@ -447,7 +447,7 @@ class AccountRepositoryImpl(
 
         // 3. Caso JSON estructurado multi-cuenta (fusión no destructiva y deduplicada)
         return withContext(Dispatchers.IO) {
-            AccountBackupSerializer.mergeRemoteBackup(
+            AccountMergeEngine.mergeRemoteBackup(
                 remoteBackupJson = effectiveTrimmed,
                 accountDao = accountDao,
                 cryptoManager = cryptoManager,
@@ -468,7 +468,7 @@ class AccountRepositoryImpl(
             return@withContext Result.failure(decryptResult.exceptionOrNull() ?: TransferCrypto.InvalidPinException())
         }
         val plainJson = decryptResult.getOrThrow().trim()
-        AccountBackupSerializer.mergeRemoteBackup(
+        AccountMergeEngine.mergeRemoteBackup(
             remoteBackupJson = plainJson,
             accountDao = accountDao,
             cryptoManager = cryptoManager,
@@ -480,7 +480,7 @@ class AccountRepositoryImpl(
      * Fusiona de forma no destructiva las cuentas provenientes de una copia remota de Google Drive con la base de datos local.
      */
     override suspend fun mergeAccountsFromRemote(remoteBackupJson: String): Result<Int> = withContext(Dispatchers.IO) {
-        AccountBackupSerializer.mergeRemoteBackup(
+        AccountMergeEngine.mergeRemoteBackup(
             remoteBackupJson = remoteBackupJson,
             accountDao = accountDao,
             cryptoManager = cryptoManager,
@@ -493,7 +493,7 @@ class AccountRepositoryImpl(
      */
     override suspend fun parseAccountsForPreview(jsonString: String): List<ParsedAccountPreview> {
         return withContext(Dispatchers.IO) {
-            AccountBackupSerializer.parseAccountsForPreview(jsonString, accountDao, cryptoManager)
+            AccountMergeEngine.parseAccountsForPreview(jsonString, accountDao, cryptoManager)
         }
     }
 
@@ -505,7 +505,7 @@ class AccountRepositoryImpl(
             var changesCount = 0
             for (preview in accounts) {
                 try {
-                    val changed = AccountBackupSerializer.mergeSingleAccount(
+                    val changed = AccountMergeEngine.mergeSingleAccount(
                         issuer = preview.issuer,
                         accountName = preview.accountName,
                         secretBytes = preview.secretBytes,

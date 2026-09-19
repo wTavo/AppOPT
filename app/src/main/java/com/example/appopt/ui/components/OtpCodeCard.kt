@@ -184,7 +184,8 @@ fun OtpCodeCard(
                             text = account.issuer.ifEmpty { stringResource(R.string.home_default_issuer) },
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1
+                            maxLines = 2,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
                         if (account.accountName.isNotBlank()) {
                             Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
@@ -192,7 +193,8 @@ fun OtpCodeCard(
                                 text = account.accountName,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1
+                                maxLines = 2,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                             )
                         }
                     }

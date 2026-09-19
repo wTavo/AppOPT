@@ -21,8 +21,6 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Security
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -64,7 +62,7 @@ private data class PermissionItemData(
 )
 
 /**
- * Tarjeta de ajustes para la visualización y gestión de los permisos recomendados de la aplicación.
+ * Tarjeta de ajustes para la visualización y gestión de los permisos recomendados de la aplicación (Directiva 29).
  *
  * Presenta los permisos no concedidos de forma destacada en color rojo con su botón de acción alineado,
  * mientras que los permisos ya otorgados se agrupan en un contenedor desplegable para optimizar
@@ -127,7 +125,7 @@ fun PermissionsSettingsCard(
         icon = Icons.Filled.Security,
         modifier = modifier
     ) {
-        // 3. Permisos pendientes (fuera del desplegable, en tono rojo)
+        // Permisos pendientes (fuera del desplegable, en tono rojo)
         if (pendingPermissions.isNotEmpty()) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
@@ -143,7 +141,7 @@ fun PermissionsSettingsCard(
             }
         }
 
-        // 4. Permisos ya concedidos (dentro de contenedor desplegable)
+        // Permisos ya concedidos (dentro de contenedor desplegable)
         if (grantedPermissions.isNotEmpty()) {
             val arrowRotation by animateFloatAsState(
                 targetValue = if (isGrantedSectionExpanded) 180f else 0f,
@@ -222,157 +220,6 @@ fun PermissionsSettingsCard(
                             }
                         }
                     }
-                }
-            }
-        }
-    }
-}
-
-/**
- * Fila para un permiso no concedido, con énfasis visual en rojo/alerta y botón de acción.
- *
- * Utiliza una estructura de dos columnas: contenido informativo a la izquierda (icono, título y descripción)
- * y botón de acción a la derecha, alineado verticalmente según las directivas de Material Design 3.
- *
- * @param icon Icono representativo del permiso.
- * @param title Nombre del permiso o funcionalidad.
- * @param description Explicación del propósito del permiso.
- * @param onRequestPermission Callback para invocar la solicitud del permiso.
- */
-@Composable
-private fun PendingPermissionRow(
-    icon: ImageVector,
-    title: String,
-    description: String,
-    onRequestPermission: () -> Unit
-) {
-    val appHaptics = rememberAppHaptics()
-
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.20f)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(Dimensions.Spacing.md),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.error,
-                modifier = Modifier.size(Dimensions.IconSize.medium)
-            )
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.error
-                )
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Button(
-                onClick = {
-                    appHaptics.click()
-                    onRequestPermission()
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError
-                ),
-                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-            ) {
-                Text(
-                    text = stringResource(R.string.settings_permission_action_grant),
-                    style = MaterialTheme.typography.labelMedium
-                )
-            }
-        }
-    }
-}
-
-/**
- * Fila para un permiso concedido, presentado con tono verde seguro dentro del contenedor desplegable.
- *
- * @param icon Icono representativo del permiso.
- * @param title Nombre del permiso o funcionalidad.
- * @param description Explicación del propósito del permiso.
- */
-@Composable
-private fun GrantedPermissionRow(
-    icon: ImageVector,
-    title: String,
-    description: String
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-        color = MaterialTheme.colorScheme.surface
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(Dimensions.Spacing.md),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = SafeGreen,
-                modifier = Modifier.size(Dimensions.IconSize.medium)
-            )
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall
-                )
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Surface(
-                shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
-                color = SafeGreen.copy(alpha = 0.12f)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs),
-                    modifier = Modifier.padding(
-                        horizontal = Dimensions.Spacing.sm,
-                        vertical = Dimensions.Spacing.xs
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.CheckCircle,
-                        contentDescription = null,
-                        tint = SafeGreen,
-                        modifier = Modifier.size(Dimensions.IconSize.small)
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_permission_granted),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = SafeGreen
-                    )
                 }
             }
         }

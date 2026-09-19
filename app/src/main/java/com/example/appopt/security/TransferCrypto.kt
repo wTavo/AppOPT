@@ -1,10 +1,6 @@
 package com.example.appopt.security
 
-import java.io.ByteArrayOutputStream
 import java.security.SecureRandom
-import java.util.Base64
-import java.util.zip.Deflater
-import java.util.zip.Inflater
 import javax.crypto.Cipher
 import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.GCMParameterSpec
@@ -12,57 +8,12 @@ import javax.crypto.spec.PBEKeySpec
 import javax.crypto.spec.SecretKeySpec
 
 /**
- * Representa un fragmento o pieza de un sobre de transferencia QR cifrado bajo el esquema "Todo o Nada" o versión 1.
- *
- * @property version Versión del esquema del sobre ([SecurityConfig.TRANSFER_QR_VERSION] o [SecurityConfig.TRANSFER_QR_VERSION_V2]).
- * @property sessionId Identificador único aleatorio de 64 bits para correlacionar fragmentos de la misma sesión.
- * @property index Posición ordinal de este fragmento (base 1: 1..[total]).
- * @property total Cantidad total de fragmentos necesarios para reconstruir el texto cifrado.
- * @property salt Sal criptográfica de 16 bytes generada por CSPRNG.
- * @property iv Vector de inicialización AES-GCM de 12 bytes.
- * @property chunkCiphertext Segmento de bytes del texto cifrado correspondiente a este fragmento.
- */
-data class TransferQrChunk(
-    val version: Int,
-    val sessionId: Long,
-    val index: Int,
-    val total: Int,
-    val salt: ByteArray,
-    val iv: ByteArray,
-    val chunkCiphertext: ByteArray
-) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-        other as TransferQrChunk
-        return version == other.version &&
-            sessionId == other.sessionId &&
-            index == other.index &&
-            total == other.total &&
-            salt.contentEquals(other.salt) &&
-            iv.contentEquals(other.iv) &&
-            chunkCiphertext.contentEquals(other.chunkCiphertext)
-    }
-
-    override fun hashCode(): Int {
-        var result = version
-        result = 31 * result + sessionId.hashCode()
-        result = 31 * result + index
-        result = 31 * result + total
-        result = 31 * result + salt.contentHashCode()
-        result = 31 * result + iv.contentHashCode()
-        result = 31 * result + chunkCiphertext.contentHashCode()
-        return result
-    }
-}
-
-/**
  * Gestor criptográfico para la transferencia segura y ultra-compacta de servicios entre dispositivos mediante códigos QR cifrados.
  *
  * Optimizaciones y seguridad:
- * - Compresión Deflate de alta densidad previa al cifrado para reducir el tamaño del payload en más de un 80%.
+ * - Compresión Deflate de alta densidad previa al cifrado para reducir el tamaño del payload en más de un 80% ([TransferPayloadCodec]).
  * - Cifrado simétrico autenticado **AES-256-GCM** (Tag de 128 bits e IV único de 12 bytes).
- * - Derivación de clave mediante **PBKDF2 con HMAC-SHA256** (10.000 iteraciones + Salt CSPRNG de 16 bytes) a partir del PIN de 6 dígitos.
+ * - Derivación de clave mediante **PBKDF2 con HMAC-SHA256** (10.000 iteraciones + Salt CSPRNG de 16 bytes) a partir del PIN.
  * - Esquema **Todo o Nada (All-or-Nothing)** en versión 2: El texto cifrado completo se divide en fragmentos continuos;
  *   es matemáticamente imposible descifrar cualquier dato si falta al menos un fragmento.
  * - Ventana de expiración temporal estricta de 90 segundos con tolerancia de 15s para desajustes de reloj.
@@ -73,22 +24,6 @@ object TransferCrypto {
      * Prefijo canónico que identifica un código QR de transferencia cifrado de AppOPT.
      */
     const val QR_TRANSFER_PREFIX = "appopt-transfer:"
-
-    // Offsets para Versión 1: [Versión (1B)][Salt (16B)][IV (12B)][Ciphertext]
-    private const val HEADER_V1_VERSION_BYTES = 1
-    private const val SALT_LENGTH_BYTES = 16
-    private const val IV_LENGTH_BYTES = 12
-    private const val HEADER_V1_OFFSET_SALT = HEADER_V1_VERSION_BYTES
-    private const val HEADER_V1_OFFSET_IV = HEADER_V1_OFFSET_SALT + SALT_LENGTH_BYTES
-    private const val HEADER_V1_OFFSET_CIPHERTEXT = HEADER_V1_OFFSET_IV + IV_LENGTH_BYTES
-
-    // Offsets para Versión 2 (Todo o Nada): [Versión (1B)][SessionId (8B)][Index (1B)][Total (1B)][Salt (16B)][IV (12B)][ChunkCiphertext]
-    private const val HEADER_V2_OFFSET_SESSION = 1
-    private const val HEADER_V2_OFFSET_INDEX = HEADER_V2_OFFSET_SESSION + 8
-    private const val HEADER_V2_OFFSET_TOTAL = HEADER_V2_OFFSET_INDEX + 1
-    private const val HEADER_V2_OFFSET_SALT = HEADER_V2_OFFSET_TOTAL + 1
-    private const val HEADER_V2_OFFSET_IV = HEADER_V2_OFFSET_SALT + SALT_LENGTH_BYTES
-    private const val HEADER_V2_OFFSET_CIPHERTEXT = HEADER_V2_OFFSET_IV + IV_LENGTH_BYTES
 
     /**
      * Margen de tolerancia de desfase de reloj en milisegundos entre dispositivos (15 segundos).
@@ -125,40 +60,6 @@ object TransferCrypto {
             chars[i] = alphabet[secureRandom.nextInt(alphabet.length)]
         }
         return String(chars)
-    }
-
-    /**
-     * Comprime un arreglo de bytes utilizando el algoritmo Deflate (nivel máximo).
-     */
-    private fun compress(data: ByteArray): ByteArray {
-        val deflater = Deflater(Deflater.BEST_COMPRESSION)
-        deflater.setInput(data)
-        deflater.finish()
-        val outputStream = ByteArrayOutputStream(data.size)
-        val buffer = ByteArray(1024)
-        while (!deflater.finished()) {
-            val count = deflater.deflate(buffer)
-            outputStream.write(buffer, 0, count)
-        }
-        deflater.end()
-        return outputStream.toByteArray()
-    }
-
-    /**
-     * Descomprime un arreglo de bytes comprimido con Deflate.
-     */
-    private fun decompress(data: ByteArray): ByteArray {
-        val inflater = Inflater()
-        inflater.setInput(data)
-        val outputStream = ByteArrayOutputStream(data.size * 2)
-        val buffer = ByteArray(1024)
-        while (!inflater.finished()) {
-            val count = inflater.inflate(buffer)
-            if (count == 0 && inflater.needsInput()) break
-            outputStream.write(buffer, 0, count)
-        }
-        inflater.end()
-        return outputStream.toByteArray()
     }
 
     /**
@@ -199,7 +100,7 @@ object TransferCrypto {
         maxChunkBytes: Int = SecurityConfig.TRANSFER_QR_CHUNK_MAX_BYTES,
         targetChunkCount: Int? = null
     ): List<String> {
-        val salt = ByteArray(SALT_LENGTH_BYTES)
+        val salt = ByteArray(TransferPayloadCodec.SALT_LENGTH_BYTES)
         secureRandom.nextBytes(salt)
 
         val now = System.currentTimeMillis()
@@ -207,7 +108,7 @@ object TransferCrypto {
 
         val innerPayloadString = "$expiresAt|$accountsJson"
         val rawPlainBytes = innerPayloadString.toByteArray(Charsets.UTF_8)
-        val compressedPlainBytes = compress(rawPlainBytes)
+        val compressedPlainBytes = TransferPayloadCodec.compress(rawPlainBytes)
         CryptoManager.zeroize(rawPlainBytes)
 
         val normalizedPinChars = String(pin)
@@ -260,21 +161,14 @@ object TransferCrypto {
 
             for ((idx0, chunkBytes) in chunkList.withIndex()) {
                 val index = idx0 + 1
-                val envelope = ByteArray(HEADER_V2_OFFSET_CIPHERTEXT + chunkBytes.size)
-                envelope[0] = SecurityConfig.TRANSFER_QR_VERSION_V2.toByte()
-
-                // Session ID (8 bytes)
-                for (b in 0..7) {
-                    envelope[HEADER_V2_OFFSET_SESSION + b] = (sessionId ushr (56 - b * 8)).toByte()
-                }
-
-                envelope[HEADER_V2_OFFSET_INDEX] = index.toByte()
-                envelope[HEADER_V2_OFFSET_TOTAL] = total.toByte()
-                System.arraycopy(salt, 0, envelope, HEADER_V2_OFFSET_SALT, SALT_LENGTH_BYTES)
-                System.arraycopy(iv, 0, envelope, HEADER_V2_OFFSET_IV, IV_LENGTH_BYTES)
-                System.arraycopy(chunkBytes, 0, envelope, HEADER_V2_OFFSET_CIPHERTEXT, chunkBytes.size)
-
-                val base64Envelope = Base64.getUrlEncoder().withoutPadding().encodeToString(envelope)
+                val base64Envelope = TransferPayloadCodec.encodeChunkV2(
+                    sessionId = sessionId,
+                    index = index,
+                    total = total,
+                    salt = salt,
+                    iv = iv,
+                    chunkBytes = chunkBytes
+                )
                 resultQrStrings.add("$QR_TRANSFER_PREFIX$base64Envelope")
             }
 
@@ -293,67 +187,7 @@ object TransferCrypto {
      * @return Instancia estructurada de [TransferQrChunk].
      */
     fun parseTransferChunk(qrPayload: String): TransferQrChunk {
-        val trimmed = qrPayload.trim()
-        val rawEncoded = if (trimmed.startsWith(QR_TRANSFER_PREFIX, ignoreCase = true)) {
-            trimmed.substring(QR_TRANSFER_PREFIX.length).trim()
-        } else {
-            trimmed
-        }
-
-        val binaryEnvelope = try {
-            Base64.getUrlDecoder().decode(rawEncoded)
-        } catch (_: Exception) {
-            Base64.getDecoder().decode(rawEncoded)
-        }
-
-        if (binaryEnvelope.isEmpty()) {
-            throw IllegalArgumentException("Sobre de transferencia vacío")
-        }
-
-        return when (val version = binaryEnvelope[0].toInt() and 0xFF) {
-            SecurityConfig.TRANSFER_QR_VERSION -> {
-                if (binaryEnvelope.size <= HEADER_V1_OFFSET_CIPHERTEXT) {
-                    throw IllegalArgumentException("Tamaño de sobre de transferencia v1 inválido")
-                }
-                val salt = binaryEnvelope.copyOfRange(HEADER_V1_OFFSET_SALT, HEADER_V1_OFFSET_IV)
-                val iv = binaryEnvelope.copyOfRange(HEADER_V1_OFFSET_IV, HEADER_V1_OFFSET_CIPHERTEXT)
-                val ciphertext = binaryEnvelope.copyOfRange(HEADER_V1_OFFSET_CIPHERTEXT, binaryEnvelope.size)
-                TransferQrChunk(
-                    version = version,
-                    sessionId = 0L,
-                    index = 1,
-                    total = 1,
-                    salt = salt,
-                    iv = iv,
-                    chunkCiphertext = ciphertext
-                )
-            }
-            SecurityConfig.TRANSFER_QR_VERSION_V2 -> {
-                if (binaryEnvelope.size <= HEADER_V2_OFFSET_CIPHERTEXT) {
-                    throw IllegalArgumentException("Tamaño de sobre de transferencia v2 inválido")
-                }
-                var sessionId = 0L
-                for (b in 0..7) {
-                    sessionId = (sessionId shl 8) or (binaryEnvelope[HEADER_V2_OFFSET_SESSION + b].toLong() and 0xFF)
-                }
-                val index = binaryEnvelope[HEADER_V2_OFFSET_INDEX].toInt() and 0xFF
-                val total = binaryEnvelope[HEADER_V2_OFFSET_TOTAL].toInt() and 0xFF
-                val salt = binaryEnvelope.copyOfRange(HEADER_V2_OFFSET_SALT, HEADER_V2_OFFSET_IV)
-                val iv = binaryEnvelope.copyOfRange(HEADER_V2_OFFSET_IV, HEADER_V2_OFFSET_CIPHERTEXT)
-                val chunkCiphertext = binaryEnvelope.copyOfRange(HEADER_V2_OFFSET_CIPHERTEXT, binaryEnvelope.size)
-
-                TransferQrChunk(
-                    version = version,
-                    sessionId = sessionId,
-                    index = index,
-                    total = total,
-                    salt = salt,
-                    iv = iv,
-                    chunkCiphertext = chunkCiphertext
-                )
-            }
-            else -> throw IllegalArgumentException("Versión de sobre de transferencia no soportada: $version")
-        }
+        return TransferPayloadCodec.parseChunk(qrPayload, QR_TRANSFER_PREFIX)
     }
 
     /**
@@ -397,7 +231,6 @@ object TransferCrypto {
                 throw IncompleteTransferException("Se recibieron ${chunks.size} de $total fragmentos")
             }
 
-            // Verificar consistencia de sesión
             for (chunk in chunks) {
                 if (chunk.total != total || chunk.sessionId != sessionId) {
                     throw IllegalArgumentException("Los fragmentos pertenecen a sesiones de transferencia diferentes")
@@ -414,7 +247,6 @@ object TransferCrypto {
                 }
             }
 
-            // Ensamblar texto cifrado completo
             val totalCiphertextSize = sortedChunks.sumOf { it.chunkCiphertext.size }
             val fullCiphertext = ByteArray(totalCiphertextSize)
             var currentOffset = 0
@@ -458,7 +290,7 @@ object TransferCrypto {
                 }
 
                 val decompressedBytes = try {
-                    decompress(decryptedCompressedBytes)
+                    TransferPayloadCodec.decompress(decryptedCompressedBytes)
                 } catch (_: Exception) {
                     decryptedCompressedBytes
                 }

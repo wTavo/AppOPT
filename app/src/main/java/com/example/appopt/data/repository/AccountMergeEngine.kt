@@ -23,6 +23,128 @@ import java.util.UUID
 object AccountMergeEngine {
 
     /**
+     * Estructura intermedia para cuentas deserializadas desde JSON.
+     */
+    private data class ParsedJsonAccount(
+        val id: String,
+        val secretBytes: ByteArray,
+        val issuer: String,
+        val accountName: String,
+        val algorithm: OtpAlgorithm,
+        val digits: Int,
+        val period: Int,
+        val type: OtpType,
+        val counter: Long,
+        val isFavorite: Boolean,
+        val orderIndex: Int,
+        val updatedAt: Long
+    )
+
+    /**
+     * Parsea un payload JSON (formato estándar "accounts" o compacto "a") a una lista de [ParsedJsonAccount].
+     */
+    private fun parseJsonItems(jsonString: String): List<ParsedJsonAccount> {
+        val trimmed = jsonString.trim()
+        if (trimmed.isBlank()) return emptyList()
+
+        val root = try {
+            JSONObject(trimmed)
+        } catch (_: Exception) {
+            return emptyList()
+        }
+
+        val accountsArray = when {
+            root.has("accounts") -> root.getJSONArray("accounts")
+            root.has("a") -> root.getJSONArray("a")
+            else -> return emptyList()
+        }
+
+        val result = mutableListOf<ParsedJsonAccount>()
+        for (i in 0 until accountsArray.length()) {
+            val item = accountsArray.getJSONObject(i)
+            val rawSecret = when {
+                item.has("secret") -> item.getString("secret")
+                item.has("s") -> item.getString("s")
+                else -> continue
+            }
+            val secretBytes = try {
+                Base32.decode(Base32.sanitize(rawSecret))
+            } catch (_: Exception) {
+                continue
+            }
+
+            val remoteId = when {
+                item.has("id") -> item.optString("id", "")
+                else -> ""
+            }.trim()
+
+            val remoteIssuer = when {
+                item.has("issuer") -> item.optString("issuer", "Cuenta")
+                item.has("i") -> item.optString("i", "Cuenta")
+                else -> "Cuenta"
+            }.trim().ifBlank { "Cuenta" }
+
+            val remoteAccountName = when {
+                item.has("accountName") -> item.optString("accountName", "")
+                item.has("a") -> item.optString("a", "")
+                else -> ""
+            }.trim()
+
+            val remoteAlgorithm = when {
+                item.has("algorithm") -> item.optString("algorithm", "SHA1")
+                item.has("alg") -> item.optString("alg", "SHA1")
+                else -> "SHA1"
+            }
+
+            val remoteDigits = when {
+                item.has("digits") -> item.optInt("digits", 6)
+                item.has("d") -> item.optInt("d", 6)
+                else -> 6
+            }
+
+            val remotePeriod = when {
+                item.has("period") -> item.optInt("period", 30)
+                item.has("p") -> item.optInt("p", 30)
+                else -> 30
+            }
+
+            val remoteType = when {
+                item.has("type") -> item.optString("type", "TOTP")
+                item.has("t") -> item.optString("t", "TOTP")
+                else -> "TOTP"
+            }
+
+            val remoteCounter = when {
+                item.has("counter") -> item.optLong("counter", 0L)
+                item.has("c") -> item.optLong("c", 0L)
+                else -> 0L
+            }
+
+            val remoteIsFavorite = item.optBoolean("isFavorite", false)
+            val remoteOrderIndex = item.optInt("orderIndex", 0)
+            val remoteUpdatedAt = item.optLong("updatedAt", 0L)
+
+            result.add(
+                ParsedJsonAccount(
+                    id = remoteId,
+                    secretBytes = secretBytes,
+                    issuer = remoteIssuer,
+                    accountName = remoteAccountName,
+                    algorithm = OtpAlgorithm.fromString(remoteAlgorithm),
+                    digits = remoteDigits,
+                    period = remotePeriod,
+                    type = OtpType.fromString(remoteType),
+                    counter = remoteCounter,
+                    isFavorite = remoteIsFavorite,
+                    orderIndex = remoteOrderIndex,
+                    updatedAt = remoteUpdatedAt
+                )
+            )
+        }
+        return result
+    }
+
+    /**
      * Fusiona de forma no destructiva las cuentas provenientes de una copia remota de Google Drive con la base de datos local.
      *
      * @param remoteBackupJson Cadena JSON del archivo de respaldo remoto.
@@ -36,185 +158,115 @@ object AccountMergeEngine {
         accountDao: AccountDao,
         cryptoManager: CryptoManager,
         onInvalidateCache: (String) -> Unit
-    ): Result<Int> {
-        return runCatching {
-            val trimmed = remoteBackupJson.trim()
-            if (trimmed.isBlank()) return@runCatching 0
+    ): Result<Int> = runCatching {
+        val parsedList = parseJsonItems(remoteBackupJson)
+        if (parsedList.isEmpty()) return@runCatching 0
 
-            val root = JSONObject(trimmed)
-            val accountsArray = when {
-                root.has("accounts") -> root.getJSONArray("accounts")
-                root.has("a") -> root.getJSONArray("a")
-                else -> return@runCatching 0
+        val currentEntities = accountDao.getAllAccountsSync()
+        val localById = currentEntities.associateBy { it.id }.toMutableMap()
+        val localBySecretHash = mutableMapOf<String, AccountEntity>()
+
+        for (entity in currentEntities) {
+            try {
+                val secretBytes = cryptoManager.decrypt(entity.encryptedSecret, entity.iv)
+                val hash = secretBytes.sha256Hex()
+                CryptoManager.zeroize(secretBytes)
+                localBySecretHash[hash] = entity
+            } catch (_: Exception) {
+                // Ignorar entidades corruptas aisladas
             }
-            if (accountsArray.length() == 0) return@runCatching 0
+        }
 
-            val currentEntities = accountDao.getAllAccountsSync()
-            val localById = currentEntities.associateBy { it.id }.toMutableMap()
-            val localBySecretHash = mutableMapOf<String, AccountEntity>()
+        var changesCount = 0
 
-            for (entity in currentEntities) {
-                try {
-                    val secretBytes = cryptoManager.decrypt(entity.encryptedSecret, entity.iv)
-                    val hash = secretBytes.sha256Hex()
-                    CryptoManager.zeroize(secretBytes)
-                    localBySecretHash[hash] = entity
-                } catch (_: Exception) {
-                    // Ignorar fallas aisladas en entidades corruptas
-                }
-            }
+        for (item in parsedList) {
+            try {
+                val remoteHash = item.secretBytes.sha256Hex()
+                val existingEntity = (if (item.id.isNotBlank()) localById[item.id] else null) ?: localBySecretHash[remoteHash]
 
-            var changesCount = 0
-
-            for (i in 0 until accountsArray.length()) {
-                val item = accountsArray.getJSONObject(i)
-                val remoteId = when {
-                    item.has("id") -> item.optString("id", "")
-                    else -> ""
-                }.trim()
-
-                val rawSecret = when {
-                    item.has("secret") -> item.getString("secret")
-                    item.has("s") -> item.getString("s")
-                    else -> continue
-                }
-
-                val remoteIssuer = when {
-                    item.has("issuer") -> item.optString("issuer", "Cuenta")
-                    item.has("i") -> item.optString("i", "Cuenta")
-                    else -> "Cuenta"
-                }.trim()
-
-                val remoteAccountName = when {
-                    item.has("accountName") -> item.optString("accountName", "")
-                    item.has("a") -> item.optString("a", "")
-                    else -> ""
-                }.trim()
-
-                val remoteAlgorithm = when {
-                    item.has("algorithm") -> item.optString("algorithm", "SHA1")
-                    item.has("alg") -> item.optString("alg", "SHA1")
-                    else -> "SHA1"
-                }
-
-                val remoteDigits = when {
-                    item.has("digits") -> item.optInt("digits", 6)
-                    item.has("d") -> item.optInt("d", 6)
-                    else -> 6
-                }
-
-                val remotePeriod = when {
-                    item.has("period") -> item.optInt("period", 30)
-                    item.has("p") -> item.optInt("p", 30)
-                    else -> 30
-                }
-
-                val remoteType = when {
-                    item.has("type") -> item.optString("type", "TOTP")
-                    item.has("t") -> item.optString("t", "TOTP")
-                    else -> "TOTP"
-                }
-
-                val remoteCounter = when {
-                    item.has("counter") -> item.optLong("counter", 0L)
-                    item.has("c") -> item.optLong("c", 0L)
-                    else -> 0L
-                }
-
-                val remoteIsFavorite = item.optBoolean("isFavorite", false)
-                val remoteOrderIndex = item.optInt("orderIndex", 0)
-                val remoteUpdatedAt = item.optLong("updatedAt", 0L)
-
-                val sanitizedSecret = Base32.sanitize(rawSecret)
-                val secretBytes = Base32.decode(sanitizedSecret)
-                try {
-                    val remoteHash = secretBytes.sha256Hex()
-                    val existingEntity = (if (remoteId.isNotBlank()) localById[remoteId] else null) ?: localBySecretHash[remoteHash]
-
-                    if (existingEntity == null) {
-                        val payload = cryptoManager.encrypt(secretBytes)
-                        val newId = if (remoteId.isNotBlank()) remoteId else UUID.randomUUID().toString()
-                        val now = if (remoteUpdatedAt > 0L) remoteUpdatedAt else System.currentTimeMillis()
-                        val newEntity = AccountEntity(
-                            id = newId,
-                            issuer = remoteIssuer,
-                            accountName = remoteAccountName,
+                if (existingEntity == null) {
+                    val payload = cryptoManager.encrypt(item.secretBytes)
+                    val newId = if (item.id.isNotBlank()) item.id else UUID.randomUUID().toString()
+                    val now = if (item.updatedAt > 0L) item.updatedAt else System.currentTimeMillis()
+                    val newEntity = AccountEntity(
+                        id = newId,
+                        issuer = item.issuer,
+                        accountName = item.accountName,
+                        encryptedSecret = payload.ciphertext,
+                        iv = payload.iv,
+                        algorithm = item.algorithm.name,
+                        digits = item.digits,
+                        period = item.period,
+                        type = item.type.name,
+                        counter = item.counter,
+                        isFavorite = item.isFavorite,
+                        orderIndex = item.orderIndex,
+                        isDeleted = false,
+                        deletedAt = null,
+                        createdAt = now,
+                        updatedAt = now
+                    )
+                    accountDao.insertAccount(newEntity)
+                    localById[newId] = newEntity
+                    localBySecretHash[remoteHash] = newEntity
+                    changesCount++
+                } else {
+                    if (existingEntity.isDeleted) {
+                        val payload = cryptoManager.encrypt(item.secretBytes)
+                        val restoredEntity = existingEntity.copy(
+                            issuer = item.issuer,
+                            accountName = item.accountName,
                             encryptedSecret = payload.ciphertext,
                             iv = payload.iv,
-                            algorithm = OtpAlgorithm.fromString(remoteAlgorithm).name,
-                            digits = remoteDigits,
-                            period = remotePeriod,
-                            type = OtpType.fromString(remoteType).name,
-                            counter = remoteCounter,
-                            isFavorite = remoteIsFavorite,
-                            orderIndex = remoteOrderIndex,
+                            algorithm = item.algorithm.name,
+                            digits = item.digits,
+                            period = item.period,
+                            type = item.type.name,
+                            counter = maxOf(existingEntity.counter, item.counter),
                             isDeleted = false,
                             deletedAt = null,
-                            createdAt = now,
-                            updatedAt = now
+                            updatedAt = if (item.updatedAt > 0L) item.updatedAt else System.currentTimeMillis()
                         )
-                        accountDao.insertAccount(newEntity)
-                        localById[newId] = newEntity
-                        localBySecretHash[remoteHash] = newEntity
+                        accountDao.updateAccount(restoredEntity)
+                        localById[existingEntity.id] = restoredEntity
+                        localBySecretHash[remoteHash] = restoredEntity
+                        onInvalidateCache(existingEntity.id)
                         changesCount++
-                    } else {
-                        if (existingEntity.isDeleted) {
-                            val payload = cryptoManager.encrypt(secretBytes)
-                            val restoredEntity = existingEntity.copy(
-                                issuer = remoteIssuer,
-                                accountName = remoteAccountName,
-                                encryptedSecret = payload.ciphertext,
-                                iv = payload.iv,
-                                algorithm = OtpAlgorithm.fromString(remoteAlgorithm).name,
-                                digits = remoteDigits,
-                                period = remotePeriod,
-                                type = OtpType.fromString(remoteType).name,
-                                counter = maxOf(existingEntity.counter, remoteCounter),
-                                isDeleted = false,
-                                deletedAt = null,
-                                updatedAt = if (remoteUpdatedAt > 0L) remoteUpdatedAt else System.currentTimeMillis()
-                            )
-                            accountDao.updateAccount(restoredEntity)
-                            localById[existingEntity.id] = restoredEntity
-                            localBySecretHash[remoteHash] = restoredEntity
-                            onInvalidateCache(existingEntity.id)
-                            changesCount++
-                        } else if (remoteUpdatedAt > existingEntity.updatedAt ||
-                            remoteIssuer != existingEntity.issuer ||
-                            remoteAccountName != existingEntity.accountName ||
-                            remoteCounter > existingEntity.counter
-                        ) {
-                            val payload = cryptoManager.encrypt(secretBytes)
-                            val updatedEntity = existingEntity.copy(
-                                issuer = remoteIssuer,
-                                accountName = remoteAccountName,
-                                encryptedSecret = payload.ciphertext,
-                                iv = payload.iv,
-                                algorithm = OtpAlgorithm.fromString(remoteAlgorithm).name,
-                                digits = remoteDigits,
-                                period = remotePeriod,
-                                type = OtpType.fromString(remoteType).name,
-                                counter = maxOf(existingEntity.counter, remoteCounter),
-                                updatedAt = if (remoteUpdatedAt > 0L) remoteUpdatedAt else System.currentTimeMillis()
-                            )
-                            accountDao.updateAccount(updatedEntity)
-                            localById[existingEntity.id] = updatedEntity
-                            localBySecretHash[remoteHash] = updatedEntity
-                            onInvalidateCache(existingEntity.id)
-                            changesCount++
-                        }
+                    } else if (item.updatedAt > existingEntity.updatedAt ||
+                        item.issuer != existingEntity.issuer ||
+                        item.accountName != existingEntity.accountName ||
+                        item.counter > existingEntity.counter
+                    ) {
+                        val payload = cryptoManager.encrypt(item.secretBytes)
+                        val updatedEntity = existingEntity.copy(
+                            issuer = item.issuer,
+                            accountName = item.accountName,
+                            encryptedSecret = payload.ciphertext,
+                            iv = payload.iv,
+                            algorithm = item.algorithm.name,
+                            digits = item.digits,
+                            period = item.period,
+                            type = item.type.name,
+                            counter = maxOf(existingEntity.counter, item.counter),
+                            updatedAt = if (item.updatedAt > 0L) item.updatedAt else System.currentTimeMillis()
+                        )
+                        accountDao.updateAccount(updatedEntity)
+                        localById[existingEntity.id] = updatedEntity
+                        localBySecretHash[remoteHash] = updatedEntity
+                        onInvalidateCache(existingEntity.id)
+                        changesCount++
                     }
-                } finally {
-                    CryptoManager.zeroize(secretBytes)
                 }
+            } finally {
+                CryptoManager.zeroize(item.secretBytes)
             }
-
-            if (changesCount > 0) {
-                com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
-            }
-
-            changesCount
         }
+
+        if (changesCount > 0) {
+            com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
+        }
+
+        changesCount
     }
 
     /**
@@ -260,7 +312,7 @@ object AccountMergeEngine {
                     break
                 }
             } catch (_: Exception) {
-                // Ignorar fallas aisladas en entidades corruptas
+                // Ignorar entidades corruptas aisladas
             }
         }
 
@@ -355,20 +407,8 @@ object AccountMergeEngine {
         accountDao: AccountDao,
         cryptoManager: CryptoManager
     ): List<ParsedAccountPreview> {
-        val trimmed = jsonString.trim()
-        if (trimmed.isBlank()) return emptyList()
-
-        val root = try {
-            JSONObject(trimmed)
-        } catch (_: Exception) {
-            return emptyList()
-        }
-
-        val accountsArray = when {
-            root.has("accounts") -> root.getJSONArray("accounts")
-            root.has("a") -> root.getJSONArray("a")
-            else -> return emptyList()
-        }
+        val parsedList = parseJsonItems(jsonString)
+        if (parsedList.isEmpty()) return emptyList()
 
         val currentEntities = accountDao.getAllAccountsSync()
         val localHashes = mutableSetOf<String>()
@@ -386,88 +426,24 @@ object AccountMergeEngine {
             }
         }
 
-        val list = mutableListOf<ParsedAccountPreview>()
-        for (i in 0 until accountsArray.length()) {
-            val item = accountsArray.getJSONObject(i)
-            val rawSecret = when {
-                item.has("secret") -> item.getString("secret")
-                item.has("s") -> item.getString("s")
-                else -> continue
-            }
-            val secretBytes = try {
-                Base32.decode(Base32.sanitize(rawSecret))
-            } catch (_: Exception) {
-                continue
-            }
-
-            val incomingHash = secretBytes.sha256Hex()
+        return parsedList.map { item ->
+            val incomingHash = item.secretBytes.sha256Hex()
             val isAlreadyInVault = incomingHash in localHashes
+            val resolvedId = item.id.ifBlank { UUID.randomUUID().toString() }
 
-            val remoteId = when {
-                item.has("id") -> item.optString("id", UUID.randomUUID().toString())
-                else -> UUID.randomUUID().toString()
-            }.ifBlank { UUID.randomUUID().toString() }
-
-            val remoteIssuer = when {
-                item.has("issuer") -> item.optString("issuer", "Cuenta")
-                item.has("i") -> item.optString("i", "Cuenta")
-                else -> "Cuenta"
-            }.trim().ifBlank { "Cuenta" }
-
-            val remoteAccountName = when {
-                item.has("accountName") -> item.optString("accountName", "")
-                item.has("a") -> item.optString("a", "")
-                else -> ""
-            }.trim()
-
-            val remoteAlgorithm = when {
-                item.has("algorithm") -> item.optString("algorithm", "SHA1")
-                item.has("alg") -> item.optString("alg", "SHA1")
-                else -> "SHA1"
-            }
-
-            val remoteDigits = when {
-                item.has("digits") -> item.optInt("digits", 6)
-                item.has("d") -> item.optInt("d", 6)
-                else -> 6
-            }
-
-            val remotePeriod = when {
-                item.has("period") -> item.optInt("period", 30)
-                item.has("p") -> item.optInt("p", 30)
-                else -> 30
-            }
-
-            val remoteType = when {
-                item.has("type") -> item.optString("type", "TOTP")
-                item.has("t") -> item.optString("t", "TOTP")
-                else -> "TOTP"
-            }
-
-            val remoteCounter = when {
-                item.has("counter") -> item.optLong("counter", 0L)
-                item.has("c") -> item.optLong("c", 0L)
-                else -> 0L
-            }
-
-            val remoteIsFavorite = item.optBoolean("isFavorite", false)
-
-            list.add(
-                ParsedAccountPreview(
-                    id = remoteId,
-                    issuer = remoteIssuer,
-                    accountName = remoteAccountName,
-                    algorithm = OtpAlgorithm.fromString(remoteAlgorithm),
-                    digits = remoteDigits,
-                    period = remotePeriod,
-                    type = OtpType.fromString(remoteType),
-                    counter = remoteCounter,
-                    isFavorite = remoteIsFavorite,
-                    isAlreadyInVault = isAlreadyInVault,
-                    secretBytes = secretBytes
-                )
+            ParsedAccountPreview(
+                id = resolvedId,
+                issuer = item.issuer,
+                accountName = item.accountName,
+                algorithm = item.algorithm,
+                digits = item.digits,
+                period = item.period,
+                type = item.type,
+                counter = item.counter,
+                isFavorite = item.isFavorite,
+                isAlreadyInVault = isAlreadyInVault,
+                secretBytes = item.secretBytes
             )
         }
-        return list
     }
 }

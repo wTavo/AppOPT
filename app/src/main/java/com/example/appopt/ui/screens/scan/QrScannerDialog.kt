@@ -16,7 +16,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
 import com.example.appopt.domain.model.ParsedAccountPreview
-import com.example.appopt.domain.totp.OtpUriParser
 import com.example.appopt.domain.totp.ParsedOtpData
 import com.example.appopt.security.CryptoManager
 import com.example.appopt.security.SecurityConfig
@@ -28,6 +27,7 @@ import com.example.appopt.ui.screens.scan.components.QrScanCameraStep
 import com.example.appopt.ui.screens.scan.components.QrScanSingleOtpStep
 import com.example.appopt.ui.screens.scan.components.QrScanTransferPinStep
 import com.example.appopt.ui.screens.scan.components.QrScanTransferSelectStep
+import com.example.appopt.ui.screens.scan.components.QrScannerBarcodeHandler
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.rememberAppHaptics
 import kotlinx.coroutines.delay
@@ -67,6 +67,7 @@ enum class QrScannerMode {
  * - Directiva 22: Idempotencia y feedback háptico con [com.example.appopt.ui.components.AppAnimatedButton] y [com.example.appopt.ui.theme.AppHaptics].
  * - Directiva 9: Zeroización de memoria tras procesar claves criptográficas.
  * - Directiva 28: Inicio bajo demanda y filtrado silencioso según [mode].
+ * - Directiva 29: Desacoplamiento modular de pasos y orquestación.
  * - Prevención Antifraude: Verificación previa con detección de homóglifos, duplicados y consejos antiphishing.
  *
  * @param onDismiss Callback para cerrar el diálogo.
@@ -197,7 +198,7 @@ fun QrScannerDialog(
                                 isProcessingBarcode = true
 
                                 scope.launch {
-                                    handleScannedBarcode(
+                                    QrScannerBarcodeHandler.handleScannedBarcode(
                                         rawValue = rawValue,
                                         mode = mode,
                                         appHaptics = appHaptics,
@@ -258,13 +259,19 @@ fun QrScannerDialog(
                                         onIgnored = {
                                             scope.launch {
                                                 delay(200L.milliseconds)
+                                                if (lastScannedPayload == rawValue) {
+                                                    lastScannedPayload = null
+                                                }
                                                 isProcessingBarcode = false
                                             }
                                         },
                                         onError = {
                                             appHaptics.error()
-                                            delay(Motion.Duration.FEEDBACK_TOAST.toLong().milliseconds)
-                                            isProcessingBarcode = false
+                                            scope.launch {
+                                                delay(1200L.milliseconds)
+                                                lastScannedPayload = null
+                                                isProcessingBarcode = false
+                                            }
                                         }
                                     )
                                 }
@@ -275,34 +282,26 @@ fun QrScannerDialog(
                 }
 
                 QrScannerStep.CONFIRM_SINGLE_OTP -> {
-                    val otp = pendingSingleOtp
-                    if (otp != null) {
+                    val singleOtp = pendingSingleOtp
+                    if (singleOtp != null) {
                         QrScanSingleOtpStep(
-                            otp = otp,
+                            otp = singleOtp,
                             existingAccounts = existingAccounts,
-                            onBack = {
-                                otp.secretBytes.let { CryptoManager.zeroize(it) }
-                                pendingSingleOtp = null
-                                isProcessingBarcode = false
-                                lastScannedPayload = null
-                                currentStep = QrScannerStep.CAMERA
-                            },
+                            onBack = resetToCamera,
                             onSave = {
                                 repository.saveAccount(
-                                    issuer = otp.issuer,
-                                    accountName = otp.accountName,
-                                    secretBytes = otp.secretBytes,
-                                    algorithm = otp.algorithm,
-                                    digits = otp.digits,
-                                    period = otp.period,
-                                    type = otp.type,
-                                    counter = otp.counter
+                                    issuer = singleOtp.issuer,
+                                    accountName = singleOtp.accountName,
+                                    secretBytes = singleOtp.secretBytes,
+                                    algorithm = singleOtp.algorithm,
+                                    digits = singleOtp.digits,
+                                    period = singleOtp.period,
+                                    type = singleOtp.type,
+                                    counter = singleOtp.counter
                                 )
-                                CryptoManager.zeroize(otp.secretBytes)
                                 true
                             },
                             onSaveConfirmed = {
-                                appHaptics.success()
                                 onScanSuccess()
                                 if (modalDismissHandler != null) {
                                     modalDismissHandler()
@@ -323,53 +322,44 @@ fun QrScannerDialog(
                         },
                         errorMessage = pinErrorMessage,
                         isVerifyingPin = isVerifyingPin,
-                        onBack = {
-                            if (!isVerifyingPin) {
-                                resetToCamera()
-                            }
-                        },
+                        onBack = resetToCamera,
                         onConfirm = {
-                            if (transferPinInput.length !in setOf(SecurityConfig.TRANSFER_QR_PIN_LENGTH, SecurityConfig.TRANSFER_KEY_LENGTH)) {
-                                return@QrScanTransferPinStep
-                            }
-
-                            isVerifyingPin = true
                             val pinChars = transferPinInput.toCharArray()
+                            isVerifyingPin = true
+                            pinErrorMessage = null
 
                             scope.launch {
-                                val result = try {
-                                    if (pendingEncryptedChunks != null) {
-                                        TransferCrypto.decryptAssembledChunks(
-                                            pendingEncryptedChunks.orEmpty(),
-                                            pinChars
-                                        )
-                                    } else if (pendingEncryptedPayload != null) {
-                                        TransferCrypto.decryptTransferPayload(
-                                            pendingEncryptedPayload.orEmpty(),
-                                            pinChars
-                                        )
-                                    } else {
-                                        Result.failure(IllegalArgumentException())
-                                    }
-                                } finally {
-                                    CryptoManager.zeroize(pinChars)
+                                val decryptResult = if (pendingEncryptedChunks != null) {
+                                    TransferCrypto.decryptAssembledChunks(pendingEncryptedChunks!!, pinChars)
+                                } else if (pendingEncryptedPayload != null) {
+                                    TransferCrypto.decryptTransferPayload(pendingEncryptedPayload!!, pinChars)
+                                } else {
+                                    Result.failure(Exception("No hay carga útil para descifrar"))
                                 }
 
-                                result.fold(
+                                pinChars.fill('0')
+
+                                decryptResult.fold(
                                     onSuccess = { decryptedJson ->
                                         val previews = repository.parseAccountsForPreview(decryptedJson)
-                                        if (previews.isNotEmpty()) {
-                                            parsedAccounts = previews
-                                            selectedAccountIds = previews.map { it.id }.toSet()
-                                            currentStep = QrScannerStep.TRANSFER_SELECT_ACCOUNTS
-                                        } else {
-                                            pinErrorMessage = importAllAlreadyExistErrorText
+                                        if (previews.isEmpty()) {
+                                            pinErrorMessage = "No se encontraron cuentas válidas"
                                             appHaptics.error()
+                                        } else {
+                                            val validAccountsToSelect = previews.filter { !it.isAlreadyInVault }
+                                            if (validAccountsToSelect.isEmpty()) {
+                                                pinErrorMessage = importAllAlreadyExistErrorText
+                                                appHaptics.error()
+                                            } else {
+                                                parsedAccounts = previews
+                                                selectedAccountIds = validAccountsToSelect.map { it.id }.toSet()
+                                                appHaptics.success()
+                                                currentStep = QrScannerStep.TRANSFER_SELECT_ACCOUNTS
+                                            }
                                         }
-                                        isVerifyingPin = false
                                     },
-                                    onFailure = { error ->
-                                        if (error is TransferCrypto.ExpiredTransferException) {
+                                    onFailure = { ex ->
+                                        if (ex is TransferCrypto.ExpiredTransferException) {
                                             pinErrorMessage = qrExpiredErrorText
                                             appHaptics.error()
                                             delay(Motion.Duration.FEEDBACK_TOAST.toLong().milliseconds)
@@ -433,110 +423,6 @@ fun QrScannerDialog(
                         }
                     )
                 }
-            }
-        }
-    }
-}
-
-/**
- * Procesa y filtra de forma segura un código QR escaneado según el [mode] activo.
- *
- * En modo [QrScannerMode.SINGLE_ACCOUNT]:
- * - Procesa exclusivamente códigos OTP individuales (`otpauth://`).
- * - Ignora silenciosamente códigos de transferencia u otros formatos no pertinentes.
- *
- * En modo [QrScannerMode.TRANSFER_MIGRATION]:
- * - Procesa exclusivamente códigos de transferencia por lotes cifrados (`appopt-transfer://`).
- * - Ignora silenciosamente códigos OTP individuales estándar u otros formatos.
- *
- * @param rawValue Cadena bruta leída por el escáner.
- * @param mode Modo de filtrado y operación del escáner.
- * @param appHaptics Controlador de vibración y háptica del sistema.
- * @param blockedSessionIds Identificadores de sesiones bloqueadas por exceso de intentos.
- * @param blockedPayloadFingerprints Huellas de cargas útiles bloqueadas.
- * @param sessionChunks Mapa de fragmentos acumulados para la sesión activa.
- * @param currentSessionId Identificador de la sesión activa de transferencia.
- * @param onSessionUpdated Callback invocado cuando se detecta una nueva sesión o cambia la cantidad esperada de fragmentos.
- * @param onChunkScanned Callback invocado al registrar exitosamente un fragmento nuevo.
- * @param onChunkDuplicate Callback invocado al re-escanear un fragmento ya presente en la sesión.
- * @param onSingleOtpScanned Callback invocado al escanear una clave OTP individual (otpauth://).
- * @param onTransferPayloadReady Callback invocado para transferencias de un único fragmento.
- * @param onChunksReady Callback invocado cuando se recopilan todos los fragmentos requeridos.
- * @param onIgnored Callback invocado cuando el código no corresponde al modo activo para reanudar el escaneo silenciosamente.
- * @param onError Callback invocado ante fallos de análisis o bloqueos por seguridad en códigos pertinentes.
- */
-private suspend fun handleScannedBarcode(
-    rawValue: String,
-    mode: QrScannerMode,
-    appHaptics: com.example.appopt.ui.theme.AppHaptics,
-    blockedSessionIds: Set<Long>,
-    blockedPayloadFingerprints: Set<Int>,
-    sessionChunks: MutableMap<Int, TransferQrChunk>,
-    currentSessionId: Long,
-    onSessionUpdated: (Long, Int) -> Unit,
-    onChunkScanned: (Int) -> Unit,
-    onChunkDuplicate: (Int) -> Unit,
-    onSingleOtpScanned: (ParsedOtpData) -> Unit,
-    onTransferPayloadReady: (String) -> Unit,
-    onChunksReady: (List<TransferQrChunk>) -> Unit,
-    onIgnored: () -> Unit,
-    onError: suspend () -> Unit
-) {
-    when (mode) {
-        QrScannerMode.SINGLE_ACCOUNT -> {
-            if (rawValue.startsWith("otpauth://", ignoreCase = true)) {
-                val parseResult = OtpUriParser.parse(rawValue)
-                if (parseResult.isSuccess) {
-                    val otpData = parseResult.getOrThrow()
-                    onSingleOtpScanned(otpData)
-                } else {
-                    onError()
-                }
-            } else {
-                onIgnored()
-            }
-        }
-        QrScannerMode.TRANSFER_MIGRATION -> {
-            if (rawValue.startsWith(TransferCrypto.QR_TRANSFER_PREFIX, ignoreCase = true)) {
-                if (rawValue.hashCode() in blockedPayloadFingerprints) {
-                    onError()
-                    return
-                }
-
-                try {
-                    val chunk = TransferCrypto.parseTransferChunk(rawValue)
-                    if (chunk.total > 1) {
-                        if (chunk.sessionId in blockedSessionIds) {
-                            onError()
-                            return
-                        }
-
-                        if (chunk.sessionId != currentSessionId) {
-                            sessionChunks.clear()
-                            onSessionUpdated(chunk.sessionId, chunk.total)
-                        }
-
-                        if (sessionChunks.containsKey(chunk.index)) {
-                            appHaptics.click()
-                            onChunkDuplicate(chunk.index)
-                        } else {
-                            sessionChunks[chunk.index] = chunk
-                            appHaptics.success()
-                            onChunkScanned(chunk.index)
-
-                            if (sessionChunks.size == chunk.total) {
-                                delay(750L.milliseconds)
-                                onChunksReady(sessionChunks.values.toList())
-                            }
-                        }
-                    } else {
-                        onTransferPayloadReady(rawValue)
-                    }
-                } catch (_: Exception) {
-                    onTransferPayloadReady(rawValue)
-                }
-            } else {
-                onIgnored()
             }
         }
     }

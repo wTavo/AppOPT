@@ -1,19 +1,10 @@
 package com.example.appopt.ui.screens.settings
 
-import android.Manifest
 import android.app.Activity
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.net.Uri
-import android.os.Build
-import android.provider.Settings
-import androidx.core.net.toUri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.biometric.BiometricPrompt
-import androidx.fragment.app.FragmentActivity
-import com.example.appopt.AuthenticatorApp
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -46,14 +37,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
 import com.example.appopt.data.cloud.GoogleDriveManager
 import com.example.appopt.ui.screens.scan.QrScannerDialog
@@ -62,11 +49,11 @@ import com.example.appopt.ui.screens.settings.components.DriveSyncSettingsCard
 import com.example.appopt.ui.screens.settings.components.PerformanceSettingsCard
 import com.example.appopt.ui.screens.settings.components.PermissionsSettingsCard
 import com.example.appopt.ui.screens.settings.components.TransferSettingsCard
+import com.example.appopt.ui.screens.settings.components.rememberSettingsPermissionsState
 import com.example.appopt.ui.screens.settings.dialogs.SettingsDialogContainer
 import com.example.appopt.ui.screens.settings.dialogs.rememberDriveDialogCoordinator
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
-import com.example.appopt.util.BatteryOptimizationHelper
 import com.example.appopt.util.DateTimeFormatter
 import com.google.android.gms.common.api.ApiException
 import kotlinx.coroutines.delay
@@ -84,6 +71,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * - Vista puramente declarativa desacoplada de la lógica de negocio mediante [SettingsViewModel] (Directiva 8 y 13).
  * - Centralización tipográfica, espaciados y cadenas en español estándar (Directivas 1, 2 y 4).
  * - Gestión de modales unificada sin superposición de diálogos mediante [SettingsDialogContainer] (Directiva 14).
+ * - Modularización desacoplada con coordinadores especializados (Directiva 29).
  *
  * @param onNavigateBack Callback invocado al presionar el botón de retorno.
  * @param onNavigateToScanQr Callback invocado para navegar hacia el escáner de importación QR.
@@ -118,7 +106,10 @@ fun SettingsScreen(
     val importAuthSubtitle = stringResource(R.string.settings_transfer_import_auth_subtitle)
     val transferAuthFailedText = stringResource(R.string.settings_transfer_auth_failed)
 
-    // Launchers de actividades para permisos y OAuth2 de Google
+    // Coordinador reactivo de permisos del sistema
+    val permissionsState = rememberSettingsPermissionsState()
+
+    // Launchers de actividades para autenticación OAuth2 de Google
     var pendingAuthAction by remember { mutableStateOf<((String) -> Unit)?>(null) }
     val authLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult()
@@ -189,47 +180,7 @@ fun SettingsScreen(
         }
     }
 
-    // Diagnóstico en tiempo real de permisos: inicialización síncrona con el estado real
-    // para garantizar que desde el fotograma 0 se muestre el color correcto (sin parpadeos rojo -> verde)
-    val initialCamera = remember {
-        ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-    }
-    val initialNotification = remember {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-        } else {
-            NotificationManagerCompat.from(context).areNotificationsEnabled()
-        }
-    }
-    val initialBattery = remember {
-        BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)
-    }
-
-    var isCameraPermissionGranted by remember { mutableStateOf(initialCamera) }
-    var isNotificationPermissionGranted by remember { mutableStateOf(initialNotification) }
-    var isBatteryOptimizationIgnored by remember { mutableStateOf(initialBattery) }
-
-    // Proceso 1: Actualización de permisos al regresar de Configuración del sistema (ON_RESUME)
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                isCameraPermissionGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-                isNotificationPermissionGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-                } else {
-                    NotificationManagerCompat.from(context).areNotificationsEnabled()
-                }
-                isBatteryOptimizationIgnored = BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
-
-    // Proceso 2: Reloj aislado de actualización de tiempo relativo de sincronización (cada minuto)
+    // Proceso: Reloj de actualización de tiempo relativo de sincronización (cada minuto)
     var currentTick by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(uiState.isDriveConnected, uiState.lastSyncTimestamp) {
         if (uiState.isDriveConnected && uiState.lastSyncTimestamp > 0L) {
@@ -247,23 +198,6 @@ fun SettingsScreen(
             null
         } else {
             DateTimeFormatter.formatRelativeSyncTime(context, uiState.lastSyncTimestamp)
-        }
-    }
-
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { granted -> isCameraPermissionGranted = granted }
-
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { granted -> isNotificationPermissionGranted = granted }
-
-    val batteryOptimizationLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) {
-        isBatteryOptimizationIgnored = BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)
-        if (isBatteryOptimizationIgnored) {
-            appHaptics.success()
         }
     }
 
@@ -305,38 +239,12 @@ fun SettingsScreen(
 
             // 1. Tarjeta de Permisos de la Aplicación
             PermissionsSettingsCard(
-                isCameraGranted = isCameraPermissionGranted,
-                isNotificationGranted = isNotificationPermissionGranted,
-                isBatteryOptimizationIgnored = isBatteryOptimizationIgnored,
-                onRequestCameraPermission = {
-                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                    }
-                },
-                onRequestNotificationPermission = {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                        }
-                    } else if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
-                        try {
-                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                data = "package:${context.packageName}".toUri()
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_HISTORY or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
-                            }
-                            context.startActivity(intent)
-                        } catch (_: Exception) {}
-                    }
-                },
-                onRequestBatteryOptimization = {
-                    try {
-                        batteryOptimizationLauncher.launch(
-                            BatteryOptimizationHelper.createIgnoreBatteryOptimizationIntent(context)
-                        )
-                    } catch (_: Exception) {
-                        BatteryOptimizationHelper.requestIgnoreBatteryOptimizations(context)
-                    }
-                }
+                isCameraGranted = permissionsState.isCameraGranted,
+                isNotificationGranted = permissionsState.isNotificationGranted,
+                isBatteryOptimizationIgnored = permissionsState.isBatteryOptimizationIgnored,
+                onRequestCameraPermission = { permissionsState.requestCamera() },
+                onRequestNotificationPermission = { permissionsState.requestNotifications() },
+                onRequestBatteryOptimization = { permissionsState.requestBatteryOptimization() }
             )
 
             // 2. Tarjeta de Rendimiento y Diagnóstico

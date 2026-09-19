@@ -153,6 +153,8 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 - **OBLIGATORIO** implementar navegación defensiva hacia atrás en `onDismissRequest`: presionar afuera o el botón atrás del sistema debe revertir al estado/paso anterior antes de cerrar el modal por completo.
 - **OBLIGATORIO la jerarquía de animaciones en transiciones de diálogos (*Unified Monolithic Dynamic Island Morphing*):**
   - **PROHIBIDO** fragmentar diálogos modales interactivos en múltiples ranuras animadas independientes (`title`, `text`, `confirmButton`) que compitan entre sí y provoquen colisiones de layout o desbordes en la parte inferior.
+  - **PROHIBIDO** alternar entre estados de contenido interno de un paso modal (ej. estado de carga `LOADING` -> lista de elementos `ITEMS` o pestañas de método) mediante bloques condicionales estáticos `if/else` que provoquen saltos bruscos (*layout / height snapping*) en la tarjeta modal.
+  - **PROHIBIDO** hacer aparecer o desaparecer mensajes de error o banners de validación de golpe (`if (error != null) Text(...)`) empujando bruscamente los campos de formulario hacia abajo.
   - **PROHIBIDO** animar escala sobre árboles de texto (`scaleIn`/`scaleOut`) que causen vibración en fuentes monoespaciadas o códigos OTP.
   - **PROHIBIDO** usar `animateContentSize` en contenedores externos que envuelven `Crossfade` o transiciones asíncronas de contenido.
   - **PROHIBIDO** usar `AlertDialog` nativo (`WRAP_CONTENT`) para flujos multietapa con cambio dinámico de tamaño: la ventana flotante del sistema operativo Android re-centra su marco físico en cada fotograma vía IPC con `WindowManagerService`, provocando desincronización y temblor.
@@ -162,6 +164,11 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
     2. **Fase de ajuste dimensional líquido:** La tarjeta modal muta sus dimensiones suavemente en Compose GPU con física de resortes elásticos sin rebote (`spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)`).
     3. **Fase de entrada suave:** El nuevo contenido emerge suavemente (`fadeIn`, 180ms con 70ms de retardo). Sin desplazamiento vectorial.
     4. **Sin recorte invasivo:** Fijar `clip = false` en `SizeTransform` para preservar radios de curvatura de 16.dp y sombras intactas en cada fotograma.
+  - **OBLIGATORIO el Morphing Fluido en Contenido Interno y Mensajes Dinámicos:**
+    - Envolver las transiciones entre estados internos de un paso (ej. `LOADING`, `EMPTY`, `ITEMS` en historial o pestañas de formulario) con `AnimatedContent` y `Motion.Spec.dialogStepContentTransform()`.
+    - Envolver mensajes de error reactivos, advertencias o paneles desplegables en `AnimatedVisibility(visible = condition, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut())` para garantizar desplazamientos orgánicos y fluidos.
+  - **OBLIGATORIO el Aislamiento Estricto de Orígenes de Animación (`NavigationOriginTracker`):**
+    - Mantener canales de coordenadas aislados e independientes para cada pantalla o modal (`settingsOrigin`, `recentlyDeletedOrigin`, `modalOrigin`), evitando sobreescrituras cruzadas para que la animación de repliegue inverso (*collapse animation*) regrese con exactitud milimétrica al botón del dock o control físico que invocó la vista.
 
 ---
 

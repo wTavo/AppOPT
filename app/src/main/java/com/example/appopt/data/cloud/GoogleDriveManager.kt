@@ -102,6 +102,22 @@ object GoogleDriveManager {
     }
 
     /**
+     * Cierra la sesión en Google Identity Services e invalida la credencial en caché del sistema operativo,
+     * garantizando que la próxima conexión solicite explícitamente el selector de cuentas (Account Chooser).
+     *
+     * @param context Contexto de la aplicación.
+     */
+    @Suppress("DEPRECATION")
+    fun signOut(context: Context) {
+        clearSession()
+        try {
+            Identity.getSignInClient(context).signOut()
+        } catch (_: Exception) {
+            // Manejo silencioso defensivo si el cliente de Google no está disponible
+        }
+    }
+
+    /**
      * Construye la solicitud moderna de autorización con alcance exclusivo a `appDataFolder`.
      */
     fun getAuthorizationRequest(): AuthorizationRequest {

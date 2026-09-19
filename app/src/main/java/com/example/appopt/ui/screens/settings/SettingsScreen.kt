@@ -109,59 +109,14 @@ fun SettingsScreen(
     // Coordinador reactivo de permisos del sistema
     val permissionsState = rememberSettingsPermissionsState()
 
-    // Launchers de actividades para autenticación OAuth2 de Google
-    var pendingAuthAction by remember { mutableStateOf<((String) -> Unit)?>(null) }
-    val authLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartIntentSenderForResult()
-    ) { activityResult ->
-        if (activityResult.resultCode == Activity.RESULT_OK) {
-            try {
-                val authResult = authClient.getAuthorizationResultFromIntent(activityResult.data)
-                val token = authResult.accessToken
-                if (token != null) {
-                    GoogleDriveManager.currentAccessToken = token
-                    val action = pendingAuthAction
-                    pendingAuthAction = null
-                    if (action != null) {
-                        action(token)
-                    } else {
-                        viewModel.onGoogleDriveConnected(token)
-                    }
-                }
-            } catch (_: ApiException) {
-                pendingAuthAction = null
-                scope.launch { snackbarHostState.showSnackbar(driveErrorText) }
-            }
-        } else {
-            pendingAuthAction = null
-        }
-    }
-
-    val requestGoogleAuthorization: ((String) -> Unit) -> Unit = { onAuthorized ->
-        pendingAuthAction = onAuthorized
-        authClient.authorize(GoogleDriveManager.getAuthorizationRequest())
-            .addOnSuccessListener { result ->
-                if (result.hasResolution()) {
-                    val pendingIntent = result.pendingIntent
-                    if (pendingIntent != null) {
-                        authLauncher.launch(
-                            IntentSenderRequest.Builder(pendingIntent.intentSender).build()
-                        )
-                    }
-                } else {
-                    val token = result.accessToken
-                    if (token != null) {
-                        val action = pendingAuthAction
-                        pendingAuthAction = null
-                        action?.invoke(token)
-                    }
-                }
-            }
-            .addOnFailureListener {
-                pendingAuthAction = null
-                scope.launch { snackbarHostState.showSnackbar(driveErrorText) }
-            }
-    }
+    // Coordinador reactivo de autenticación de Google Drive
+    val requestGoogleAuthorization = com.example.appopt.ui.screens.settings.components.rememberGoogleDriveAuth(
+        authClient = authClient,
+        viewModel = viewModel,
+        scope = scope,
+        snackbarHostState = snackbarHostState,
+        driveErrorText = driveErrorText
+    )
 
     var showQrScannerDialog by remember { mutableStateOf(false) }
 
@@ -336,6 +291,8 @@ fun SettingsScreen(
                 onCreateBackupClick = {
                     if (uiState.driveBackupExists) {
                         coordinator.showOverwriteWarningDialog = true
+                    } else if (com.example.appopt.data.cloud.CloudVaultKeyStore.hasVaultKey(context)) {
+                        coordinator.showCreateBackupConfirmDialog = true
                     } else {
                         coordinator.showDriveProtectDialog = true
                     }
@@ -373,6 +330,13 @@ fun SettingsScreen(
         showDriveProtectDialog = coordinator.showDriveProtectDialog,
         onDismissDriveProtect = { coordinator.showDriveProtectDialog = false },
         onProtectAndSync = { primary, mnemonic -> coordinator.protectAndSync(primary, mnemonic) },
+        showCreateBackupConfirmDialog = coordinator.showCreateBackupConfirmDialog,
+        onDismissCreateBackupConfirm = { coordinator.showCreateBackupConfirmDialog = false },
+        onConfirmCreateBackupWithExistingKey = { coordinator.createBackupWithExistingKey() },
+        onUseOtherKeyForBackup = {
+            coordinator.showCreateBackupConfirmDialog = false
+            coordinator.showDriveProtectDialog = true
+        },
         showDriveDecryptDialog = coordinator.showDriveDecryptDialog,
         onDismissDriveDecrypt = { coordinator.showDriveDecryptDialog = false },
         onRestoreDriveDecrypt = { passChars -> coordinator.restoreDriveDecrypt(passChars) },

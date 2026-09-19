@@ -28,12 +28,14 @@ class DriveVaultHandler(
     private val prefsManager = AuthenticatorApp.instance.preferencesManager
 
     /**
-     * Desvincula la cuenta de Google Drive, limpiando tokens, cachés y cancelando tareas programadas.
+     * Desvincula la cuenta de Google Drive, cerrando la sesión en Google Identity Services,
+     * limpiando tokens, marcas de tiempo y cancelando tareas programadas, preservando la clave
+     * maestra local en Android Keystore para futuros respaldos.
      *
      * @param context Contexto de la aplicación.
      */
     fun disconnectGoogleDrive(context: Context) {
-        GoogleDriveManager.clearSession()
+        GoogleDriveManager.signOut(context)
         prefsManager.setLastBackupHistoryFetchTimestamp(0L)
         prefsManager.setCachedBackupHistory(emptyList())
         internalState.update {
@@ -46,7 +48,6 @@ class DriveVaultHandler(
         prefsManager.setGoogleDriveConnected(false)
         prefsManager.setLastSyncTimestamp(0L)
         prefsManager.setLastSyncedVaultHash("")
-        CloudVaultKeyStore.clear(context)
         CloudVaultSyncManager.cancelAllSync(context)
     }
 

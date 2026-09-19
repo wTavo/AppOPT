@@ -52,6 +52,10 @@ fun SettingsDialogContainer(
     showDriveProtectDialog: Boolean,
     onDismissDriveProtect: () -> Unit,
     onProtectAndSync: (CharArray, CharArray) -> Unit,
+    showCreateBackupConfirmDialog: Boolean = false,
+    onDismissCreateBackupConfirm: () -> Unit = {},
+    onConfirmCreateBackupWithExistingKey: () -> Unit = {},
+    onUseOtherKeyForBackup: () -> Unit = {},
     showDriveDecryptDialog: Boolean,
     onDismissDriveDecrypt: () -> Unit,
     onRestoreDriveDecrypt: (CharArray) -> Unit,
@@ -91,6 +95,15 @@ fun SettingsDialogContainer(
         DriveProtectDialog(
             onProtectAndSync = onProtectAndSync,
             onDismiss = onDismissDriveProtect
+        )
+    }
+
+    // 3.1 Modal: Confirmación de Creación de Respaldo con Clave de Bóveda Existente
+    if (showCreateBackupConfirmDialog) {
+        com.example.appopt.ui.screens.settings.dialogs.components.DriveCreateBackupConfirmDialog(
+            onConfirm = onConfirmCreateBackupWithExistingKey,
+            onUseOtherKey = onUseOtherKeyForBackup,
+            onDismiss = onDismissCreateBackupConfirm
         )
     }
 

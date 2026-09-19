@@ -34,6 +34,7 @@ class DriveDialogCoordinator(
     var isHistoryLoadingSynchronous by mutableStateOf(false)
     var showDisconnectConfirmDialog by mutableStateOf(false)
     var showDriveProtectDialog by mutableStateOf(false)
+    var showCreateBackupConfirmDialog by mutableStateOf(false)
     var showDriveDecryptDialog by mutableStateOf(false)
     var showOverwriteWarningDialog by mutableStateOf(false)
     var driveAccessToken by mutableStateOf<String?>(null)
@@ -45,6 +46,7 @@ class DriveDialogCoordinator(
         isHistoryLoadingSynchronous = false
         showDisconnectConfirmDialog = false
         showDriveProtectDialog = false
+        showCreateBackupConfirmDialog = false
         showDriveDecryptDialog = false
         showOverwriteWarningDialog = false
     }
@@ -119,6 +121,14 @@ class DriveDialogCoordinator(
                     }
                 }
             }
+        }
+    }
+
+    /** Crea un respaldo en la nube utilizando la clave maestra existente en el hardware seguro del dispositivo. */
+    fun createBackupWithExistingKey() {
+        showCreateBackupConfirmDialog = false
+        executeWithAuth { token ->
+            viewModel.executeManualSync(context, token)
         }
     }
 

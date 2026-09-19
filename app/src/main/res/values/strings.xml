@@ -63,7 +63,7 @@
     <string name="add_account_secret_label">Clave secreta</string>
     <string name="add_account_issuer_placeholder">Ej. Google, GitHub</string>
     <string name="add_account_name_placeholder">Ej. usuario@correo.com</string>
-    <string name="add_account_secret_placeholder">Ej. JBSW4O2K...</string>
+    <string name="add_account_secret_placeholder">Ej. JBSW4O2K…</string>
     <string name="add_account_secret_invalid_hint">Clave Base32 no válida</string>
     <string name="add_account_advanced_options">Opciones avanzadas</string>
     <string name="add_account_algorithm_label">Algoritmo HMAC</string>

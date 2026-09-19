@@ -1,5 +1,6 @@
 package com.example.appopt.ui.screens.settings.dialogs.components
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -41,6 +42,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import com.example.appopt.R
 import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.Motion
 
 /**
  * Sub-componente para el Paso 1 del diálogo de protección: Selección y configuración del método de protección principal.
@@ -172,160 +174,168 @@ fun DriveProtectStepMethod(
             }
         }
 
-        if (selectedTab == 0) {
-            Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
-                OutlinedTextField(
-                    value = masterPasswordText,
-                    onValueChange = onMasterPasswordChange,
-                    label = { Text(stringResource(R.string.settings_drive_password_label)) },
-                    visualTransformation = if (isMasterPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    trailingIcon = {
-                        IconButton(onClick = onTogglePasswordVisibility) {
-                            Icon(
-                                imageVector = if (isMasterPasswordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                contentDescription = null
-                            )
-                        }
-                    },
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                OutlinedTextField(
-                    value = masterPasswordConfirmText,
-                    onValueChange = onMasterPasswordConfirmChange,
-                    label = { Text(stringResource(R.string.settings_drive_password_confirm_label)) },
-                    visualTransformation = if (isMasterPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    isError = masterPasswordConfirmText.isNotEmpty() && masterPasswordText != masterPasswordConfirmText,
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Text(
-                    text = stringResource(R.string.settings_drive_password_warning),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        } else {
-            Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
-                // Tarjeta Criptográfica Premium para Clave de 64 Dígitos
-                Surface(
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                    border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(Dimensions.Spacing.md),
-                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = stringResource(R.string.settings_drive_key_label),
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            IconButton(
-                                onClick = onToggleKeyVisibility,
-                                modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
-                            ) {
+        AnimatedContent(
+            targetState = selectedTab,
+            transitionSpec = { Motion.Spec.dialogStepContentTransform() },
+            contentAlignment = Alignment.TopCenter,
+            label = "driveProtectMethodTabTransition",
+            modifier = Modifier.fillMaxWidth()
+        ) { tab ->
+            if (tab == 0) {
+                Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
+                    OutlinedTextField(
+                        value = masterPasswordText,
+                        onValueChange = onMasterPasswordChange,
+                        label = { Text(stringResource(R.string.settings_drive_password_label)) },
+                        visualTransformation = if (isMasterPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(onClick = onTogglePasswordVisibility) {
                                 Icon(
-                                    imageVector = if (isKeyVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    imageVector = if (isMasterPasswordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                    contentDescription = null
                                 )
                             }
-                        }
+                        },
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
 
-                        Surface(
-                            shape = RoundedCornerShape(Dimensions.CornerRadius.small),
-                            color = MaterialTheme.colorScheme.surface,
-                            border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
-                            modifier = Modifier.fillMaxWidth()
+                    OutlinedTextField(
+                        value = masterPasswordConfirmText,
+                        onValueChange = onMasterPasswordConfirmChange,
+                        label = { Text(stringResource(R.string.settings_drive_password_confirm_label)) },
+                        visualTransformation = if (isMasterPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        isError = masterPasswordConfirmText.isNotEmpty() && masterPasswordText != masterPasswordConfirmText,
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Text(
+                        text = stringResource(R.string.settings_drive_password_warning),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
+                    // Tarjeta Criptográfica Premium para Clave de 64 Dígitos
+                    Surface(
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                        border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(Dimensions.Spacing.md),
+                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
                         ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.settings_drive_key_label),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                IconButton(
+                                    onClick = onToggleKeyVisibility,
+                                    modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
+                                ) {
+                                    Icon(
+                                        imageVector = if (isKeyVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.small),
+                                color = MaterialTheme.colorScheme.surface,
+                                border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = if (isKeyVisible) {
+                                        generated64Key.chunked(16).joinToString("\n")
+                                    } else {
+                                        "••••••••••••••••\n••••••••••••••••\n••••••••••••••••\n••••••••••••••••"
+                                    },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(Dimensions.Spacing.md)
+                                )
+                            }
+
                             Text(
-                                text = if (isKeyVisible) {
-                                    generated64Key.chunked(16).joinToString("\n")
-                                } else {
-                                    "••••••••••••••••\n••••••••••••••••\n••••••••••••••••\n••••••••••••••••"
-                                },
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontFamily = FontFamily.Monospace,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(Dimensions.Spacing.md)
+                                text = stringResource(R.string.settings_drive_key_warning),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    // Botones Simétricos con Altura y Tipografía Idéntica
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Min),
+                        horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(
+                            onClick = onRegenerateKey,
+                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                            contentPadding = PaddingValues(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs),
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Refresh,
+                                contentDescription = null,
+                                modifier = Modifier.size(Dimensions.IconSize.small)
+                            )
+                            Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                            Text(
+                                text = stringResource(R.string.settings_drive_key_regenerate_short),
+                                style = MaterialTheme.typography.labelLarge,
+                                textAlign = TextAlign.Center
                             )
                         }
 
-                        Text(
-                            text = stringResource(R.string.settings_drive_key_warning),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                // Botones Simétricos con Altura y Tipografía Idéntica
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(IntrinsicSize.Min),
-                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedButton(
-                        onClick = onRegenerateKey,
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                        contentPadding = PaddingValues(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs),
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Refresh,
-                            contentDescription = null,
-                            modifier = Modifier.size(Dimensions.IconSize.small)
-                        )
-                        Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                        Text(
-                            text = stringResource(R.string.settings_drive_key_regenerate_short),
-                            style = MaterialTheme.typography.labelLarge,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-
-                    OutlinedButton(
-                        onClick = onCopyKey,
-                        enabled = copyCountdown <= 0,
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                        contentPadding = PaddingValues(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs),
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                    ) {
-                        Icon(
-                            imageVector = if (copyCountdown > 0) Icons.Filled.Timer else Icons.Filled.ContentCopy,
-                            contentDescription = null,
-                            modifier = Modifier.size(Dimensions.IconSize.small)
-                        )
-                        Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                        Text(
-                            text = if (copyCountdown > 0) {
-                                stringResource(R.string.settings_drive_copied_countdown, copyCountdown)
-                            } else {
-                                stringResource(R.string.settings_drive_copy_key_short)
-                            },
-                            style = MaterialTheme.typography.labelLarge,
-                            textAlign = TextAlign.Center
-                        )
+                        OutlinedButton(
+                            onClick = onCopyKey,
+                            enabled = copyCountdown <= 0,
+                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                            contentPadding = PaddingValues(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs),
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+                        ) {
+                            Icon(
+                                imageVector = if (copyCountdown > 0) Icons.Filled.Timer else Icons.Filled.ContentCopy,
+                                contentDescription = null,
+                                modifier = Modifier.size(Dimensions.IconSize.small)
+                            )
+                            Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                            Text(
+                                text = if (copyCountdown > 0) {
+                                    stringResource(R.string.settings_drive_copied_countdown, copyCountdown)
+                                } else {
+                                    stringResource(R.string.settings_drive_copy_key_short)
+                                },
+                                style = MaterialTheme.typography.labelLarge,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
                 }
             }

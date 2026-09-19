@@ -1,5 +1,6 @@
 package com.example.appopt.ui.screens.settings.dialogs.components
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,8 +24,18 @@ import com.example.appopt.R
 import com.example.appopt.data.cloud.DriveBackupItem
 import com.example.appopt.ui.components.AppDialogActionButtons
 import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.util.DateTimeFormatter
+
+/**
+ * Sub-estados de contenido dentro del paso modal de historial de respaldos.
+ */
+private enum class HistoryContentState {
+    LOADING,
+    EMPTY,
+    ITEMS
+}
 
 /**
  * Paso modal para listar el historial de copias de seguridad de Google Drive (Directivas 14 y 29).
@@ -85,54 +96,72 @@ fun DriveDetailsHistoryStep(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            if (isLoading) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = Dimensions.Spacing.xl),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(Dimensions.IconSize.large)
-                    )
-                }
-            } else if (backupItems.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.settings_drive_history_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = Dimensions.Spacing.lg)
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = Dimensions.ComponentSize.modalListMaxHeight),
-                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
-                    contentPadding = PaddingValues(bottom = Dimensions.Spacing.xs)
-                ) {
-                    items(
-                        items = backupItems,
-                        key = { it.fileId.ifEmpty { it.modifiedTimeMillis.toString() } }
-                    ) { item ->
-                        val isActual = (lastSyncTimestamp > 0L &&
-                                item.modifiedTimeMillis == lastSyncTimestamp &&
-                                lastSyncedHash.isNotEmpty() &&
-                                !hasUnsyncedChanges)
+            val contentState = when {
+                isLoading -> HistoryContentState.LOADING
+                backupItems.isEmpty() -> HistoryContentState.EMPTY
+                else -> HistoryContentState.ITEMS
+            }
 
-                        DriveBackupItemCard(
-                            item = item,
-                            isActual = isActual,
-                            formattedDate = DateTimeFormatter.formatRelativeSyncTime(context, item.modifiedTimeMillis),
-                            onRestoreClick = {
-                                appHaptics.click()
-                                onRestoreSelected(item)
-                            },
-                            onDeleteClick = {
-                                appHaptics.click()
-                                onDeleteSelected(item)
-                            }
+            AnimatedContent(
+                targetState = contentState,
+                transitionSpec = { Motion.Spec.dialogStepContentTransform() },
+                contentAlignment = Alignment.TopCenter,
+                label = "historyContentStateTransition",
+                modifier = Modifier.fillMaxWidth()
+            ) { state ->
+                when (state) {
+                    HistoryContentState.LOADING -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = Dimensions.Spacing.xl),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(Dimensions.IconSize.large)
+                            )
+                        }
+                    }
+                    HistoryContentState.EMPTY -> {
+                        Text(
+                            text = stringResource(R.string.settings_drive_history_empty),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = Dimensions.Spacing.lg)
                         )
+                    }
+                    HistoryContentState.ITEMS -> {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = Dimensions.ComponentSize.modalListMaxHeight),
+                            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
+                            contentPadding = PaddingValues(bottom = Dimensions.Spacing.xs)
+                        ) {
+                            items(
+                                items = backupItems,
+                                key = { it.fileId.ifEmpty { it.modifiedTimeMillis.toString() } }
+                            ) { item ->
+                                val isActual = (lastSyncTimestamp > 0L &&
+                                        item.modifiedTimeMillis == lastSyncTimestamp &&
+                                        lastSyncedHash.isNotEmpty() &&
+                                        !hasUnsyncedChanges)
+
+                                DriveBackupItemCard(
+                                    item = item,
+                                    isActual = isActual,
+                                    formattedDate = DateTimeFormatter.formatRelativeSyncTime(context, item.modifiedTimeMillis),
+                                    onRestoreClick = {
+                                        appHaptics.click()
+                                        onRestoreSelected(item)
+                                    },
+                                    onDeleteClick = {
+                                        appHaptics.click()
+                                        onDeleteSelected(item)
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }

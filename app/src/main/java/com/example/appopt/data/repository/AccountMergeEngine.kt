@@ -186,7 +186,7 @@ object AccountMergeEngine {
 
                 if (existingEntity == null) {
                     val payload = cryptoManager.encrypt(item.secretBytes)
-                    val newId = if (item.id.isNotBlank()) item.id else UUID.randomUUID().toString()
+                    val newId = item.id.ifBlank { UUID.randomUUID().toString() }
                     val now = if (item.updatedAt > 0L) item.updatedAt else System.currentTimeMillis()
                     val newEntity = AccountEntity(
                         id = newId,

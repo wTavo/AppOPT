@@ -6,7 +6,6 @@ import androidx.core.content.edit
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.security.BackupCrypto
 import com.example.appopt.security.CryptoManager
-import com.example.appopt.security.EncryptedPayload
 
 /**
  * Gestor de persistencia segura para la clave de bóveda en la nube ([vaultKey]) y ranuras asociadas.

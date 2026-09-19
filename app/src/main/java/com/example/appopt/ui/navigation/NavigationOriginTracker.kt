@@ -1,11 +1,9 @@
 package com.example.appopt.ui.navigation
 
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.findRootCoordinates
-import androidx.compose.ui.unit.IntSize
 
 /**
  * Administrador de coordenadas y orígenes de animación dinámica para transiciones de navegación y diálogos modales.
@@ -25,15 +23,6 @@ object NavigationOriginTracker {
     /** Origen de transformación dinámico para diálogos modales (tarjeta o botón emisor del modal). */
     var modalOrigin: TransformOrigin = TransformOrigin(0.50f, 0.50f)
 
-    /** Origen de transformación dinámico actual para compatibilidad general. */
-    var currentOrigin: TransformOrigin = TransformOrigin(0.50f, 0.91f)
-
-    /** Centro absoluto en píxeles del componente emisor en la ventana raíz. */
-    var originCenterPx: Offset? = null
-
-    /** Tamaño en píxeles de la ventana raíz. */
-    var rootSizePx: IntSize? = null
-
     /**
      * Registra las coordenadas del botón de Ajustes en el dock inferior.
      *
@@ -43,7 +32,6 @@ object NavigationOriginTracker {
         val origin = calculateOrigin(coordinates)
         if (origin != null) {
             settingsOrigin = origin
-            currentOrigin = origin
         }
     }
 
@@ -56,7 +44,6 @@ object NavigationOriginTracker {
         val origin = calculateOrigin(coordinates)
         if (origin != null) {
             recentlyDeletedOrigin = origin
-            currentOrigin = origin
         }
     }
 
@@ -72,25 +59,10 @@ object NavigationOriginTracker {
         }
     }
 
-    /**
-     * Registra las coordenadas de un componente emisor calculando su centro relativo exacto.
-     *
-     * @param coordinates Coordenadas del Composable obtenidas mediante `onPlaced`.
-     */
-    fun updateFromCoordinates(coordinates: LayoutCoordinates?) {
-        val origin = calculateOrigin(coordinates)
-        if (origin != null) {
-            currentOrigin = origin
-            modalOrigin = origin
-        }
-    }
-
     private fun calculateOrigin(coordinates: LayoutCoordinates?): TransformOrigin? {
         if (coordinates != null && coordinates.isAttached) {
             val bounds = coordinates.boundsInRoot()
             val root = coordinates.findRootCoordinates()
-            originCenterPx = bounds.center
-            rootSizePx = root.size
             if (root.size.width > 0 && root.size.height > 0) {
                 return TransformOrigin(
                     pivotFractionX = (bounds.center.x / root.size.width.toFloat()).coerceIn(0f, 1f),

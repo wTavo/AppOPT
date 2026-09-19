@@ -289,7 +289,7 @@ object BackupCrypto {
                 )
             }
 
-            var recoveredVaultKey: ByteArray? = null
+            var recoveredVaultKey: ByteArray?
 
             // 1. Intentar abrir Main Slot
             val mainSalt = base64Decoder.decode(mainSlot.saltB64)

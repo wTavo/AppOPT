@@ -2,7 +2,8 @@ package com.example.appopt.ui.screens.settings.util
 
 import android.content.Context
 import com.example.appopt.R
-import com.example.appopt.data.cloud.GoogleDriveManager
+import com.example.appopt.data.cloud.RateLimitExceededException
+import com.example.appopt.data.cloud.ServiceUnavailableException
 import java.security.GeneralSecurityException
 
 /**
@@ -19,7 +20,7 @@ object DriveErrorMessageResolver {
      * @return Cadena localizada explicativa y amigable para el usuario.
      */
     fun resolve(context: Context, error: Throwable): String {
-        val isRateLimited = error is GoogleDriveManager.RateLimitExceededException ||
+        val isRateLimited = error is RateLimitExceededException ||
                 error.message?.contains("429", ignoreCase = true) == true ||
                 error.message?.contains("rate", ignoreCase = true) == true ||
                 error.cause?.message?.contains("429", ignoreCase = true) == true
@@ -27,7 +28,7 @@ object DriveErrorMessageResolver {
             return context.getString(R.string.settings_drive_error_rate_limited)
         }
 
-        val isServiceUnavailable = error is GoogleDriveManager.ServiceUnavailableException ||
+        val isServiceUnavailable = error is ServiceUnavailableException ||
                 error.message?.contains("503", ignoreCase = true) == true
         if (isServiceUnavailable) {
             return context.getString(R.string.settings_drive_error_service_unavailable)

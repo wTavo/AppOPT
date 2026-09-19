@@ -36,21 +36,6 @@ object GoogleDriveManager {
     private const val LEGACY_BACKUP_FILE_NAME = "appopt_vault_backup.json"
 
     /**
-     * Excepción lanzada cuando se supera la cuota o tasa de peticiones a Google Drive (HTTP 429).
-     */
-    class RateLimitExceededException(message: String = "Demasiadas solicitudes a Google Drive (HTTP 429)") : Exception(message)
-
-    /**
-     * Excepción lanzada cuando la sesión de Google Drive expira o no cuenta con permisos (HTTP 401 / 403).
-     */
-    class UnauthorizedException(message: String = "Sesión de Google Drive expirada o no autorizada") : Exception(message)
-
-    /**
-     * Excepción lanzada cuando los servidores de Google Drive están temporalmente fuera de servicio (HTTP 503).
-     */
-    class ServiceUnavailableException(message: String = "El servicio de Google Drive no está disponible temporalmente") : Exception(message)
-
-    /**
      * Valida de manera centralizada el código de respuesta HTTP de Google Drive.
      *
      * @param responseCode Código de estado HTTP devuelto por la API.
@@ -74,14 +59,14 @@ object GoogleDriveManager {
     @Volatile
     var currentAccessToken: String? = null
 
-    /**
-     * Estructura de caché en memoria para archivos cifrados descargados desde Google Drive.
-     */
-    private data class CachedEncryptedFile(
-        val fileId: String,
-        val encryptedContent: String,
-        val fetchedAtMillis: Long
-    )
+    /** Tiempo de enfriamiento global mínimo (15s) entre peticiones de red files.list a Google Drive. */
+    const val GLOBAL_FETCH_COOLDOWN_MILLIS = 15_000L
+
+    @Volatile
+    private var lastNetworkFetchMillis = 0L
+
+    @Volatile
+    private var cachedBackupItems: List<DriveBackupItem> = emptyList()
 
     /** Caché en memoria para evitar descargas redundantes de red ante reintentos de restauración. */
     private val downloadedFilesCache = java.util.concurrent.ConcurrentHashMap<String, CachedEncryptedFile>()
@@ -247,6 +232,8 @@ object GoogleDriveManager {
             // Poda automática: eliminar copias que excedan el límite de retención
             pruneOldBackups(accessToken, MAX_BACKUP_VERSIONS)
             clearDownloadCache()
+            cachedBackupItems = emptyList()
+            lastNetworkFetchMillis = 0L
 
             session
         }
@@ -255,10 +242,21 @@ object GoogleDriveManager {
     /**
      * Consulta y lista todas las versiones de copia de seguridad disponibles en Google Drive ordenadas de más reciente a más antigua.
      *
+     * Aplica protección inviolable de enfriamiento global ([GLOBAL_FETCH_COOLDOWN_MILLIS]) para evitar saturación de API.
+     *
      * @param accessToken Token OAuth2 activo.
+     * @param forceRefresh Fuerza la consulta a la red ignorando el tiempo de enfriamiento si es `true`.
      * @return [Result] con la lista de [DriveBackupItem] disponibles.
      */
-    suspend fun fetchAllBackups(accessToken: String): Result<List<DriveBackupItem>> = withContext(Dispatchers.IO) {
+    suspend fun fetchAllBackups(
+        accessToken: String,
+        forceRefresh: Boolean = false
+    ): Result<List<DriveBackupItem>> = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        if (!forceRefresh && (now - lastNetworkFetchMillis < GLOBAL_FETCH_COOLDOWN_MILLIS) && cachedBackupItems.isNotEmpty()) {
+            return@withContext Result.success(cachedBackupItems)
+        }
+
         runCatching {
             val encodedQuery = java.net.URLEncoder.encode("trashed = false and (name = '$LEGACY_BACKUP_FILE_NAME' or name contains '$BACKUP_FILE_PREFIX')", "UTF-8")
             val queryUrl = URL("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=$encodedQuery&fields=files(id,name,modifiedTime,size,description,appProperties,trashed)&orderBy=modifiedTime+desc")
@@ -311,13 +309,17 @@ object GoogleDriveManager {
 
             // Ordenar de más reciente a más antigua
             val sorted = items.sortedByDescending { it.modifiedTimeMillis }
-            if (sorted.isNotEmpty()) {
+            val resultList = if (sorted.isNotEmpty()) {
                 sorted.mapIndexed { index, item ->
                     if (index == 0) item.copy(isMostRecent = true) else item
                 }
             } else {
                 emptyList()
             }
+
+            lastNetworkFetchMillis = System.currentTimeMillis()
+            cachedBackupItems = resultList
+            resultList
         }
     }
 
@@ -338,17 +340,6 @@ object GoogleDriveManager {
             }
         }
     }
-
-    /**
-     * Resultado detallado de descarga que incluye el JSON descifrado y la sesión de clave simétrica con ranuras.
-     *
-     * @property plainJson Contenido descifrado en formato JSON.
-     * @property session Sesión de clave para su custodia en Android Keystore ([CloudVaultKeyStore]).
-     */
-    data class DownloadedBackupResult(
-        val plainJson: String,
-        val session: CloudVaultKeyStore.VaultKeySession
-    )
 
     private fun fetchRawEncryptedContent(accessToken: String, fileId: String): String {
         val now = System.currentTimeMillis()
@@ -476,20 +467,9 @@ object GoogleDriveManager {
                 connection.disconnect()
             }
             downloadedFilesCache.remove(fileId)
+            cachedBackupItems = emptyList()
+            lastNetworkFetchMillis = 0L
             Unit
         }
     }
 }
-
-/**
- * Metadatos descriptivos del archivo de respaldo en Google Drive.
- *
- * @property fileId Identificador único en Google Drive.
- * @property modifiedTimeMillis Marca de tiempo UNIX de modificación.
- * @property deviceName Modelo del dispositivo que originó la copia.
- */
-data class DriveBackupInfo(
-    val fileId: String,
-    val modifiedTimeMillis: Long,
-    val deviceName: String
-)

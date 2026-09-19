@@ -140,11 +140,17 @@ class SettingsViewModel : ViewModel() {
         driveVaultHandler.disconnectGoogleDrive(context)
     }
 
-    /** Notifica que la autorización OAuth2 fue exitosa. */
+    /** Notifica que la autorización OAuth2 fue exitosa y consulta de forma asíncrona si existen respaldos en la nube. */
     fun onGoogleDriveConnected(token: String) {
         prefsManager.setGoogleDriveConnected(true)
         GoogleDriveManager.currentAccessToken = token
         _internalState.update { it.copy(isDriveLoading = false) }
+        fetchBackupHistoryIfNeeded(
+            token = token,
+            onAuthExpired = {
+                // Token expirado defensivo
+            }
+        )
     }
 
     /** Ejecuta una sincronización manual inmediata con la nube. */

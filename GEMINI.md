@@ -74,13 +74,17 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 - **Capa de Seguridad (`security/`):** Manejo de hardware seguro TEE (Android Keystore), Biometría, AppLock, Secure Clipboard y derivación PBKDF2.
 - **Capa de Datos (`data/`):** Persistencia en Room, entidades cifradas y mapeo hacia modelos de dominio.
 - **Capa de Presentación (`ui/`):** Jetpack Compose con ViewModels reactivos (`StateFlow`), sin lógica de negocio incrustada en la vista.
+- **PROHIBIDO el antipatrón de intermediarios pasivos (*Pass-Through Proxy Methods*):** Crear métodos puente en serializadores o clases utilitarias que únicamente re-envíen llamadas a otros motores especializados.
+- **OBLIGATORIO la invocación directa de subsistemas especializados:** Invocar motores de dominio o fusión (`AccountMergeEngine`, `CryptoManager`, `GoogleDriveManager`) directamente desde el Repositorio o ViewModel responsable, preservando a los serializadores exclusivamente para conversión de formatos (JSON/QR) y a los motores para lógica de negocio y deduplicación.
 
 ---
 
-## 9. Principio de Cero Confianza (*Zero Trust*) y Gestión Segura de Memoria (*Memory Security & Lifecycle Purge*)
+## 9. Principio de Cero Confianza (*Zero Trust*), Gestión Segura de Memoria y Flujos (*Memory Security, Stream Lifecycles & Purge*)
 - Validar siempre los datos ingresados por el usuario (claves Base32, URIs, longitudes).
 - Sobreescribir con ceros (*zeroize / fill('0')*) los arreglos de caracteres (`CharArray`) y bytes (`ByteArray`) que contengan secretos o contraseñas en memoria tras su uso.
 - **PROHIBIDO** mantener secretos o cachés de descifrado en memoria RAM indefinidamente cuando la aplicación entra en segundo plano.
+- **PROHIBIDO** dejar flujos de E/S, streams de archivos (`OutputStream`, `InputStream`, `BufferedReader`) o conexiones de red (`HttpURLConnection`) abiertos o sin liberar ante fallos o cancelaciones.
+- **OBLIGATORIO** envolver todos los flujos de lectura/escritura en bloques `.use { ... }` y garantizar la desconexión explícita (`connection.disconnect()`) dentro de bloques `finally`.
 - **OBLIGATORIO** invocar la limpieza y sobrescritura de cachés volátiles (`clearMemoryCache()`) ante transiciones a segundo plano (`Lifecycle.Event.ON_STOP`) o eventos de advertencia de memoria del sistema (`ComponentCallbacks2.onTrimMemory()`).
 
 ---

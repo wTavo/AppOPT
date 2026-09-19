@@ -305,6 +305,7 @@
     <string name="scan_transfer_pin_error_incorrect_attempts">Clave incorrecta. Te quedan %1$d intentos.</string>
     <string name="scan_transfer_pin_error_max_attempts">Límite de intentos alcanzado. Transferencia cancelada por seguridad.</string>
     <string name="scan_transfer_error_expired">El código QR ha expirado. Genera uno nuevo en el otro teléfono.</string>
+    <string name="scan_transfer_error_no_accounts">No se encontraron cuentas válidas</string>
     <string name="scan_import_all_already_exist">Todos los servicios escaneados ya estaban registrados en tu bóveda</string>
 
     <!-- Sincronización y Respaldo en la Nube (Google Drive E2EE) -->

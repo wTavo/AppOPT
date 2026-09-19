@@ -94,6 +94,7 @@ fun QrScannerDialog(
     val existingAccounts by repository.getAccounts().collectAsStateWithLifecycle(initialValue = emptyList())
 
     val importAllAlreadyExistErrorText = stringResource(R.string.scan_import_all_already_exist)
+    val noAccountsErrorText = stringResource(R.string.scan_transfer_error_no_accounts)
     val pinMaxAttemptsErrorText = stringResource(R.string.scan_transfer_pin_error_max_attempts)
     val pinIncorrectAttemptsFormat = stringResource(R.string.scan_transfer_pin_error_incorrect_attempts)
     val qrExpiredErrorText = stringResource(R.string.scan_transfer_error_expired)
@@ -334,7 +335,7 @@ fun QrScannerDialog(
                                 } else if (pendingEncryptedPayload != null) {
                                     TransferCrypto.decryptTransferPayload(pendingEncryptedPayload!!, pinChars)
                                 } else {
-                                    Result.failure(Exception("No hay carga útil para descifrar"))
+                                    Result.failure(TransferCrypto.IncompleteTransferException("No hay fragmentos para descifrar"))
                                 }
 
                                 pinChars.fill('0')
@@ -343,7 +344,7 @@ fun QrScannerDialog(
                                     onSuccess = { decryptedJson ->
                                         val previews = repository.parseAccountsForPreview(decryptedJson)
                                         if (previews.isEmpty()) {
-                                            pinErrorMessage = "No se encontraron cuentas válidas"
+                                            pinErrorMessage = noAccountsErrorText
                                             appHaptics.error()
                                         } else {
                                             val validAccountsToSelect = previews.filter { !it.isAlreadyInVault }

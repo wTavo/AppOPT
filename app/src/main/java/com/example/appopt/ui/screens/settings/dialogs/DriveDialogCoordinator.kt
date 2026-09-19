@@ -70,7 +70,7 @@ class DriveDialogCoordinator(
         val now = System.currentTimeMillis()
         val lastFetch = AuthenticatorApp.instance.preferencesManager.getLastBackupHistoryFetchTimestamp()
         val isCacheFresh = (now - lastFetch < SecurityConfig.BACKUP_HISTORY_CACHE_TTL_MILLIS) && uiState.backupHistoryList.isNotEmpty()
-        if (!isCacheFresh && uiState.backupHistoryList.isEmpty()) {
+        if (!isCacheFresh) {
             isHistoryLoadingSynchronous = true
             viewModel.startBackupHistoryLoading()
         }

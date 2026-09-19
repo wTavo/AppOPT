@@ -1,9 +1,9 @@
-package com.example.appopt.security
+package com.example.appopt.domain.model
 
 /**
  * Representa un fragmento o pieza de un sobre de transferencia QR cifrado bajo el esquema "Todo o Nada" o versión 1.
  *
- * @property version Versión del esquema del sobre ([SecurityConfig.TRANSFER_QR_VERSION] o [SecurityConfig.TRANSFER_QR_VERSION_V2]).
+ * @property version Versión del esquema del sobre.
  * @property sessionId Identificador único aleatorio de 64 bits para correlacionar fragmentos de la misma sesión.
  * @property index Posición ordinal de este fragmento (base 1: 1..[total]).
  * @property total Cantidad total de fragmentos necesarios para reconstruir el texto cifrado.

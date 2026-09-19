@@ -16,11 +16,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
 import com.example.appopt.domain.model.ParsedAccountPreview
-import com.example.appopt.domain.totp.ParsedOtpData
+import com.example.appopt.domain.model.ParsedOtpData
+import com.example.appopt.domain.model.TransferQrChunk
 import com.example.appopt.security.CryptoManager
 import com.example.appopt.security.SecurityConfig
 import com.example.appopt.security.TransferCrypto
-import com.example.appopt.security.TransferQrChunk
 import com.example.appopt.ui.components.AppModalDialog
 import com.example.appopt.ui.components.LocalModalDismissHandler
 import com.example.appopt.ui.screens.scan.components.QrScanCameraStep

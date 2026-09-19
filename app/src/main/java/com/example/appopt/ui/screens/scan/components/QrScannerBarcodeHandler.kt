@@ -1,9 +1,9 @@
 package com.example.appopt.ui.screens.scan.components
 
+import com.example.appopt.domain.model.ParsedOtpData
+import com.example.appopt.domain.model.TransferQrChunk
 import com.example.appopt.domain.totp.OtpUriParser
-import com.example.appopt.domain.totp.ParsedOtpData
 import com.example.appopt.security.TransferCrypto
-import com.example.appopt.security.TransferQrChunk
 import com.example.appopt.ui.screens.scan.QrScannerMode
 import com.example.appopt.ui.theme.AppHaptics
 import kotlinx.coroutines.delay

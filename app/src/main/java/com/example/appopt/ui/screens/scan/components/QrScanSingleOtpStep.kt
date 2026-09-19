@@ -34,12 +34,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import com.example.appopt.R
 import com.example.appopt.domain.model.OtpType
+import com.example.appopt.domain.model.ParsedOtpData
 import com.example.appopt.domain.model.TotpAccount
-import com.example.appopt.domain.totp.ParsedOtpData
+import com.example.appopt.security.SecurityAnalysisUtils
 import com.example.appopt.ui.components.AppAnimatedButton
 import com.example.appopt.ui.components.ServiceBrandAvatar
 import com.example.appopt.ui.theme.Dimensions
-import com.example.appopt.util.SecurityAnalysisUtils
 
 /**
  * Sub-pantalla de confirmación y diagnóstico de seguridad para el alta de una cuenta OTP individual.

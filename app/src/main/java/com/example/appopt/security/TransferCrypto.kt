@@ -1,5 +1,6 @@
 package com.example.appopt.security
 
+import com.example.appopt.domain.model.TransferQrChunk
 import java.security.SecureRandom
 import javax.crypto.Cipher
 import javax.crypto.SecretKeyFactory

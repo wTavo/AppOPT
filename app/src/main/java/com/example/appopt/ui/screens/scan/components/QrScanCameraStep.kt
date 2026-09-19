@@ -37,7 +37,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import com.example.appopt.R
-import com.example.appopt.security.TransferQrChunk
+import com.example.appopt.domain.model.TransferQrChunk
 import com.example.appopt.ui.components.AppDialogActionButtons
 import com.example.appopt.ui.screens.scan.QrScannerMode
 import com.example.appopt.ui.theme.Dimensions

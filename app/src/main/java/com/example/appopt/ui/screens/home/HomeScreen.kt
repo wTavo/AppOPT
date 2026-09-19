@@ -31,7 +31,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.appopt.AuthenticatorApp
-import com.example.appopt.domain.repository.AccountWithCode
+import com.example.appopt.domain.model.AccountWithCode
 import com.example.appopt.ui.common.UiState
 import com.example.appopt.ui.components.AccountDetailsDialog
 import com.example.appopt.ui.components.OtpCodeCard

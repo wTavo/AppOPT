@@ -1,4 +1,4 @@
-package com.example.appopt.ui.screens.home.model
+package com.example.appopt.ui.screens.home
 
 /**
  * Representa los estados reactivos visuales de la sincronización en la nube para el encabezado principal de la aplicación.

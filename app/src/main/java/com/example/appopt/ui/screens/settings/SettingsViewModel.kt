@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.data.cloud.CloudVaultSyncManager
-import com.example.appopt.data.cloud.DriveBackupInfo
 import com.example.appopt.data.cloud.GoogleDriveManager
 import com.example.appopt.ui.screens.settings.handler.DriveVaultHandler
 import kotlinx.coroutines.Dispatchers
@@ -45,9 +44,7 @@ class SettingsViewModel : ViewModel() {
                 isSyncMobileDataAllowed = prefsManager.isSyncMobileDataAllowed(),
                 backupHistoryList = cachedHistory,
                 driveBackupExists = cachedHistory.isNotEmpty(),
-                driveBackupInfo = mostRecent?.let { m ->
-                    DriveBackupInfo(m.fileId, m.modifiedTimeMillis, m.deviceName)
-                }
+                driveBackupInfo = mostRecent
             )
         }
     )

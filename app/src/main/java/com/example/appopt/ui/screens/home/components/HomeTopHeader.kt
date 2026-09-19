@@ -29,7 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.example.appopt.R
-import com.example.appopt.ui.screens.home.model.CloudSyncUiState
+import com.example.appopt.ui.screens.home.CloudSyncUiState
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.rememberAppHaptics

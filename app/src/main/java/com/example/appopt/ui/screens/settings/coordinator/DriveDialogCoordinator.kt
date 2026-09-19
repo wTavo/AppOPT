@@ -1,4 +1,4 @@
-package com.example.appopt.ui.screens.settings.dialogs
+package com.example.appopt.ui.screens.settings.coordinator
 
 import android.content.Context
 import androidx.compose.material3.SnackbarHostState
@@ -15,7 +15,7 @@ import com.example.appopt.data.cloud.GoogleDriveManager
 import com.example.appopt.security.SecurityConfig
 import com.example.appopt.ui.screens.settings.SettingsUiState
 import com.example.appopt.ui.screens.settings.SettingsViewModel
-import com.example.appopt.ui.screens.settings.util.DriveErrorMessageResolver
+import com.example.appopt.util.DriveErrorMessageResolver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 

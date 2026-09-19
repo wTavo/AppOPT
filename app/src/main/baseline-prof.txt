@@ -6,7 +6,7 @@ HSPLcom/example/appopt/domain/crypto/TotpCalculator;->calculateTotp(Ljava/lang/S
 HSPLcom/example/appopt/domain/crypto/HotpCalculator;->calculateHotp(Ljava/lang/String;JILjava/lang/String;)Ljava/lang/String;
 HSPLcom/example/appopt/domain/crypto/Base32;->decode(Ljava/lang/String;)[B
 HSPLcom/example/appopt/security/TransferCrypto;->decryptTransferPayload(Ljava/lang/String;[C)Ljava/lang/String;
-HSPLcom/example/appopt/security/TransferCrypto;->parseTransferChunk(Ljava/lang/String;)Lcom/example/appopt/security/TransferQrChunk;
+HSPLcom/example/appopt/security/TransferCrypto;->parseTransferChunk(Ljava/lang/String;)Lcom/example/appopt/domain/model/TransferQrChunk;
 HSPLcom/example/appopt/security/AndroidKeystoreManager;->decryptSecret([B[B)[C
 
 # 2. Database & Room Models

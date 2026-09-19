@@ -37,8 +37,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import com.example.appopt.R
+import com.example.appopt.domain.model.AccountWithCode
 import com.example.appopt.domain.model.OtpType
-import com.example.appopt.domain.repository.AccountWithCode
 import com.example.appopt.ui.components.AppDialogActionButtons
 import com.example.appopt.ui.components.CircularTimeProgress
 import com.example.appopt.ui.components.ServiceBrandAvatar

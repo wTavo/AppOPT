@@ -1,4 +1,4 @@
-package com.example.appopt.util
+package com.example.appopt.security
 
 import com.example.appopt.domain.model.TotpAccount
 import java.lang.Character.UnicodeScript

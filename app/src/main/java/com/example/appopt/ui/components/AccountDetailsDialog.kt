@@ -9,7 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.example.appopt.domain.repository.AccountWithCode
+import com.example.appopt.domain.model.AccountWithCode
 import com.example.appopt.ui.components.details.AccountDetailsDeleteStep
 import com.example.appopt.ui.components.details.AccountDetailsEditStep
 import com.example.appopt.ui.components.details.AccountDetailsViewStep

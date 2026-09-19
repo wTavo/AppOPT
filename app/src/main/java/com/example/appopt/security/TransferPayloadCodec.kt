@@ -1,5 +1,6 @@
 package com.example.appopt.security
 
+import com.example.appopt.domain.model.TransferQrChunk
 import java.io.ByteArrayOutputStream
 import java.util.Base64
 import java.util.zip.Deflater

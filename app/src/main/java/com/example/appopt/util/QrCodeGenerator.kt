@@ -1,4 +1,4 @@
-package com.example.appopt.ui.util
+package com.example.appopt.util
 
 import android.graphics.Bitmap
 import android.graphics.Color

@@ -45,9 +45,10 @@ import com.example.appopt.ui.screens.settings.components.DriveSyncSettingsCard
 import com.example.appopt.ui.screens.settings.components.PerformanceSettingsCard
 import com.example.appopt.ui.screens.settings.components.PermissionsSettingsCard
 import com.example.appopt.ui.screens.settings.components.TransferSettingsCard
-import com.example.appopt.ui.screens.settings.components.rememberSettingsPermissionsState
+import com.example.appopt.ui.screens.settings.coordinator.rememberDriveDialogCoordinator
+import com.example.appopt.ui.screens.settings.coordinator.rememberGoogleDriveAuth
+import com.example.appopt.ui.screens.settings.coordinator.rememberSettingsPermissionsState
 import com.example.appopt.ui.screens.settings.dialogs.SettingsDialogContainer
-import com.example.appopt.ui.screens.settings.dialogs.rememberDriveDialogCoordinator
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.util.DateTimeFormatter
@@ -105,7 +106,7 @@ fun SettingsScreen(
     val permissionsState = rememberSettingsPermissionsState()
 
     // Coordinador reactivo de autenticación de Google Drive
-    val requestGoogleAuthorization = com.example.appopt.ui.screens.settings.components.rememberGoogleDriveAuth(
+    val requestGoogleAuthorization = rememberGoogleDriveAuth(
         authClient = authClient,
         viewModel = viewModel,
         scope = scope,
@@ -308,12 +309,8 @@ fun SettingsScreen(
     SettingsDialogContainer(
         isUnlocked = isUnlocked,
         uiState = uiState,
+        coordinator = coordinator,
         formattedLastSync = formattedLastSync,
-        showDisconnectConfirmDialog = coordinator.showDisconnectConfirmDialog,
-        onDismissDisconnectConfirm = { coordinator.showDisconnectConfirmDialog = false },
-        onConfirmDisconnect = { coordinator.confirmDisconnect() },
-        showExportDialog = coordinator.showExportDialog,
-        onDismissExport = { coordinator.showExportDialog = false },
         onExportBatchesPayload = { selectedIds, pinChars -> viewModel.exportAccountsInBatches(selectedIds, pinChars) },
         onCompleteExport = { exportedIds, keepOnDevice ->
             if (!keepOnDevice && exportedIds.isNotEmpty()) {
@@ -321,38 +318,6 @@ fun SettingsScreen(
                 scope.launch { snackbarHostState.showSnackbar(servicesDeletedAfterExportText) }
             }
             coordinator.showExportDialog = false
-        },
-        showDriveProtectDialog = coordinator.showDriveProtectDialog,
-        onDismissDriveProtect = { coordinator.showDriveProtectDialog = false },
-        onProtectAndSync = { primary, mnemonic -> coordinator.protectAndSync(primary, mnemonic) },
-        showCreateBackupConfirmDialog = coordinator.showCreateBackupConfirmDialog,
-        onDismissCreateBackupConfirm = { coordinator.showCreateBackupConfirmDialog = false },
-        onConfirmCreateBackupWithExistingKey = { coordinator.createBackupWithExistingKey() },
-        onUseOtherKeyForBackup = {
-            coordinator.showCreateBackupConfirmDialog = false
-            coordinator.showDriveProtectDialog = true
-        },
-        showDriveDecryptDialog = coordinator.showDriveDecryptDialog,
-        onDismissDriveDecrypt = { coordinator.showDriveDecryptDialog = false },
-        onRestoreDriveDecrypt = { passChars -> coordinator.restoreDriveDecrypt(passChars) },
-        showBackupDetailsDialog = coordinator.showBackupDetailsDialog,
-        isBackupHistoryLoading = coordinator.isHistoryLoadingSynchronous,
-        onDismissBackupDetails = {
-            coordinator.showBackupDetailsDialog = false
-            coordinator.isHistoryLoadingSynchronous = false
-        },
-        onForceRefreshBackupHistory = { coordinator.forceRefreshHistory() },
-        onRestoreBackupHistoryItem = { item, passChars -> coordinator.restoreBackupHistoryItem(item, passChars) },
-        onDeleteBackupHistoryItem = { item, passChars -> coordinator.deleteBackupHistoryItem(item, passChars) },
-        showOverwriteWarningDialog = coordinator.showOverwriteWarningDialog,
-        onDismissOverwriteWarning = { coordinator.showOverwriteWarningDialog = false },
-        onConfirmOverwrite = {
-            coordinator.showOverwriteWarningDialog = false
-            coordinator.showDriveProtectDialog = true
-        },
-        onRestoreInstead = {
-            coordinator.showOverwriteWarningDialog = false
-            coordinator.executeWithAuth { coordinator.showDriveDecryptDialog = true }
         }
     )
 

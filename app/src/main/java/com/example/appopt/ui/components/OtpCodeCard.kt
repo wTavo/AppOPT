@@ -42,8 +42,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.example.appopt.R
+import com.example.appopt.domain.model.AccountWithCode
 import com.example.appopt.domain.model.OtpType
-import com.example.appopt.domain.repository.AccountWithCode
 import com.example.appopt.ui.navigation.NavigationOriginTracker
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion

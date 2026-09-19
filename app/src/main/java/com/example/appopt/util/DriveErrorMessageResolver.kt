@@ -1,4 +1,4 @@
-package com.example.appopt.ui.screens.settings.util
+package com.example.appopt.util
 
 import android.content.Context
 import com.example.appopt.R

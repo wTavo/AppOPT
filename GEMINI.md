@@ -349,3 +349,18 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
   2. En diálogos modales multi-etapa (`AppModalDialog`), extraer cada paso, sub-formulario o pantalla secundaria a un archivo `.kt` independiente dentro del sub-paquete `components/` correspondiente (ej. `ui/screens/scan/components/QrScanCameraStep.kt`, `QrScanSingleOtpStep.kt`, `QrScanTransferPinStep.kt`, `QrScanTransferSelectStep.kt`).
   3. En pantallas principales, desacoplar tarjetas de sección, cabeceras, docks flotantes y estados vacíos en componentes dedicados dentro del sub-paquete `components/`.
   4. Mantener cada archivo enfocado estrictamente en una única responsabilidad (*Single Responsibility Principle - SRP*), con 100% de documentación KDoc, imports limpios y sin sobrecarga ciclomática.
+
+---
+
+## 30. Organización Estructural de Paquetes, Cohesión Arquitectónica y Cero Fragmentación Artificial (*Package Structure, Architectural Cohesion & Anti-Fragmentation*)
+- **PROHIBIDO** crear carpetas huérfanas o sobre-anidadas de un único elemento (ej. `screens/home/model/`, `settings/util/`, `ui/util/`) que fragmenten artificialmente la estructura del proyecto.
+- **PROHIBIDO** enterrar modelos de dominio públicos o enums de uso transversal dentro de archivos de contratos o analizadores (`ParsedOtpData` dentro de `OtpUriParser.kt`, `AccountWithCode` dentro de `AccountRepository.kt`, o `OtpType` dentro de `OtpAlgorithm.kt`).
+- **PROHIBIDO** crear clases o archivos *wrapper* que únicamente re-envíen llamadas con parámetros estáticos a componentes modulares existentes (ej. `DriveDisconnectConfirmDialog` sobre `AppDestructiveConfirmDialog`).
+- **PROHIBIDO** crear modelos de datos paralelos que representen subconjuntos redundantes de una misma entidad (ej. `DriveBackupInfo` frente a `DriveBackupItem`).
+- **OBLIGATORIO la estandarización y ubicación estricta por responsabilidades:**
+  1. **Modelos de Dominio (`domain/model/`):** Cada modelo de entidad inmutable, enum público o estructura de transporte puro (`TotpAccount`, `AccountWithCode`, `OtpAlgorithm`, `OtpType`, `ParsedOtpData`, `ParsedAccountPreview`, `TransferQrChunk`) debe residir en su propio archivo independiente dentro de `domain/model/`, con CERO dependencias de Android SDK, Compose o capas de seguridad/datos.
+  2. **Modelos de Estado de Pantalla (`ui/screens/<feature>/`):** Los modelos de estado de interfaz (`SettingsUiState`, `CloudSyncUiState`, etc.) deben ubicarse directamente en la raíz de su respectiva pantalla, adyacentes al Composable y al ViewModel.
+  3. **Coordinadores de Estado y Launchers (`ui/screens/<feature>/coordinator/`):** Las clases de coordinación de estado y launchers de actividad que no contengan elementos de dibujo visual deben separarse de los componentes gráficos (`components/`) en subpaquetes `coordinator/`.
+  4. **Utilidades Centralizadas (`util/`):** Los generadores de archivos/gráficos (`QrCodeGenerator`, `DiagnosticPdfGenerator`, `EmergencyKitPdfGenerator`) y formateadores de mensajes del sistema (`DriveErrorMessageResolver`, `DateTimeFormatter`, `AccessibilityUtils`) deben consolidarse en el paquete raíz `util/`.
+  5. **Análisis y Criptografía (`security/`):** Toda lógica algorítmica antifraude, detección de homóglifos o análisis de caracteres invisibles (`SecurityAnalysisUtils`) debe residir en `security/`.
+

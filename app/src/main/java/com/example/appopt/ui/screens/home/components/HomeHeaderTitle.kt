@@ -37,7 +37,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import com.example.appopt.R
-import com.example.appopt.ui.screens.home.model.CloudSyncUiState
+import com.example.appopt.ui.screens.home.CloudSyncUiState
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.SafeGreen

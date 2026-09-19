@@ -2,17 +2,17 @@ package com.example.appopt.data.repository
 
 import com.example.appopt.data.local.AccountDao
 import com.example.appopt.data.local.AccountEntity
+import com.example.appopt.domain.model.AccountWithCode
 import com.example.appopt.domain.model.OtpAlgorithm
 import com.example.appopt.domain.model.OtpType
 import com.example.appopt.domain.model.ParsedAccountPreview
 import com.example.appopt.domain.model.TotpAccount
+import com.example.appopt.domain.model.TransferQrChunk
 import com.example.appopt.domain.repository.AccountRepository
-import com.example.appopt.domain.repository.AccountWithCode
 import com.example.appopt.domain.totp.OtpUriParser
 import com.example.appopt.domain.totp.TotpEngine
 import com.example.appopt.security.CryptoManager
 import com.example.appopt.security.TransferCrypto
-import com.example.appopt.security.TransferQrChunk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

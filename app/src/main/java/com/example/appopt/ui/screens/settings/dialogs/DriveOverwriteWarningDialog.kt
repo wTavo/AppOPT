@@ -27,7 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import com.example.appopt.R
-import com.example.appopt.data.cloud.DriveBackupInfo
+import com.example.appopt.data.cloud.DriveBackupItem
 import com.example.appopt.ui.components.AppDialogActionButtons
 import com.example.appopt.ui.components.AppModalDialog
 import com.example.appopt.ui.components.ModalTone
@@ -54,7 +54,7 @@ import com.example.appopt.util.DateTimeFormatter
  */
 @Composable
 fun DriveOverwriteWarningDialog(
-    backupInfo: DriveBackupInfo?,
+    backupInfo: DriveBackupItem?,
     formattedLastSync: String?,
     onConfirmOverwrite: () -> Unit,
     onRestoreInstead: () -> Unit,

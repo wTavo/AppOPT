@@ -16,6 +16,27 @@ class UnauthorizedException(message: String = "Sesión de Google Drive expirada 
 class ServiceUnavailableException(message: String = "El servicio de Google Drive no está disponible temporalmente") : Exception(message)
 
 /**
+ * Representa una versión individual de copia de seguridad almacenada en Google Drive (Point-in-Time Recovery).
+ *
+ * @property fileId Identificador único del archivo en Google Drive API.
+ * @property fileName Nombre del archivo físico en la nube.
+ * @property modifiedTimeMillis Marca de tiempo UNIX de la creación o última modificación.
+ * @property sizeBytes Tamaño en bytes del archivo cifrado en la nube.
+ * @property deviceName Nombre o modelo del dispositivo que generó la copia.
+ * @property deviceId Identificador único persistente del dispositivo emisor para discriminación de versiones locales.
+ * @property isMostRecent Indica si corresponde a la versión más actual del historial.
+ */
+data class DriveBackupItem(
+    val fileId: String,
+    val fileName: String,
+    val modifiedTimeMillis: Long,
+    val sizeBytes: Long,
+    val deviceName: String,
+    val isMostRecent: Boolean = false,
+    val deviceId: String = ""
+)
+
+/**
  * Resultado detallado de descarga que incluye el JSON descifrado y la sesión de clave simétrica con ranuras.
  *
  * @property plainJson Contenido descifrado en formato JSON.
@@ -24,19 +45,6 @@ class ServiceUnavailableException(message: String = "El servicio de Google Drive
 data class DownloadedBackupResult(
     val plainJson: String,
     val session: CloudVaultKeyStore.VaultKeySession
-)
-
-/**
- * Metadatos descriptivos del archivo de respaldo en Google Drive.
- *
- * @property fileId Identificador único en Google Drive.
- * @property modifiedTimeMillis Marca de tiempo UNIX de modificación.
- * @property deviceName Modelo del dispositivo que originó la copia.
- */
-data class DriveBackupInfo(
-    val fileId: String,
-    val modifiedTimeMillis: Long,
-    val deviceName: String
 )
 
 /**

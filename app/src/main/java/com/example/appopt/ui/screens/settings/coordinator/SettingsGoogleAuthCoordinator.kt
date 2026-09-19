@@ -1,4 +1,4 @@
-package com.example.appopt.ui.screens.settings.components
+package com.example.appopt.ui.screens.settings.coordinator
 
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult

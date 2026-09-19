@@ -34,7 +34,7 @@ import com.example.appopt.ui.screens.settings.dialogs.components.ExportExpiredSt
 import com.example.appopt.ui.screens.settings.dialogs.components.ExportQrCarouselStep
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
-import com.example.appopt.ui.util.QrCodeGenerator
+import com.example.appopt.util.QrCodeGenerator
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds

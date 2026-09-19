@@ -1,7 +1,6 @@
 package com.example.appopt.ui.screens.settings
 
 import androidx.compose.runtime.Immutable
-import com.example.appopt.data.cloud.DriveBackupInfo
 import com.example.appopt.data.cloud.DriveBackupItem
 import com.example.appopt.domain.model.TotpAccount
 
@@ -35,7 +34,7 @@ data class SettingsUiState(
     val isDriveConnected: Boolean = false,
     val isDriveLoading: Boolean = false,
     val driveBackupExists: Boolean = false,
-    val driveBackupInfo: DriveBackupInfo? = null,
+    val driveBackupInfo: DriveBackupItem? = null,
     val backupHistoryList: List<DriveBackupItem> = emptyList(),
     val lastSyncTimestamp: Long = 0L,
     val lastSyncedHash: String = "",

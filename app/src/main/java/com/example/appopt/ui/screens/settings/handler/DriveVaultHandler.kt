@@ -3,7 +3,6 @@ package com.example.appopt.ui.screens.settings.handler
 import android.content.Context
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.data.cloud.CloudVaultSyncManager
-import com.example.appopt.data.cloud.DriveBackupInfo
 import com.example.appopt.data.cloud.GoogleDriveManager
 import com.example.appopt.data.cloud.ManualSyncManager
 import com.example.appopt.security.SecurityConfig
@@ -87,9 +86,7 @@ class DriveVaultHandler(
                         it.copy(
                             backupHistoryList = items,
                             driveBackupExists = items.isNotEmpty(),
-                            driveBackupInfo = mostRecent?.let { m ->
-                                DriveBackupInfo(m.fileId, m.modifiedTimeMillis, m.deviceName)
-                            }
+                            driveBackupInfo = mostRecent
                         )
                     }
                 } else {
@@ -131,9 +128,7 @@ class DriveVaultHandler(
                         it.copy(
                             backupHistoryList = items,
                             driveBackupExists = items.isNotEmpty(),
-                            driveBackupInfo = mostRecent?.let { m ->
-                                DriveBackupInfo(m.fileId, m.modifiedTimeMillis, m.deviceName)
-                            }
+                            driveBackupInfo = mostRecent
                         )
                     }
                 } else {
@@ -165,9 +160,7 @@ class DriveVaultHandler(
                     it.copy(
                         backupHistoryList = items,
                         driveBackupExists = items.isNotEmpty(),
-                        driveBackupInfo = mostRecent?.let { m ->
-                            DriveBackupInfo(m.fileId, m.modifiedTimeMillis, m.deviceName)
-                        }
+                        driveBackupInfo = mostRecent
                     )
                 }
             }
@@ -203,9 +196,7 @@ class DriveVaultHandler(
                         it.copy(
                             backupHistoryList = updated,
                             driveBackupExists = updated.isNotEmpty(),
-                            driveBackupInfo = mostRecent?.let { m ->
-                                DriveBackupInfo(m.fileId, m.modifiedTimeMillis, m.deviceName)
-                            }
+                            driveBackupInfo = mostRecent
                         )
                     }
                     onComplete(true)

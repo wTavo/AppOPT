@@ -163,7 +163,6 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
     3. **Fase de entrada suave:** El nuevo contenido emerge suavemente (`fadeIn`, 180ms con 70ms de retardo). Sin desplazamiento vectorial.
     4. **Sin recorte invasivo:** Fijar `clip = false` en `SizeTransform` para preservar radios de curvatura de 16.dp y sombras intactas en cada fotograma.
 
-
 ---
 
 ## 15. Manejo Seguro, Descriptivo y Accionable de Excepciones (*Zero-Leakage & Actionable Error Handling*)
@@ -275,13 +274,13 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 ## 27. Desacoplamiento de Fases de Renderizado y Confinamiento CPU vs. GPU (*Rendering Pipeline & GPU Hardware Confinement*)
 - **PROHIBIDO** ejecutar transformaciones geométricas animadas (escalas, rotaciones, traslaciones) u opacidades variables animadas forzando las fases de Composición (*Composition*) o Medición (*Layout / Measure pass*) mediante modificadores dependientes de recomposición o cambios de tamaño de contenedor (ej. `Modifier.fillMaxSize(animatedFraction)`, `Modifier.width(animatedDp)`, o lecturas de `animate*AsState` en el cuerpo del Composable sin diferir a la fase de dibujo).
 - **PROHIBIDO** delegar a la GPU tareas de cómputo algorítmico, criptografía, derivación de claves, formateo de texto, parsers de URI, o filtrado de colecciones (responsabilidad exclusiva del procesador CPU en hilos de fondo).
-- **PROHIBIDO** mantener capas de renderizado fuera de pantalla (*offscreen buffers / RenderEffects*) activas en la GPU de forma estática o innecesaria cuando no haya contenido que requiera el efecto (ej. `Modifier.blur(0.dp)` continuo durante la navegación ordinaria).
-- **PROHIBIDO** apilar capas redundantes de desenfoque compitiendo entre el WindowManager nativo del sistema operativo y Compose Skia GPU (ej. invocar `FLAG_BLUR_BEHIND` IPC al mismo tiempo que `Modifier.blur()` en el NavHost).
+- **PROHIBIDO** mantener capas de renderizado fuera de pantalla (*offscreen buffers / RenderEffects*) activas en la GPU de forma estática o innecesaria.
+- **PROHIBIDO** apilar capas de renderizado redundantes o aplicar filtros pesados en tiempo real compitiendo con el WindowManager del sistema operativo.
 - **OBLIGATORIO Confinamiento estricto a la GPU (Fase de Dibujo / RenderNode en RenderThread):**
   1. **Transformaciones Geométricas Animadas:** Toda animación de escala (`scaleX`, `scaleY`), rotación (`rotationZ`) o traslación (`translationX`, `translationY`) debe diferirse a la fase de Draw consumiendo la lambda de `Modifier.graphicsLayer { ... }` o `drawWithContent`.
-  2. **Opacidades y Scrims Animados:** Animar la opacidad en la GPU mediante `graphicsLayer { alpha = ... }` en lugar de recomponer con `Color.copy(alpha = ...)`.
+  2. **Opacidades y Scrims Animados:** Animar la opacidad y el velo de fondo en la GPU mediante `graphicsLayer { alpha = ... }` en lugar de recomponer con `Color.copy(alpha = ...)`.
   3. **Multiplicación de Matrices por Hardware:** Aprovechar la capacidad nativa de la GPU para matrices 2D/3D sin invalidar ni re-medir la geometría de la tarjeta o pantalla en cada fotograma.
-  4. **Activación Condicional de Shaders:** Condicionar la aplicación de `Modifier.blur()` para que solo exista cuando el radio sea estrictamente mayor a cero (`modalBlurRadius > Dimensions.Spacing.none`), liberando el ancho de banda de memoria GPU durante el uso ordinario.
+  4. **Velo Oscurecido Estándar MD3 (*Zero-Jank Scrim*):** Renderizar el fondo oscurecido al 50% en fase de dibujo (`graphicsLayer { alpha = scrimAlpha }`), garantizando 60/90/120 FPS fluidos sin sobrecarga computacional.
 - **OBLIGATORIO Confinamiento estricto al Procesador (CPU):**
   1. **Cómputo Criptográfico:** Derivación PBKDF2, AES-256-GCM, cálculo TOTP/HOTP y huellas SHA-256 deben ejecutarse en `Dispatchers.Default` (Directiva 18).
   2. **Estructura y Medición de Layout (*Measure Pass*):** Medir y componer los elementos de la interfaz **una sola vez** al inicio, delegando su animación subsiguiente al RenderNode.
@@ -295,7 +294,7 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
          - Gestos táctiles de arrastre (*Drag & Drop*) y deslizamiento (*Swipe-to-Dismiss*): animar `translationX` / `translationY` en `graphicsLayer`.
          - Rotaciones de flechas, iconos e indicadores de carga (`rotationZ`).
          - Arcos de progreso temporal, temporizadores TOTP y trazos de `Canvas` (`drawArc`, `drawCircle`).
-         - Efectos de desenfoque de fondo (*Skia Blur*), viñeteado y tinte de scrims.
+         - Velo de oscurecimiento estándar (*Material 3 Scrim*), viñeteado y tinte de fondos.
          - Recorte de bordes redondeados y elevaciones de sombras dinámicas (`clip = true`, `shadowElevation`).
     2. **Asignación OBLIGATORIA al Procesador (CPU):**
        - **Pregunta clave:** *«¿La operación requiere procesamiento lógico/algorítmico, lectura de almacenamiento/red/memoria, o altera la cantidad, orden o dimensiones intrínsecas que afectan el flujo de otros elementos?»*

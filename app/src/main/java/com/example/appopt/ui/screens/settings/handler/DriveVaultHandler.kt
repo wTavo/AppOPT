@@ -2,7 +2,6 @@ package com.example.appopt.ui.screens.settings.handler
 
 import android.content.Context
 import com.example.appopt.AuthenticatorApp
-import com.example.appopt.data.cloud.CloudVaultKeyStore
 import com.example.appopt.data.cloud.CloudVaultSyncManager
 import com.example.appopt.data.cloud.DriveBackupInfo
 import com.example.appopt.data.cloud.GoogleDriveManager

@@ -1,9 +1,5 @@
 package com.example.appopt.ui.screens.settings
 
-import android.app.Activity
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.IntentSenderRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -55,7 +51,6 @@ import com.example.appopt.ui.screens.settings.dialogs.rememberDriveDialogCoordin
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.util.DateTimeFormatter
-import com.google.android.gms.common.api.ApiException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch

@@ -1,6 +1,5 @@
 package com.example.appopt.ui.screens.home
 
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,7 +15,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -29,7 +27,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -46,7 +43,6 @@ import com.example.appopt.ui.screens.home.components.HomeTopHeader
 import com.example.appopt.ui.screens.scan.QrScannerDialog
 import com.example.appopt.ui.screens.scan.QrScannerMode
 import com.example.appopt.ui.theme.Dimensions
-import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.performance.TrackJankMetrics
 import com.example.appopt.performance.TrackJankOperationState

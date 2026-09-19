@@ -430,20 +430,6 @@ object GoogleDriveManager {
     }
 
     /**
-     * Descarga la copia de seguridad más reciente de Google Drive.
-     *
-     * @param accessToken Token OAuth2 activo.
-     * @param secretKeyPass Contraseña o clave de descifrado en [CharArray].
-     * @return [Result] con el contenido JSON descifrado.
-     */
-    suspend fun downloadBackup(
-        accessToken: String,
-        secretKeyPass: CharArray
-    ): Result<String> = withContext(Dispatchers.IO) {
-        downloadBackupDetailed(accessToken, secretKeyPass).map { it.plainJson }
-    }
-
-    /**
      * Elimina permanentemente una versión específica de copia de seguridad en Google Drive.
      *
      * @param accessToken Token OAuth2 activo.
@@ -469,7 +455,6 @@ object GoogleDriveManager {
             downloadedFilesCache.remove(fileId)
             cachedBackupItems = emptyList()
             lastNetworkFetchMillis = 0L
-            Unit
         }
     }
 }

@@ -136,15 +136,6 @@ object CloudVaultKeyStore {
     }
 
     /**
-     * Elimina de forma definitiva la clave protegida y ranuras custodiadas en el dispositivo.
-     *
-     * @param context Contexto de la aplicación.
-     */
-    fun clear(context: Context) {
-        getPrefs(context).edit { clear() }
-    }
-
-    /**
      * Sesión de clave de bóveda y ranuras asociadas para operaciones de sincronización en la nube.
      *
      * @property vaultKey Clave simétrica de 256 bits recuperada de hardware seguro.

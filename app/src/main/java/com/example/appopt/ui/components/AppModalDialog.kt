@@ -1,11 +1,10 @@
 package com.example.appopt.ui.components
 
-import android.os.Build
 import android.view.WindowManager
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.updateTransition
+import androidx.compose.animation.core.rememberTransition
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -32,7 +31,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -142,7 +140,7 @@ fun AppModalDialog(
             }
         }
 
-        val transition = updateTransition(visibleState, label = "modal_dialog_transition")
+        val transition = rememberTransition(visibleState, label = "modal_dialog_transition")
 
         // Velo oscurecido estándar de Material Design 3 (50% de opacidad para contraste y foco óptimos)
         val targetScrimAlpha = 0.50f

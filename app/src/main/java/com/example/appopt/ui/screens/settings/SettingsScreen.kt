@@ -283,19 +283,10 @@ fun SettingsScreen(
                     }
                 },
                 onCreateBackupClick = {
-                    if (uiState.driveBackupExists) {
-                        coordinator.executeWithAuth { token ->
-                            viewModel.fetchBackupHistoryIfNeeded(
-                                token = token,
-                                onAuthExpired = {},
-                                onFinished = {}
-                            )
-                        }
-                        coordinator.showOverwriteWarningDialog = true
-                    } else if (!uiState.isDriveBackupEncrypted) {
-                        coordinator.createBackupWithExistingKey()
+                    if (!uiState.isDriveBackupEncrypted) {
+                        coordinator.showCreateStandardBackupConfirmDialog = true
                     } else if (hasVaultKey) {
-                        coordinator.showCreateBackupConfirmDialog = true
+                        coordinator.createBackupWithExistingKey()
                     } else {
                         coordinator.showDriveProtectDialog = true
                     }

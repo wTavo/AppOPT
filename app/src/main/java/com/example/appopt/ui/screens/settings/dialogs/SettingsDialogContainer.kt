@@ -11,6 +11,7 @@ import com.example.appopt.ui.components.AppDestructiveConfirmDialog
 import com.example.appopt.ui.screens.settings.SettingsUiState
 import com.example.appopt.ui.screens.settings.coordinator.DriveDialogCoordinator
 import com.example.appopt.ui.screens.settings.dialogs.components.DriveCreateBackupConfirmDialog
+import com.example.appopt.ui.screens.settings.dialogs.components.DriveCreateStandardBackupConfirmDialog
 import com.example.appopt.ui.screens.settings.dialogs.components.DriveDisableE2eeConfirmDialog
 
 /**
@@ -81,6 +82,21 @@ fun SettingsDialogContainer(
         )
     }
 
+    // 3.2 Modal: Confirmación de Creación de Respaldo Estándar sin Cifrado E2EE
+    if (coordinator.showCreateStandardBackupConfirmDialog) {
+        DriveCreateStandardBackupConfirmDialog(
+            onConfirm = {
+                coordinator.showCreateStandardBackupConfirmDialog = false
+                coordinator.createBackupWithExistingKey()
+            },
+            onEnableE2ee = {
+                coordinator.showCreateStandardBackupConfirmDialog = false
+                coordinator.handleE2eeToggle(true)
+            },
+            onDismiss = { coordinator.showCreateStandardBackupConfirmDialog = false }
+        )
+    }
+
     // 4. Modal: Descifrado y Restauración Directa desde la Tarjeta Principal
     if (coordinator.showDriveDecryptDialog) {
         val targetItem = coordinator.restoreSelectedBackupItem ?: uiState.driveBackupInfo
@@ -114,30 +130,7 @@ fun SettingsDialogContainer(
         )
     }
 
-    // 6. Modal: Advertencia de Sobrescritura de Respaldo Remoto
-    if (coordinator.showOverwriteWarningDialog) {
-        DriveOverwriteWarningDialog(
-            backupItems = uiState.backupHistoryList.ifEmpty { listOfNotNull(uiState.driveBackupInfo) },
-            backupInfo = uiState.driveBackupInfo,
-            formattedLastSync = formattedLastSync,
-            isLoading = coordinator.isHistoryLoadingSynchronous || uiState.isFetchingBackupHistory || uiState.isRefreshingBackupHistory,
-            lastFetchTimestamp = uiState.lastHistoryFetchTimestamp,
-            onForceRefresh = { coordinator.forceRefreshHistory() },
-            onConfirmOverwrite = {
-                coordinator.showOverwriteWarningDialog = false
-                if (!uiState.isDriveBackupEncrypted) {
-                    coordinator.createBackupWithExistingKey()
-                } else if (CloudVaultKeyStore.hasVaultKey(AuthenticatorApp.instance.applicationContext)) {
-                    coordinator.createBackupWithExistingKey()
-                } else {
-                    coordinator.showDriveProtectDialog = true
-                }
-            },
-            onDismiss = { coordinator.showOverwriteWarningDialog = false }
-        )
-    }
-
-    // 7. Modal: Advertencia y Confirmación para Desactivar Cifrado E2EE
+    // 6. Modal: Advertencia y Confirmación para Desactivar Cifrado E2EE
     if (coordinator.showDisableE2eeConfirmDialog) {
         DriveDisableE2eeConfirmDialog(
             onConfirm = { coordinator.confirmDisableE2ee() },

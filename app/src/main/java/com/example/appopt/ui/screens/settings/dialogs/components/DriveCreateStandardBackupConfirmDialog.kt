@@ -8,9 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.example.appopt.R
@@ -30,14 +28,12 @@ import com.example.appopt.ui.theme.Dimensions
  * - Principio de Cero Confianza / Zero-Trust (Directiva 9).
  *
  * @param onConfirm Callback al confirmar la creación de la copia estándar en la nube.
- * @param onEnableE2ee Callback para alternar al flujo de protección con contraseña E2EE.
  * @param onDismiss Callback para descartar o volver del diálogo modal.
  * @param modifier Modificador de diseño Compose opcional.
  */
 @Composable
 fun DriveCreateStandardBackupConfirmDialog(
     onConfirm: () -> Unit,
-    onEnableE2ee: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -71,17 +67,6 @@ fun DriveCreateStandardBackupConfirmDialog(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-
-                TextButton(
-                    onClick = onEnableE2ee,
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
-                ) {
-                    Text(
-                        text = stringResource(R.string.settings_drive_create_standard_enable_e2ee_action),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
             }
 
             // 3. Pie fijo inferior de acciones simétricas

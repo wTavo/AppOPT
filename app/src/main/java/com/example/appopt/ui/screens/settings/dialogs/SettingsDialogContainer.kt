@@ -89,10 +89,6 @@ fun SettingsDialogContainer(
                 coordinator.showCreateStandardBackupConfirmDialog = false
                 coordinator.createBackupWithExistingKey()
             },
-            onEnableE2ee = {
-                coordinator.showCreateStandardBackupConfirmDialog = false
-                coordinator.handleE2eeToggle(true)
-            },
             onDismiss = { coordinator.showCreateStandardBackupConfirmDialog = false }
         )
     }

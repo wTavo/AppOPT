@@ -168,14 +168,12 @@
     <string name="settings_drive_overwrite_restore_hint">¿Prefieres recuperar los datos almacenados en esta copia en lugar de reemplazarla?</string>
     <string name="settings_drive_connected_success">Google Drive conectado correctamente</string>
     <string name="settings_drive_create_button">Crear copia de seguridad</string>
-    <string name="settings_drive_protect_button">Cifrar copias de seguridad</string>
     <string name="settings_drive_create_confirm_title">Crear copia de seguridad</string>
     <string name="settings_drive_create_confirm_desc">Se creará una copia de seguridad cifrada de extremo a extremo utilizando tu clave maestra registrada en este dispositivo.</string>
-    <string name="settings_drive_create_confirm_action">Crear copia</string>
+    <string name="settings_drive_create_confirm_action">Crear copia de seguridad</string>
     <string name="settings_drive_create_use_other_key">Configurar otra clave</string>
     <string name="settings_drive_create_standard_confirm_title">Copia de seguridad estándar</string>
-    <string name="settings_drive_create_standard_confirm_desc">Tu copia de seguridad se guardará en tu Google Drive sin cifrado de extremo a extremo, protegida por la seguridad de tu cuenta de Google.\n\nPuedes proteger tus copias con contraseña en cualquier momento activando el cifrado E2EE.</string>
-    <string name="settings_drive_create_standard_enable_e2ee_action">Activar cifrado E2EE</string>
+    <string name="settings_drive_create_standard_confirm_desc">Tu copia de seguridad se guardará en tu Google Drive sin cifrado de extremo a extremo, protegida únicamente por la seguridad de tu cuenta de Google.</string>
     <string name="settings_drive_disconnect_button">Desvincular cuenta</string>
     <string name="settings_drive_disconnect_confirm_title">Desvincular Google Drive</string>
     <string name="settings_drive_disconnect_confirm_msg">¿Deseas desvincular tu cuenta de Google? Tus servicios en este dispositivo y la copia guardada en tu nube se mantendrán intactos.</string>

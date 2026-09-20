@@ -168,11 +168,16 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
     2. **Fase de ajuste dimensional líquido:** La tarjeta modal muta sus dimensiones suavemente en Compose GPU con física de resortes elásticos sin rebote (`spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)`).
     3. **Fase de entrada suave:** El nuevo contenido emerge suavemente (`fadeIn`, 180ms con 70ms de retardo). Sin desplazamiento vectorial.
     4. **Sin recorte invasivo:** Fijar `clip = false` en `SizeTransform` para preservar radios de curvatura de 16.dp y sombras intactas en cada fotograma.
-  - **OBLIGATORIO el Morphing Fluido en Contenido Interno y Mensajes Dinámicos:**
-    - Envolver las transiciones entre estados internos de un paso (ej. `LOADING`, `EMPTY`, `ITEMS` en historial o pestañas de formulario) con `AnimatedContent` y `Motion.Spec.dialogStepContentTransform()`.
-    - Envolver mensajes de error reactivos, advertencias o paneles desplegables en `AnimatedVisibility(visible = condition, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut())` para garantizar desplazamientos orgánicos y fluidos.
-  - **OBLIGATORIO el Aislamiento Estricto de Orígenes de Animación (`NavigationOriginTracker`):**
-    - Mantener canales de coordenadas aislados e independientes para cada pantalla o modal (`settingsOrigin`, `recentlyDeletedOrigin`, `modalOrigin`), evitando sobreescrituras cruzadas para que la animación de repliegue inverso (*collapse animation*) regrese con exactitud milimétrica al botón del dock o control físico que invocó la vista.
+  - **OBLIGATORIO la gestión del ciclo de vida de animaciones de carga en transiciones de botones (*Loading State Persistence in Animated Transitions*):**
+    - **PROHIBIDO** resetear el estado de carga (`isLoading = false`, `isRestoring = false`, `isGenerating = false`, `isDecrypting = false`) en el mismo instante en que se cambia el sub-estado del diálogo modal que dispara una transición animada (`AnimatedContent`). Si la bandera se apaga antes de que concluya la animación de salida (`fadeOut`, ~90-180ms), el botón parpadeará volviendo a su texto original antes de desaparecer (*visual snapping/glitch*).
+    - **PROHIBIDO** incluir retardos temporizados artificiales (`delay(...)`) para simular cargas. Todo indicador de progreso debe responder exclusivamente a la duración real del trabajo asíncrono (red, criptografía, I/O).
+    - **PROHIBIDO** duplicar animaciones de carga entre pasos consecutivos: si un botón ya mostró su spinner durante la descarga/preparación de datos, el paso siguiente (ej. selector de cuentas) debe emerger directamente sin loaders adicionales redundantes.
+    - **OBLIGATORIO** mantener activa la animación de carga del botón durante todo el `fadeOut` del paso saliente, y resetear la bandera de carga únicamente ante:
+      1. Captura de errores o excepciones (`catch`).
+      2. Navegación hacia atrás («Volver» / `onBackStep`).
+      3. Cierre o descarte total del modal (`onDismissRequest`).
+  - **OBLIGATORIO la unificación estandarizada de listas de selección de cuentas (DRY):**
+    - Reutilizar el componente centralizado `AccountImportSelectionList` (`ui/components/`) para todos los flujos de importación, migración QR, restauración y exportación, adaptando únicamente banderas contextuales (ej. `showBadges = false` en exportación) y ofreciendo siempre botones de selección y deselección total (`onSelectAll` / `onDeselectAll`).
 
 ---
 
@@ -194,7 +199,8 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
   - Usar obligatoriamente `createAndroidComposeRule<TestActivity>()` donde `TestActivity` esté configurada para pruebas desatendidas (`setShowWhenLocked(true)`, `setTurnScreenOn(true)` y `FLAG_KEEP_SCREEN_ON`), garantizando que la ejecución no falle si el dispositivo físico está bloqueado o con pantalla apagada.
 - **OBLIGATORIO la Verificación y Despliegue Automatizado:**
   - Tras finalizar las modificaciones de código, validar primero la suite de pruebas con `./gradlew testDebugUnitTest`.
-  - Ejecutar `./gradlew installRelease` para compilar con optimización R8 e instalar automáticamente el APK en los dispositivos o emuladores conectados.
+  - Validar la compilación con optimización R8 y Lint Vital mediante `./gradlew assembleRelease`.
+  - Ejecutar `./gradlew installDebug` (o `./gradlew installRelease`) para instalar y verificar automáticamente el APK en los dispositivos físicos o emuladores conectados.
 
 ---
 

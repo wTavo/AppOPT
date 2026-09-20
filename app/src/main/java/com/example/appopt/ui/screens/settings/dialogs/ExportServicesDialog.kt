@@ -71,7 +71,7 @@ fun ExportServicesDialog(
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
-    val selectedServiceIds = remember { mutableStateListOf<String>().apply { addAll(accounts.map { it.id }) } }
+    var selectedServiceIds by remember(accounts) { mutableStateOf(accounts.map { it.id }.toSet()) }
     var keepServicesOnDevice by remember { mutableStateOf(true) }
     var isShowingQr by remember { mutableStateOf(false) }
     var transferQrBitmaps by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
@@ -106,7 +106,7 @@ fun ExportServicesDialog(
      * Genera de forma asíncrona los códigos QR cifrados y el PIN efímero de 6 dígitos.
      */
     fun generateTransferQr() {
-        val idsToExport = selectedServiceIds.toSet()
+        val idsToExport = selectedServiceIds
         val pin = TransferCrypto.generateTransferPin()
         transferPin = pin
         isPinVisible = false
@@ -124,9 +124,10 @@ fun ExportServicesDialog(
                 isShowingQr = true
                 isExpired = false
                 generationCount++
+            } catch (_: Exception) {
+                isGenerating = false
             } finally {
                 pinChars.fill('0')
-                isGenerating = false
             }
         }
     }
@@ -139,6 +140,8 @@ fun ExportServicesDialog(
 
     AppModalDialog(
         onDismissRequest = {
+            if (isGenerating && !isShowingQr) return@AppModalDialog
+            isGenerating = false
             if (isShowingQr) {
                 if (currentExportState == ExportSubState.QR_CAROUSEL) {
                     onCompleteExport(exportedServiceIds, keepServicesOnDevice)
@@ -148,6 +151,21 @@ fun ExportServicesDialog(
                 transferPin = ""
             }
             onDismiss()
+        },
+        onBackStep = {
+            if (isShowingQr) {
+                isGenerating = false
+                if (currentExportState == ExportSubState.QR_CAROUSEL) {
+                    onCompleteExport(exportedServiceIds, keepServicesOnDevice)
+                }
+                isShowingQr = false
+                transferQrBitmaps = emptyList()
+                transferPin = ""
+                true
+            } else {
+                if (isGenerating) return@AppModalDialog true
+                false
+            }
         },
         modifier = modifier
     ) {
@@ -186,14 +204,21 @@ fun ExportServicesDialog(
                                 accounts = accounts,
                                 selectedServiceIds = selectedServiceIds,
                                 onToggleSelection = { id ->
-                                    if (id in selectedServiceIds) {
-                                        selectedServiceIds.remove(id)
+                                    selectedServiceIds = if (id in selectedServiceIds) {
+                                        selectedServiceIds - id
                                     } else {
-                                        selectedServiceIds.add(id)
+                                        selectedServiceIds + id
                                     }
                                 },
+                                onSelectAll = {
+                                    selectedServiceIds = accounts.map { it.id }.toSet()
+                                },
+                                onDeselectAll = {
+                                    selectedServiceIds = emptySet()
+                                },
                                 keepServicesOnDevice = keepServicesOnDevice,
-                                onKeepServicesChanged = { keepServicesOnDevice = it }
+                                onKeepServicesChanged = { keepServicesOnDevice = it },
+                                enabled = !isGenerating
                             )
                             }
 
@@ -202,8 +227,11 @@ fun ExportServicesDialog(
                                 confirmText = stringResource(R.string.settings_generate_qr_button),
                                 onConfirm = { generateTransferQr() },
                                 dismissText = stringResource(R.string.action_close),
-                                onDismiss = onDismiss,
-                                confirmEnabled = selectedServiceIds.isNotEmpty() && !isGenerating
+                                onDismiss = {
+                                    if (!isGenerating) onDismiss()
+                                },
+                                confirmEnabled = selectedServiceIds.isNotEmpty() && !isGenerating,
+                                isLoading = isGenerating
                             )
                         }
                     }
@@ -294,12 +322,15 @@ fun ExportServicesDialog(
                                 onConfirm = { generateTransferQr() },
                                 dismissText = stringResource(R.string.action_close),
                                 onDismiss = {
-                                    isShowingQr = false
-                                    transferQrBitmaps = emptyList()
-                                    transferPin = ""
-                                    onDismiss()
+                                    if (!isGenerating) {
+                                        isShowingQr = false
+                                        transferQrBitmaps = emptyList()
+                                        transferPin = ""
+                                        onDismiss()
+                                    }
                                 },
-                                confirmEnabled = !isGenerating
+                                confirmEnabled = !isGenerating,
+                                isLoading = isGenerating
                             )
                         }
                     }

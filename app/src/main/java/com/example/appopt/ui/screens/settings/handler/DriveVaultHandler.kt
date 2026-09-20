@@ -118,6 +118,7 @@ class DriveVaultHandler(
         internalState.update { it.copy(isFetchingBackupHistory = true, isRefreshingBackupHistory = true) }
         scope.launch(Dispatchers.IO) {
             try {
+                GoogleDriveManager.clearDownloadCache()
                 val historyResult = ManualSyncManager.fetchBackupHistory(token)
                 if (historyResult.isSuccess) {
                     val items = historyResult.getOrNull().orEmpty()
@@ -172,13 +173,13 @@ class DriveVaultHandler(
      *
      * @param token Token de acceso de Google Drive.
      * @param fileId Identificador único del archivo en Drive.
-     * @param passChars Contraseña o frase de descifrado requerida.
+     * @param passChars Contraseña o frase de descifrado requerida (opcional si no está cifrado).
      * @param onComplete Callback con el resultado booleano.
      */
     fun deleteSpecificBackup(
         token: String,
         fileId: String,
-        passChars: CharArray,
+        passChars: CharArray? = null,
         onComplete: (Boolean) -> Unit
     ) {
         scope.launch {
@@ -204,7 +205,7 @@ class DriveVaultHandler(
                     onComplete(false)
                 }
             } finally {
-                passChars.fill('0')
+                passChars?.fill('0')
                 internalState.update { it.copy(isFetchingBackupHistory = false, isRefreshingBackupHistory = false) }
             }
         }
@@ -252,12 +253,12 @@ class DriveVaultHandler(
      * Descifra y restaura la copia de seguridad más reciente desde Google Drive.
      *
      * @param token Token de acceso de Google Drive.
-     * @param passChars Caracteres de descifrado.
+     * @param passChars Caracteres de descifrado (opcional si no está cifrado).
      * @param onComplete Callback con el [Result] de la restauración.
      */
     fun restoreFromBackup(
         token: String,
-        passChars: CharArray,
+        passChars: CharArray? = null,
         onComplete: (Result<Int>) -> Unit
     ) {
         scope.launch {
@@ -272,6 +273,7 @@ class DriveVaultHandler(
                 }
                 onComplete(result)
             } finally {
+                passChars?.fill('0')
                 internalState.update { it.copy(isDriveLoading = false) }
             }
         }
@@ -282,13 +284,13 @@ class DriveVaultHandler(
      *
      * @param token Token de acceso de Google Drive.
      * @param fileId Identificador del archivo en Drive.
-     * @param passChars Caracteres de descifrado.
+     * @param passChars Caracteres de descifrado (opcional si no está cifrado).
      * @param onComplete Callback con el [Result] de la restauración.
      */
     fun restoreSpecificBackup(
         token: String,
         fileId: String,
-        passChars: CharArray,
+        passChars: CharArray? = null,
         onComplete: (Result<Int>) -> Unit
     ) {
         scope.launch {
@@ -303,6 +305,7 @@ class DriveVaultHandler(
                 }
                 onComplete(result)
             } finally {
+                passChars?.fill('0')
                 internalState.update { it.copy(isDriveLoading = false) }
             }
         }

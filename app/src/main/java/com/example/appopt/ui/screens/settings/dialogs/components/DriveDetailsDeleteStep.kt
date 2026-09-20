@@ -61,15 +61,23 @@ fun DriveDetailsDeleteStep(
             verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
         ) {
             if (targetBackup != null) {
-                DriveBackupDecryptForm(
-                    targetBackup = targetBackup,
-                    isActual = false,
-                    restoreSecretText = deleteSecretText,
-                    onRestoreSecretChange = onDeleteSecretTextChange,
-                    isRestoreSecretVisible = isSecretVisible,
-                    onToggleSecretVisibility = onToggleSecretVisibility,
-                    hintText = stringResource(R.string.settings_drive_delete_version_auth_hint)
-                )
+                if (targetBackup.isEncrypted) {
+                    DriveBackupDecryptForm(
+                        targetBackup = targetBackup,
+                        isActual = false,
+                        restoreSecretText = deleteSecretText,
+                        onRestoreSecretChange = onDeleteSecretTextChange,
+                        isRestoreSecretVisible = isSecretVisible,
+                        onToggleSecretVisibility = onToggleSecretVisibility,
+                        hintText = stringResource(R.string.settings_drive_delete_version_auth_hint)
+                    )
+                } else {
+                    Text(
+                        text = stringResource(R.string.settings_drive_delete_version_auth_hint),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
 
@@ -79,7 +87,7 @@ fun DriveDetailsDeleteStep(
             onConfirm = onConfirmDelete,
             dismissText = stringResource(R.string.settings_drive_details_back),
             onDismiss = onBack,
-            confirmEnabled = deleteSecretText.isNotBlank(),
+            confirmEnabled = if (targetBackup?.isEncrypted == false) true else deleteSecretText.isNotBlank(),
             isDestructive = true
         )
     }

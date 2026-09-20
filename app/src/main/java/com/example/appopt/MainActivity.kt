@@ -56,5 +56,6 @@ class MainActivity : FragmentActivity() {
         super.onStop()
         PerformanceMonitor.stop()
         AuthenticatorApp.instance.accountRepository.clearMemoryCache()
+        com.example.appopt.data.cloud.GoogleDriveManager.clearDownloadCache()
     }
 }

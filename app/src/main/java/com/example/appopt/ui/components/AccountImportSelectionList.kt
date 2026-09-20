@@ -44,6 +44,7 @@ import com.example.appopt.ui.theme.rememberAppHaptics
  * @param onSelectAll Callback al pulsar Seleccionar todo.
  * @param onDeselectAll Callback al pulsar Deseleccionar todo.
  * @param modifier Modificador de diseño Compose opcional.
+ * @param showBadges Indica si se deben renderizar las insignias de estado (Nuevo / En la bóveda).
  */
 @Composable
 fun AccountImportSelectionList(
@@ -52,7 +53,8 @@ fun AccountImportSelectionList(
     onToggleAccount: (String) -> Unit,
     onSelectAll: () -> Unit,
     onDeselectAll: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showBadges: Boolean = true
 ) {
     val appHaptics = rememberAppHaptics()
     val allSelected = accounts.isNotEmpty() && selectedIds.size == accounts.size
@@ -113,6 +115,7 @@ fun AccountImportSelectionList(
                 AccountSelectionCard(
                     account = account,
                     isChecked = isChecked,
+                    showBadges = showBadges,
                     onToggle = {
                         appHaptics.click()
                         onToggleAccount(account.id)
@@ -130,6 +133,7 @@ fun AccountImportSelectionList(
 private fun AccountSelectionCard(
     account: ParsedAccountPreview,
     isChecked: Boolean,
+    showBadges: Boolean,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -188,31 +192,33 @@ private fun AccountSelectionCard(
                     )
 
                     // Badge de estado (Nuevo vs En la bóveda)
-                    if (account.isAlreadyInVault) {
-                        Surface(
-                            shape = RoundedCornerShape(Dimensions.CornerRadius.small),
-                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.60f),
-                            modifier = Modifier.padding(start = Dimensions.Spacing.xs)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.import_selection_badge_existing),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.padding(horizontal = Dimensions.Spacing.xs, vertical = Dimensions.Spacing.none)
-                            )
-                        }
-                    } else {
-                        Surface(
-                            shape = RoundedCornerShape(Dimensions.CornerRadius.small),
-                            color = SafeGreen.copy(alpha = 0.15f),
-                            modifier = Modifier.padding(start = Dimensions.Spacing.xs)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.import_selection_badge_new),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = SafeGreen,
-                                modifier = Modifier.padding(horizontal = Dimensions.Spacing.xs, vertical = Dimensions.Spacing.none)
-                            )
+                    if (showBadges) {
+                        if (account.isAlreadyInVault) {
+                            Surface(
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.small),
+                                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.60f),
+                                modifier = Modifier.padding(start = Dimensions.Spacing.xs)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.import_selection_badge_existing),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    modifier = Modifier.padding(horizontal = Dimensions.Spacing.xs, vertical = Dimensions.Spacing.none)
+                                )
+                            }
+                        } else {
+                            Surface(
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.small),
+                                color = SafeGreen.copy(alpha = 0.15f),
+                                modifier = Modifier.padding(start = Dimensions.Spacing.xs)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.import_selection_badge_new),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = SafeGreen,
+                                    modifier = Modifier.padding(horizontal = Dimensions.Spacing.xs, vertical = Dimensions.Spacing.none)
+                                )
+                            }
                         }
                     }
                 }

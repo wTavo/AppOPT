@@ -28,6 +28,9 @@ class PreferencesManager(context: Context) {
     private val _isDriveConnected = MutableStateFlow(sharedPreferences.getBoolean(KEY_DRIVE_CONNECTED, false))
     val isGoogleDriveConnectedFlow: StateFlow<Boolean> = _isDriveConnected.asStateFlow()
 
+    private val _isDriveBackupEncrypted = MutableStateFlow(sharedPreferences.getBoolean(KEY_DRIVE_BACKUP_ENCRYPTED, true))
+    val isDriveBackupEncryptedFlow: StateFlow<Boolean> = _isDriveBackupEncrypted.asStateFlow()
+
     private val _lastSyncTimestamp = MutableStateFlow(sharedPreferences.getLong(KEY_DRIVE_LAST_SYNC, 0L))
     val lastSyncTimestampFlow: StateFlow<Long> = _lastSyncTimestamp.asStateFlow()
 
@@ -47,6 +50,7 @@ class PreferencesManager(context: Context) {
         when (key) {
             KEY_HIDE_CODES -> _isHideCodesEnabled.value = prefs.getBoolean(KEY_HIDE_CODES, false)
             KEY_DRIVE_CONNECTED -> _isDriveConnected.value = prefs.getBoolean(KEY_DRIVE_CONNECTED, false)
+            KEY_DRIVE_BACKUP_ENCRYPTED -> _isDriveBackupEncrypted.value = prefs.getBoolean(KEY_DRIVE_BACKUP_ENCRYPTED, true)
             KEY_DRIVE_LAST_SYNC -> _lastSyncTimestamp.value = prefs.getLong(KEY_DRIVE_LAST_SYNC, 0L)
             KEY_LAST_VAULT_HASH -> _lastSyncedVaultHash.value = prefs.getString(KEY_LAST_VAULT_HASH, null)
             KEY_AUTO_SYNC_ENABLED -> _isAutoSyncEnabled.value = prefs.getBoolean(KEY_AUTO_SYNC_ENABLED, true)
@@ -88,6 +92,21 @@ class PreferencesManager(context: Context) {
     fun setGoogleDriveConnected(connected: Boolean) {
         _isDriveConnected.value = connected
         sharedPreferences.edit { putBoolean(KEY_DRIVE_CONNECTED, connected) }
+    }
+
+    /**
+     * Retorna si el cifrado de extremo a extremo (E2EE) está habilitado para las copias en Google Drive.
+     */
+    fun isDriveBackupEncrypted(): Boolean {
+        return _isDriveBackupEncrypted.value
+    }
+
+    /**
+     * Guarda la preferencia de cifrado de extremo a extremo para las copias en Google Drive.
+     */
+    fun setDriveBackupEncrypted(enabled: Boolean) {
+        _isDriveBackupEncrypted.value = enabled
+        sharedPreferences.edit { putBoolean(KEY_DRIVE_BACKUP_ENCRYPTED, enabled) }
     }
 
     /**
@@ -232,7 +251,8 @@ class PreferencesManager(context: Context) {
                         sizeBytes = obj.getLong("sizeBytes"),
                         deviceName = obj.optString("deviceName", ""),
                         deviceId = obj.optString("deviceId", ""),
-                        isMostRecent = obj.optBoolean("isMostRecent", false)
+                        isMostRecent = obj.optBoolean("isMostRecent", false),
+                        isEncrypted = obj.optBoolean("isEncrypted", true)
                     )
                 )
             }
@@ -259,6 +279,7 @@ class PreferencesManager(context: Context) {
                     put("deviceName", item.deviceName)
                     put("deviceId", item.deviceId)
                     put("isMostRecent", item.isMostRecent)
+                    put("isEncrypted", item.isEncrypted)
                 }
                 jsonArray.put(obj)
             }
@@ -272,6 +293,7 @@ class PreferencesManager(context: Context) {
         private const val PREFS_NAME = "authenticator_user_preferences"
         private const val KEY_HIDE_CODES = "key_hide_codes"
         private const val KEY_DRIVE_CONNECTED = "key_drive_connected"
+        private const val KEY_DRIVE_BACKUP_ENCRYPTED = "key_drive_backup_encrypted"
         private const val KEY_DRIVE_LAST_SYNC = "key_drive_last_sync"
         private const val KEY_AUTO_SYNC_ENABLED = "key_auto_sync_enabled"
         private const val KEY_SYNC_MOBILE_DATA = "key_sync_mobile_data"

@@ -37,6 +37,7 @@ import com.example.appopt.ui.theme.Dimensions
  * @param onConfirmImport Callback para ejecutar la restauración de las cuentas seleccionadas.
  * @param onActionConfirmed Callback invocado cuando la animación de guardado finaliza.
  * @param onBack Callback para regresar al paso de descifrado.
+ * @param backText Texto a mostrar en el botón de descarte/regreso (por defecto «Volver»).
  */
 @Composable
 fun DriveDetailsSelectAccountsStep(
@@ -47,7 +48,8 @@ fun DriveDetailsSelectAccountsStep(
     onDeselectAll: () -> Unit,
     onConfirmImport: () -> Boolean,
     onActionConfirmed: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    backText: String = stringResource(R.string.settings_drive_details_back)
 ) {
     Column(
         modifier = Modifier
@@ -102,7 +104,7 @@ fun DriveDetailsSelectAccountsStep(
                     .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
             ) {
                 Text(
-                    text = stringResource(R.string.settings_drive_details_back),
+                    text = backText,
                     style = MaterialTheme.typography.labelLarge,
                     textAlign = TextAlign.Center
                 )

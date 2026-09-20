@@ -343,6 +343,92 @@ object BackupCrypto {
         }
     }
 
+    /**
+     * Crea un sobre de respaldo estándar versión 2 sin cifrado de extremo a extremo.
+     *
+     * @param plainJson Texto JSON con los datos de las cuentas a exportar.
+     * @return Arreglo de bytes binarios del sobre de respaldo no cifrado.
+     */
+    fun createUnencryptedBackup(plainJson: String): ByteArray {
+        val now = System.currentTimeMillis()
+        val envelopeString = "{\"version\":$CURRENT_BACKUP_VERSION,\"isEncrypted\":false,\"payload\":$plainJson,\"createdAt\":$now}"
+        return envelopeString.toByteArray(Charsets.UTF_8)
+    }
+
+    /**
+     * Determina de forma determinística si un archivo de respaldo cuenta con cifrado criptográfico.
+     *
+     * @param backupBytes Arreglo de bytes del archivo de respaldo.
+     * @return `true` si el respaldo contiene datos cifrados (ciphertext y ranuras de clave), `false` si es plano.
+     */
+    fun isBackupEncrypted(backupBytes: ByteArray): Boolean {
+        return try {
+            val jsonString = String(backupBytes, Charsets.UTF_8).trim()
+            if (jsonString.contains("\"isEncrypted\"\\s*:\\s*false".toRegex())) {
+                false
+            } else {
+                jsonString.contains("\"ciphertext\"") && jsonString.contains("\"mainSlot\"")
+            }
+        } catch (_: Exception) {
+            true
+        }
+    }
+
+    /**
+     * Lee y extrae el JSON plano de un archivo de respaldo sin cifrado de extremo a extremo.
+     *
+     * @param backupBytes Contenido en bytes del archivo de respaldo estándar.
+     * @return [Result] con el texto JSON extraído en caso de éxito, o error si el formato es inválido.
+     */
+    fun readUnencryptedBackup(backupBytes: ByteArray): Result<String> {
+        return runCatching {
+            val jsonString = String(backupBytes, Charsets.UTF_8).trim()
+            val payloadMarker = "\"payload\":"
+            val payloadIndex = jsonString.indexOf(payloadMarker)
+            if (payloadIndex != -1) {
+                val valueStartIndex = payloadIndex + payloadMarker.length
+                val substring = jsonString.substring(valueStartIndex).trimStart()
+                if (substring.startsWith("{") || substring.startsWith("[")) {
+                    val openChar = substring[0]
+                    val closeChar = if (openChar == '{') '}' else ']'
+                    var depth = 0
+                    var inString = false
+                    var escape = false
+                    var endIndex = -1
+                    for (i in substring.indices) {
+                        val c = substring[i]
+                        if (escape) {
+                            escape = false
+                            continue
+                        }
+                        if (c == '\\') {
+                            escape = true
+                            continue
+                        }
+                        if (c == '"') {
+                            inString = !inString
+                            continue
+                        }
+                        if (!inString) {
+                            if (c == openChar) depth++
+                            else if (c == closeChar) {
+                                depth--
+                                if (depth == 0) {
+                                    endIndex = i + 1
+                                    break
+                                }
+                            }
+                        }
+                    }
+                    if (endIndex != -1) {
+                        return@runCatching substring.substring(0, endIndex)
+                    }
+                }
+            }
+            jsonString
+        }
+    }
+
     private fun wrapVaultKey(vaultKeyBytes: ByteArray, secret: CharArray): WrappedSlot {
         val salt = ByteArray(SALT_LENGTH_BYTES)
         secureRandom.nextBytes(salt)

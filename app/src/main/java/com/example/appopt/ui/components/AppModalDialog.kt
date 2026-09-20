@@ -1,7 +1,6 @@
 package com.example.appopt.ui.components
 
 import android.view.WindowManager
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.rememberTransition
@@ -29,16 +28,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import com.example.appopt.ui.navigation.NavigationOriginTracker
-import com.example.appopt.ui.theme.DarkColorScheme
+import com.example.appopt.ui.theme.BackgroundDark
 import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.ModalSurfaceDark
+import com.example.appopt.ui.theme.ModalSurfaceLight
 import com.example.appopt.ui.theme.Motion
+import com.example.appopt.ui.theme.SurfaceDark
 
 /**
  * Tono semántico y nivel de severidad visual para diálogos modales.
@@ -50,9 +51,9 @@ enum class ModalTone {
     STANDARD,
 
     /**
-     * Diálogo de alerta crítica o destructiva ("negativo"): sobrescrituras, desvinculaciones o eliminaciones irreversibles.
-     * Incorpora un fondo sutilmente teñido de advertencia, velo de advertencia y controles en esquema de error,
-     * conservando el borde perimetral neutro estándar para máxima sobriedad y consistencia visual.
+     * Diálogo de alerta crítica o destructiva: sobrescrituras, desvinculaciones o eliminaciones irreversibles.
+     * Mantiene el fondo neutro estándar de la superficie para consistencia visual con el tema activo,
+     * identificando la severidad mediante iconos, títulos y botones en esquema de color de error.
      */
     DESTRUCTIVE
 }
@@ -76,7 +77,7 @@ val LocalModalDismissHandler = staticCompositionLocalOf<(() -> Unit)?> { null }
  * @param modifier Modificador Compose opcional para la tarjeta visual.
  * @param transformOrigin Punto pivote normalizado de origen para la animación de escala (por defecto toma las coordenadas del emisor en [NavigationOriginTracker.modalOrigin]).
  * @param onBackStep Callback opcional para navegación defensiva en modales multietapa: si retorna `true`, consume el evento retrocediendo un paso internamente sin desmontar la tarjeta; si retorna `false` o es `null`, repliega y desmonta el diálogo.
- * @param tone Tono semántico de severidad ([ModalTone.STANDARD] neutro por defecto, o [ModalTone.DESTRUCTIVE] con fondo oscuro forzado y contraste de alerta para acciones críticas en modo claro y oscuro).
+ * @param tone Tono semántico de severidad ([ModalTone.STANDARD] neutro por defecto, o [ModalTone.DESTRUCTIVE] para acciones críticas y destructivas).
  * @param properties Propiedades de configuración del diálogo modal.
  * @param content Contenido interno del diálogo (usualmente envuelto en un `AnimatedContent` monolítico).
  */
@@ -219,52 +220,10 @@ fun AppModalDialog(
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    val destructiveCardColor = remember {
-                        DarkColorScheme.errorContainer.copy(alpha = 0.14f)
-                            .compositeOver(DarkColorScheme.surface)
-                    }
+                    val isDark = MaterialTheme.colorScheme.background == BackgroundDark || MaterialTheme.colorScheme.surface == SurfaceDark
+                    val modalSurfaceColor = if (isDark) ModalSurfaceDark else ModalSurfaceLight
 
-                    val targetCardColor = when (tone) {
-                        ModalTone.STANDARD -> MaterialTheme.colorScheme.surface
-                        ModalTone.DESTRUCTIVE -> destructiveCardColor
-                    }
-
-                    val cardColor by animateColorAsState(
-                        targetValue = targetCardColor,
-                        animationSpec = Motion.Spec.dialogStepColorSpec(),
-                        label = "modal_card_color"
-                    )
-
-                    val targetBorderColor = if (tone == ModalTone.DESTRUCTIVE) {
-                        DarkColorScheme.outlineVariant.copy(alpha = 0.15f)
-                    } else {
-                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f)
-                    }
-
-                    val cardBorderColor by animateColorAsState(
-                        targetValue = targetBorderColor,
-                        animationSpec = Motion.Spec.dialogStepColorSpec(),
-                        label = "modal_border_color"
-                    )
-
-                    val cardBorder = BorderStroke(
-                        width = Dimensions.Stroke.thin,
-                        color = cardBorderColor
-                    )
-
-                    val targetContentColor = if (tone == ModalTone.DESTRUCTIVE) {
-                        DarkColorScheme.onSurface
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    }
-
-                    val contentColor by animateColorAsState(
-                        targetValue = targetContentColor,
-                        animationSpec = Motion.Spec.dialogStepColorSpec(),
-                        label = "modal_content_color"
-                    )
-
-                    // Tarjeta modal del diálogo
+                    // Tarjeta modal del diálogo con fondo de superficie Slate frío equilibrado
                     Surface(
                         modifier = modifier
                             .safeDrawingPadding()
@@ -280,24 +239,21 @@ fun AppModalDialog(
                                 onClick = {} // Intercepta clics dentro de la tarjeta para evitar descarte accidental
                             ),
                         shape = RoundedCornerShape(Dimensions.CornerRadius.large),
-                        color = cardColor,
-                        contentColor = contentColor,
-                        border = cardBorder,
+                        color = modalSurfaceColor,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                        border = BorderStroke(
+                            width = Dimensions.Stroke.thin,
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f)
+                        ),
                         tonalElevation = Dimensions.Elevation.modal,
                         shadowElevation = Dimensions.Elevation.modal
                     ) {
-                        val effectiveColorScheme = if (tone == ModalTone.DESTRUCTIVE) DarkColorScheme else MaterialTheme.colorScheme
-                        MaterialTheme(
-                            colorScheme = effectiveColorScheme,
-                            typography = MaterialTheme.typography
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(Dimensions.Spacing.lg)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(Dimensions.Spacing.lg)
-                            ) {
-                                content()
-                            }
+                            content()
                         }
                     }
                 }

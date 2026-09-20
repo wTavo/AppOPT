@@ -168,6 +168,7 @@
     <string name="settings_drive_overwrite_restore_hint">¿Prefieres recuperar los datos almacenados en esta copia en lugar de reemplazarla?</string>
     <string name="settings_drive_connected_success">Google Drive conectado correctamente</string>
     <string name="settings_drive_create_button">Crear copia de seguridad</string>
+    <string name="settings_drive_protect_button">Cifrar copias de seguridad</string>
     <string name="settings_drive_create_confirm_title">Crear copia de seguridad</string>
     <string name="settings_drive_create_confirm_desc">Se creará una copia de seguridad cifrada de extremo a extremo utilizando tu clave maestra registrada en este dispositivo.</string>
     <string name="settings_drive_create_confirm_action">Crear copia</string>
@@ -177,6 +178,17 @@
     <string name="settings_drive_disconnect_confirm_msg">¿Deseas desvincular tu cuenta de Google? Tus servicios en este dispositivo y la copia guardada en tu nube se mantendrán intactos.</string>
     <string name="settings_drive_disconnected_success">Cuenta de Google Drive desvinculada</string>
     <string name="drive_default_device_name">Dispositivo Android</string>
+    <string name="settings_drive_e2ee_title">Cifrado de extremo a extremo</string>
+    <string name="settings_drive_e2ee_desc_on">Tus copias están protegidas con una clave que solo tú conoces.</string>
+    <string name="settings_drive_e2ee_desc_off">Tus copias están vinculadas y protegidas por tu cuenta de Google.</string>
+    <string name="settings_drive_e2ee_enabled_toast">Cifrado de extremo a extremo activado</string>
+    <string name="settings_drive_e2ee_disabled_toast">Cifrado de extremo a extremo desactivado</string>
+    <string name="settings_drive_disable_e2ee_title">Desactivar cifrado de extremo a extremo</string>
+    <string name="settings_drive_disable_e2ee_msg">Si desactivas esta opción, tus próximas copias de seguridad en Google Drive no requerirán contraseña ni frase de recuperación y estarán protegidas únicamente por la seguridad de tu cuenta de Google.\n\n¿Deseas continuar?</string>
+    <string name="settings_drive_disable_e2ee_confirm_btn">Desactivar cifrado</string>
+    <string name="settings_drive_badge_e2ee">Cifrado E2EE</string>
+    <string name="settings_drive_badge_standard">Sin cifrado</string>
+    <string name="settings_drive_create_unencrypted_confirm_desc">Se creará una copia de seguridad estándar en tu Google Drive vinculada a tu cuenta de Google.</string>
 
     <!-- Protección de Copia E2EE y Asistente de Recuperación -->
     <string name="settings_drive_protect_step1_title">Paso 1: Elige tu método principal</string>

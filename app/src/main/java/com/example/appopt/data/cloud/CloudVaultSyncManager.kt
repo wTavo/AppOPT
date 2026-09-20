@@ -226,7 +226,13 @@ object CloudVaultSyncManager {
         debounceSeconds: Long = DEFAULT_DEBOUNCE_SECONDS
     ) {
         val prefsManager = com.example.appopt.data.local.PreferencesManager(context)
-        if (!prefsManager.isCloudVaultInitialized() || !prefsManager.isAutoSyncEnabled()) {
+        val isDriveEncrypted = prefsManager.isDriveBackupEncrypted()
+        val isReady = if (isDriveEncrypted) {
+            prefsManager.isCloudVaultInitialized() && CloudVaultKeyStore.hasVaultKey(context)
+        } else {
+            prefsManager.isGoogleDriveConnected()
+        }
+        if (!isReady || !prefsManager.isAutoSyncEnabled()) {
             return
         }
 

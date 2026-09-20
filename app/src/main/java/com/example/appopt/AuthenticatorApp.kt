@@ -90,6 +90,7 @@ class AuthenticatorApp : Application() {
         if (::accountRepository.isInitialized) {
             accountRepository.clearMemoryCache()
         }
+        com.example.appopt.data.cloud.GoogleDriveManager.clearDownloadCache()
     }
 
     companion object {

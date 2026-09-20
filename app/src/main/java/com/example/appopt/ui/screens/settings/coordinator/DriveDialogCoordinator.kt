@@ -10,6 +10,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
+import com.example.appopt.data.cloud.CloudVaultKeyStore
 import com.example.appopt.data.cloud.DriveBackupItem
 import com.example.appopt.data.cloud.GoogleDriveManager
 import com.example.appopt.security.SecurityConfig
@@ -37,6 +38,8 @@ class DriveDialogCoordinator(
     var showCreateBackupConfirmDialog by mutableStateOf(false)
     var showDriveDecryptDialog by mutableStateOf(false)
     var showOverwriteWarningDialog by mutableStateOf(false)
+    var showDisableE2eeConfirmDialog by mutableStateOf(false)
+    var restoreSelectedBackupItem by mutableStateOf<DriveBackupItem?>(null)
     var driveAccessToken by mutableStateOf<String?>(null)
 
     /** Cierra defensivamente todos los modales cuando la bóveda se bloquea. */
@@ -49,6 +52,8 @@ class DriveDialogCoordinator(
         showCreateBackupConfirmDialog = false
         showDriveDecryptDialog = false
         showOverwriteWarningDialog = false
+        showDisableE2eeConfirmDialog = false
+        restoreSelectedBackupItem = null
     }
 
     /** Ejecuta una acción que requiere token OAuth2 de Google Drive, solicitándolo si es necesario. */
@@ -111,6 +116,7 @@ class DriveDialogCoordinator(
     /** Crea un respaldo protegido con cifrado E2EE. */
     fun protectAndSync(primaryPassChars: CharArray, emergencyMnemonicChars: CharArray) {
         showDriveProtectDialog = false
+        viewModel.setDriveBackupEncrypted(true)
         executeWithAuth { token ->
             viewModel.createProtectedBackup(context, token, primaryPassChars, emergencyMnemonicChars) { result ->
                 scope.launch {
@@ -190,14 +196,46 @@ class DriveDialogCoordinator(
         }
     }
 
+    /** Gestiona la alternancia del switch de cifrado E2EE. */
+    fun handleE2eeToggle(enabled: Boolean) {
+        if (!enabled) {
+            showDisableE2eeConfirmDialog = true
+            return
+        }
+
+        val lastSyncTimestamp = AuthenticatorApp.instance.preferencesManager.getLastSyncTimestamp()
+        if (lastSyncTimestamp == 0L) {
+            viewModel.setDriveBackupEncrypted(true)
+            return
+        }
+
+        if (!CloudVaultKeyStore.hasVaultKey(context)) {
+            showDriveProtectDialog = true
+        } else {
+            viewModel.setDriveBackupEncrypted(true)
+            scope.launch {
+                snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_e2ee_enabled_toast))
+            }
+        }
+    }
+
+    /** Confirma la desactivación del cifrado de extremo a extremo (E2EE). */
+    fun confirmDisableE2ee() {
+        showDisableE2eeConfirmDialog = false
+        viewModel.setDriveBackupEncrypted(false)
+        scope.launch {
+            snackbarHostState.showSnackbar(context.getString(R.string.settings_drive_e2ee_disabled_toast))
+        }
+    }
+
     /** Restaura una versión histórica específica. */
-    fun restoreBackupHistoryItem(item: DriveBackupItem, passChars: CharArray) {
+    fun restoreBackupHistoryItem(item: DriveBackupItem, passChars: CharArray? = null) {
         showBackupDetailsDialog = false
         fun executeRestore(token: String) {
-            val passCharsCopy = passChars.clone()
+            val passCharsCopy = passChars?.clone()
             viewModel.restoreSpecificBackup(token, item.fileId, passCharsCopy) { result ->
                 result.onSuccess { count ->
-                    passChars.fill('0')
+                    passChars?.fill('0')
                     scope.launch {
                         val message = if (count > 0) {
                             context.getString(R.string.settings_drive_restore_success, count)
@@ -217,7 +255,7 @@ class DriveDialogCoordinator(
                             executeRestore(freshToken)
                         }
                     } else {
-                        passChars.fill('0')
+                        passChars?.fill('0')
                         scope.launch {
                             snackbarHostState.showSnackbar(DriveErrorMessageResolver.resolve(context, error))
                         }
@@ -229,7 +267,7 @@ class DriveDialogCoordinator(
     }
 
     /** Elimina una versión de respaldo específica. */
-    fun deleteBackupHistoryItem(item: DriveBackupItem, passChars: CharArray) {
+    fun deleteBackupHistoryItem(item: DriveBackupItem, passChars: CharArray? = null) {
         executeWithAuth { token ->
             viewModel.deleteSpecificBackup(token, item.fileId, passChars) { success ->
                 scope.launch {

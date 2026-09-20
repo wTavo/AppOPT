@@ -34,14 +34,21 @@ object ManualSyncManager {
         context: Context,
         accessToken: String
     ): Result<Unit> = withContext(Dispatchers.IO) {
-        val session = CloudVaultKeyStore.getVaultKeyAndSlots(context)
-            ?: return@withContext Result.failure(
-                IllegalStateException("No hay clave de bóveda custodiada para sincronización automática")
-            )
+        val prefsManager = AuthenticatorApp.instance.preferencesManager
+        val isEncrypted = prefsManager.isDriveBackupEncrypted()
+        val session = if (isEncrypted) {
+            CloudVaultKeyStore.getVaultKeyAndSlots(context)
+                ?: return@withContext Result.failure(
+                    IllegalStateException("No hay clave de bóveda custodiada para sincronización automática")
+                )
+        } else {
+            null
+        }
         uploadVaultSnapshot(
             context = context,
             accessToken = accessToken,
-            existingSession = session
+            existingSession = session,
+            isEncrypted = isEncrypted
         )
     }
 
@@ -66,7 +73,8 @@ object ManualSyncManager {
                 accessToken = accessToken,
                 secretKeyPass = secretKeyPass,
                 emergencyMnemonic = emergencyMnemonic,
-                existingSession = null
+                existingSession = null,
+                isEncrypted = true
             )
         } finally {
             secretKeyPass.fill('0')
@@ -86,6 +94,7 @@ object ManualSyncManager {
      * @param secretKeyPass Clave o contraseña de cifrado opcional si se deriva una nueva clave.
      * @param emergencyMnemonic Frase mnemónica de emergencia opcional.
      * @param existingSession Sesión existente con vaultKey y slots para re-cifrado en segundo plano.
+     * @param isEncrypted Indica si la copia debe subirse cifrada de extremo a extremo o estándar.
      * @return [Result] con el resultado de la subida.
      */
     suspend fun uploadVaultSnapshot(
@@ -93,7 +102,8 @@ object ManualSyncManager {
         accessToken: String,
         secretKeyPass: CharArray? = null,
         emergencyMnemonic: CharArray? = null,
-        existingSession: CloudVaultKeyStore.VaultKeySession? = null
+        existingSession: CloudVaultKeyStore.VaultKeySession? = null,
+        isEncrypted: Boolean = true
     ): Result<Unit> = withContext(Dispatchers.IO) {
         syncMutex.withLock {
             val repository = AuthenticatorApp.instance.accountRepository
@@ -113,15 +123,19 @@ object ManualSyncManager {
                     secretKeyPass = secretKeyPass,
                     emergencyMnemonic = emergencyMnemonic,
                     existingSession = existingSession,
-                    deviceId = deviceId
+                    deviceId = deviceId,
+                    isEncrypted = isEncrypted
                 )
 
                 if (uploadResult.isSuccess) {
                     val session = uploadResult.getOrThrow()
-                    CloudVaultKeyStore.saveVaultKeyAndSlots(context.applicationContext, session)
+                    if (session != null) {
+                        CloudVaultKeyStore.saveVaultKeyAndSlots(context.applicationContext, session)
+                    }
                     val now = System.currentTimeMillis()
                     prefsManager.setLastSyncTimestamp(now)
                     prefsManager.setLastSyncedVaultHash(currentVaultHash)
+                    prefsManager.setDriveBackupEncrypted(isEncrypted)
                     GoogleDriveManager.currentAccessToken = accessToken
                     SyncNotificationHelper.showSyncSuccessNotification(context.applicationContext)
                     Result.success(Unit)
@@ -157,13 +171,13 @@ object ManualSyncManager {
      *
      * @param accessToken Token OAuth2 activo.
      * @param fileId Identificador del archivo en Google Drive.
-     * @param secretKeyPass Contraseña o clave de descifrado en [CharArray].
+     * @param secretKeyPass Contraseña o clave de descifrado en [CharArray] (opcional si el respaldo no está cifrado).
      * @return [Result] con el conteo de cuentas restauradas.
      */
     suspend fun restoreSpecificBackup(
         accessToken: String,
         fileId: String,
-        secretKeyPass: CharArray
+        secretKeyPass: CharArray? = null
     ): Result<Int> = withContext(Dispatchers.IO) {
         val repository = AuthenticatorApp.instance.accountRepository
         val prefsManager = AuthenticatorApp.instance.preferencesManager
@@ -188,7 +202,12 @@ object ManualSyncManager {
                 }
             }
 
-            CloudVaultKeyStore.saveVaultKeyAndSlots(AuthenticatorApp.instance.applicationContext, downloaded.session)
+            if (downloaded.session != null) {
+                CloudVaultKeyStore.saveVaultKeyAndSlots(AuthenticatorApp.instance.applicationContext, downloaded.session)
+                prefsManager.setDriveBackupEncrypted(true)
+            } else {
+                prefsManager.setDriveBackupEncrypted(false)
+            }
             prefsManager.setGoogleDriveConnected(true)
             GoogleDriveManager.currentAccessToken = accessToken
 
@@ -196,7 +215,7 @@ object ManualSyncManager {
         } catch (e: Exception) {
             Result.failure(e)
         } finally {
-            secretKeyPass.fill('0')
+            secretKeyPass?.fill('0')
         }
     }
 
@@ -207,12 +226,12 @@ object ManualSyncManager {
      * en Android Keystore para habilitar sincronizaciones automáticas posteriores sin requerir volver a solicitar la clave.
      *
      * @param accessToken Token OAuth2 activo.
-     * @param secretKeyPass Contraseña o clave de descifrado en [CharArray].
+     * @param secretKeyPass Contraseña o clave de descifrado en [CharArray] (opcional si el respaldo no está cifrado).
      * @return [Result] con el conteo de cuentas restauradas.
      */
     suspend fun restoreFromBackup(
         accessToken: String,
-        secretKeyPass: CharArray
+        secretKeyPass: CharArray? = null
     ): Result<Int> = withContext(Dispatchers.IO) {
         val repository = AuthenticatorApp.instance.accountRepository
         val prefsManager = AuthenticatorApp.instance.preferencesManager
@@ -237,7 +256,12 @@ object ManualSyncManager {
                 }
             }
 
-            CloudVaultKeyStore.saveVaultKeyAndSlots(AuthenticatorApp.instance.applicationContext, downloaded.session)
+            if (downloaded.session != null) {
+                CloudVaultKeyStore.saveVaultKeyAndSlots(AuthenticatorApp.instance.applicationContext, downloaded.session)
+                prefsManager.setDriveBackupEncrypted(true)
+            } else {
+                prefsManager.setDriveBackupEncrypted(false)
+            }
             prefsManager.setGoogleDriveConnected(true)
             GoogleDriveManager.currentAccessToken = accessToken
 
@@ -245,22 +269,22 @@ object ManualSyncManager {
         } catch (e: Exception) {
             Result.failure(e)
         } finally {
-            secretKeyPass.fill('0')
+            secretKeyPass?.fill('0')
         }
     }
 
     /**
-     * Elimina una versión específica de copia de seguridad en Google Drive tras validar la contraseña de descifrado.
+     * Elimina una versión específica de copia de seguridad en Google Drive tras validar la contraseña de descifrado si está cifrada.
      *
      * @param accessToken Token OAuth2 activo.
      * @param fileId Identificador del archivo a eliminar.
-     * @param secretKeyPass Contraseña o clave de descifrado en [CharArray].
+     * @param secretKeyPass Contraseña o clave de descifrado en [CharArray] (opcional si no está cifrada).
      * @return [Result] con éxito o fallo de la eliminación.
      */
     suspend fun deleteSpecificBackupWithAuth(
         accessToken: String,
         fileId: String,
-        secretKeyPass: CharArray
+        secretKeyPass: CharArray? = null
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val verifyResult = GoogleDriveManager.downloadBackupById(accessToken, fileId, secretKeyPass)
@@ -269,7 +293,7 @@ object ManualSyncManager {
             }
             deleteSpecificBackup(accessToken, fileId)
         } finally {
-            secretKeyPass.fill('0')
+            secretKeyPass?.fill('0')
         }
     }
 

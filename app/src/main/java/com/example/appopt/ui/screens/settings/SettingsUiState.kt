@@ -42,6 +42,7 @@ data class SettingsUiState(
     val isFpsOverlayEnabled: Boolean = false,
     val isAutoSyncEnabled: Boolean = false,
     val isSyncMobileDataAllowed: Boolean = false,
+    val isDriveBackupEncrypted: Boolean = true,
     val isFetchingBackupHistory: Boolean = false,
     val isRefreshingBackupHistory: Boolean = false,
     val isAutoSyncRunning: Boolean = false,

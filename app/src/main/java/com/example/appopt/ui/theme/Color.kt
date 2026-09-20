@@ -28,14 +28,18 @@ val ErrorContainerDark = Color(0xFF450A0A)
 val OnErrorContainerDark = Color(0xFFFEE2E2)
 
 /** Colores para el tema claro (Light Theme) con alto contraste y luminosidad limpia. */
-val BackgroundLight = Color(0xFFF8FAFC) // Slate-50: fondo fresco y luminoso
-val SurfaceLight = Color(0xFFFFFFFF)    // Superficie de tarjeta blanco puro
-val SurfaceVariantLight = Color(0xFFF1F5F9) // Slate-100: contenedor suave no apagado ni grisáceo
+val BackgroundLight = Color(0xFFE8EEF7) // Azul hielo suave saturado: fondo de pantalla con presencia cromática y relieve frente a tarjetas
+val SurfaceLight = Color(0xFFFFFFFF)    // Superficie de tarjeta blanco puro desaturado de alto contraste
+val SurfaceVariantLight = Color(0xFFDCE6F5) // Contenedor suave con sutil matiz zafiro hielo
 val OutlineLight = Color(0xFF94A3B8)    // Slate-400: contorno visible y nítido para campos de texto
-val OutlineVariantLight = Color(0xFFE2E8F0) // Slate-200: bordes secundarios y divisores sutiles
+val OutlineVariantLight = Color(0xFFCAD7E8) // Bordes secundarios y divisores sutiles zafiro hielo
 val TextPrimaryLight = Color(0xFF0F172A) // Slate-900: texto de alto impacto y máxima legibilidad
 val TextSecondaryLight = Color(0xFF475569) // Slate-600: texto secundario nítido con alto contraste
 val PrimaryContainerLight = Color(0xFFDBEAFE) // Blue-100: contenedor primario claro y limpio
 val OnPrimaryContainerLight = Color(0xFF1E40AF) // Blue-800: texto sobre contenedor primario
 val ErrorContainerLight = Color(0xFFFEE2E2) // Red-100: contenedor de error suave y visible
 val OnErrorContainerLight = Color(0xFF991B1B) // Red-800: texto sobre contenedor de error
+
+/** Colores de superficie especializados para diálogos y modales flotantes (Slate Frío Equilibrado). */
+val ModalSurfaceLight = Color(0xFFFFFFFF) // Blanco puro sobre velo oscurecido al 50%
+val ModalSurfaceDark = Color(0xFF1A2436)  // Slate-850: superficie modal carbón azulado con alto contraste

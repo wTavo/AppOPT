@@ -96,8 +96,11 @@ fun DriveDetailsDecryptStep(
             confirmText = stringResource(R.string.settings_drive_decrypt_and_restore),
             onConfirm = onConfirm,
             dismissText = stringResource(R.string.settings_drive_details_back),
-            onDismiss = onBack,
-            confirmEnabled = secretText.isNotBlank() && !isDecrypting
+            onDismiss = {
+                if (!isDecrypting) onBack()
+            },
+            confirmEnabled = secretText.isNotBlank() && !isDecrypting,
+            isLoading = isDecrypting
         )
     }
 }

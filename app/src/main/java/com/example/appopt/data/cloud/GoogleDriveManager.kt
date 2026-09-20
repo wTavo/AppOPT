@@ -59,9 +59,6 @@ object GoogleDriveManager {
     @Volatile
     var currentAccessToken: String? = null
 
-    /** Tiempo de enfriamiento global mínimo (15s) entre peticiones de red files.list a Google Drive. */
-    const val GLOBAL_FETCH_COOLDOWN_MILLIS = 15_000L
-
     @Volatile
     private var lastNetworkFetchMillis = 0L
 
@@ -72,10 +69,12 @@ object GoogleDriveManager {
     private val downloadedFilesCache = java.util.concurrent.ConcurrentHashMap<String, CachedEncryptedFile>()
 
     /**
-     * Purga y limpia la memoria caché de archivos cifrados descargados.
+     * Purga y limpia la memoria caché tanto de la lista de versiones como de los archivos cifrados descargados.
      */
     fun clearDownloadCache() {
         downloadedFilesCache.clear()
+        cachedBackupItems = emptyList()
+        lastNetworkFetchMillis = 0L
     }
 
     /**
@@ -142,16 +141,31 @@ object GoogleDriveManager {
      * @param deviceId Identificador único persistente del dispositivo emisor para control de versiones.
      * @return [Result] con [CloudVaultKeyStore.VaultKeySession] resultante para su custodia persistente.
      */
+    /**
+     * Sube una nueva versión de copia de seguridad a Google Drive (Point-in-Time Recovery v2).
+     *
+     * @param accessToken Token OAuth2 activo.
+     * @param rawBackupJson Contenido de las cuentas en formato JSON plano.
+     * @param secretKeyPass Contraseña de cifrado inicial (opcional si existe [existingSession] o si [isEncrypted] es falso).
+     * @param emergencyMnemonic Frase mnemónica BIP-39 para la ranura de emergencia (opcional).
+     * @param existingSession Sesión existente de clave simétrica para sincronización transparente sin interacción.
+     * @param deviceId Identificador único persistente del dispositivo emisor.
+     * @param isEncrypted Indica si la copia debe generarse con cifrado E2EE o como copia estándar.
+     * @return [Result] con [CloudVaultKeyStore.VaultKeySession] actualizada (o nula si no está cifrada).
+     */
     suspend fun uploadBackup(
         accessToken: String,
         rawBackupJson: String,
         secretKeyPass: CharArray? = null,
         emergencyMnemonic: CharArray? = null,
         existingSession: CloudVaultKeyStore.VaultKeySession? = null,
-        deviceId: String = ""
-    ): Result<CloudVaultKeyStore.VaultKeySession> = withContext(Dispatchers.IO) {
+        deviceId: String = "",
+        isEncrypted: Boolean = true
+    ): Result<CloudVaultKeyStore.VaultKeySession?> = withContext(Dispatchers.IO) {
         runCatching {
-            val (encryptedBytes, session) = if (existingSession != null) {
+            val (encryptedBytes, session) = if (!isEncrypted) {
+                BackupCrypto.createUnencryptedBackup(rawBackupJson) to null
+            } else if (existingSession != null) {
                 val bytes = BackupCrypto.encryptWithExistingKey(
                     plainJson = rawBackupJson,
                     vaultKey = existingSession.vaultKey,
@@ -193,6 +207,7 @@ object GoogleDriveManager {
                 put("description", deviceName)
                 put("appProperties", JSONObject().apply {
                     put("deviceName", deviceName)
+                    put("isEncrypted", isEncrypted.toString())
                     if (deviceId.isNotBlank()) {
                         put("deviceId", deviceId)
                     }
@@ -231,7 +246,7 @@ object GoogleDriveManager {
     /**
      * Consulta y lista todas las versiones de copia de seguridad disponibles en Google Drive ordenadas de más reciente a más antigua.
      *
-     * Aplica protección inviolable de enfriamiento global ([GLOBAL_FETCH_COOLDOWN_MILLIS]) para evitar saturación de API.
+     * Aplica protección inviolable de enfriamiento unificado ([com.example.appopt.security.SecurityConfig.BACKUP_CACHE_TTL_MILLIS]) para evitar saturación de API.
      *
      * @param accessToken Token OAuth2 activo.
      * @param forceRefresh Fuerza la consulta a la red ignorando el tiempo de enfriamiento si es `true`.
@@ -242,7 +257,7 @@ object GoogleDriveManager {
         forceRefresh: Boolean = false
     ): Result<List<DriveBackupItem>> = withContext(Dispatchers.IO) {
         val now = System.currentTimeMillis()
-        if (!forceRefresh && (now - lastNetworkFetchMillis < GLOBAL_FETCH_COOLDOWN_MILLIS) && cachedBackupItems.isNotEmpty()) {
+        if (!forceRefresh && (now - lastNetworkFetchMillis < com.example.appopt.security.SecurityConfig.BACKUP_CACHE_TTL_MILLIS) && cachedBackupItems.isNotEmpty()) {
             return@withContext Result.success(cachedBackupItems)
         }
 
@@ -283,6 +298,8 @@ object GoogleDriveManager {
                     ?: fileObj.optString("description").ifEmpty { "Dispositivo Android" }
                 val deviceId = appProps?.optString("deviceId", "") ?: ""
 
+                val isEncrypted = appProps?.optString("isEncrypted")?.toBooleanStrictOrNull() ?: true
+
                 items.add(
                     DriveBackupItem(
                         fileId = id,
@@ -291,7 +308,8 @@ object GoogleDriveManager {
                         sizeBytes = sizeBytes,
                         deviceName = deviceName,
                         deviceId = deviceId,
-                        isMostRecent = false
+                        isMostRecent = false,
+                        isEncrypted = isEncrypted
                     )
                 )
             }
@@ -333,7 +351,7 @@ object GoogleDriveManager {
     private fun fetchRawEncryptedContent(accessToken: String, fileId: String): String {
         val now = System.currentTimeMillis()
         val cached = downloadedFilesCache[fileId]
-        if (cached != null && (now - cached.fetchedAtMillis < com.example.appopt.security.SecurityConfig.BACKUP_DOWNLOAD_CACHE_TTL_MILLIS)) {
+        if (cached != null && (now - cached.fetchedAtMillis < com.example.appopt.security.SecurityConfig.BACKUP_CACHE_TTL_MILLIS)) {
             return cached.encryptedContent
         }
         val downloadUrl = URL("https://www.googleapis.com/drive/v3/files/$fileId?alt=media")
@@ -357,30 +375,42 @@ object GoogleDriveManager {
     }
 
     /**
-     * Descarga y descifra una versión específica de copia de seguridad recuperando la sesión de clave y ranuras.
+     * Descarga y descifra una versión específica de copia de seguridad recuperando la sesión de clave y ranuras si está cifrada, o retornando el JSON plano directamente si no tiene cifrado.
      *
      * @param accessToken Token OAuth2 activo.
      * @param fileId Identificador del archivo en Google Drive.
-     * @param secretKeyPass Contraseña o PIN de descifrado en [CharArray].
+     * @param secretKeyPass Contraseña o PIN de descifrado en [CharArray] (opcional si el respaldo no está cifrado).
      * @return [Result] con [DownloadedBackupResult].
      */
     suspend fun downloadBackupDetailedById(
         accessToken: String,
         fileId: String,
-        secretKeyPass: CharArray
+        secretKeyPass: CharArray? = null
     ): Result<DownloadedBackupResult> = withContext(Dispatchers.IO) {
         runCatching {
             val content = fetchRawEncryptedContent(accessToken, fileId)
-            val decryptedResult = BackupCrypto.decryptBackupDetailed(content.toByteArray(StandardCharsets.UTF_8), secretKeyPass)
-            val payload = decryptedResult.getOrThrow()
-            DownloadedBackupResult(
-                plainJson = payload.plainJson,
-                session = CloudVaultKeyStore.VaultKeySession(
-                    vaultKey = payload.vaultKey,
-                    mainSlot = payload.mainSlot,
-                    emergencySlot = payload.emergencySlot
+            val contentBytes = content.toByteArray(StandardCharsets.UTF_8)
+            if (!BackupCrypto.isBackupEncrypted(contentBytes)) {
+                val plainJson = BackupCrypto.readUnencryptedBackup(contentBytes).getOrThrow()
+                DownloadedBackupResult(
+                    plainJson = plainJson,
+                    session = null
                 )
-            )
+            } else {
+                if (secretKeyPass == null) {
+                    throw IllegalArgumentException("Se requiere una contraseña para descifrar la copia de seguridad")
+                }
+                val decryptedResult = BackupCrypto.decryptBackupDetailed(contentBytes, secretKeyPass)
+                val payload = decryptedResult.getOrThrow()
+                DownloadedBackupResult(
+                    plainJson = payload.plainJson,
+                    session = CloudVaultKeyStore.VaultKeySession(
+                        vaultKey = payload.vaultKey,
+                        mainSlot = payload.mainSlot,
+                        emergencySlot = payload.emergencySlot
+                    )
+                )
+            }
         }
     }
 
@@ -389,13 +419,13 @@ object GoogleDriveManager {
      *
      * @param accessToken Token OAuth2 activo.
      * @param fileId Identificador del archivo en Google Drive.
-     * @param secretKeyPass Contraseña o PIN de descifrado en [CharArray].
+     * @param secretKeyPass Contraseña o PIN de descifrado en [CharArray] (opcional si el respaldo no está cifrado).
      * @return [Result] con el contenido del respaldo en formato JSON descifrado.
      */
     suspend fun downloadBackupById(
         accessToken: String,
         fileId: String,
-        secretKeyPass: CharArray
+        secretKeyPass: CharArray? = null
     ): Result<String> = withContext(Dispatchers.IO) {
         downloadBackupDetailedById(accessToken, fileId, secretKeyPass).map { it.plainJson }
     }
@@ -404,12 +434,12 @@ object GoogleDriveManager {
      * Descarga la copia de seguridad más reciente de Google Drive recuperando la sesión de clave y ranuras.
      *
      * @param accessToken Token OAuth2 activo.
-     * @param secretKeyPass Contraseña o clave de descifrado en [CharArray].
+     * @param secretKeyPass Contraseña o clave de descifrado en [CharArray] (opcional si el respaldo no está cifrado).
      * @return [Result] con [DownloadedBackupResult].
      */
     suspend fun downloadBackupDetailed(
         accessToken: String,
-        secretKeyPass: CharArray
+        secretKeyPass: CharArray? = null
     ): Result<DownloadedBackupResult> = withContext(Dispatchers.IO) {
         val backupsResult = fetchAllBackups(accessToken)
         val mostRecent = backupsResult.getOrNull()?.firstOrNull()
@@ -444,6 +474,7 @@ object GoogleDriveManager {
             downloadedFilesCache.remove(fileId)
             cachedBackupItems = emptyList()
             lastNetworkFetchMillis = 0L
+            Unit
         }
     }
 }

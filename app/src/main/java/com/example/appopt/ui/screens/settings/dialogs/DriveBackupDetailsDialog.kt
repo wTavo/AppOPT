@@ -62,8 +62,8 @@ private enum class DriveDetailsSubState {
 fun DriveBackupDetailsDialog(
     backupItems: List<DriveBackupItem>,
     isLoading: Boolean,
-    onRestoreBackup: (DriveBackupItem, CharArray) -> Unit,
-    onDeleteSpecificBackup: (DriveBackupItem, CharArray) -> Unit,
+    onRestoreBackup: (DriveBackupItem, CharArray?) -> Unit,
+    onDeleteSpecificBackup: (DriveBackupItem, CharArray?) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     lastFetchTimestamp: Long = 0L,
@@ -119,21 +119,35 @@ fun DriveBackupDetailsDialog(
     var currentSubState by remember { mutableStateOf(DriveDetailsSubState.HISTORY) }
 
     AppModalDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = {
+            if (isDecryptingBackup && currentSubState != DriveDetailsSubState.RESTORE_SELECT_ACCOUNTS) return@AppModalDialog
+            isDecryptingBackup = false
+            onDismiss()
+        },
         onBackStep = {
             when (currentSubState) {
                 DriveDetailsSubState.RESTORE_SELECT_ACCOUNTS -> {
-                    currentSubState = DriveDetailsSubState.RESTORE_DECRYPT
+                    isDecryptingBackup = false
+                    if (pendingRestoreBackup?.isEncrypted == false) {
+                        currentSubState = DriveDetailsSubState.HISTORY
+                    } else {
+                        currentSubState = DriveDetailsSubState.RESTORE_DECRYPT
+                    }
                     true
                 }
                 DriveDetailsSubState.RESTORE_DECRYPT, DriveDetailsSubState.DELETE_SINGLE -> {
+                    if (isDecryptingBackup) return@AppModalDialog true
+                    isDecryptingBackup = false
                     restoreSecretText = ""
                     deleteSecretText = ""
                     decryptErrorMessage = null
                     currentSubState = DriveDetailsSubState.HISTORY
                     true
                 }
-                else -> false
+                DriveDetailsSubState.HISTORY -> {
+                    if (isDecryptingBackup) return@AppModalDialog true
+                    false
+                }
             }
         },
         tone = if (currentSubState == DriveDetailsSubState.DELETE_SINGLE) ModalTone.DESTRUCTIVE else ModalTone.STANDARD,
@@ -156,10 +170,53 @@ fun DriveBackupDetailsDialog(
                         hasUnsyncedChanges = hasUnsyncedChanges,
                         isCooldownActive = isCooldownActive,
                         secondsRemaining = secondsRemaining,
+                        restoringFileId = if (isDecryptingBackup) pendingRestoreBackup?.fileId else null,
                         onRestoreSelected = { item ->
                             pendingRestoreBackup = item
-                            restoreSecretText = ""
-                            currentSubState = DriveDetailsSubState.RESTORE_DECRYPT
+                            if (!item.isEncrypted) {
+                                isDecryptingBackup = true
+                                decryptErrorMessage = null
+                                scope.launch {
+                                    try {
+                                        val token = GoogleDriveManager.currentAccessToken.orEmpty()
+                                        val downloadResult = if (token.isNotBlank() && item.fileId.isNotBlank()) {
+                                            GoogleDriveManager.downloadBackupDetailedById(token, item.fileId, null)
+                                        } else if (token.isNotBlank()) {
+                                            GoogleDriveManager.downloadBackupDetailed(token, null)
+                                        } else {
+                                            null
+                                        }
+                                        if (downloadResult != null && downloadResult.isSuccess) {
+                                            val detailed = downloadResult.getOrThrow()
+                                            downloadedSession = null
+                                            val jsonString = detailed.plainJson
+                                            val previews = repository.parseAccountsForPreview(jsonString)
+                                            if (previews.isNotEmpty()) {
+                                                parsedAccounts = previews
+                                                selectedAccountIds = previews.filter { !it.isAlreadyInVault }.map { it.id }.toSet()
+                                                appHaptics.success()
+                                                currentSubState = DriveDetailsSubState.RESTORE_SELECT_ACCOUNTS
+                                            } else {
+                                                decryptErrorMessage = decryptErrorText
+                                                appHaptics.error()
+                                                isDecryptingBackup = false
+                                            }
+                                        } else {
+                                            onRestoreBackup(item, null)
+                                            pendingRestoreBackup = null
+                                            currentSubState = DriveDetailsSubState.HISTORY
+                                            isDecryptingBackup = false
+                                        }
+                                    } catch (_: Exception) {
+                                        decryptErrorMessage = decryptErrorText
+                                        appHaptics.error()
+                                        isDecryptingBackup = false
+                                    }
+                                }
+                            } else {
+                                restoreSecretText = ""
+                                currentSubState = DriveDetailsSubState.RESTORE_DECRYPT
+                            }
                         },
                         onDeleteSelected = { item ->
                             pendingDeleteBackup = item
@@ -212,29 +269,32 @@ fun DriveBackupDetailsDialog(
                                         val previews = repository.parseAccountsForPreview(jsonString)
                                         if (previews.isNotEmpty()) {
                                             parsedAccounts = previews
-                                            selectedAccountIds = previews.map { it.id }.toSet()
+                                            selectedAccountIds = previews.filter { !it.isAlreadyInVault }.map { it.id }.toSet()
                                             appHaptics.success()
                                             currentSubState = DriveDetailsSubState.RESTORE_SELECT_ACCOUNTS
                                         } else {
                                             decryptErrorMessage = decryptErrorText
                                             appHaptics.error()
+                                            isDecryptingBackup = false
                                         }
                                     } else {
                                         onRestoreBackup(targetItem, passChars)
                                         pendingRestoreBackup = null
                                         restoreSecretText = ""
                                         currentSubState = DriveDetailsSubState.HISTORY
+                                        isDecryptingBackup = false
                                     }
                                 } catch (_: Exception) {
                                     decryptErrorMessage = decryptErrorText
                                     appHaptics.error()
+                                    isDecryptingBackup = false
                                 } finally {
                                     passChars.fill('0')
-                                    isDecryptingBackup = false
                                 }
                             }
                         },
                         onBack = {
+                            isDecryptingBackup = false
                             restoreSecretText = ""
                             decryptErrorMessage = null
                             currentSubState = DriveDetailsSubState.HISTORY
@@ -263,12 +323,16 @@ fun DriveBackupDetailsDialog(
                             val accountsToImport = parsedAccounts.filter { it.id in selectedAccountIds }
                             scope.launch {
                                 repository.importSelectedAccounts(accountsToImport)
-                                downloadedSession?.let { session ->
+                                val prefsManager = AuthenticatorApp.instance.preferencesManager
+                                prefsManager.setGoogleDriveConnected(true)
+                                val session = downloadedSession
+                                if (session != null) {
                                     CloudVaultKeyStore.saveVaultKeyAndSlots(context.applicationContext, session)
-                                    val prefsManager = AuthenticatorApp.instance.preferencesManager
-                                    prefsManager.setGoogleDriveConnected(true)
-                                    pendingRestoreBackup?.let { prefsManager.setLastSyncTimestamp(it.modifiedTimeMillis) }
+                                    prefsManager.setDriveBackupEncrypted(true)
+                                } else {
+                                    prefsManager.setDriveBackupEncrypted(false)
                                 }
+                                pendingRestoreBackup?.let { prefsManager.setLastSyncTimestamp(it.modifiedTimeMillis) }
                             }
                             true
                         },
@@ -278,7 +342,12 @@ fun DriveBackupDetailsDialog(
                             onDismiss()
                         },
                         onBack = {
-                            currentSubState = DriveDetailsSubState.RESTORE_DECRYPT
+                            isDecryptingBackup = false
+                            if (pendingRestoreBackup?.isEncrypted == false) {
+                                currentSubState = DriveDetailsSubState.HISTORY
+                            } else {
+                                currentSubState = DriveDetailsSubState.RESTORE_DECRYPT
+                            }
                         }
                     )
                 }
@@ -293,12 +362,16 @@ fun DriveBackupDetailsDialog(
                         onConfirmDelete = {
                             val targetItem = pendingDeleteBackup
                             if (targetItem != null) {
-                                val normalizedSecret = if (deleteSecretText.contains(" ")) {
-                                    MnemonicManager.normalizePhrase(deleteSecretText)
+                                val passChars = if (targetItem.isEncrypted) {
+                                    val normalizedSecret = if (deleteSecretText.contains(" ")) {
+                                        MnemonicManager.normalizePhrase(deleteSecretText)
+                                    } else {
+                                        deleteSecretText.trim()
+                                    }
+                                    normalizedSecret.toCharArray()
                                 } else {
-                                    deleteSecretText.trim()
+                                    null
                                 }
-                                val passChars = normalizedSecret.toCharArray()
                                 onDeleteSpecificBackup(targetItem, passChars)
                                 pendingDeleteBackup = null
                                 deleteSecretText = ""

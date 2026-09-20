@@ -28,12 +28,21 @@ class AutoSyncWorker(
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val prefsManager = AuthenticatorApp.instance.preferencesManager
         val isForceManualSync = inputData.getBoolean(CloudVaultSyncManager.KEY_FORCE_MANUAL_SYNC, false)
+        val isDriveEncrypted = prefsManager.isDriveBackupEncrypted()
 
-        // 1. Validar que la bóveda esté conectada, inicializada y contenga la clave custodiada
-        if (!prefsManager.isCloudVaultInitialized() || !CloudVaultKeyStore.hasVaultKey(applicationContext)) {
-            return@withContext Result.success(
-                workDataOf(CloudVaultSyncManager.KEY_SYNC_PERFORMED to false)
-            )
+        // 1. Validar que la bóveda esté conectada, inicializada y contenga la clave custodiada si está cifrada
+        if (isDriveEncrypted) {
+            if (!prefsManager.isCloudVaultInitialized() || !CloudVaultKeyStore.hasVaultKey(applicationContext)) {
+                return@withContext Result.success(
+                    workDataOf(CloudVaultSyncManager.KEY_SYNC_PERFORMED to false)
+                )
+            }
+        } else {
+            if (!prefsManager.isGoogleDriveConnected()) {
+                return@withContext Result.success(
+                    workDataOf(CloudVaultSyncManager.KEY_SYNC_PERFORMED to false)
+                )
+            }
         }
 
         // 2. Si es sincronización automática en segundo plano, validar que esté habilitada

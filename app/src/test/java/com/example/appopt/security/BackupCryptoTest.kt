@@ -150,4 +150,27 @@ class BackupCryptoTest {
         val decryptResult = BackupCrypto.decryptBackup(tamperedEnvelope.toByteArray(Charsets.UTF_8), correctPassword)
         assertTrue(decryptResult.isFailure)
     }
+
+    /**
+     * Valida que una copia de seguridad sin cifrado se genere, detecte e interprete correctamente.
+     */
+    @Test
+    fun testUnencryptedBackupCreationAndDetection() {
+        val unencryptedBytes = BackupCrypto.createUnencryptedBackup(sampleJson)
+        assertTrue(unencryptedBytes.isNotEmpty())
+
+        // 1. Debe detectarse como NO cifrado
+        val isEncrypted = BackupCrypto.isBackupEncrypted(unencryptedBytes)
+        org.junit.Assert.assertFalse(isEncrypted)
+
+        // 2. Un respaldo cifrado debe detectarse como cifrado
+        val encryptedBytes = BackupCrypto.encryptBackup(sampleJson, correctPassword)
+        val isEncrypted2 = BackupCrypto.isBackupEncrypted(encryptedBytes)
+        assertTrue(isEncrypted2)
+
+        // 3. Lectura de copia no cifrada debe retornar el JSON original
+        val readResult = BackupCrypto.readUnencryptedBackup(unencryptedBytes)
+        assertTrue(readResult.isSuccess)
+        assertEquals(sampleJson, readResult.getOrThrow())
+    }
 }

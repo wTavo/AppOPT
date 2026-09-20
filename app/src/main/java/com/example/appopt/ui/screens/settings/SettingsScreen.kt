@@ -262,6 +262,9 @@ fun SettingsScreen(
             )
 
             // 4. Tarjeta de Copia de Seguridad y Sincronización en Google Drive
+            val hasVaultKey = remember(uiState.isDriveBackupEncrypted, uiState.lastSyncTimestamp) {
+                com.example.appopt.data.cloud.CloudVaultKeyStore.hasVaultKey(context)
+            }
             DriveSyncSettingsCard(
                 isDriveConnected = uiState.isDriveConnected,
                 isDriveLoading = uiState.isSyncActive,
@@ -271,6 +274,7 @@ fun SettingsScreen(
                 lastSyncTimestamp = uiState.lastSyncTimestamp,
                 isAutoSyncEnabled = uiState.isAutoSyncEnabled,
                 isSyncMobileDataAllowed = uiState.isSyncMobileDataAllowed,
+                isDriveBackupEncrypted = uiState.isDriveBackupEncrypted,
                 hasLocalAccounts = uiState.accounts.isNotEmpty(),
                 onConnectClick = {
                     requestGoogleAuthorization { token ->
@@ -278,16 +282,19 @@ fun SettingsScreen(
                         scope.launch { snackbarHostState.showSnackbar(driveConnectedSuccessText) }
                     }
                 },
-                onManualSyncClick = {
-                    coordinator.executeWithAuth { token ->
-                        appHaptics.click()
-                        viewModel.executeManualSync(context, token)
-                    }
-                },
                 onCreateBackupClick = {
                     if (uiState.driveBackupExists) {
+                        coordinator.executeWithAuth { token ->
+                            viewModel.fetchBackupHistoryIfNeeded(
+                                token = token,
+                                onAuthExpired = {},
+                                onFinished = {}
+                            )
+                        }
                         coordinator.showOverwriteWarningDialog = true
-                    } else if (com.example.appopt.data.cloud.CloudVaultKeyStore.hasVaultKey(context)) {
+                    } else if (!uiState.isDriveBackupEncrypted) {
+                        coordinator.createBackupWithExistingKey()
+                    } else if (hasVaultKey) {
                         coordinator.showCreateBackupConfirmDialog = true
                     } else {
                         coordinator.showDriveProtectDialog = true
@@ -298,7 +305,8 @@ fun SettingsScreen(
                 },
                 onDisconnectClick = { coordinator.showDisconnectConfirmDialog = true },
                 onAutoSyncToggle = { enabled -> viewModel.setAutoSyncEnabled(enabled, context) },
-                onMobileDataToggle = { allowed -> viewModel.setSyncMobileDataAllowed(allowed, context) }
+                onMobileDataToggle = { allowed -> viewModel.setSyncMobileDataAllowed(allowed, context) },
+                onDriveBackupEncryptedToggle = { enabled -> coordinator.handleE2eeToggle(enabled) }
             )
 
             Spacer(modifier = Modifier.height(Dimensions.Spacing.sm))

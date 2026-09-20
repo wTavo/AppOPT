@@ -25,6 +25,7 @@ class ServiceUnavailableException(message: String = "El servicio de Google Drive
  * @property deviceName Nombre o modelo del dispositivo que generó la copia.
  * @property deviceId Identificador único persistente del dispositivo emisor para discriminación de versiones locales.
  * @property isMostRecent Indica si corresponde a la versión más actual del historial.
+ * @property isEncrypted Indica si la copia cuenta con cifrado de extremo a extremo (E2EE) o si es una copia estándar.
  */
 data class DriveBackupItem(
     val fileId: String,
@@ -33,18 +34,19 @@ data class DriveBackupItem(
     val sizeBytes: Long,
     val deviceName: String,
     val isMostRecent: Boolean = false,
-    val deviceId: String = ""
+    val deviceId: String = "",
+    val isEncrypted: Boolean = true
 )
 
 /**
- * Resultado detallado de descarga que incluye el JSON descifrado y la sesión de clave simétrica con ranuras.
+ * Resultado detallado de descarga que incluye el JSON descifrado y la sesión de clave simétrica con ranuras si es cifrado.
  *
  * @property plainJson Contenido descifrado en formato JSON.
- * @property session Sesión de clave para su custodia en Android Keystore.
+ * @property session Sesión de clave para su custodia en Android Keystore (nula en respaldos estándar no cifrados).
  */
 data class DownloadedBackupResult(
     val plainJson: String,
-    val session: CloudVaultKeyStore.VaultKeySession
+    val session: CloudVaultKeyStore.VaultKeySession? = null
 )
 
 /**

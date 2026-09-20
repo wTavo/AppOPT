@@ -47,6 +47,7 @@ private enum class HistoryContentState {
  * @param hasUnsyncedChanges Indica si hay cambios locales no sincronizados.
  * @param isCooldownActive Indica si el tiempo de espera para refrescar sigue activo.
  * @param secondsRemaining Segundos restantes de enfriamiento de la API.
+ * @param restoringFileId Identificador del archivo en proceso de descarga o restauración.
  * @param onRestoreSelected Callback al pulsar restaurar en un elemento.
  * @param onDeleteSelected Callback al pulsar eliminar en un elemento.
  * @param onForceRefresh Callback para forzar la sincronización remota.
@@ -61,6 +62,7 @@ fun DriveDetailsHistoryStep(
     hasUnsyncedChanges: Boolean,
     isCooldownActive: Boolean,
     secondsRemaining: Long,
+    restoringFileId: String? = null,
     onRestoreSelected: (DriveBackupItem) -> Unit,
     onDeleteSelected: (DriveBackupItem) -> Unit,
     onForceRefresh: () -> Unit,
@@ -146,11 +148,15 @@ fun DriveDetailsHistoryStep(
                                         item.modifiedTimeMillis == lastSyncTimestamp &&
                                         lastSyncedHash.isNotEmpty() &&
                                         !hasUnsyncedChanges)
+                                val isItemRestoring = (restoringFileId != null && restoringFileId == item.fileId)
+                                val isAnyBusy = isLoading || (restoringFileId != null)
 
                                 DriveBackupItemCard(
                                     item = item,
                                     isActual = isActual,
                                     formattedDate = DateTimeFormatter.formatRelativeSyncTime(context, item.modifiedTimeMillis),
+                                    isRestoring = isItemRestoring,
+                                    isAnyOperationRunning = isAnyBusy,
                                     onRestoreClick = {
                                         appHaptics.click()
                                         onRestoreSelected(item)
@@ -167,17 +173,21 @@ fun DriveDetailsHistoryStep(
             }
         }
 
+        val isAnyOperationActive = isLoading || (restoringFileId != null)
+
         // Pie fijo de acciones
         AppDialogActionButtons(
             dismissText = stringResource(R.string.action_close),
-            onDismiss = onDismiss,
+            onDismiss = {
+                if (!isAnyOperationActive) onDismiss()
+            },
             confirmText = if (isCooldownActive) {
                 stringResource(R.string.settings_drive_history_cooldown_badge, secondsRemaining)
             } else {
                 stringResource(R.string.settings_drive_history_refresh_action)
             },
             onConfirm = onForceRefresh,
-            confirmEnabled = !isLoading && !isCooldownActive,
+            confirmEnabled = !isAnyOperationActive && !isCooldownActive,
             isLoading = isLoading
         )
     }

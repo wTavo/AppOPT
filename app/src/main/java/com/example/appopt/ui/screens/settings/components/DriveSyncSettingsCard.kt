@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.SyncDisabled
@@ -59,13 +60,16 @@ import com.example.appopt.ui.theme.appSwitchColors
  * @param hasUnsyncedChanges Indica si existen cambios locales no sincronizados con la nube.
  * @param lastSyncTimestamp Marca de tiempo en milisegundos de la última sincronización.
  * @param isAutoSyncEnabled Indica si la copia automática al hacer cambios está activada.
+ * @param isSyncMobileDataAllowed Indica si se permite la sincronización a través de datos móviles.
+ * @param isDriveBackupEncrypted Indica si el cifrado de extremo a extremo (E2EE) está habilitado.
  * @param onConnectClick Callback para conectar la cuenta de Google.
- * @param onManualSyncClick Callback para disparar la sincronización inmediata.
- * @param onCreateBackupClick Callback para crear una nueva copia de seguridad.
+ * @param onCreateBackupClick Callback para crear una nueva copia de seguridad inicial.
+ * @param onProtectBackupClick Callback para abrir el asistente de cifrado E2EE si no existen claves locales.
  * @param onBackupDetailsClick Callback para ver detalles y gestionar la copia existente.
  * @param onDisconnectClick Callback para desvincular la cuenta de Google.
  * @param onAutoSyncToggle Callback para activar o desactivar la copia automática al hacer cambios.
  * @param onMobileDataToggle Callback para alternar el permiso de datos móviles.
+ * @param onDriveBackupEncryptedToggle Callback para alternar el cifrado de extremo a extremo.
  * @param modifier Modificador de diseño Compose opcional.
  * @param hasLocalAccounts Indica si existen cuentas o servicios 2FA locales registrados en la bóveda.
  */
@@ -79,13 +83,14 @@ fun DriveSyncSettingsCard(
     lastSyncTimestamp: Long,
     isAutoSyncEnabled: Boolean,
     isSyncMobileDataAllowed: Boolean,
+    isDriveBackupEncrypted: Boolean,
     onConnectClick: () -> Unit,
-    onManualSyncClick: () -> Unit,
     onCreateBackupClick: () -> Unit,
     onBackupDetailsClick: () -> Unit,
     onDisconnectClick: () -> Unit,
     onAutoSyncToggle: (Boolean) -> Unit,
     onMobileDataToggle: (Boolean) -> Unit,
+    onDriveBackupEncryptedToggle: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     hasLocalAccounts: Boolean = true
 ) {
@@ -247,21 +252,7 @@ fun DriveSyncSettingsCard(
                     }
                 }
             } else {
-                if (lastSyncTimestamp > 0L) {
-                    if (hasUnsyncedChanges && !isDriveLoading && hasLocalAccounts) {
-                        Button(
-                            onClick = onManualSyncClick,
-                            enabled = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.settings_drive_sync_button),
-                                style = MaterialTheme.typography.labelLarge
-                            )
-                        }
-                    }
-                } else if (hasLocalAccounts) {
+                if (lastSyncTimestamp == 0L && hasLocalAccounts) {
                     Button(
                         onClick = {
                             NavigationOriginTracker.updateModalOrigin(createBackupCoordinates)
@@ -281,8 +272,8 @@ fun DriveSyncSettingsCard(
                 }
             }
 
-            // 5. Contenedor de automatización (Copia automática al hacer cambios y datos móviles)
-            if (isDriveConnected && lastSyncTimestamp > 0L) {
+            // 5. Contenedor de automatización (Copia automática al hacer cambios, datos móviles y cifrado E2EE)
+            if (isDriveConnected) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
@@ -355,9 +346,44 @@ fun DriveSyncSettingsCard(
                                     colors = appSwitchColors()
                                 )
                             }
+                        }
+
+                        // Switch E2EE: Cifrado de extremo a extremo
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onDriveBackupEncryptedToggle(!isDriveBackupEncrypted) }
+                                .padding(vertical = Dimensions.Spacing.xs),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = Dimensions.Spacing.sm),
+                                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.settings_drive_e2ee_title),
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                                Text(
+                                    text = stringResource(
+                                        if (isDriveBackupEncrypted) R.string.settings_drive_e2ee_desc_on
+                                        else R.string.settings_drive_e2ee_desc_off
+                                    ),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = isDriveBackupEncrypted,
+                                onCheckedChange = onDriveBackupEncryptedToggle,
+                                colors = appSwitchColors()
+                            )
+                        }
                     }
                 }
             }
         }
     }
-}

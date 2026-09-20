@@ -19,6 +19,8 @@ import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudQueue
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,23 +42,35 @@ import com.example.appopt.ui.theme.SafeGreen
  *
  * Muestra el estado de sincronización (icono CloudDone/CloudQueue), la fecha relativa formateada,
  * el nombre del dispositivo origen, la insignia "Actual" (si coincide con el estado local activo)
- * y los botones de acción para eliminar o restaurar.
+ * y los botones de acción para eliminar, restaurar o actualizar.
  *
  * @param item Datos de la versión de respaldo remota.
  * @param isActual Indica si la versión corresponde al estado actual sincronizado del dispositivo.
  * @param formattedDate Cadena de fecha relativa formateada para visualización.
- * @param onDeleteClick Callback invocado al presionar el botón de eliminar.
  * @param onRestoreClick Callback invocado al presionar el botón de restaurar.
  * @param modifier Modificador de diseño Compose opcional.
+ * @param onDeleteClick Callback opcional invocado al presionar el botón de eliminar.
+ * @param onRefreshClick Callback opcional invocado al presionar el botón de actualizar.
+ * @param isRefreshing Indica si la recarga remota está en progreso.
+ * @param isCooldownActive Indica si el tiempo de espera para refrescar sigue activo.
+ * @param secondsRemaining Segundos restantes de enfriamiento para actualización.
+ * @param isRestoring Indica si la descarga o restauración de este respaldo específico está en progreso.
+ * @param isAnyOperationRunning Indica si cualquier otra operación de red o restauración global está activa.
  */
 @Composable
 fun DriveBackupItemCard(
     item: DriveBackupItem,
     isActual: Boolean,
     formattedDate: String,
-    onDeleteClick: () -> Unit,
     onRestoreClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onDeleteClick: (() -> Unit)? = null,
+    onRefreshClick: (() -> Unit)? = null,
+    isRefreshing: Boolean = false,
+    isCooldownActive: Boolean = false,
+    secondsRemaining: Long = 0L,
+    isRestoring: Boolean = false,
+    isAnyOperationRunning: Boolean = false
 ) {
     Surface(
         shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
@@ -147,40 +161,99 @@ fun DriveBackupItemCard(
                                 maxLines = 1
                             )
                         }
+
+                        Surface(
+                            shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
+                            color = if (item.isEncrypted) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                            else MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Text(
+                                text = stringResource(
+                                    if (item.isEncrypted) R.string.settings_drive_badge_e2ee
+                                    else R.string.settings_drive_badge_standard
+                                ),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (item.isEncrypted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                modifier = Modifier.padding(
+                                    horizontal = Dimensions.Spacing.xs,
+                                    vertical = Dimensions.Spacing.xs / 2
+                                )
+                            )
+                        }
                     }
                 }
 
-                IconButton(
-                    onClick = onDeleteClick,
-                    modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.DeleteOutline,
-                        contentDescription = stringResource(R.string.settings_drive_delete_version_action),
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(Dimensions.IconSize.small)
-                    )
+                if (onRefreshClick != null) {
+                    IconButton(
+                        onClick = onRefreshClick,
+                        enabled = !isRefreshing && !isCooldownActive && !isAnyOperationRunning && !isRestoring,
+                        modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
+                    ) {
+                        if (isRefreshing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(Dimensions.IconSize.small),
+                                strokeWidth = Dimensions.Stroke.regular,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        } else if (isCooldownActive) {
+                            Text(
+                                text = stringResource(R.string.settings_drive_history_cooldown_badge, secondsRemaining),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Filled.Refresh,
+                                contentDescription = stringResource(R.string.settings_drive_history_refresh_action),
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(Dimensions.IconSize.small)
+                            )
+                        }
+                    }
+                } else if (onDeleteClick != null) {
+                    IconButton(
+                        onClick = onDeleteClick,
+                        enabled = !isAnyOperationRunning && !isRestoring && !isRefreshing,
+                        modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.DeleteOutline,
+                            contentDescription = stringResource(R.string.settings_drive_delete_version_action),
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(Dimensions.IconSize.small)
+                        )
+                    }
                 }
             }
 
             if (!isActual) {
                 Button(
                     onClick = onRestoreClick,
+                    enabled = !isRestoring && !isAnyOperationRunning && !isRefreshing,
                     shape = RoundedCornerShape(Dimensions.CornerRadius.small),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(Dimensions.ComponentHeight.buttonCompact)
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.Restore,
-                        contentDescription = null,
-                        modifier = Modifier.size(Dimensions.IconSize.small)
-                    )
-                    Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
-                    Text(
-                        text = stringResource(R.string.settings_drive_restore_version_action),
-                        style = MaterialTheme.typography.labelMedium
-                    )
+                    if (isRestoring) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(Dimensions.IconSize.small),
+                            strokeWidth = Dimensions.Stroke.regular,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Filled.Restore,
+                            contentDescription = null,
+                            modifier = Modifier.size(Dimensions.IconSize.small)
+                        )
+                        Spacer(modifier = Modifier.width(Dimensions.Spacing.xs))
+                        Text(
+                            text = stringResource(R.string.settings_drive_restore_version_action),
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
                 }
             }
         }

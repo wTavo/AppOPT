@@ -42,6 +42,7 @@ class SettingsViewModel : ViewModel() {
                 isFpsOverlayEnabled = prefsManager.isFpsOverlayEnabled(),
                 isAutoSyncEnabled = prefsManager.isAutoSyncEnabled(),
                 isSyncMobileDataAllowed = prefsManager.isSyncMobileDataAllowed(),
+                isDriveBackupEncrypted = prefsManager.isDriveBackupEncrypted(),
                 backupHistoryList = cachedHistory,
                 driveBackupExists = cachedHistory.isNotEmpty(),
                 driveBackupInfo = mostRecent
@@ -56,6 +57,7 @@ class SettingsViewModel : ViewModel() {
         _internalState,
         repository.getAccounts(),
         prefsManager.isGoogleDriveConnectedFlow,
+        prefsManager.isDriveBackupEncryptedFlow,
         combine(
             prefsManager.lastSyncTimestampFlow,
             prefsManager.lastSyncedVaultHashFlow,
@@ -63,13 +65,14 @@ class SettingsViewModel : ViewModel() {
         ) { lastSync, lastHash, lastFetch ->
             Triple(lastSync, lastHash.orEmpty(), lastFetch)
         }
-    ) { internal, accounts, isConnected, (lastSync, safeLastHash, lastFetch) ->
+    ) { internal, accounts, isConnected, isEncrypted, (lastSync, safeLastHash, lastFetch) ->
         val isSynced = CloudVaultSyncManager.isVaultSyncedWithCloud(isConnected, lastSync, safeLastHash, accounts)
         val hasChanges = isConnected && lastSync > 0L && safeLastHash.isNotEmpty() && !isSynced
 
         internal.copy(
             accounts = accounts,
             isDriveConnected = isConnected,
+            isDriveBackupEncrypted = isEncrypted,
             lastSyncTimestamp = lastSync,
             lastSyncedHash = safeLastHash,
             hasUnsyncedChanges = hasChanges,
@@ -81,6 +84,7 @@ class SettingsViewModel : ViewModel() {
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = _internalState.value.copy(
             isDriveConnected = prefsManager.isGoogleDriveConnectedFlow.value,
+            isDriveBackupEncrypted = prefsManager.isDriveBackupEncryptedFlow.value,
             lastSyncTimestamp = prefsManager.lastSyncTimestampFlow.value,
             lastSyncedHash = prefsManager.lastSyncedVaultHashFlow.value.orEmpty(),
             lastHistoryFetchTimestamp = prefsManager.lastBackupHistoryFetchTimestampFlow.value
@@ -130,6 +134,12 @@ class SettingsViewModel : ViewModel() {
         if (uiState.value.isAutoSyncEnabled) {
             CloudVaultSyncManager.triggerReactiveSync(context, 0L)
         }
+    }
+
+    /** Configura si las copias de seguridad en Google Drive se generan con cifrado E2EE. */
+    fun setDriveBackupEncrypted(enabled: Boolean) {
+        prefsManager.setDriveBackupEncrypted(enabled)
+        _internalState.update { it.copy(isDriveBackupEncrypted = enabled) }
     }
 
     /** Desvincula la cuenta de Google Drive. */
@@ -185,7 +195,7 @@ class SettingsViewModel : ViewModel() {
     fun deleteSpecificBackup(
         token: String,
         fileId: String,
-        passChars: CharArray,
+        passChars: CharArray? = null,
         onComplete: (Boolean) -> Unit
     ) {
         driveVaultHandler.deleteSpecificBackup(token, fileId, passChars, onComplete)
@@ -205,7 +215,7 @@ class SettingsViewModel : ViewModel() {
     /** Descifra y restaura la copia de seguridad más reciente desde Google Drive. */
     fun restoreFromBackup(
         token: String,
-        passChars: CharArray,
+        passChars: CharArray? = null,
         onComplete: (Result<Int>) -> Unit
     ) {
         driveVaultHandler.restoreFromBackup(token, passChars, onComplete)
@@ -215,7 +225,7 @@ class SettingsViewModel : ViewModel() {
     fun restoreSpecificBackup(
         token: String,
         fileId: String,
-        passChars: CharArray,
+        passChars: CharArray? = null,
         onComplete: (Result<Int>) -> Unit
     ) {
         driveVaultHandler.restoreSpecificBackup(token, fileId, passChars, onComplete)

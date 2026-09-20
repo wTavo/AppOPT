@@ -100,16 +100,17 @@ object SecurityConfig {
     const val TRASH_RETENTION_MILLIS = TRASH_RETENTION_DAYS * 24L * 60L * 60L * 1000L
 
     /**
-     * Tiempo de expiración de caché en milisegundos (TTL) para el historial de copias de seguridad de Google Drive (20 segundos).
-     * Evita sobrecargar la API remota con peticiones redundantes ante aperturas consecutivas del diálogo de historial.
+     * Tiempo de expiración de caché y enfriamiento en milisegundos (TTL) para operaciones de Google Drive (20 segundos).
+     * Unifica y gobierna como única fuente de verdad tanto la consulta de versiones del historial como la memoria volátil
+     * de descargas de respaldo, evitando sobrecargar la API remota con peticiones redundantes y garantizando 0 peticiones de red ante reintentos.
      */
-    const val BACKUP_HISTORY_CACHE_TTL_MILLIS = 20_000L
+    const val BACKUP_CACHE_TTL_MILLIS = 20_000L
 
-    /**
-     * Tiempo de expiración de caché en milisegundos (TTL) para el archivo de respaldo cifrado descargado (2 minutos / 120 segundos).
-     * Permite reintentos de descifrado y operaciones continuas con 0 peticiones de red adicionales a Google Drive.
-     */
-    const val BACKUP_DOWNLOAD_CACHE_TTL_MILLIS = 120_000L
+    /** Alias retrocompatible para el TTL de consulta del historial de respaldos. */
+    const val BACKUP_HISTORY_CACHE_TTL_MILLIS = BACKUP_CACHE_TTL_MILLIS
+
+    /** Alias retrocompatible para el TTL de descarga en memoria del archivo de respaldo. */
+    const val BACKUP_DOWNLOAD_CACHE_TTL_MILLIS = BACKUP_CACHE_TTL_MILLIS
 
     /**
      * Longitud en caracteres para la clave alfanumérica de transferencia de servicios por código QR.

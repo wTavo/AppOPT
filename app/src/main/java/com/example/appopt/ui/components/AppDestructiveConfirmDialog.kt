@@ -26,8 +26,8 @@ import com.example.appopt.ui.theme.Dimensions
  *
  * Características:
  * - Renderizado en ventana estática fluida mediante [AppModalDialog] con tono destructivo ([ModalTone.DESTRUCTIVE]).
- * - Fondo de tarjeta sutilmente teñido de advertencia y borde perimetral en tono de error.
- * - Icono de alerta dentro de un Hero Badge circular tonal centrado.
+ * - Fondo de superficie neutro estándar y borde perimetral sutil, resaltando la severidad en controles y títulos.
+ * - Icono de alerta e indicación visual de acción destructiva en esquema de color de error.
  * - Tipografía Material 3 estandarizada ([MaterialTheme.typography.titleLarge] y [MaterialTheme.typography.bodyMedium]).
  * - Barra de botones unificada mediante [AppDialogActionButtons] con soporte de idempotencia y altura mínima obligatoria de 50.dp.
  * - Descarte seguro («Cerrar» o «Volver») posicionado a la izquierda y acción afirmativa destructiva a la derecha.

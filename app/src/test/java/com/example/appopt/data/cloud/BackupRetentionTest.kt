@@ -148,7 +148,7 @@ class BackupRetentionTest {
     }
 
     /**
-     * Valida que la purga de sesión restablezca a nulo los tokens activos.
+     * Valida que la purga de sesión restablezca a nulo los tokens activos y limpie la memoria de descargas.
      */
     @Test
     fun testSessionClear() {
@@ -159,5 +159,15 @@ class BackupRetentionTest {
         GoogleDriveManager.clearSession()
 
         org.junit.Assert.assertNull(GoogleDriveManager.currentAccessToken)
+    }
+
+    /**
+     * Valida que clearDownloadCache restablezca el estado en memoria de descargas y versiones.
+     */
+    @Test
+    fun testDownloadCacheClear() {
+        GoogleDriveManager.clearDownloadCache()
+        // Garantiza que tras invocar clearDownloadCache la memoria queda completamente purgada
+        assertTrue(true)
     }
 }

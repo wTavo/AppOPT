@@ -6,10 +6,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
+import com.example.appopt.data.cloud.CloudVaultKeyStore
 import com.example.appopt.ui.components.AppDestructiveConfirmDialog
 import com.example.appopt.ui.screens.settings.SettingsUiState
 import com.example.appopt.ui.screens.settings.coordinator.DriveDialogCoordinator
 import com.example.appopt.ui.screens.settings.dialogs.components.DriveCreateBackupConfirmDialog
+import com.example.appopt.ui.screens.settings.dialogs.components.DriveDisableE2eeConfirmDialog
 
 /**
  * Contenedor orquestador de diálogos modales para la pantalla de configuración.
@@ -81,12 +83,18 @@ fun SettingsDialogContainer(
 
     // 4. Modal: Descifrado y Restauración Directa desde la Tarjeta Principal
     if (coordinator.showDriveDecryptDialog) {
+        val targetItem = coordinator.restoreSelectedBackupItem ?: uiState.driveBackupInfo
         DriveDecryptDialog(
-            backupDateMillis = uiState.driveBackupInfo?.modifiedTimeMillis,
-            deviceName = uiState.driveBackupInfo?.deviceName,
-            isActual = uiState.lastSyncTimestamp > 0L && uiState.lastSyncedHash.isNotEmpty() && !uiState.hasUnsyncedChanges,
+            fileId = targetItem?.fileId,
+            backupDateMillis = targetItem?.modifiedTimeMillis,
+            deviceName = targetItem?.deviceName,
+            isActual = targetItem?.isMostRecent ?: false,
+            isEncrypted = targetItem?.isEncrypted ?: uiState.isDriveBackupEncrypted,
             onRestore = { pass -> coordinator.restoreDriveDecrypt(pass) },
-            onDismiss = { coordinator.showDriveDecryptDialog = false }
+            onDismiss = {
+                coordinator.showDriveDecryptDialog = false
+                coordinator.restoreSelectedBackupItem = null
+            }
         )
     }
 
@@ -109,17 +117,31 @@ fun SettingsDialogContainer(
     // 6. Modal: Advertencia de Sobrescritura de Respaldo Remoto
     if (coordinator.showOverwriteWarningDialog) {
         DriveOverwriteWarningDialog(
+            backupItems = uiState.backupHistoryList.ifEmpty { listOfNotNull(uiState.driveBackupInfo) },
             backupInfo = uiState.driveBackupInfo,
             formattedLastSync = formattedLastSync,
+            isLoading = coordinator.isHistoryLoadingSynchronous || uiState.isFetchingBackupHistory || uiState.isRefreshingBackupHistory,
+            lastFetchTimestamp = uiState.lastHistoryFetchTimestamp,
+            onForceRefresh = { coordinator.forceRefreshHistory() },
             onConfirmOverwrite = {
                 coordinator.showOverwriteWarningDialog = false
-                coordinator.showDriveProtectDialog = true
-            },
-            onRestoreInstead = {
-                coordinator.showOverwriteWarningDialog = false
-                coordinator.executeWithAuth { coordinator.showDriveDecryptDialog = true }
+                if (!uiState.isDriveBackupEncrypted) {
+                    coordinator.createBackupWithExistingKey()
+                } else if (CloudVaultKeyStore.hasVaultKey(AuthenticatorApp.instance.applicationContext)) {
+                    coordinator.createBackupWithExistingKey()
+                } else {
+                    coordinator.showDriveProtectDialog = true
+                }
             },
             onDismiss = { coordinator.showOverwriteWarningDialog = false }
+        )
+    }
+
+    // 7. Modal: Advertencia y Confirmación para Desactivar Cifrado E2EE
+    if (coordinator.showDisableE2eeConfirmDialog) {
+        DriveDisableE2eeConfirmDialog(
+            onConfirm = { coordinator.confirmDisableE2ee() },
+            onDismiss = { coordinator.showDisableE2eeConfirmDialog = false }
         )
     }
 }

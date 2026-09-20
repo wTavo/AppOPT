@@ -30,7 +30,7 @@ import com.example.appopt.security.SecurityConfig
  * @param createdAt Marca de tiempo Unix de creación de la cuenta.
  * @param updatedAt Marca de tiempo Unix de la última actualización de la cuenta.
  */
-@Entity(tableName = SecurityConfig.TABLE_ACCOUNTS_NAME)
+@Entity(tableName = AppDatabase.TABLE_ACCOUNTS_NAME)
 data class AccountEntity(
     @PrimaryKey
     val id: String,

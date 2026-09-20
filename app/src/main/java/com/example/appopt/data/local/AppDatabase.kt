@@ -6,7 +6,6 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
-import com.example.appopt.security.SecurityConfig
 
 /**
  * Base de datos local Room de la aplicación para el almacenamiento offline de cuentas.
@@ -24,6 +23,16 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun accountDao(): AccountDao
 
     companion object {
+        /**
+         * Nombre del archivo SQLite de la base de datos local Room.
+         */
+        const val DATABASE_NAME = "authenticator_vault.db"
+
+        /**
+         * Nombre canónico de la tabla de cuentas OTP en SQLite / Room.
+         */
+        const val TABLE_ACCOUNTS_NAME = "totp_accounts"
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
@@ -33,8 +42,8 @@ abstract class AppDatabase : RoomDatabase() {
          */
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE totp_accounts ADD COLUMN isDeleted INTEGER NOT NULL DEFAULT 0")
-                db.execSQL("ALTER TABLE totp_accounts ADD COLUMN deletedAt INTEGER DEFAULT NULL")
+                db.execSQL("ALTER TABLE $TABLE_ACCOUNTS_NAME ADD COLUMN isDeleted INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE $TABLE_ACCOUNTS_NAME ADD COLUMN deletedAt INTEGER DEFAULT NULL")
             }
         }
 
@@ -49,7 +58,7 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    SecurityConfig.ROOM_DATABASE_NAME
+                    DATABASE_NAME
                 )
                     .addMigrations(MIGRATION_1_2)
                     .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)

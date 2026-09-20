@@ -80,16 +80,6 @@ object SecurityConfig {
     const val REACTIVE_SYNC_DEBOUNCE_SECONDS = 20L
 
     /**
-     * Nombre del archivo SQLite de la base de datos local Room.
-     */
-    const val ROOM_DATABASE_NAME = "authenticator_vault.db"
-
-    /**
-     * Nombre canónico de la tabla de cuentas OTP en SQLite / Room.
-     */
-    const val TABLE_ACCOUNTS_NAME = "totp_accounts"
-
-    /**
      * Días de retención en la papelera de reciclaje antes de la eliminación definitiva.
      */
     const val TRASH_RETENTION_DAYS = 30L

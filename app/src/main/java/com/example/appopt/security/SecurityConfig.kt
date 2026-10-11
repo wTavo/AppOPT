@@ -96,12 +96,6 @@ object SecurityConfig {
      */
     const val BACKUP_CACHE_TTL_MILLIS = 20_000L
 
-    /** Alias retrocompatible para el TTL de consulta del historial de respaldos. */
-    const val BACKUP_HISTORY_CACHE_TTL_MILLIS = BACKUP_CACHE_TTL_MILLIS
-
-    /** Alias retrocompatible para el TTL de descarga en memoria del archivo de respaldo. */
-    const val BACKUP_DOWNLOAD_CACHE_TTL_MILLIS = BACKUP_CACHE_TTL_MILLIS
-
     /**
      * Longitud en caracteres para la clave alfanumérica de transferencia de servicios por código QR.
      */
@@ -183,4 +177,25 @@ object SecurityConfig {
      * Mantiene los códigos QR con baja densidad de puntos para escaneo instantáneo.
      */
     const val TRANSFER_QR_CHUNK_MAX_BYTES = 220
+
+    /**
+     * URL base del Worker de Cloudflare para el servicio de cuentas compartidas Zero-Secret.
+     */
+    const val SHARED_SERVICES_API_BASE_URL = "https://appopt-shared-services.wtavo.workers.dev"
+
+    /**
+     * Tiempo máximo de espera de conexión y lectura HTTP para peticiones de servicios compartidos (10 segundos).
+     */
+    const val SHARED_SERVICES_HTTP_TIMEOUT_MILLIS = 10_000
+
+    /**
+     * Nombre del almacén de preferencias privadas para lotes temporales cifrados con Android Keystore.
+     */
+    const val SHARED_BATCH_PREFS_NAME = "appopt_shared_batches_keystore"
+
+    /**
+     * Prefijo de clave para almacenar lotes precalculados cifrados por identificador de permiso.
+     */
+    const val SHARED_BATCH_KEY_PREFIX = "encrypted_batch_"
 }
+

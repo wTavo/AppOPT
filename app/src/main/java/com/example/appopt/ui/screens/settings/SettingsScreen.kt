@@ -44,6 +44,7 @@ import com.example.appopt.ui.screens.scan.QrScannerMode
 import com.example.appopt.ui.screens.settings.components.DriveSyncSettingsCard
 import com.example.appopt.ui.screens.settings.components.PerformanceSettingsCard
 import com.example.appopt.ui.screens.settings.components.PermissionsSettingsCard
+import com.example.appopt.ui.screens.settings.components.SharedServicesSettingsCard
 import com.example.appopt.ui.screens.settings.components.TransferSettingsCard
 import com.example.appopt.ui.screens.settings.coordinator.rememberDriveDialogCoordinator
 import com.example.appopt.ui.screens.settings.coordinator.rememberGoogleDriveAuth
@@ -298,6 +299,15 @@ fun SettingsScreen(
                 onAutoSyncToggle = { enabled -> viewModel.setAutoSyncEnabled(enabled, context) },
                 onMobileDataToggle = { allowed -> viewModel.setSyncMobileDataAllowed(allowed, context) },
                 onDriveBackupEncryptedToggle = { enabled -> coordinator.handleE2eeToggle(enabled) }
+            )
+
+            // 5. Tarjeta de Servicios Compartidos Zero-Secret (En línea o por Lotes Temporales)
+            SharedServicesSettingsCard(
+                onManageSharedServicesClick = {
+                    coordinator.executeWithAuth {
+                        coordinator.showSharedServicesDialog = true
+                    }
+                }
             )
 
             Spacer(modifier = Modifier.height(Dimensions.Spacing.sm))

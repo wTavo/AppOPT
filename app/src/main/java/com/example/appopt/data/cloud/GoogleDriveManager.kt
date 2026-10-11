@@ -31,12 +31,13 @@ import java.nio.charset.StandardCharsets
 object GoogleDriveManager {
 
     const val DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.appdata"
+    const val EMAIL_SCOPE = "email"
     const val MAX_BACKUP_VERSIONS = 3
     private const val BACKUP_FILE_PREFIX = "appopt_vault_backup_"
     private const val LEGACY_BACKUP_FILE_NAME = "appopt_vault_backup.json"
 
     /**
-     * Valida de manera centralizada el código de respuesta HTTP de Google Drive.
+     * Valida de manera centralizada el código de respuesta HTTP de Google Drive y servicios en la nube.
      *
      * @param responseCode Código de estado HTTP devuelto por la API.
      * @param operation Nombre de la operación para el mensaje de diagnóstico.
@@ -86,27 +87,22 @@ object GoogleDriveManager {
     }
 
     /**
-     * Cierra la sesión en Google Identity Services e invalida la credencial en caché del sistema operativo,
-     * garantizando que la próxima conexión solicite explícitamente el selector de cuentas (Account Chooser).
+     * Cierra la sesión activa limpiando el token OAuth2 en memoria y la caché de sincronización,
+     * utilizando exclusivamente APIs modernas sin métodos obsoletos.
      *
      * @param context Contexto de la aplicación.
      */
-    @Suppress("DEPRECATION")
     fun signOut(context: Context) {
         clearSession()
-        try {
-            Identity.getSignInClient(context).signOut()
-        } catch (_: Exception) {
-            // Manejo silencioso defensivo si el cliente de Google no está disponible
-        }
+        SharedBatchKeyStore.clearAllBatches(context)
     }
 
     /**
-     * Construye la solicitud moderna de autorización con alcance exclusivo a `appDataFolder`.
+     * Construye la solicitud moderna de autorización con alcance a `appDataFolder` e identidad de correo.
      */
     fun getAuthorizationRequest(): AuthorizationRequest {
         return AuthorizationRequest.builder()
-            .setRequestedScopes(listOf(Scope(DRIVE_SCOPE)))
+            .setRequestedScopes(listOf(Scope(DRIVE_SCOPE), Scope(EMAIL_SCOPE)))
             .build()
     }
 
@@ -129,18 +125,6 @@ object GoogleDriveManager {
         return randomBytes.joinToString("") { "%02x".format(it) }
     }
 
-    /**
-     * Sube una nueva versión de copia de seguridad sellada a Google Drive en `appDataFolder`.
-     * Tras la subida exitosa, ejecuta la poda automática conservando únicamente las [MAX_BACKUP_VERSIONS] versiones más recientes.
-     *
-     * @param accessToken Token OAuth2 activo.
-     * @param rawBackupJson Estructura JSON de cuentas a cifrar.
-     * @param secretKeyPass Contraseña o clave de 64 dígitos en [CharArray] si se crea un nuevo respaldo.
-     * @param emergencyMnemonic Frase mnemónica de 12 palabras opcional en [CharArray].
-     * @param existingSession Sesión existente de clave simétrica y ranuras para sincronización en segundo plano.
-     * @param deviceId Identificador único persistente del dispositivo emisor para control de versiones.
-     * @return [Result] con [CloudVaultKeyStore.VaultKeySession] resultante para su custodia persistente.
-     */
     /**
      * Sube una nueva versión de copia de seguridad a Google Drive (Point-in-Time Recovery v2).
      *

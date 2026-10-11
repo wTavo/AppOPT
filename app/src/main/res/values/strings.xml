@@ -366,4 +366,49 @@
     <string name="scan_torch_toggle">Alternar linterna</string>
     <string name="scan_import_title">Importar servicios</string>
 
+    <!-- Servicios Compartidos Zero-Secret (Modo En Línea y Lotes Sin Conexión) -->
+    <string name="action_share">Compartir servicio</string>
+    <string name="share_modal_title">Compartir servicio</string>
+    <string name="share_modal_subtitle">Comparte el acceso a los códigos temporales de este servicio sin exponer jamás tu clave secreta.</string>
+    <string name="share_guest_email_label">Correo de Google del invitado</string>
+    <string name="share_guest_email_placeholder">ejemplo@gmail.com</string>
+    <string name="share_mode_section_title">Modo de acceso para el invitado</string>
+    <string name="share_mode_online_title">Solo en línea (revocación inmediata)</string>
+    <string name="share_mode_online_desc">El invitado requiere internet al consultar el código. Si revocas el permiso, el acceso se corta en 0 segundos.</string>
+    <string name="share_mode_offline_batch_title">Permitir uso sin conexión (por lotes)</string>
+    <string name="share_mode_offline_batch_desc">El servidor entrega un lote temporal de códigos precalculados sin revelar jamás la clave secreta.</string>
+    <string name="share_batch_duration_label">Vigencia del lote sin conexión</string>
+    <string name="share_batch_1h">1 hora</string>
+    <string name="share_batch_6h">6 horas</string>
+    <string name="share_batch_24h">24 horas</string>
+    <string name="share_confirm_action">Compartir acceso</string>
+    <string name="share_active_grants_title">Personas con acceso activo</string>
+    <string name="share_active_grants_empty">Aún no has compartido este servicio con nadie.</string>
+    <string name="share_revoke_action">Revocar</string>
+    <string name="share_mode_badge_online">Solo en línea</string>
+    <string name="share_mode_badge_batch">Lote de %1$d h</string>
+    <string name="share_success_msg">Acceso compartido correctamente</string>
+    <string name="share_revoke_success_msg">Acceso revocado inmediatamente</string>
+    <string name="share_error_invalid_email">Ingresa un correo electrónico válido</string>
+
+    <!-- Tarjeta y Diálogo de Servicios Compartidos en Ajustes -->
+    <string name="settings_shared_title">Servicios compartidos</string>
+    <string name="settings_shared_description">Consulta los códigos que otros usuarios han compartido contigo o administra y revoca los accesos que otorgaste.</string>
+    <string name="settings_shared_open_button">Administrar servicios compartidos</string>
+    <string name="settings_shared_tab_incoming">Compartidos conmigo</string>
+    <string name="settings_shared_tab_outgoing">Compartidos por mí</string>
+    <string name="settings_shared_incoming_empty">Nadie ha compartido servicios contigo todavía.</string>
+    <string name="settings_shared_outgoing_empty">No tienes servicios compartidos activos en este momento.</string>
+    <string name="settings_shared_owner_format">Compartido por %1$s</string>
+    <string name="settings_shared_guest_format">Invitado: %1$s</string>
+    <string name="settings_shared_tap_to_fetch">Toca para obtener código actual</string>
+    <string name="settings_shared_download_batch_action">Descargar lote sin conexión</string>
+    <string name="settings_shared_batch_ready">Renovar lote sin conexión</string>
+    <string name="settings_shared_batch_downloaded_msg">Lote temporal descargado y cifrado en el dispositivo</string>
+    <string name="settings_shared_revoked_error">El propietario ha revocado el acceso a este servicio o el lote caducó.</string>
+    <string name="share_error_not_signed_in">Conecta tu cuenta de Google en Ajustes para compartir o revocar accesos.</string>
+    <string name="share_error_generic">No se pudo completar la operación con el servidor de servicios compartidos.</string>
+    <string name="action_refresh">Actualizar</string>
+
 </resources>
+

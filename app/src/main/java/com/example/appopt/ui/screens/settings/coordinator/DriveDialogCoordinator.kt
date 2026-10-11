@@ -35,10 +35,10 @@ class DriveDialogCoordinator(
     var isHistoryLoadingSynchronous by mutableStateOf(false)
     var showDisconnectConfirmDialog by mutableStateOf(false)
     var showDriveProtectDialog by mutableStateOf(false)
-    var showCreateBackupConfirmDialog by mutableStateOf(false)
     var showCreateStandardBackupConfirmDialog by mutableStateOf(false)
     var showDriveDecryptDialog by mutableStateOf(false)
     var showDisableE2eeConfirmDialog by mutableStateOf(false)
+    var showSharedServicesDialog by mutableStateOf(false)
     var restoreSelectedBackupItem by mutableStateOf<DriveBackupItem?>(null)
     var driveAccessToken by mutableStateOf<String?>(null)
 
@@ -49,10 +49,10 @@ class DriveDialogCoordinator(
         isHistoryLoadingSynchronous = false
         showDisconnectConfirmDialog = false
         showDriveProtectDialog = false
-        showCreateBackupConfirmDialog = false
         showCreateStandardBackupConfirmDialog = false
         showDriveDecryptDialog = false
         showDisableE2eeConfirmDialog = false
+        showSharedServicesDialog = false
         restoreSelectedBackupItem = null
     }
 
@@ -74,7 +74,7 @@ class DriveDialogCoordinator(
     fun openBackupDetails(uiState: SettingsUiState) {
         val now = System.currentTimeMillis()
         val lastFetch = AuthenticatorApp.instance.preferencesManager.getLastBackupHistoryFetchTimestamp()
-        val isCacheFresh = (now - lastFetch < SecurityConfig.BACKUP_HISTORY_CACHE_TTL_MILLIS) && uiState.backupHistoryList.isNotEmpty()
+        val isCacheFresh = (now - lastFetch < SecurityConfig.BACKUP_CACHE_TTL_MILLIS) && uiState.backupHistoryList.isNotEmpty()
         if (!isCacheFresh) {
             isHistoryLoadingSynchronous = true
             viewModel.startBackupHistoryLoading()
@@ -132,7 +132,6 @@ class DriveDialogCoordinator(
 
     /** Crea un respaldo en la nube utilizando la clave maestra existente en el hardware seguro del dispositivo. */
     fun createBackupWithExistingKey() {
-        showCreateBackupConfirmDialog = false
         executeWithAuth { token ->
             viewModel.executeManualSync(context, token)
         }

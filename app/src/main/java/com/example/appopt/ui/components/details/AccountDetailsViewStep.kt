@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -51,13 +52,14 @@ import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Paso modal de visualización de detalles del servicio, dígitos OTP y temporizador circular (Directivas 14 y 29).
+ * Paso modal de visualización de detalles del servicio, dígitos OTP y temporizador circular (Directivas 14, 29 y 31).
  *
  * @param accountWithCode Entidad de la cuenta con código activo.
  * @param onEditClick Callback para entrar en modo edición.
  * @param onDeleteClick Callback para solicitar confirmación de eliminación.
  * @param onCopyCode Callback para copiar el código OTP al portapapeles.
  * @param onDismiss Callback para cerrar el diálogo modal.
+ * @param onShareClick Callback opcional para abrir el paso de compartición Zero-Secret (en cuentas TOTP).
  */
 @Composable
 fun AccountDetailsViewStep(
@@ -65,7 +67,8 @@ fun AccountDetailsViewStep(
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onCopyCode: (String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onShareClick: (() -> Unit)? = null
 ) {
     val account = accountWithCode.account
     val appHaptics = rememberAppHaptics()
@@ -94,7 +97,7 @@ fun AccountDetailsViewStep(
             .imePadding(),
         verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
     ) {
-        // Cabecera fija con Título e Iconos de acción (Lápiz y Basurero)
+        // Cabecera fija con Título e Iconos de acción (Compartir, Lápiz y Basurero)
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -107,6 +110,22 @@ fun AccountDetailsViewStep(
             )
 
             Row(verticalAlignment = Alignment.CenterVertically) {
+                if (account.type == OtpType.TOTP && onShareClick != null) {
+                    IconButton(
+                        onClick = {
+                            appHaptics.click()
+                            onShareClick()
+                        },
+                        modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Share,
+                            contentDescription = stringResource(R.string.action_share),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
                 IconButton(
                     onClick = {
                         appHaptics.click()

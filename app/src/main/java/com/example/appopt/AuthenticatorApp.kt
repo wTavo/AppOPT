@@ -91,6 +91,7 @@ class AuthenticatorApp : Application() {
             accountRepository.clearMemoryCache()
         }
         com.example.appopt.data.cloud.GoogleDriveManager.clearDownloadCache()
+        com.example.appopt.data.cloud.SharedBatchKeyStore.clearMemoryCache()
     }
 
     companion object {

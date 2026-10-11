@@ -370,3 +370,14 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
   4. **Utilidades Centralizadas (`util/`):** Los generadores de archivos/gráficos (`QrCodeGenerator`, `DiagnosticPdfGenerator`, `EmergencyKitPdfGenerator`) y formateadores de mensajes del sistema (`DriveErrorMessageResolver`, `DateTimeFormatter`, `AccessibilityUtils`) deben consolidarse en el paquete raíz `util/`.
   5. **Análisis y Criptografía (`security/`):** Toda lógica algorítmica antifraude, detección de homóglifos o análisis de caracteres invisibles (`SecurityAnalysisUtils`) debe residir en `security/`.
 
+---
+
+## 31. Arquitectura de Servicios Compartidos Zero-Secret y Modo Dual (`SharedServicesCloudClient` & `SharedBatchKeyStore`)
+- **PROHIBIDO** transmitir, almacenar o exponer la clave secreta Base32 (`secret`) en el dispositivo invitado (B) en cualquiera de los modos de compartición.
+- **PROHIBIDO** incluir servicios compartidos por terceros en las copias de seguridad de Google Drive o en la exportación por códigos QR del dispositivo invitado.
+- **PROHIBIDO** ejecutar servicios persistentes o *polling* periódico en segundo plano para consultar códigos compartidos; toda solicitud de código en línea debe dispararse estrictamente bajo demanda (*On-Demand*) en `Dispatchers.IO`.
+- **OBLIGATORIO el modelo de Modo Dual controlado por el propietario (A):**
+  1. **`ShareAccessMode.ONLINE_ONLY` (Por defecto):** El invitado requiere conexión activa al solicitar el código; el servidor (Cloudflare Worker + D1) valida el permiso en tiempo real y retorna únicamente los dígitos de la ventana actual de 30 segundos, garantizando revocación en 0 segundos.
+  2. **`ShareAccessMode.OFFLINE_BATCH` (Lotes temporales):** Cuando el propietario lo autoriza explícitamente, el servidor precalcula únicamente los códigos `(timeStep -> código)` para la ventana seleccionada (`1`, `6` o `24` horas). El dispositivo invitado cifra el lote en reposo mediante `CryptoManager` (Android Keystore AES-256-GCM) en `SharedBatchKeyStore`, purgando automáticamente los lotes expirados o revocados y limpiando la caché en memoria ante `ON_STOP` / `onTrimMemory`.
+
+

@@ -64,7 +64,7 @@ class DriveVaultHandler(
         val now = System.currentTimeMillis()
         val lastFetch = prefsManager.getLastBackupHistoryFetchTimestamp()
         val hasCachedItems = internalState.value.backupHistoryList.isNotEmpty()
-        val isCacheFresh = (now - lastFetch < SecurityConfig.BACKUP_HISTORY_CACHE_TTL_MILLIS) && hasCachedItems
+        val isCacheFresh = (now - lastFetch < SecurityConfig.BACKUP_CACHE_TTL_MILLIS) && hasCachedItems
 
         if (isCacheFresh) {
             internalState.update { it.copy(isFetchingBackupHistory = false) }

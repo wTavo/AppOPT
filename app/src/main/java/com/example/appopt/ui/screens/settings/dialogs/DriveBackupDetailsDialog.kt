@@ -96,13 +96,13 @@ fun DriveBackupDetailsDialog(
 
     LaunchedEffect(lastFetchTimestamp) {
         val initialElapsed = (System.currentTimeMillis() - lastFetchTimestamp).coerceAtLeast(0L)
-        val initialRemaining = (SecurityConfig.BACKUP_HISTORY_CACHE_TTL_MILLIS - initialElapsed).coerceAtLeast(0L)
+        val initialRemaining = (SecurityConfig.BACKUP_CACHE_TTL_MILLIS - initialElapsed).coerceAtLeast(0L)
         if (initialRemaining > 0L) {
             while (isActive) {
                 val now = System.currentTimeMillis()
                 currentTick = now
                 val elapsed = (now - lastFetchTimestamp).coerceAtLeast(0L)
-                val remaining = (SecurityConfig.BACKUP_HISTORY_CACHE_TTL_MILLIS - elapsed).coerceAtLeast(0L)
+                val remaining = (SecurityConfig.BACKUP_CACHE_TTL_MILLIS - elapsed).coerceAtLeast(0L)
                 if (remaining <= 0L) {
                     break
                 }
@@ -112,7 +112,7 @@ fun DriveBackupDetailsDialog(
     }
 
     val elapsed = (currentTick - lastFetchTimestamp).coerceAtLeast(0L)
-    val remainingMillis = (SecurityConfig.BACKUP_HISTORY_CACHE_TTL_MILLIS - elapsed).coerceAtLeast(0L)
+    val remainingMillis = (SecurityConfig.BACKUP_CACHE_TTL_MILLIS - elapsed).coerceAtLeast(0L)
     val secondsRemaining = (remainingMillis + 999L) / 1000L
     val isCooldownActive = secondsRemaining > 0L
 

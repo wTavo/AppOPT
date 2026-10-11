@@ -32,46 +32,7 @@ object AccountBackupSerializer {
         cryptoManager: CryptoManager,
         pin: CharArray?
     ): String {
-        val jsonArray = JSONArray()
-        for (entity in entities) {
-            var secretBytes: ByteArray? = null
-            try {
-                secretBytes = cryptoManager.decrypt(entity.encryptedSecret, entity.iv)
-                val secretBase32 = Base32.encode(secretBytes)
-                val item = JSONObject().apply {
-                    put("i", entity.issuer)
-                    if (entity.accountName.isNotBlank()) {
-                        put("a", entity.accountName)
-                    }
-                    put("s", secretBase32)
-                    if (entity.algorithm != "SHA1") {
-                        put("alg", entity.algorithm)
-                    }
-                    if (entity.digits != 6) {
-                        put("d", entity.digits)
-                    }
-                    if (entity.period != 30) {
-                        put("p", entity.period)
-                    }
-                    if (entity.type != "TOTP") {
-                        put("t", entity.type)
-                    }
-                    if (entity.counter > 0) {
-                        put("c", entity.counter)
-                    }
-                }
-                jsonArray.put(item)
-            } finally {
-                secretBytes?.let { CryptoManager.zeroize(it) }
-            }
-        }
-
-        val rootObject = JSONObject().apply {
-            put("v", 1)
-            put("a", jsonArray)
-        }
-
-        val plainJson = rootObject.toString()
+        val plainJson = buildPlainTransferJson(entities, cryptoManager)
         return if (pin != null) {
             TransferCrypto.encryptTransferPayload(plainJson, pin)
         } else {
@@ -94,6 +55,28 @@ object AccountBackupSerializer {
     ): List<String> {
         if (entities.isEmpty()) return emptyList()
 
+        val plainJson = buildPlainTransferJson(entities, cryptoManager)
+        val targetBatches = maxOf(
+            SecurityConfig.TRANSFER_QR_MIN_BATCH_COUNT,
+            (entities.size + SecurityConfig.TRANSFER_QR_BATCH_SIZE - 1) / SecurityConfig.TRANSFER_QR_BATCH_SIZE
+        )
+        val durationSeconds = SecurityConfig.calculateTransferExpirationSeconds(targetBatches)
+        return TransferCrypto.encryptTransferPayloadInChunks(
+            accountsJson = plainJson,
+            pin = pin,
+            durationSeconds = durationSeconds,
+            targetChunkCount = targetBatches
+        )
+    }
+
+    /**
+     * Construye el JSON compacto de transferencia (`{"v":1,"a":[...]}`) descifrando cada secreto
+     * bajo demanda y sobrescribiendo los bytes sensibles en memoria en el bloque `finally`.
+     */
+    private fun buildPlainTransferJson(
+        entities: List<AccountEntity>,
+        cryptoManager: CryptoManager
+    ): String {
         val jsonArray = JSONArray()
         for (entity in entities) {
             var secretBytes: ByteArray? = null
@@ -128,18 +111,9 @@ object AccountBackupSerializer {
             }
         }
 
-        val rootObject = JSONObject().apply {
+        return JSONObject().apply {
             put("v", 1)
             put("a", jsonArray)
-        }
-        val plainJson = rootObject.toString()
-        val targetBatches = maxOf(SecurityConfig.TRANSFER_QR_MIN_BATCH_COUNT, (entities.size + SecurityConfig.TRANSFER_QR_BATCH_SIZE - 1) / SecurityConfig.TRANSFER_QR_BATCH_SIZE)
-        val durationSeconds = SecurityConfig.calculateTransferExpirationSeconds(targetBatches)
-        return TransferCrypto.encryptTransferPayloadInChunks(
-            accountsJson = plainJson,
-            pin = pin,
-            durationSeconds = durationSeconds,
-            targetChunkCount = targetBatches
-        )
+        }.toString()
     }
 }

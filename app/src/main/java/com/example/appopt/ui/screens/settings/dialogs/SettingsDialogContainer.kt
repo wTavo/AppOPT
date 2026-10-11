@@ -4,13 +4,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
-import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
-import com.example.appopt.data.cloud.CloudVaultKeyStore
+import com.example.appopt.data.cloud.GoogleDriveManager
 import com.example.appopt.ui.components.AppDestructiveConfirmDialog
 import com.example.appopt.ui.screens.settings.SettingsUiState
 import com.example.appopt.ui.screens.settings.coordinator.DriveDialogCoordinator
-import com.example.appopt.ui.screens.settings.dialogs.components.DriveCreateBackupConfirmDialog
 import com.example.appopt.ui.screens.settings.dialogs.components.DriveCreateStandardBackupConfirmDialog
 import com.example.appopt.ui.screens.settings.dialogs.components.DriveDisableE2eeConfirmDialog
 
@@ -18,7 +16,7 @@ import com.example.appopt.ui.screens.settings.dialogs.components.DriveDisableE2e
  * Contenedor orquestador de diálogos modales para la pantalla de configuración.
  *
  * Directiva de diseño (Directiva 14):
- * - Centraliza la apertura defensiva de los modales de exportación, protección E2EE, restauración e historial.
+ * - Centraliza la apertura defensiva de los modales de exportación, protección E2EE, restauración, historial y servicios compartidos.
  * - Garantiza que ningún diálogo permanezca abierto si la bóveda se encuentra bloqueada ([isUnlocked] = false).
  * - Invoca directamente a [AppDestructiveConfirmDialog] sin capas intermedias pasivas (Directiva 8).
  *
@@ -70,19 +68,7 @@ fun SettingsDialogContainer(
         )
     }
 
-    // 3.1 Modal: Confirmación de Creación de Respaldo con Clave de Bóveda Existente
-    if (coordinator.showCreateBackupConfirmDialog) {
-        DriveCreateBackupConfirmDialog(
-            onConfirm = { coordinator.createBackupWithExistingKey() },
-            onUseOtherKey = {
-                coordinator.showCreateBackupConfirmDialog = false
-                coordinator.showDriveProtectDialog = true
-            },
-            onDismiss = { coordinator.showCreateBackupConfirmDialog = false }
-        )
-    }
-
-    // 3.2 Modal: Confirmación de Creación de Respaldo Estándar sin Cifrado E2EE
+    // 3.1 Modal: Confirmación de Creación de Respaldo Estándar sin Cifrado E2EE
     if (coordinator.showCreateStandardBackupConfirmDialog) {
         DriveCreateStandardBackupConfirmDialog(
             onConfirm = {
@@ -133,4 +119,16 @@ fun SettingsDialogContainer(
             onDismiss = { coordinator.showDisableE2eeConfirmDialog = false }
         )
     }
+
+    // 7. Modal: Servicios Compartidos Zero-Secret (Compartidos conmigo / Compartidos por mí)
+    if (coordinator.showSharedServicesDialog) {
+        val token = coordinator.driveAccessToken ?: GoogleDriveManager.currentAccessToken
+        if (token != null) {
+            SharedServicesDialog(
+                accessToken = token,
+                onDismiss = { coordinator.showSharedServicesDialog = false }
+            )
+        }
+    }
 }
+

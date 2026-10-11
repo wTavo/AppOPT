@@ -3,35 +3,47 @@ package com.example.appopt.ui.components
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import com.example.appopt.R
+import com.example.appopt.data.cloud.GoogleDriveManager
+import com.example.appopt.data.cloud.SharedServicesCloudClient
 import com.example.appopt.domain.model.AccountWithCode
+import com.example.appopt.domain.model.OutgoingShareGrant
 import com.example.appopt.ui.components.details.AccountDetailsDeleteStep
 import com.example.appopt.ui.components.details.AccountDetailsEditStep
+import com.example.appopt.ui.components.details.AccountDetailsShareStep
 import com.example.appopt.ui.components.details.AccountDetailsViewStep
 import com.example.appopt.ui.theme.Motion
+import com.example.appopt.ui.theme.rememberAppHaptics
+import kotlinx.coroutines.launch
 
 /**
- * Sub-estados de visualización y edición del diálogo de detalles de cuenta.
+ * Sub-estados de visualización, edición, compartición y eliminación del diálogo de detalles de cuenta.
  */
 private enum class AccountDetailsSubState {
     VIEW,
     EDIT,
+    SHARE,
     DELETE_CONFIRM
 }
 
 /**
- * Modal / Popup para visualizar o editar la información de una cuenta con escala tipográfica estandarizada y animaciones centralizadas.
+ * Modal / Popup para visualizar, editar, compartir sin exponer secretos o eliminar una cuenta (Directivas 14, 29 y 31).
  *
  * Características de diseño:
  * - En modo visualización muestra limpiamente el nombre del servicio y la cuenta usando la escala tipográfica de la app.
  * - Los dígitos aparecen abajo junto con el contador/temporizador circular de rotación TOTP.
  * - En modo edición permite modificar el nombre del servicio y el nombre de la cuenta con validación instantánea.
- * - Incluye confirmación de eliminación unificada dentro del mismo modal sin superponer ventanas secundarias (Directivas 14 y 29).
+ * - En modo compartición permite otorgar acceso en línea o por lote temporal a otro usuario y revocar permisos al instante.
+ * - Incluye confirmación de eliminación unificada dentro del mismo modal sin superponer ventanas secundarias.
  *
  * @param accountWithCode Contenedor con la entidad de cuenta, código activo y progreso temporal.
  * @param onDismiss Callback para cerrar el diálogo modal.
@@ -49,11 +61,20 @@ fun AccountDetailsDialog(
     onCopyCode: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val appHaptics = rememberAppHaptics()
     val account = accountWithCode.account
+
     var isEditMode by remember { mutableStateOf(false) }
+    var isShareMode by remember { mutableStateOf(false) }
     var editedIssuer by remember { mutableStateOf(account.issuer) }
     var editedAccountName by remember { mutableStateOf(account.accountName) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    var activeGrants by remember { mutableStateOf<List<OutgoingShareGrant>>(emptyList()) }
+    var isSharing by remember { mutableStateOf(false) }
+    var shareErrorMessage by remember { mutableStateOf<String?>(null) }
 
     val hasChanges = remember(editedIssuer, editedAccountName, account.issuer, account.accountName) {
         editedIssuer.trim() != account.issuer.trim() || editedAccountName.trim() != account.accountName.trim()
@@ -62,21 +83,46 @@ fun AccountDetailsDialog(
 
     val currentDialogState = when {
         showDeleteConfirm -> AccountDetailsSubState.DELETE_CONFIRM
+        isShareMode -> AccountDetailsSubState.SHARE
         isEditMode -> AccountDetailsSubState.EDIT
         else -> AccountDetailsSubState.VIEW
     }
 
+    LaunchedEffect(isShareMode, account.id) {
+        if (isShareMode) {
+            shareErrorMessage = null
+            val token = GoogleDriveManager.currentAccessToken
+            if (token != null) {
+                SharedServicesCloudClient.fetchOutgoingGrants(token)
+                    .onSuccess { list ->
+                        activeGrants = list.filter { it.accountId == account.id }
+                    }
+            }
+        }
+    }
+
     AppModalDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = {
+            isSharing = false
+            onDismiss()
+        },
         onBackStep = {
-            if (showDeleteConfirm) {
-                showDeleteConfirm = false
-                true
-            } else if (isEditMode) {
-                isEditMode = false
-                true
-            } else {
-                false
+            when {
+                showDeleteConfirm -> {
+                    showDeleteConfirm = false
+                    true
+                }
+                isShareMode -> {
+                    isSharing = false
+                    shareErrorMessage = null
+                    isShareMode = false
+                    true
+                }
+                isEditMode -> {
+                    isEditMode = false
+                    true
+                }
+                else -> false
             }
         },
         tone = if (showDeleteConfirm) ModalTone.DESTRUCTIVE else ModalTone.STANDARD,
@@ -93,6 +139,10 @@ fun AccountDetailsDialog(
                 AccountDetailsSubState.VIEW -> {
                     AccountDetailsViewStep(
                         accountWithCode = accountWithCode,
+                        onShareClick = {
+                            shareErrorMessage = null
+                            isShareMode = true
+                        },
                         onEditClick = { isEditMode = true },
                         onDeleteClick = { showDeleteConfirm = true },
                         onCopyCode = onCopyCode,
@@ -119,6 +169,62 @@ fun AccountDetailsDialog(
                     )
                 }
 
+                AccountDetailsSubState.SHARE -> {
+                    AccountDetailsShareStep(
+                        activeGrants = activeGrants,
+                        isSharing = isSharing,
+                        errorMessage = shareErrorMessage,
+                        onShareService = { guestEmail, accessMode, batchDuration ->
+                            coroutineScope.launch {
+                                isSharing = true
+                                shareErrorMessage = null
+                                val token = GoogleDriveManager.currentAccessToken
+                                if (token == null) {
+                                    isSharing = false
+                                    appHaptics.error()
+                                    shareErrorMessage = context.getString(R.string.share_error_not_signed_in)
+                                    return@launch
+                                }
+
+                                SharedServicesCloudClient.shareService(
+                                    accessToken = token,
+                                    account = account,
+                                    guestEmail = guestEmail,
+                                    accessMode = accessMode,
+                                    batchDuration = batchDuration
+                                ).onSuccess { newGrant ->
+                                    isSharing = false
+                                    appHaptics.success()
+                                    activeGrants = (activeGrants.filterNot { it.grantId == newGrant.grantId } + newGrant)
+                                }.onFailure {
+                                    isSharing = false
+                                    appHaptics.error()
+                                    shareErrorMessage = context.getString(R.string.share_error_generic)
+                                }
+                            }
+                        },
+                        onRevokeGrant = { grantId ->
+                            coroutineScope.launch {
+                                val token = GoogleDriveManager.currentAccessToken ?: return@launch
+                                SharedServicesCloudClient.revokeGrant(token, grantId)
+                                    .onSuccess {
+                                        appHaptics.success()
+                                        activeGrants = activeGrants.filterNot { it.grantId == grantId }
+                                    }
+                                    .onFailure {
+                                        appHaptics.error()
+                                        shareErrorMessage = context.getString(R.string.share_error_generic)
+                                    }
+                            }
+                        },
+                        onBack = {
+                            isSharing = false
+                            shareErrorMessage = null
+                            isShareMode = false
+                        }
+                    )
+                }
+
                 AccountDetailsSubState.DELETE_CONFIRM -> {
                     AccountDetailsDeleteStep(
                         onConfirmDelete = {
@@ -133,3 +239,4 @@ fun AccountDetailsDialog(
         }
     }
 }
+

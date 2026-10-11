@@ -41,7 +41,9 @@ class PreferencesManager(context: Context) {
 
     private val _isSyncMobileData = MutableStateFlow(sharedPreferences.getBoolean(KEY_SYNC_MOBILE_DATA, false))
 
-    private val _isFpsOverlayEnabled = MutableStateFlow(sharedPreferences.getBoolean(KEY_FPS_OVERLAY, true))
+    private val _isFpsOverlayEnabled = MutableStateFlow(sharedPreferences.getBoolean(KEY_FPS_OVERLAY, false))
+    /** Flujo reactivo del estado de activación del monitor de FPS y diagnóstico. */
+    val isFpsOverlayEnabledFlow: StateFlow<Boolean> = _isFpsOverlayEnabled.asStateFlow()
 
     private val _lastBackupHistoryFetchTimestamp = MutableStateFlow(sharedPreferences.getLong(KEY_LAST_BACKUP_HISTORY_FETCH, 0L))
     val lastBackupHistoryFetchTimestampFlow: StateFlow<Long> = _lastBackupHistoryFetchTimestamp.asStateFlow()
@@ -55,7 +57,7 @@ class PreferencesManager(context: Context) {
             KEY_LAST_VAULT_HASH -> _lastSyncedVaultHash.value = prefs.getString(KEY_LAST_VAULT_HASH, null)
             KEY_AUTO_SYNC_ENABLED -> _isAutoSyncEnabled.value = prefs.getBoolean(KEY_AUTO_SYNC_ENABLED, true)
             KEY_SYNC_MOBILE_DATA -> _isSyncMobileData.value = prefs.getBoolean(KEY_SYNC_MOBILE_DATA, false)
-            KEY_FPS_OVERLAY -> _isFpsOverlayEnabled.value = prefs.getBoolean(KEY_FPS_OVERLAY, true)
+            KEY_FPS_OVERLAY -> _isFpsOverlayEnabled.value = prefs.getBoolean(KEY_FPS_OVERLAY, false)
             KEY_LAST_BACKUP_HISTORY_FETCH -> _lastBackupHistoryFetchTimestamp.value = prefs.getLong(KEY_LAST_BACKUP_HISTORY_FETCH, 0L)
         }
     }

@@ -98,11 +98,18 @@ object PerformanceMonitor {
     }
 
     /**
-     * Detiene la captura de fotogramas.
+     * Detiene la captura de fotogramas y resetea las métricas calculadas.
      */
     fun stop() {
         isRunning = false
         Choreographer.getInstance().removeFrameCallback(frameCallback)
+        _currentFps.value = 0
+        _averageFrameTimeMs.value = 0f
+        lastFrameNanos = 0L
+        windowStartNanos = 0L
+        framesInWindow = 0
+        accumulatedFrameDurationNanos = 0L
+        janksInWindow = 0
     }
 
     /**

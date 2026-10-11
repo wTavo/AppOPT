@@ -1,5 +1,6 @@
 package com.example.appopt.ui.navigation
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -41,6 +42,8 @@ import com.example.appopt.ui.theme.Motion
 fun AppNavigation() {
     val appLockManager = AuthenticatorApp.instance.appLockManager
     val isUnlocked by appLockManager.isUnlocked.collectAsStateWithLifecycle()
+    val preferencesManager = AuthenticatorApp.instance.preferencesManager
+    val isFpsOverlayEnabled by preferencesManager.isFpsOverlayEnabledFlow.collectAsStateWithLifecycle()
     val navController = rememberNavController()
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -115,13 +118,18 @@ fun AppNavigation() {
             }
         }
 
-        // Overlay de diagnóstico FPS (superpuesto a todo el contenido si está activo)
-        PerformanceFpsOverlay(
+        // Overlay de diagnóstico FPS (superpuesto a todo el contenido únicamente si está activo)
+        AnimatedVisibility(
+            visible = isFpsOverlayEnabled,
+            enter = fadeIn(animationSpec = Motion.Spec.quickFadeSpec()),
+            exit = fadeOut(animationSpec = Motion.Spec.quickFadeSpec()),
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .padding(Dimensions.Spacing.lg)
                 .zIndex(50f)
-        )
+        ) {
+            PerformanceFpsOverlay()
+        }
 
         // Compuerta de seguridad: LockScreen se superpone a todo cuando la bóveda está bloqueada
         if (!isUnlocked) {

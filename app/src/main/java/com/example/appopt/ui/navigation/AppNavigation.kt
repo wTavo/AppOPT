@@ -13,6 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.zIndex
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
@@ -31,12 +32,11 @@ import com.example.appopt.ui.theme.Motion
 /**
  * Grafo principal de navegación y control de acceso de la aplicación.
  *
- * Principio de compuerta de seguridad (*Security Gate Layer*):
+ * Principio de compuerta de seguridad (*Security Gate Layer*) e idempotencia:
  * - Mantiene el grafo [NavHost] pre-renderizado en segundo plano para respuesta en 0ms.
  * - [LockScreen] se sitúa como una capa opaca superior (*Z-Index Overlay*) cuando la bóveda está bloqueada.
- * - Al autenticar exitosamente, la capa de bloqueo se retira de inmediato mostrando los servicios sin pausas ni pantallas vacías.
- * - Incorpora la superposición de diagnóstico [PerformanceFpsOverlay] en la capa superior si está activada.
- * - Transiciones Contextuales: Expansión y repliegue focalizados desde el botón de invocación específico en el dock inferior.
+ * - Protege todas las transiciones verificando [Lifecycle.State.RESUMED] y `launchSingleTop = true` para impedir
+ *   navegaciones duplicadas o vaciado accidental de la pila por toques múltiples en barras de menú.
  */
 @Composable
 fun AppNavigation() {
@@ -64,12 +64,24 @@ fun AppNavigation() {
                 )
             }
         ) {
-            composable(Screen.Home.route) {
+            composable(Screen.Home.route) { backStackEntry ->
                 val homeViewModel: HomeViewModel = viewModel()
                 HomeScreen(
                     viewModel = homeViewModel,
-                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
-                    onNavigateToRecentlyDeleted = { navController.navigate(Screen.RecentlyDeleted.route) }
+                    onNavigateToSettings = {
+                        if (backStackEntry.lifecycle.currentState == Lifecycle.State.RESUMED) {
+                            navController.navigate(Screen.Settings.route) {
+                                launchSingleTop = true
+                            }
+                        }
+                    },
+                    onNavigateToRecentlyDeleted = {
+                        if (backStackEntry.lifecycle.currentState == Lifecycle.State.RESUMED) {
+                            navController.navigate(Screen.RecentlyDeleted.route) {
+                                launchSingleTop = true
+                            }
+                        }
+                    }
                 )
             }
 
@@ -89,9 +101,13 @@ fun AppNavigation() {
                         animationSpec = Motion.Spec.navButtonCollapseScaleSpec()
                     ) + fadeOut(animationSpec = Motion.Spec.navButtonCollapseFadeSpec())
                 }
-            ) {
+            ) { backStackEntry ->
                 SettingsScreen(
-                    onNavigateBack = { navController.popBackStack() }
+                    onNavigateBack = {
+                        if (backStackEntry.lifecycle.currentState == Lifecycle.State.RESUMED) {
+                            navController.popBackStack()
+                        }
+                    }
                 )
             }
 
@@ -111,9 +127,13 @@ fun AppNavigation() {
                         animationSpec = Motion.Spec.navButtonCollapseScaleSpec()
                     ) + fadeOut(animationSpec = Motion.Spec.navButtonCollapseFadeSpec())
                 }
-            ) {
+            ) { backStackEntry ->
                 RecentlyDeletedScreen(
-                    onNavigateBack = { navController.popBackStack() }
+                    onNavigateBack = {
+                        if (backStackEntry.lifecycle.currentState == Lifecycle.State.RESUMED) {
+                            navController.popBackStack()
+                        }
+                    }
                 )
             }
         }

@@ -376,8 +376,38 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 - **PROHIBIDO** transmitir, almacenar o exponer la clave secreta Base32 (`secret`) en el dispositivo invitado (B) en cualquiera de los modos de compartición.
 - **PROHIBIDO** incluir servicios compartidos por terceros en las copias de seguridad de Google Drive o en la exportación por códigos QR del dispositivo invitado.
 - **PROHIBIDO** ejecutar servicios persistentes o *polling* periódico en segundo plano para consultar códigos compartidos; toda solicitud de código en línea debe dispararse estrictamente bajo demanda (*On-Demand*) en `Dispatchers.IO`.
+- **PROHIBIDO** relegar u ocultar la visualización de servicios compartidos dentro de la pantalla de Ajustes (`SettingsScreen.kt`) o duplicar vistas de compartición entre pantallas.
+- **OBLIGATORIO el acceso directo en la pantalla de Inicio (`HomeScreen.kt`):**
+  1. Integrar la sección desplegable (**«Servicios compartidos»**, `HomeSharedServicesAccordion`) dentro de la misma lista principal (`LazyColumn`) de `HomeScreen.kt`, manteniendo la barra flotante superior (`HomeTopHeader`) limpia y sin barras de pestañas adicionales.
+  2. Resolver la autenticación OAuth2 de Google directamente desde la pantalla de Inicio mediante `rememberGoogleOAuthRequester` al expandir o sincronizar la sección, sin obligar al usuario a visitar Ajustes.
 - **OBLIGATORIO el modelo de Modo Dual controlado por el propietario (A):**
   1. **`ShareAccessMode.ONLINE_ONLY` (Por defecto):** El invitado requiere conexión activa al solicitar el código; el servidor (Cloudflare Worker + D1) valida el permiso en tiempo real y retorna únicamente los dígitos de la ventana actual de 30 segundos, garantizando revocación en 0 segundos.
   2. **`ShareAccessMode.OFFLINE_BATCH` (Lotes temporales):** Cuando el propietario lo autoriza explícitamente, el servidor precalcula únicamente los códigos `(timeStep -> código)` para la ventana seleccionada (`1`, `6` o `24` horas). El dispositivo invitado cifra el lote en reposo mediante `CryptoManager` (Android Keystore AES-256-GCM) en `SharedBatchKeyStore`, purgando automáticamente los lotes expirados o revocados y limpiando la caché en memoria ante `ON_STOP` / `onTrimMemory`.
 
+---
+
+## 32. Idempotencia de Navegación, Bloqueo Anti-Rebote en Barras de Menú y Control de Instancia Única de Avisos (*Navigation Idempotency & Menu Bar Click Debounce*)
+- **PROHIBIDO** invocar `navController.navigate(...)` o `navController.popBackStack()` sin verificar que el `NavBackStackEntry` actual se encuentre estrictamente en estado `Lifecycle.State.RESUMED`, ya que múltiples toques durante una transición apilan pantallas duplicadas o vacían por completo la pila de navegación.
+- **PROHIBIDO** permitir que los botones de barras de menú flotantes (`HomeFloatingDock`), cabeceras (`HomeTopHeader`, `TopAppBar`) o menús contextuales (`AddAccountSpeedDialOverlay`) ejecuten múltiples acciones, vibraciones hápticas repetidas o encolen múltiples `Toast` al ser presionados varias veces seguidas o de forma simultánea.
+- **OBLIGATORIO implementar barreras de ejecución única (*Single-Execution Guards*):**
+  1. **Grafo de Navegación (`AppNavigation.kt`):** Condicionar toda navegación saliente y retorno (`popBackStack`) a `backStackEntry.lifecycle.currentState == Lifecycle.State.RESUMED` y aplicar `launchSingleTop = true` en cada destino.
+  2. **Bloqueo Anti-Rebote Compartido en Barras de Menú (`HomeFloatingDock.kt`):** Sincronizar todos los botones del dock bajo un reloj monotónico común (`SystemClock.elapsedRealtime()`) consumiendo `Motion.Duration.CLICK_DEBOUNCE` (450ms), ignorando toques adicionales o cruzados mientras una acción o transición está en curso.
+  3. **Desactivación Inmediata en Menús Superpuestos (`AddAccountSpeedDialOverlay.kt`):** Fijar `enabled = isOpen` en el velo y opciones del menú para impedir que se disparen acciones secundarias durante la animación de repliegue.
+  4. **Instancia Única de `Toast`:** Cancelar explícitamente cualquier `Toast` previo (`activeToast?.cancel()`) antes de mostrar uno nuevo para evitar el encolamiento persistente en pantalla.
+
+---
+
+## 33. Gestión Multi-Cuenta de Google Drive, Aislamiento Criptográfico y Reconexión Inteligente de Cero Divergencia (*Explicit Account Picker, Key Isolation & Zero-Divergence Smart Re-link*)
+- **PROHIBIDO** invocar `AuthorizationRequest.builder().setRequestedScopes(...)` sin especificar cuenta cuando el usuario inicia una vinculación manual tras haber desvinculado su cuenta previa, ya que Google Identity Services reutiliza silenciosamente la primera cuenta con permisos concedidos en el dispositivo e impide cambiar de cuenta.
+- **PROHIBIDO** conservar la clave maestra de cifrado en la nube (`CloudVaultKeyStore`) de una cuenta anterior cuando el usuario vincula una cuenta de Google distinta, o reactivar la sincronización automática sobre respaldos cifrados cuya clave no resida en el dispositivo.
+- **PROHIBIDO** reactivar automáticamente la copia de seguridad automática o dar por sincronizada la bóveda al reconectar una cuenta si el usuario agregó, editó, importó o eliminó cualquier servicio mientras no tenía cuenta vinculada (`wasVaultModifiedWhileDisconnected() == true` o `currentLocalHash != expectedRemoteHash`).
+- **OBLIGATORIO el flujo determinístico de selección, aislamiento y reconexión de Cero Divergencia (`SettingsGoogleAuthCoordinator`, `GoogleDriveManager`, `DriveVaultHandler`):**
+  1. **Selector Explícito de Cuenta (`AccountManager.newChooseAccountIntent`):** Cuando no exista una cuenta vinculada activa (`getConnectedDriveEmail() == null`), presentar siempre el selector nativo de cuentas de Google del sistema y fijar la cuenta elegida mediante `AuthorizationRequest.Builder.setAccount(Account(email, "com.google"))`.
+  2. **Aislamiento Criptográfico por Cuenta:** Si el correo seleccionado difiere de la última cuenta vinculada (`getLastKnownDriveEmail()`), purgar de inmediato la clave local de bóveda en la nube (`CloudVaultKeyStore.clearVaultKey(context)`), limpiar `lastKnownSyncedVaultHash` y desactivar `isAutoSyncEnabled`.
+  3. **Reconexión Inteligente de Cero Divergencia (*Zero-Divergence Smart Re-link*):** Al volver a vincular la **misma** cuenta de Google en el mismo dispositivo, la copia automática (`isAutoSyncEnabled = true` y `lastSyncTimestamp = mostRecent.modifiedTimeMillis`) **ÚNICAMENTE** se reactivará si se cumplen **TODAS** las siguientes invariantes:
+     - Misma cuenta (`connectedDriveEmail == lastKnownDriveEmail`).
+     - Cero modificaciones locales realizadas mientras estuvo sin cuenta vinculada (`!wasVaultModifiedWhileDisconnected()`).
+     - Paridad criptográfica SHA-256 exacta entre la bóveda local actual y el respaldo remoto (`currentLocalHash == expectedRemoteHash`, con `currentAccounts.isNotEmpty()`).
+     - Mismo dispositivo de origen (`mostRecent.deviceId == installationId`) y clave válida en Keystore (`!mostRecent.isEncrypted || CloudVaultKeyStore.hasVaultKey(context)`).
+  4. **Resolución Explícita ante Divergencias:** Si la bóveda fue modificada sin cuenta vinculada o difiere del respaldo en la nube, mantener `lastSyncTimestamp = 0L` e `isAutoSyncEnabled = false` (con el interruptor de copia automática apagado y deshabilitado en `DriveSyncSettingsCard`) hasta que el usuario cree explícitamente una nueva copia de seguridad o restaure/fusione desde el historial.
 

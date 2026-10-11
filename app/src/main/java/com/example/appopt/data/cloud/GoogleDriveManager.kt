@@ -98,12 +98,20 @@ object GoogleDriveManager {
     }
 
     /**
-     * Construye la solicitud moderna de autorización con alcance a `appDataFolder` e identidad de correo.
+     * Construye la solicitud moderna de autorización con alcance a `appDataFolder` e identidad de correo,
+     * vinculándola a la cuenta de Google específica seleccionada por el usuario cuando está disponible.
+     *
+     * @param accountEmail Correo de la cuenta de Google seleccionada (o `null` para usar la vinculada en preferencias).
      */
-    fun getAuthorizationRequest(): AuthorizationRequest {
-        return AuthorizationRequest.builder()
+    fun getAuthorizationRequest(accountEmail: String? = null): AuthorizationRequest {
+        val resolvedEmail = accountEmail
+            ?: com.example.appopt.AuthenticatorApp.instance.preferencesManager.getConnectedDriveEmail()
+        val builder = AuthorizationRequest.builder()
             .setRequestedScopes(listOf(Scope(DRIVE_SCOPE), Scope(EMAIL_SCOPE)))
-            .build()
+        if (!resolvedEmail.isNullOrBlank()) {
+            builder.setAccount(android.accounts.Account(resolvedEmail, "com.google"))
+        }
+        return builder.build()
     }
 
     /**
@@ -135,6 +143,7 @@ object GoogleDriveManager {
      * @param existingSession Sesión existente de clave simétrica para sincronización transparente sin interacción.
      * @param deviceId Identificador único persistente del dispositivo emisor.
      * @param isEncrypted Indica si la copia debe generarse con cifrado E2EE o como copia estándar.
+     * @param vaultHash Firma criptográfica SHA-256 de la estructura de servicios respaldada.
      * @return [Result] con [CloudVaultKeyStore.VaultKeySession] actualizada (o nula si no está cifrada).
      */
     suspend fun uploadBackup(
@@ -144,7 +153,8 @@ object GoogleDriveManager {
         emergencyMnemonic: CharArray? = null,
         existingSession: CloudVaultKeyStore.VaultKeySession? = null,
         deviceId: String = "",
-        isEncrypted: Boolean = true
+        isEncrypted: Boolean = true,
+        vaultHash: String = ""
     ): Result<CloudVaultKeyStore.VaultKeySession?> = withContext(Dispatchers.IO) {
         runCatching {
             val (encryptedBytes, session) = if (!isEncrypted) {
@@ -194,6 +204,9 @@ object GoogleDriveManager {
                     put("isEncrypted", isEncrypted.toString())
                     if (deviceId.isNotBlank()) {
                         put("deviceId", deviceId)
+                    }
+                    if (vaultHash.isNotBlank()) {
+                        put("vaultHash", vaultHash)
                     }
                 })
                 put("parents", org.json.JSONArray().apply { put("appDataFolder") })
@@ -281,6 +294,7 @@ object GoogleDriveManager {
                 val deviceName = appProps?.optString("deviceName")?.ifEmpty { null }
                     ?: fileObj.optString("description").ifEmpty { "Dispositivo Android" }
                 val deviceId = appProps?.optString("deviceId", "") ?: ""
+                val vaultHash = appProps?.optString("vaultHash", "") ?: ""
 
                 val isEncrypted = appProps?.optString("isEncrypted")?.toBooleanStrictOrNull() ?: true
 
@@ -293,7 +307,8 @@ object GoogleDriveManager {
                         deviceName = deviceName,
                         deviceId = deviceId,
                         isMostRecent = false,
-                        isEncrypted = isEncrypted
+                        isEncrypted = isEncrypted,
+                        vaultHash = vaultHash
                     )
                 )
             }

@@ -32,13 +32,23 @@ class AutoSyncWorker(
 
         // 1. Validar que la bóveda esté conectada, inicializada y contenga la clave custodiada si está cifrada
         if (isDriveEncrypted) {
-            if (!prefsManager.isCloudVaultInitialized() || !CloudVaultKeyStore.hasVaultKey(applicationContext)) {
+            val isAllowed = if (isForceManualSync) {
+                prefsManager.isGoogleDriveConnected() && CloudVaultKeyStore.hasVaultKey(applicationContext)
+            } else {
+                prefsManager.isCloudVaultInitialized() && CloudVaultKeyStore.hasVaultKey(applicationContext)
+            }
+            if (!isAllowed) {
                 return@withContext Result.success(
                     workDataOf(CloudVaultSyncManager.KEY_SYNC_PERFORMED to false)
                 )
             }
         } else {
-            if (!prefsManager.isGoogleDriveConnected()) {
+            val isAllowed = if (isForceManualSync) {
+                prefsManager.isGoogleDriveConnected()
+            } else {
+                prefsManager.isCloudVaultInitialized()
+            }
+            if (!isAllowed) {
                 return@withContext Result.success(
                     workDataOf(CloudVaultSyncManager.KEY_SYNC_PERFORMED to false)
                 )

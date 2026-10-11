@@ -38,6 +38,7 @@ import com.example.appopt.ui.screens.add.AddAccountDialog
 import com.example.appopt.ui.screens.home.components.AddAccountSpeedDialOverlay
 import com.example.appopt.ui.screens.home.components.EmptyAccountsState
 import com.example.appopt.ui.screens.home.components.HomeFloatingDock
+import com.example.appopt.ui.screens.home.components.HomeSharedServicesAccordion
 import com.example.appopt.ui.screens.home.components.HomeTopHeader
 import com.example.appopt.ui.screens.scan.QrScannerDialog
 import com.example.appopt.ui.screens.scan.QrScannerMode
@@ -49,14 +50,14 @@ import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
 /**
- * Pantalla principal que visualiza las cuentas 2FA registradas con dock de control flotante ergonómico (Floating Pill Bar).
+ * Pantalla principal que visualiza las cuentas 2FA propias y la sección desplegable de servicios compartidos.
  *
  * Características de seguridad, diseño e interacción:
  * - Barra superior modular: Búsqueda interactiva y alternador de modo de privacidad con animaciones fluidas ([HomeTopHeader]).
- * - Lista reactiva: Cuentas 2FA con arrastre, favoritos, filtrado y actualización en tiempo real de códigos OTP.
+ * - Lista reactiva unificada: Sección desplegable de «Servicios compartidos» ([HomeSharedServicesAccordion]) y tarjetas de cuentas 2FA propias con arrastre, favoritos y actualización en tiempo real.
  * - Dock flotante inferior: Acciones rápidas ergonómicas inferiores accesibles con una sola mano ([HomeFloatingDock]).
  * - Menú Speed Dial contextual: Despliegue de opciones directamente sobre el botón (+) con rotación animada a 'x'.
- * - Diálogos modales atómicos: Visualización de detalles y edición de cuentas.
+ * - Diálogos modales atómicos: Visualización de detalles, compartición y edición de cuentas.
  *
  * @param viewModel ViewModel reactivo que suministra el flujo de cuentas y operaciones de bóveda.
  * @param onNavigateToSettings Callback para navegar hacia la pantalla de Ajustes.
@@ -166,13 +167,15 @@ fun HomeScreen(
     val onNextHotpCode = remember(viewModel) { { id: String -> viewModel.nextHotpCode(id) } }
     val onCommitReorder = remember(viewModel) { { ids: List<String> -> viewModel.commitReorder(ids) } }
 
-    // Estado del motor de reordenamiento estándar (sh.calvin.reorderable)
+    // Estado del motor de reordenamiento estándar por clave inmutable (sh.calvin.reorderable)
     val reorderableLazyListState = rememberReorderableLazyListState(listState) { from, to ->
-        val fromAccount = localAccounts.getOrNull(from.index)
-        val toAccount = localAccounts.getOrNull(to.index)
+        val fromIndex = localAccounts.indexOfFirst { it.account.id == from.key }
+        val toIndex = localAccounts.indexOfFirst { it.account.id == to.key }
+        val fromAccount = localAccounts.getOrNull(fromIndex)
+        val toAccount = localAccounts.getOrNull(toIndex)
         if (fromAccount != null && toAccount != null && fromAccount.account.isFavorite == toAccount.account.isFavorite) {
-            val item = localAccounts.removeAt(from.index)
-            localAccounts.add(to.index, item)
+            val item = localAccounts.removeAt(fromIndex)
+            localAccounts.add(toIndex, item)
             appHaptics.dragTick()
         }
     }
@@ -192,20 +195,31 @@ fun HomeScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // 1. Capa de Contenido Principal (LazyColumn de Cuentas)
-        when {
-            accountsToDisplay.isNotEmpty() -> {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        start = Dimensions.Spacing.lg,
-                        end = Dimensions.Spacing.lg,
-                        top = listTopPadding,
-                        bottom = listBottomPadding
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+        // 1. Capa de Contenido Principal (Lista unificada con acordeón de Servicios compartidos + Cuentas propias)
+        if (uiState !is UiState.Loading) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = Dimensions.Spacing.lg,
+                    end = Dimensions.Spacing.lg,
+                    top = listTopPadding,
+                    bottom = listBottomPadding
+                ),
+                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+            ) {
+                item(
+                    key = "shared_services_accordion",
+                    contentType = "shared_accordion"
                 ) {
+                    HomeSharedServicesAccordion(
+                        searchQuery = searchQuery,
+                        hideCodes = isHideCodesEnabled,
+                        onCopyCode = onCopyCode
+                    )
+                }
+
+                if (accountsToDisplay.isNotEmpty()) {
                     items(
                         items = accountsToDisplay,
                         key = { it.account.id },
@@ -235,20 +249,18 @@ fun HomeScreen(
                             )
                         }
                     }
-                }
-            }
-            uiState is UiState.Empty -> {
-                EmptyAccountsState(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(
-                            top = listTopPadding,
-                            bottom = listBottomPadding
+                } else if (uiState is UiState.Empty) {
+                    item(
+                        key = "empty_accounts_state",
+                        contentType = "empty_state"
+                    ) {
+                        EmptyAccountsState(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(top = Dimensions.Spacing.xl)
                         )
-                )
-            }
-            else -> {
-                // Estado de carga inicial (UiState.Loading)
+                    }
+                }
             }
         }
 

@@ -17,6 +17,7 @@ import androidx.compose.ui.res.stringResource
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
 import com.example.appopt.data.cloud.CloudVaultKeyStore
+import com.example.appopt.data.cloud.CloudVaultSyncManager
 import com.example.appopt.data.cloud.DriveBackupItem
 import com.example.appopt.data.cloud.GoogleDriveManager
 import com.example.appopt.domain.model.ParsedAccountPreview
@@ -31,6 +32,7 @@ import com.example.appopt.ui.screens.settings.dialogs.components.DriveDetailsSel
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.rememberAppHaptics
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
@@ -332,7 +334,22 @@ fun DriveBackupDetailsDialog(
                                 } else {
                                     prefsManager.setDriveBackupEncrypted(false)
                                 }
-                                pendingRestoreBackup?.let { prefsManager.setLastSyncTimestamp(it.modifiedTimeMillis) }
+                                val updatedAccounts = repository.getAccounts().first()
+                                val currentVaultHash = CloudVaultSyncManager.computeAccountsSignature(updatedAccounts)
+                                val targetBackup = pendingRestoreBackup
+                                val remoteHash = targetBackup?.vaultHash.orEmpty()
+                                val effectiveSyncedHash = remoteHash.ifEmpty { currentVaultHash }
+                                prefsManager.getConnectedDriveEmail()?.takeIf { it.isNotBlank() }?.let {
+                                    prefsManager.setLastKnownDriveEmail(it)
+                                }
+                                targetBackup?.let { prefsManager.setLastSyncTimestamp(it.modifiedTimeMillis) }
+                                prefsManager.setLastSyncedVaultHash(effectiveSyncedHash)
+                                prefsManager.setLastKnownSyncedVaultHash(effectiveSyncedHash)
+                                prefsManager.setVaultModifiedWhileDisconnected(false)
+                                prefsManager.setAutoSyncEnabled(true)
+                                if (remoteHash.isNotEmpty() && currentVaultHash != remoteHash) {
+                                    CloudVaultSyncManager.triggerReactiveSync(context.applicationContext)
+                                }
                             }
                             true
                         },

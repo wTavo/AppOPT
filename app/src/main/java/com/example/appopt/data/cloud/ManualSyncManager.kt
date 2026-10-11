@@ -117,6 +117,7 @@ object ManualSyncManager {
                 val currentVaultHash = CloudVaultSyncManager.computeAccountsSignature(accounts)
 
                 val deviceId = prefsManager.getInstallationId()
+                val wasUninitialized = prefsManager.getLastSyncTimestamp() == 0L
                 val uploadResult = GoogleDriveManager.uploadBackup(
                     accessToken = accessToken,
                     rawBackupJson = payload,
@@ -124,7 +125,8 @@ object ManualSyncManager {
                     emergencyMnemonic = emergencyMnemonic,
                     existingSession = existingSession,
                     deviceId = deviceId,
-                    isEncrypted = isEncrypted
+                    isEncrypted = isEncrypted,
+                    vaultHash = currentVaultHash
                 )
 
                 if (uploadResult.isSuccess) {
@@ -133,9 +135,17 @@ object ManualSyncManager {
                         CloudVaultKeyStore.saveVaultKeyAndSlots(context.applicationContext, session)
                     }
                     val now = System.currentTimeMillis()
+                    prefsManager.getConnectedDriveEmail()?.takeIf { it.isNotBlank() }?.let {
+                        prefsManager.setLastKnownDriveEmail(it)
+                    }
                     prefsManager.setLastSyncTimestamp(now)
                     prefsManager.setLastSyncedVaultHash(currentVaultHash)
+                    prefsManager.setLastKnownSyncedVaultHash(currentVaultHash)
+                    prefsManager.setVaultModifiedWhileDisconnected(false)
                     prefsManager.setDriveBackupEncrypted(isEncrypted)
+                    if (wasUninitialized) {
+                        prefsManager.setAutoSyncEnabled(true)
+                    }
                     GoogleDriveManager.currentAccessToken = accessToken
                     SyncNotificationHelper.showSyncSuccessNotification(context.applicationContext)
                     Result.success(Unit)
@@ -208,7 +218,17 @@ object ManualSyncManager {
             } else {
                 prefsManager.setDriveBackupEncrypted(false)
             }
+            val updatedAccounts = repository.getAccounts().first()
+            val currentVaultHash = CloudVaultSyncManager.computeAccountsSignature(updatedAccounts)
+            prefsManager.getConnectedDriveEmail()?.takeIf { it.isNotBlank() }?.let {
+                prefsManager.setLastKnownDriveEmail(it)
+            }
             prefsManager.setGoogleDriveConnected(true)
+            prefsManager.setLastSyncTimestamp(System.currentTimeMillis())
+            prefsManager.setLastSyncedVaultHash(currentVaultHash)
+            prefsManager.setLastKnownSyncedVaultHash(currentVaultHash)
+            prefsManager.setVaultModifiedWhileDisconnected(false)
+            prefsManager.setAutoSyncEnabled(true)
             GoogleDriveManager.currentAccessToken = accessToken
 
             Result.success(count)
@@ -262,7 +282,17 @@ object ManualSyncManager {
             } else {
                 prefsManager.setDriveBackupEncrypted(false)
             }
+            val updatedAccounts = repository.getAccounts().first()
+            val currentVaultHash = CloudVaultSyncManager.computeAccountsSignature(updatedAccounts)
+            prefsManager.getConnectedDriveEmail()?.takeIf { it.isNotBlank() }?.let {
+                prefsManager.setLastKnownDriveEmail(it)
+            }
             prefsManager.setGoogleDriveConnected(true)
+            prefsManager.setLastSyncTimestamp(System.currentTimeMillis())
+            prefsManager.setLastSyncedVaultHash(currentVaultHash)
+            prefsManager.setLastKnownSyncedVaultHash(currentVaultHash)
+            prefsManager.setVaultModifiedWhileDisconnected(false)
+            prefsManager.setAutoSyncEnabled(true)
             GoogleDriveManager.currentAccessToken = accessToken
 
             Result.success(count)
@@ -316,6 +346,8 @@ object ManualSyncManager {
             if (remaining.isEmpty()) {
                 prefsManager.setLastSyncTimestamp(0L)
                 prefsManager.setLastSyncedVaultHash("")
+                prefsManager.setLastKnownSyncedVaultHash("")
+                prefsManager.setAutoSyncEnabled(false)
             } else {
                 prefsManager.setLastSyncTimestamp(remaining.first().modifiedTimeMillis)
             }

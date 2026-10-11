@@ -61,11 +61,16 @@ class SettingsViewModel : ViewModel() {
         combine(
             prefsManager.lastSyncTimestampFlow,
             prefsManager.lastSyncedVaultHashFlow,
-            prefsManager.lastBackupHistoryFetchTimestampFlow
-        ) { lastSync, lastHash, lastFetch ->
-            Triple(lastSync, lastHash.orEmpty(), lastFetch)
+            prefsManager.lastBackupHistoryFetchTimestampFlow,
+            prefsManager.isAutoSyncEnabledFlow
+        ) { lastSync, lastHash, lastFetch, autoSync ->
+            arrayOf<Any>(lastSync, lastHash.orEmpty(), lastFetch, autoSync)
         }
-    ) { internal, accounts, isConnected, isEncrypted, (lastSync, safeLastHash, lastFetch) ->
+    ) { internal, accounts, isConnected, isEncrypted, syncMeta ->
+        val lastSync = syncMeta[0] as Long
+        val safeLastHash = syncMeta[1] as String
+        val lastFetch = syncMeta[2] as Long
+        val autoSync = syncMeta[3] as Boolean
         val isSynced = CloudVaultSyncManager.isVaultSyncedWithCloud(isConnected, lastSync, safeLastHash, accounts)
         val hasChanges = isConnected && lastSync > 0L && safeLastHash.isNotEmpty() && !isSynced
 
@@ -73,6 +78,7 @@ class SettingsViewModel : ViewModel() {
             accounts = accounts,
             isDriveConnected = isConnected,
             isDriveBackupEncrypted = isEncrypted,
+            isAutoSyncEnabled = autoSync,
             lastSyncTimestamp = lastSync,
             lastSyncedHash = safeLastHash,
             hasUnsyncedChanges = hasChanges,
@@ -85,6 +91,7 @@ class SettingsViewModel : ViewModel() {
         initialValue = _internalState.value.copy(
             isDriveConnected = prefsManager.isGoogleDriveConnectedFlow.value,
             isDriveBackupEncrypted = prefsManager.isDriveBackupEncryptedFlow.value,
+            isAutoSyncEnabled = prefsManager.isAutoSyncEnabledFlow.value,
             lastSyncTimestamp = prefsManager.lastSyncTimestampFlow.value,
             lastSyncedHash = prefsManager.lastSyncedVaultHashFlow.value.orEmpty(),
             lastHistoryFetchTimestamp = prefsManager.lastBackupHistoryFetchTimestampFlow.value
@@ -93,6 +100,7 @@ class SettingsViewModel : ViewModel() {
 
     init {
         observeWorkManagerSync()
+        driveVaultHandler.reconcileCachedStateOnInit()
     }
 
     /**
@@ -142,21 +150,33 @@ class SettingsViewModel : ViewModel() {
         _internalState.update { it.copy(isDriveBackupEncrypted = enabled) }
     }
 
-    /** Desvincula la cuenta de Google Drive. */
-    fun disconnectGoogleDrive(context: Context) {
-        driveVaultHandler.disconnectGoogleDrive(context)
+    /** Actualiza el estado de carga de Google Drive en la interfaz. */
+    fun setDriveLoading(loading: Boolean) {
+        _internalState.update { it.copy(isDriveLoading = loading) }
     }
 
-    /** Notifica que la autorización OAuth2 fue exitosa y consulta de forma asíncrona si existen respaldos en la nube. */
-    fun onGoogleDriveConnected(token: String) {
-        prefsManager.setGoogleDriveConnected(true)
+    /** Desvincula la cuenta de Google Drive. */
+    fun disconnectGoogleDrive(context: Context) {
+        val currentState = uiState.value
+        driveVaultHandler.disconnectGoogleDrive(
+            context = context,
+            currentAccounts = currentState.accounts,
+            hasUnsyncedChanges = currentState.hasUnsyncedChanges
+        )
+    }
+
+    /**
+     * Notifica que la autorización OAuth2 fue exitosa, verifica de forma atómica el historial
+     * de respaldos y despliega la tarjeta directamente en su estado definitivo.
+     *
+     * @param token Token de acceso OAuth2.
+     * @param onConnected Callback opcional invocado cuando la verificación y conexión han concluido.
+     */
+    fun onGoogleDriveConnected(token: String, onConnected: () -> Unit = {}) {
         GoogleDriveManager.currentAccessToken = token
-        _internalState.update { it.copy(isDriveLoading = false) }
-        fetchBackupHistoryIfNeeded(
+        driveVaultHandler.connectAndVerifyBackupHistory(
             token = token,
-            onAuthExpired = {
-                // Token expirado defensivo
-            }
+            onComplete = onConnected
         )
     }
 

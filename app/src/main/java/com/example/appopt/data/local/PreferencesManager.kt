@@ -38,6 +38,7 @@ class PreferencesManager(context: Context) {
     val lastSyncedVaultHashFlow: StateFlow<String?> = _lastSyncedVaultHash.asStateFlow()
 
     private val _isAutoSyncEnabled = MutableStateFlow(sharedPreferences.getBoolean(KEY_AUTO_SYNC_ENABLED, true))
+    val isAutoSyncEnabledFlow: StateFlow<Boolean> = _isAutoSyncEnabled.asStateFlow()
 
     private val _isSyncMobileData = MutableStateFlow(sharedPreferences.getBoolean(KEY_SYNC_MOBILE_DATA, false))
 
@@ -254,7 +255,8 @@ class PreferencesManager(context: Context) {
                         deviceName = obj.optString("deviceName", ""),
                         deviceId = obj.optString("deviceId", ""),
                         isMostRecent = obj.optBoolean("isMostRecent", false),
-                        isEncrypted = obj.optBoolean("isEncrypted", true)
+                        isEncrypted = obj.optBoolean("isEncrypted", true),
+                        vaultHash = obj.optString("vaultHash", "")
                     )
                 )
             }
@@ -282,12 +284,98 @@ class PreferencesManager(context: Context) {
                     put("deviceId", item.deviceId)
                     put("isMostRecent", item.isMostRecent)
                     put("isEncrypted", item.isEncrypted)
+                    put("vaultHash", item.vaultHash)
                 }
                 jsonArray.put(obj)
             }
             sharedPreferences.edit { putString(KEY_CACHED_BACKUP_HISTORY, jsonArray.toString()) }
         } catch (_: Exception) {
             // Ignorar errores no críticos de persistencia de caché
+        }
+    }
+
+    /**
+     * Retorna el correo electrónico de la cuenta de Google actualmente vinculada, o `null` si está desconectada.
+     */
+    fun getConnectedDriveEmail(): String? {
+        return sharedPreferences.getString(KEY_CONNECTED_DRIVE_EMAIL, null)
+    }
+
+    /**
+     * Guarda o limpia el correo electrónico de la cuenta de Google actualmente vinculada.
+     */
+    fun setConnectedDriveEmail(email: String?) {
+        sharedPreferences.edit {
+            if (email.isNullOrBlank()) {
+                remove(KEY_CONNECTED_DRIVE_EMAIL)
+            } else {
+                putString(KEY_CONNECTED_DRIVE_EMAIL, email)
+            }
+        }
+    }
+
+    /**
+     * Retorna el último correo de Google que inicializó la bóveda en este dispositivo para detectar cambios de cuenta.
+     */
+    fun getLastKnownDriveEmail(): String? {
+        return sharedPreferences.getString(KEY_LAST_KNOWN_DRIVE_EMAIL, null)
+    }
+
+    /**
+     * Guarda el correo de Google propietario de la clave custodiada actualmente en [com.example.appopt.data.cloud.CloudVaultKeyStore].
+     */
+    fun setLastKnownDriveEmail(email: String?) {
+        sharedPreferences.edit {
+            if (email.isNullOrBlank()) {
+                remove(KEY_LAST_KNOWN_DRIVE_EMAIL)
+            } else {
+                putString(KEY_LAST_KNOWN_DRIVE_EMAIL, email)
+            }
+        }
+    }
+
+    /**
+     * Retorna la última firma criptográfica SHA-256 confirmada en la nube antes de desvincular la cuenta.
+     */
+    fun getLastKnownSyncedVaultHash(): String? {
+        return sharedPreferences.getString(KEY_LAST_KNOWN_SYNCED_VAULT_HASH, null)
+    }
+
+    /**
+     * Guarda la última firma criptográfica SHA-256 confirmada en la nube para validar paridad exacta al reconectar.
+     */
+    fun setLastKnownSyncedVaultHash(hash: String?) {
+        sharedPreferences.edit {
+            if (hash.isNullOrBlank()) {
+                remove(KEY_LAST_KNOWN_SYNCED_VAULT_HASH)
+            } else {
+                putString(KEY_LAST_KNOWN_SYNCED_VAULT_HASH, hash)
+            }
+        }
+    }
+
+    /**
+     * Indica si la bóveda local sufrió cualquier alta, edición, borrado o importación mientras no había una cuenta vinculada.
+     */
+    fun wasVaultModifiedWhileDisconnected(): Boolean {
+        return sharedPreferences.getBoolean(KEY_VAULT_MODIFIED_WHILE_DISCONNECTED, false)
+    }
+
+    /**
+     * Establece explícitamente el indicador de modificación local durante desconexión.
+     */
+    fun setVaultModifiedWhileDisconnected(modified: Boolean) {
+        sharedPreferences.edit {
+            putBoolean(KEY_VAULT_MODIFIED_WHILE_DISCONNECTED, modified)
+        }
+    }
+
+    /**
+     * Marca que la bóveda local fue modificada si en el momento de la operación no existe una cuenta vinculada o inicializada.
+     */
+    fun markVaultModifiedIfDisconnected() {
+        if (!isGoogleDriveConnected() || getLastSyncTimestamp() == 0L) {
+            setVaultModifiedWhileDisconnected(true)
         }
     }
 
@@ -304,5 +392,9 @@ class PreferencesManager(context: Context) {
         private const val KEY_LAST_BACKUP_HISTORY_FETCH = "key_last_backup_history_fetch"
         private const val KEY_CACHED_BACKUP_HISTORY = "key_cached_backup_history"
         private const val KEY_INSTALLATION_ID = "key_installation_id"
+        private const val KEY_CONNECTED_DRIVE_EMAIL = "key_connected_drive_email"
+        private const val KEY_LAST_KNOWN_DRIVE_EMAIL = "key_last_known_drive_email"
+        private const val KEY_LAST_KNOWN_SYNCED_VAULT_HASH = "key_last_known_synced_vault_hash"
+        private const val KEY_VAULT_MODIFIED_WHILE_DISCONNECTED = "key_vault_modified_while_disconnected"
     }
 }

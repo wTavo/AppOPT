@@ -440,7 +440,9 @@ class AccountRepositoryImpl(
                         accountDao = accountDao,
                         cryptoManager = cryptoManager,
                         onInvalidateCache = { id -> otpCodeCache.remove(id) }
-                    )
+                    ).also {
+                        com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
+                    }
                 }
             }
         }
@@ -452,7 +454,9 @@ class AccountRepositoryImpl(
                 accountDao = accountDao,
                 cryptoManager = cryptoManager,
                 onInvalidateCache = { id -> otpCodeCache.remove(id) }
-            )
+            ).onSuccess {
+                com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
+            }
         }
     }
 
@@ -473,7 +477,9 @@ class AccountRepositoryImpl(
             accountDao = accountDao,
             cryptoManager = cryptoManager,
             onInvalidateCache = { id -> otpCodeCache.remove(id) }
-        )
+        ).onSuccess {
+            com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
+        }
     }
 
     /**
@@ -522,6 +528,9 @@ class AccountRepositoryImpl(
                 } finally {
                     CryptoManager.zeroize(preview.secretBytes)
                 }
+            }
+            if (changesCount > 0) {
+                com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
             }
             changesCount
         }

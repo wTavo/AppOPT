@@ -1,7 +1,10 @@
 package com.example.appopt.ui.screens.home.components
 
 import android.content.Context
+import android.os.SystemClock
 import android.widget.Toast
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -26,36 +29,30 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import com.example.appopt.R
-import com.example.appopt.ui.theme.Dimensions
-import com.example.appopt.ui.theme.rememberAppHaptics
-
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.ui.graphics.graphicsLayer
-import com.example.appopt.ui.theme.Motion
-
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.layout.LayoutCoordinates
-import androidx.compose.ui.layout.onPlaced
 import com.example.appopt.ui.navigation.NavigationOriginTracker
+import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.Motion
+import com.example.appopt.ui.theme.rememberAppHaptics
 
 /**
  * Barra dock de control flotante ergonómica e interactiva para la pantalla principal.
  *
- * Contiene accesos rápidos con respuesta háptica y captura dinámica de coordenadas para:
- * 1. Bloquear bóveda.
- * 2. Gestor de contraseñas.
- * 3. Botón Hero (+) para desplegar el menú de adición de cuentas (con rotación animada a 'x').
- * 4. Papelera de reciclaje y servicios eliminados recientemente (con badge).
- * 5. Navegación hacia Ajustes.
+ * Incluye protección de idempotencia y bloqueo anti-rebote ([Motion.Duration.CLICK_DEBOUNCE])
+ * compartido en toda la barra para impedir ejecuciones múltiples, vibraciones repetidas o apilamiento
+ * de pantallas al presionar repetidamente cualquier botón del menú.
  *
  * @param onLockVault Callback invocado para bloquear manualmente la aplicación.
  * @param onAddAccountClick Callback invocado al presionar el botón Hero (+) de adición.
@@ -81,6 +78,19 @@ fun HomeFloatingDock(
     var fabCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var trashCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var settingsCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var lastActionElapsedMillis by remember { mutableLongStateOf(0L) }
+    var activeToast by remember { mutableStateOf<Toast?>(null) }
+
+    fun runWithDockDebounce(
+        debounceMs: Long = Motion.Duration.CLICK_DEBOUNCE.toLong(),
+        action: () -> Unit
+    ) {
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastActionElapsedMillis >= debounceMs) {
+            lastActionElapsedMillis = now
+            action()
+        }
+    }
 
     val fabRotationAngle by animateFloatAsState(
         targetValue = if (isAddMenuOpen) 45f else 0f,
@@ -119,11 +129,13 @@ fun HomeFloatingDock(
             // 1. Bloquear bóveda manualmente (atenuado si el menú está abierto)
             IconButton(
                 onClick = {
-                    if (isAddMenuOpen) {
-                        onAddAccountClick()
-                    } else {
-                        appHaptics.click()
-                        onLockVault()
+                    runWithDockDebounce {
+                        if (isAddMenuOpen) {
+                            onAddAccountClick()
+                        } else {
+                            appHaptics.click()
+                            onLockVault()
+                        }
                     }
                 },
                 modifier = Modifier.graphicsLayer { alpha = dockRestAlpha }
@@ -135,19 +147,22 @@ fun HomeFloatingDock(
                 )
             }
 
-            // 2. Gestor de Contraseñas (Próximamente, atenuado si el menú está abierto)
+            // 2. Gestor de Contraseñas (Próximamente, sin encolar Toasts repetidos)
             val passwordsComingSoonText = stringResource(R.string.passwords_coming_soon)
             IconButton(
                 onClick = {
-                    if (isAddMenuOpen) {
-                        onAddAccountClick()
-                    } else {
-                        appHaptics.click()
-                        Toast.makeText(
-                            context,
-                            passwordsComingSoonText,
-                            Toast.LENGTH_SHORT
-                        ).show()
+                    runWithDockDebounce {
+                        if (isAddMenuOpen) {
+                            onAddAccountClick()
+                        } else {
+                            appHaptics.click()
+                            activeToast?.cancel()
+                            activeToast = Toast.makeText(
+                                context,
+                                passwordsComingSoonText,
+                                Toast.LENGTH_SHORT
+                            ).also { it.show() }
+                        }
                     }
                 },
                 modifier = Modifier.graphicsLayer { alpha = dockRestAlpha }
@@ -162,9 +177,11 @@ fun HomeFloatingDock(
             // 3. Hero (+) / (X) FAB: 100% brillante y elevado en primer plano
             FloatingActionButton(
                 onClick = {
-                    NavigationOriginTracker.updateModalOrigin(fabCoordinates)
-                    appHaptics.click()
-                    onAddAccountClick()
+                    runWithDockDebounce(debounceMs = Motion.Duration.NAV_COLLAPSE_SCALE.toLong()) {
+                        NavigationOriginTracker.updateModalOrigin(fabCoordinates)
+                        appHaptics.click()
+                        onAddAccountClick()
+                    }
                 },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -189,12 +206,14 @@ fun HomeFloatingDock(
             // 4. Papelera de reciclaje (atenuado si el menú está abierto)
             IconButton(
                 onClick = {
-                    if (isAddMenuOpen) {
-                        onAddAccountClick()
-                    } else {
-                        NavigationOriginTracker.updateRecentlyDeletedOrigin(trashCoordinates)
-                        appHaptics.click()
-                        onNavigateToRecentlyDeleted()
+                    runWithDockDebounce {
+                        if (isAddMenuOpen) {
+                            onAddAccountClick()
+                        } else {
+                            NavigationOriginTracker.updateRecentlyDeletedOrigin(trashCoordinates)
+                            appHaptics.click()
+                            onNavigateToRecentlyDeleted()
+                        }
                     }
                 },
                 modifier = Modifier
@@ -227,12 +246,14 @@ fun HomeFloatingDock(
             // 5. Ajustes y Configuración (atenuado si el menú está abierto)
             IconButton(
                 onClick = {
-                    if (isAddMenuOpen) {
-                        onAddAccountClick()
-                    } else {
-                        NavigationOriginTracker.updateSettingsOrigin(settingsCoordinates)
-                        appHaptics.click()
-                        onNavigateToSettings()
+                    runWithDockDebounce {
+                        if (isAddMenuOpen) {
+                            onAddAccountClick()
+                        } else {
+                            NavigationOriginTracker.updateSettingsOrigin(settingsCoordinates)
+                            appHaptics.click()
+                            onNavigateToSettings()
+                        }
                     }
                 },
                 modifier = Modifier

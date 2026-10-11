@@ -21,6 +21,7 @@ import com.example.appopt.ui.components.details.AccountDetailsDeleteStep
 import com.example.appopt.ui.components.details.AccountDetailsEditStep
 import com.example.appopt.ui.components.details.AccountDetailsShareStep
 import com.example.appopt.ui.components.details.AccountDetailsViewStep
+import com.example.appopt.ui.screens.settings.coordinator.rememberGoogleOAuthRequester
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.rememberAppHaptics
 import kotlinx.coroutines.launch
@@ -76,6 +77,14 @@ fun AccountDetailsDialog(
     var isSharing by remember { mutableStateOf(false) }
     var shareErrorMessage by remember { mutableStateOf<String?>(null) }
 
+    val requestOAuthToken = rememberGoogleOAuthRequester(
+        onAuthError = {
+            isSharing = false
+            appHaptics.error()
+            shareErrorMessage = context.getString(R.string.share_error_not_signed_in)
+        }
+    )
+
     val hasChanges = remember(editedIssuer, editedAccountName, account.issuer, account.accountName) {
         editedIssuer.trim() != account.issuer.trim() || editedAccountName.trim() != account.accountName.trim()
     }
@@ -91,12 +100,13 @@ fun AccountDetailsDialog(
     LaunchedEffect(isShareMode, account.id) {
         if (isShareMode) {
             shareErrorMessage = null
-            val token = GoogleDriveManager.currentAccessToken
-            if (token != null) {
-                SharedServicesCloudClient.fetchOutgoingGrants(token)
-                    .onSuccess { list ->
-                        activeGrants = list.filter { it.accountId == account.id }
-                    }
+            requestOAuthToken { token ->
+                coroutineScope.launch {
+                    SharedServicesCloudClient.fetchOutgoingGrants(token)
+                        .onSuccess { list ->
+                            activeGrants = list.filter { it.accountId == account.id }
+                        }
+                }
             }
         }
     }
@@ -175,46 +185,41 @@ fun AccountDetailsDialog(
                         isSharing = isSharing,
                         errorMessage = shareErrorMessage,
                         onShareService = { guestEmail, accessMode, batchDuration ->
-                            coroutineScope.launch {
-                                isSharing = true
-                                shareErrorMessage = null
-                                val token = GoogleDriveManager.currentAccessToken
-                                if (token == null) {
-                                    isSharing = false
-                                    appHaptics.error()
-                                    shareErrorMessage = context.getString(R.string.share_error_not_signed_in)
-                                    return@launch
-                                }
-
-                                SharedServicesCloudClient.shareService(
-                                    accessToken = token,
-                                    account = account,
-                                    guestEmail = guestEmail,
-                                    accessMode = accessMode,
-                                    batchDuration = batchDuration
-                                ).onSuccess { newGrant ->
-                                    isSharing = false
-                                    appHaptics.success()
-                                    activeGrants = (activeGrants.filterNot { it.grantId == newGrant.grantId } + newGrant)
-                                }.onFailure {
-                                    isSharing = false
-                                    appHaptics.error()
-                                    shareErrorMessage = context.getString(R.string.share_error_generic)
+                            isSharing = true
+                            shareErrorMessage = null
+                            requestOAuthToken { token ->
+                                coroutineScope.launch {
+                                    SharedServicesCloudClient.shareService(
+                                        accessToken = token,
+                                        account = account,
+                                        guestEmail = guestEmail,
+                                        accessMode = accessMode,
+                                        batchDuration = batchDuration
+                                    ).onSuccess { newGrant ->
+                                        isSharing = false
+                                        appHaptics.success()
+                                        activeGrants = (activeGrants.filterNot { it.grantId == newGrant.grantId } + newGrant)
+                                    }.onFailure {
+                                        isSharing = false
+                                        appHaptics.error()
+                                        shareErrorMessage = context.getString(R.string.share_error_generic)
+                                    }
                                 }
                             }
                         },
                         onRevokeGrant = { grantId ->
-                            coroutineScope.launch {
-                                val token = GoogleDriveManager.currentAccessToken ?: return@launch
-                                SharedServicesCloudClient.revokeGrant(token, grantId)
-                                    .onSuccess {
-                                        appHaptics.success()
-                                        activeGrants = activeGrants.filterNot { it.grantId == grantId }
-                                    }
-                                    .onFailure {
-                                        appHaptics.error()
-                                        shareErrorMessage = context.getString(R.string.share_error_generic)
-                                    }
+                            requestOAuthToken { token ->
+                                coroutineScope.launch {
+                                    SharedServicesCloudClient.revokeGrant(token, grantId)
+                                        .onSuccess {
+                                            appHaptics.success()
+                                            activeGrants = activeGrants.filterNot { it.grantId == grantId }
+                                        }
+                                        .onFailure {
+                                            appHaptics.error()
+                                            shareErrorMessage = context.getString(R.string.share_error_generic)
+                                        }
+                                }
                             }
                         },
                         onBack = {

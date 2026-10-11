@@ -96,6 +96,15 @@ object CloudVaultKeyStore {
     }
 
     /**
+     * Elimina la clave de bóveda y ranuras custodiadas cuando el usuario cambia a una cuenta de Google diferente.
+     *
+     * @param context Contexto de la aplicación.
+     */
+    fun clearVaultKey(context: Context) {
+        getPrefs(context).edit { clear() }
+    }
+
+    /**
      * Recupera la clave de bóveda descifrada mediante Android Keystore y las ranuras para la copia de seguridad.
      *
      * @param context Contexto de la aplicación.

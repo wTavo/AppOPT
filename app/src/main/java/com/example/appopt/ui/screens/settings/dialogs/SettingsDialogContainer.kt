@@ -119,16 +119,5 @@ fun SettingsDialogContainer(
             onDismiss = { coordinator.showDisableE2eeConfirmDialog = false }
         )
     }
-
-    // 7. Modal: Servicios Compartidos Zero-Secret (Compartidos conmigo / Compartidos por mí)
-    if (coordinator.showSharedServicesDialog) {
-        val token = coordinator.driveAccessToken ?: GoogleDriveManager.currentAccessToken
-        if (token != null) {
-            SharedServicesDialog(
-                accessToken = token,
-                onDismiss = { coordinator.showSharedServicesDialog = false }
-            )
-        }
-    }
 }
 

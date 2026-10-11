@@ -109,11 +109,14 @@ fun AddAccountSpeedDialOverlay(
                 .graphicsLayer { alpha = scrimAlpha }
                 .background(Color.Black)
                 .clickable(
+                    enabled = isOpen,
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = {
-                        appHaptics.click()
-                        onDismiss()
+                        if (isOpen) {
+                            appHaptics.click()
+                            onDismiss()
+                        }
                     }
                 )
         )
@@ -150,9 +153,12 @@ fun AddAccountSpeedDialOverlay(
                     SpeedDialItem(
                         icon = Icons.Filled.QrCodeScanner,
                         text = stringResource(R.string.home_scan_qr_option),
+                        enabled = isOpen,
                         onClick = {
-                            appHaptics.click()
-                            onScanQr()
+                            if (isOpen) {
+                                appHaptics.click()
+                                onScanQr()
+                            }
                         }
                     )
 
@@ -166,9 +172,12 @@ fun AddAccountSpeedDialOverlay(
                     SpeedDialItem(
                         icon = Icons.Filled.Keyboard,
                         text = stringResource(R.string.home_add_manual_option),
+                        enabled = isOpen,
                         onClick = {
-                            appHaptics.click()
-                            onAddManual()
+                            if (isOpen) {
+                                appHaptics.click()
+                                onAddManual()
+                            }
                         }
                     )
                 }
@@ -184,18 +193,20 @@ fun AddAccountSpeedDialOverlay(
  * @param text Etiqueta de texto de la opción.
  * @param onClick Callback invocado al pulsar el elemento.
  * @param modifier Modificador de diseño Compose opcional.
+ * @param enabled Indica si la opción está habilitada para recibir toques.
  */
 @Composable
 private fun SpeedDialItem(
     icon: ImageVector,
     text: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.md),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)

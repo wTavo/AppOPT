@@ -64,6 +64,9 @@ object Motion {
 
         /** Tiempo rápido de permanencia para restauración de estado de sincronización (2500ms). */
         const val SYNC_STATUS_FAST_RESET = 2500
+
+        /** Ventana de bloqueo anti-rebote para evitar ejecuciones o navegaciones múltiples por toques rápidos (450ms). */
+        const val CLICK_DEBOUNCE = 450
     }
 
     /**

@@ -99,28 +99,29 @@ fun DriveSyncSettingsCard(
     var disconnectCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
     val isSyncingActive = isDriveLoading && isDriveConnected
+    val isVaultSynced = isDriveConnected && lastSyncTimestamp > 0L && !hasUnsyncedChanges
 
     val badgeColor = when {
         isSyncingActive -> MaterialTheme.colorScheme.primary
-        isDriveConnected -> SafeGreen
+        isVaultSynced -> SafeGreen
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     val badgeBg = when {
         isSyncingActive -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-        isDriveConnected -> SafeGreen.copy(alpha = 0.12f)
+        isVaultSynced -> SafeGreen.copy(alpha = 0.12f)
         else -> MaterialTheme.colorScheme.surfaceVariant
     }
     val badgeText = when {
         isSyncingActive -> stringResource(R.string.settings_drive_status_syncing)
-        isDriveConnected -> stringResource(R.string.settings_drive_status_synced)
+        isVaultSynced -> stringResource(R.string.settings_drive_status_synced)
         else -> stringResource(R.string.settings_drive_status_not_synced)
     }
 
     SettingsSectionCard(
         title = stringResource(R.string.settings_drive_title),
         description = stringResource(R.string.settings_drive_description),
-        icon = if (isDriveConnected) Icons.Filled.CloudDone else Icons.Filled.Sync,
-        iconTint = if (isDriveConnected) SafeGreen else MaterialTheme.colorScheme.primary,
+        icon = if (isVaultSynced) Icons.Filled.CloudDone else Icons.Filled.Sync,
+        iconTint = if (isVaultSynced) SafeGreen else MaterialTheme.colorScheme.primary,
         headerTrailing = {
             Surface(
                 shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
@@ -283,11 +284,14 @@ fun DriveSyncSettingsCard(
                         modifier = Modifier.padding(Dimensions.Spacing.md),
                         verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
                     ) {
+                        val canToggleAutoSync = lastSyncTimestamp > 0L
+                        val effectiveAutoSync = isAutoSyncEnabled && canToggleAutoSync
+
                         // Switch principal: Copia automática al hacer cambios
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onAutoSyncToggle(!isAutoSyncEnabled) }
+                                .clickable(enabled = canToggleAutoSync) { onAutoSyncToggle(!effectiveAutoSync) }
                                 .padding(vertical = Dimensions.Spacing.xs),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -309,13 +313,14 @@ fun DriveSyncSettingsCard(
                                 )
                             }
                             Switch(
-                                checked = isAutoSyncEnabled,
+                                checked = effectiveAutoSync,
                                 onCheckedChange = onAutoSyncToggle,
+                                enabled = canToggleAutoSync,
                                 colors = appSwitchColors()
                             )
                         }
 
-                        if (isAutoSyncEnabled) {
+                        if (effectiveAutoSync) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()

@@ -391,10 +391,12 @@
     <string name="share_revoke_success_msg">Acceso revocado inmediatamente</string>
     <string name="share_error_invalid_email">Ingresa un correo electrónico válido</string>
 
-    <!-- Tarjeta y Diálogo de Servicios Compartidos en Ajustes -->
-    <string name="settings_shared_title">Servicios compartidos</string>
-    <string name="settings_shared_description">Consulta los códigos que otros usuarios han compartido contigo o administra y revoca los accesos que otorgaste.</string>
-    <string name="settings_shared_open_button">Administrar servicios compartidos</string>
+    <!-- Sección Desplegable de Servicios Compartidos en Inicio -->
+    <string name="home_shared_accordion_title">Servicios compartidos</string>
+    <string name="home_shared_accordion_summary_tap">Toca para ver recibidos y enviados</string>
+    <string name="home_shared_accordion_summary_empty">Sin servicios compartidos activos</string>
+    <string name="home_shared_accordion_summary_counts">%1$d recibidos · %2$d compartidos</string>
+    <string name="home_shared_connect_button">Conectar cuenta de Google</string>
     <string name="settings_shared_tab_incoming">Compartidos conmigo</string>
     <string name="settings_shared_tab_outgoing">Compartidos por mí</string>
     <string name="settings_shared_incoming_empty">Nadie ha compartido servicios contigo todavía.</string>
@@ -406,7 +408,7 @@
     <string name="settings_shared_batch_ready">Renovar lote sin conexión</string>
     <string name="settings_shared_batch_downloaded_msg">Lote temporal descargado y cifrado en el dispositivo</string>
     <string name="settings_shared_revoked_error">El propietario ha revocado el acceso a este servicio o el lote caducó.</string>
-    <string name="share_error_not_signed_in">Conecta tu cuenta de Google en Ajustes para compartir o revocar accesos.</string>
+    <string name="share_error_not_signed_in">Inicia sesión con tu cuenta de Google para sincronizar tus servicios compartidos.</string>
     <string name="share_error_generic">No se pudo completar la operación con el servidor de servicios compartidos.</string>
     <string name="action_refresh">Actualizar</string>
 

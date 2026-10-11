@@ -38,7 +38,6 @@ class DriveDialogCoordinator(
     var showCreateStandardBackupConfirmDialog by mutableStateOf(false)
     var showDriveDecryptDialog by mutableStateOf(false)
     var showDisableE2eeConfirmDialog by mutableStateOf(false)
-    var showSharedServicesDialog by mutableStateOf(false)
     var restoreSelectedBackupItem by mutableStateOf<DriveBackupItem?>(null)
     var driveAccessToken by mutableStateOf<String?>(null)
 
@@ -52,7 +51,6 @@ class DriveDialogCoordinator(
         showCreateStandardBackupConfirmDialog = false
         showDriveDecryptDialog = false
         showDisableE2eeConfirmDialog = false
-        showSharedServicesDialog = false
         restoreSelectedBackupItem = null
     }
 

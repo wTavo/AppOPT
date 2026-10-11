@@ -26,6 +26,7 @@ class ServiceUnavailableException(message: String = "El servicio de Google Drive
  * @property deviceId Identificador único persistente del dispositivo emisor para discriminación de versiones locales.
  * @property isMostRecent Indica si corresponde a la versión más actual del historial.
  * @property isEncrypted Indica si la copia cuenta con cifrado de extremo a extremo (E2EE) o si es una copia estándar.
+ * @property vaultHash Firma criptográfica SHA-256 de la estructura de servicios contenida en este respaldo.
  */
 data class DriveBackupItem(
     val fileId: String,
@@ -35,7 +36,8 @@ data class DriveBackupItem(
     val deviceName: String,
     val isMostRecent: Boolean = false,
     val deviceId: String = "",
-    val isEncrypted: Boolean = true
+    val isEncrypted: Boolean = true,
+    val vaultHash: String = ""
 )
 
 /**

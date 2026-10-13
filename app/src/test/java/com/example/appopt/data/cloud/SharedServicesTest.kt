@@ -2,6 +2,7 @@ package com.example.appopt.data.cloud
 
 import com.example.appopt.domain.model.ShareAccessMode
 import com.example.appopt.domain.model.ShareBatchDuration
+import com.example.appopt.domain.model.ShareGrantStatus
 import com.example.appopt.domain.model.SharedOtpBatch
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -85,6 +86,7 @@ class SharedServicesTest {
                   "guestEmail": "guest@example.com",
                   "accessMode": "OFFLINE_BATCH",
                   "batchHours": 6,
+                  "status": "PENDING",
                   "createdAtMillis": 1700000000000
                 }
               ]
@@ -99,6 +101,7 @@ class SharedServicesTest {
         assertEquals("guest@example.com", grants[0].guestEmail)
         assertEquals(ShareAccessMode.OFFLINE_BATCH, grants[0].accessMode)
         assertEquals(6, grants[0].batchHours)
+        assertEquals(ShareGrantStatus.PENDING, grants[0].status)
 
         val incomingJson = """
             {
@@ -111,7 +114,8 @@ class SharedServicesTest {
                   "digits": 6,
                   "period": 30,
                   "accessMode": "ONLINE_ONLY",
-                  "batchHours": 24
+                  "batchHours": 24,
+                  "status": "ACCEPTED"
                 }
               ]
             }
@@ -123,20 +127,67 @@ class SharedServicesTest {
         assertEquals("owner@example.com", services[0].ownerEmail)
         assertEquals("AWS", services[0].issuer)
         assertEquals(ShareAccessMode.ONLINE_ONLY, services[0].accessMode)
+        assertEquals(ShareGrantStatus.ACCEPTED, services[0].status)
     }
 
     /**
-     * Verifica la conversión defensiva de modos y duraciones de lotes.
+     * Verifica la conversión defensiva de modos, estados de invitación y duraciones de lotes.
      */
     @Test
-    fun `ShareAccessMode and ShareBatchDuration resolve wire values safely`() {
+    fun `ShareAccessMode, ShareGrantStatus and ShareBatchDuration resolve wire values safely`() {
         assertEquals(ShareAccessMode.ONLINE_ONLY, ShareAccessMode.fromWireValue(null))
         assertEquals(ShareAccessMode.ONLINE_ONLY, ShareAccessMode.fromWireValue("INVALID"))
         assertEquals(ShareAccessMode.OFFLINE_BATCH, ShareAccessMode.fromWireValue("offline_batch"))
+
+        assertEquals(ShareGrantStatus.ACCEPTED, ShareGrantStatus.fromWireValue(null))
+        assertEquals(ShareGrantStatus.PENDING, ShareGrantStatus.fromWireValue("pending"))
+        assertEquals(ShareGrantStatus.ACCEPTED, ShareGrantStatus.fromWireValue("ACCEPTED"))
 
         assertEquals(ShareBatchDuration.ONE_HOUR, ShareBatchDuration.fromHours(1))
         assertEquals(ShareBatchDuration.SIX_HOURS, ShareBatchDuration.fromHours(6))
         assertEquals(ShareBatchDuration.TWENTY_FOUR_HOURS, ShareBatchDuration.fromHours(24))
         assertEquals(ShareBatchDuration.TWENTY_FOUR_HOURS, ShareBatchDuration.fromHours(99))
+    }
+
+    /**
+     * Verifica que [LiveSharedCodeResult] entregue la brecha de 3 códigos consecutivos
+     * y retorne `null` automáticamente cuando concluye el tercer código.
+     */
+    @Test
+    fun `LiveSharedCodeResult rotates across 3 codes and expires after third code`() {
+        val period = 30
+        val step0 = 56_000_000L
+        val step1 = step0 + 1L
+        val step2 = step0 + 2L
+        val expiresAtMillis = (step0 + 3L) * period * 1000L
+
+        val liveWindow = LiveSharedCodeResult(
+            code = "111222",
+            remainingSeconds = 15,
+            periodSeconds = period,
+            expiresAtMillis = expiresAtMillis,
+            codesByStep = mapOf(
+                step0 to "111222",
+                step1 to "333444",
+                step2 to "555666"
+            )
+        )
+
+        val t0 = (step0 * period + 15L) * 1000L
+        val t1 = (step1 * period + 5L) * 1000L
+        val t2 = (step2 * period + 29L) * 1000L
+
+        assertEquals("111222", liveWindow.getCodeAt(t0))
+        assertEquals(1 to 3, liveWindow.getWindowStepProgress(t0))
+
+        assertEquals("333444", liveWindow.getCodeAt(t1))
+        assertEquals(2 to 3, liveWindow.getWindowStepProgress(t1))
+
+        assertEquals("555666", liveWindow.getCodeAt(t2))
+        assertEquals(3 to 3, liveWindow.getWindowStepProgress(t2))
+
+        // Al terminar el 3er código, desaparece y retorna null
+        assertNull(liveWindow.getCodeAt(expiresAtMillis))
+        assertNull(liveWindow.getWindowStepProgress(expiresAtMillis))
     }
 }

@@ -15,6 +15,7 @@ package com.example.appopt.domain.model
  * @property period Período de rotación en segundos (estándar 30 s).
  * @property accessMode Modo de acceso configurado por el propietario ([ShareAccessMode]).
  * @property batchHours Horas de validez del lote sin conexión (si [accessMode] es [ShareAccessMode.OFFLINE_BATCH]).
+ * @property status Estado actual de la invitación ([ShareGrantStatus.PENDING] o [ShareGrantStatus.ACCEPTED]).
  */
 data class IncomingSharedService(
     val grantId: String,
@@ -24,5 +25,6 @@ data class IncomingSharedService(
     val digits: Int,
     val period: Int,
     val accessMode: ShareAccessMode,
-    val batchHours: Int
+    val batchHours: Int,
+    val status: ShareGrantStatus = ShareGrantStatus.ACCEPTED
 )

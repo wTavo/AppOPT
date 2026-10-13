@@ -76,6 +76,7 @@ fun HomeScreen(
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val isHideCodesEnabled by viewModel.isHideCodesEnabled.collectAsStateWithLifecycle()
     val cloudSyncState by viewModel.cloudSyncState.collectAsStateWithLifecycle()
+    val isDriveConnected by viewModel.isDriveConnected.collectAsStateWithLifecycle()
     val isVaultSynced by viewModel.isVaultSynced.collectAsStateWithLifecycle()
     val deletedAccountsCount by viewModel.deletedAccountsCount.collectAsStateWithLifecycle()
 
@@ -208,15 +209,17 @@ fun HomeScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
             ) {
-                item(
-                    key = "shared_services_accordion",
-                    contentType = "shared_accordion"
-                ) {
-                    HomeSharedServicesAccordion(
-                        searchQuery = searchQuery,
-                        hideCodes = isHideCodesEnabled,
-                        onCopyCode = onCopyCode
-                    )
+                if (isDriveConnected) {
+                    item(
+                        key = "shared_services_accordion",
+                        contentType = "shared_accordion"
+                    ) {
+                        HomeSharedServicesAccordion(
+                            searchQuery = searchQuery,
+                            hideCodes = isHideCodesEnabled,
+                            onCopyCode = onCopyCode
+                        )
+                    }
                 }
 
                 if (accountsToDisplay.isNotEmpty()) {

@@ -277,14 +277,17 @@ class AccountRepositoryImpl(
     }
 
     /**
-     * Traslada una cuenta a la papelera de reciclaje temporal por 30 días.
+     * Traslada una cuenta a la papelera de reciclaje temporal por 30 días y revoca en la nube
+     * cualquier permiso compartido asociado a dicha cuenta (Principio Zero Trust).
      */
     override suspend fun moveToTrash(id: String): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             otpCodeCache.remove(id)
             val now = System.currentTimeMillis()
             accountDao.moveToTrash(id, now)
-            com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
+            val app = com.example.appopt.AuthenticatorApp.instance
+            com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(app)
+            com.example.appopt.data.cloud.SharedServicesCloudClient.revokeAllGrantsForAccountsIfPossible(app, setOf(id))
         }
     }
 
@@ -300,24 +303,30 @@ class AccountRepositoryImpl(
     }
 
     /**
-     * Elimina permanentemente una cuenta de la base de datos de forma irreversible.
+     * Elimina permanentemente una cuenta de la base de datos de forma irreversible y revoca
+     * cualquier permiso compartido remanente en la nube.
      */
     override suspend fun permanentlyDelete(id: String): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             otpCodeCache.remove(id)
             accountDao.deleteAccountById(id)
-            com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
+            val app = com.example.appopt.AuthenticatorApp.instance
+            com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(app)
+            com.example.appopt.data.cloud.SharedServicesCloudClient.revokeAllGrantsForAccountsIfPossible(app, setOf(id))
         }
     }
 
     /**
-     * Vacía completamente la papelera de reciclaje.
+     * Vacía completamente la papelera de reciclaje y revoca permisos compartidos asociados.
      */
     override suspend fun emptyTrash(): Result<Int> = withContext(Dispatchers.IO) {
         runCatching {
+            val deletedIds = accountDao.getDeletedAccounts().first().map { it.id }.toSet()
             val count = accountDao.emptyTrash()
             if (count > 0) {
-                com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
+                val app = com.example.appopt.AuthenticatorApp.instance
+                com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(app)
+                com.example.appopt.data.cloud.SharedServicesCloudClient.revokeAllGrantsForAccountsIfPossible(app, deletedIds)
             }
             count
         }

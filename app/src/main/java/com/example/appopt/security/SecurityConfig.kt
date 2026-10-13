@@ -197,5 +197,20 @@ object SecurityConfig {
      * Prefijo de clave para almacenar lotes precalculados cifrados por identificador de permiso.
      */
     const val SHARED_BATCH_KEY_PREFIX = "encrypted_batch_"
+
+    /**
+     * Clave de almacenamiento para la caché local de metadatos de servicios recibidos (sin secretos).
+     */
+    const val SHARED_CACHED_INCOMING_KEY = "cached_incoming_services_json"
+
+    /**
+     * Clave de almacenamiento para la caché local de metadatos de accesos otorgados por el propietario.
+     */
+    const val SHARED_CACHED_OUTGOING_KEY = "cached_outgoing_grants_json"
+
+    /**
+     * Cantidad de códigos TOTP consecutivos entregados en una consulta bajo demanda en modo en línea (brecha de 3 códigos).
+     */
+    const val SHARED_LIVE_CODE_WINDOW_STEPS = 3
 }
 

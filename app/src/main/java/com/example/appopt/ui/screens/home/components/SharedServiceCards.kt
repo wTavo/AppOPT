@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -43,6 +44,7 @@ import com.example.appopt.R
 import com.example.appopt.domain.model.IncomingSharedService
 import com.example.appopt.domain.model.OutgoingShareGrant
 import com.example.appopt.domain.model.ShareAccessMode
+import com.example.appopt.domain.model.ShareGrantStatus
 import com.example.appopt.ui.components.CircularTimeProgress
 import com.example.appopt.ui.components.ServiceBrandAvatar
 import com.example.appopt.ui.theme.Dimensions
@@ -55,18 +57,23 @@ import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Tarjeta visual para un servicio compartido conmigo (Zero-Secret) en la pantalla de inicio (Directivas 1, 4, 11, 29 y 31).
+ * Tarjeta visual para un servicio compartido conmigo o invitación pendiente (Zero-Secret) en la pantalla de inicio (Directivas 1, 4, 11, 29 y 31).
  *
- * Mantiene la misma geometría, elevación perimetral, soporte de modo privacidad ([hideCodes]) y copia al toque
- * que [com.example.appopt.ui.components.OtpCodeCard], sin almacenar ni exponer jamás la semilla Base32.
+ * Comportamiento según [IncomingSharedService.status]:
+ * - [ShareGrantStatus.PENDING]: Muestra la solicitud de invitación con botones simétricos «Rechazar» y «Aceptar».
+ * - [ShareGrantStatus.ACCEPTED]: Permite consultar el código OTP actual o descargar/renovar lotes sin conexión,
+ *   además de ofrecer el botón «Quitar» para que el invitado abandone voluntariamente el servicio cuando lo desee.
  *
  * @param service Metadatos del servicio compartido entrante.
- * @param activeCode Código OTP actual de 6/8 dígitos (obtenido en línea o del lote temporal cifrado).
+ * @param activeCode Código OTP actual de 6/8 dígitos (obtenido en la brecha de 3 códigos en línea o del lote temporal cifrado).
+ * @param liveWindowProgress Par opcional `(pasoActual, totalPasos)` que indica el código vigente dentro de la brecha de 3 códigos.
  * @param hideCodes Bandera del modo privacidad de la cabecera principal.
  * @param hasValidBatch Indica si existe un lote precalculado vigente en el almacén local.
  * @param isItemLoading Indica si hay una petición en curso para esta tarjeta.
  * @param onCopyCode Callback invocado al pulsar sobre el código numérico para copiarlo al portapapeles.
- * @param onRequestAction Callback para solicitar el código en línea o descargar/renovar el lote temporal.
+ * @param onRequestAction Callback para solicitar la brecha de 3 códigos en línea o descargar/renovar el lote temporal.
+ * @param onAcceptInvitation Callback invocado cuando el invitado acepta explícitamente la invitación.
+ * @param onRejectOrLeave Callback invocado cuando el invitado rechaza la invitación o quita el servicio compartido.
  */
 @Composable
 fun IncomingSharedOtpCard(
@@ -76,10 +83,14 @@ fun IncomingSharedOtpCard(
     hasValidBatch: Boolean,
     isItemLoading: Boolean,
     onCopyCode: (String) -> Unit,
-    onRequestAction: () -> Unit
+    onRequestAction: () -> Unit,
+    onAcceptInvitation: () -> Unit,
+    onRejectOrLeave: () -> Unit,
+    liveWindowProgress: Pair<Int, Int>? = null
 ) {
     val appHaptics = rememberAppHaptics()
     var copied by remember { mutableStateOf(false) }
+    val isPending = service.status == ShareGrantStatus.PENDING
 
     LaunchedEffect(copied) {
         if (copied) {
@@ -142,84 +153,175 @@ fun IncomingSharedOtpCard(
                             )
                         }
                         Text(
-                            text = stringResource(R.string.settings_shared_owner_format, service.ownerEmail),
+                            text = if (isPending) {
+                                stringResource(R.string.settings_shared_invitation_from_format, service.ownerEmail)
+                            } else {
+                                stringResource(R.string.settings_shared_owner_format, service.ownerEmail)
+                            },
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary
+                            color = if (isPending) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
+                if (!isPending) {
+                    TextButton(
+                        onClick = {
+                            appHaptics.click()
+                            onRejectOrLeave()
+                        },
+                        enabled = !isItemLoading
+                    ) {
+                        Text(
+                            text = stringResource(R.string.settings_shared_leave_action),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = UrgentRed
                         )
                     }
                 }
             }
 
-            AnimatedVisibility(
-                visible = !hideCodes && !activeCode.isNullOrBlank(),
-                enter = expandVertically(animationSpec = Motion.Spec.privacyCollapseSpec()) +
-                        fadeIn(animationSpec = Motion.Spec.quickFadeSpec()),
-                exit = shrinkVertically(animationSpec = Motion.Spec.privacyCollapseSpec()) +
-                        fadeOut(animationSpec = Motion.Spec.quickFadeSpec())
-            ) {
-                val safeCode = activeCode.orEmpty()
+            if (isPending) {
+                Text(
+                    text = stringResource(R.string.settings_shared_invitation_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = Dimensions.Spacing.xs),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(Dimensions.CornerRadius.small))
-                            .clickable {
-                                if (safeCode.isNotBlank()) {
-                                    appHaptics.copy()
-                                    onCopyCode(safeCode)
-                                    copied = true
-                                }
-                            }
-                            .padding(Dimensions.Spacing.xs),
-                        verticalAlignment = Alignment.CenterVertically
+                    OutlinedButton(
+                        onClick = {
+                            appHaptics.click()
+                            onRejectOrLeave()
+                        },
+                        enabled = !isItemLoading,
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                        modifier = Modifier.weight(1f)
                     ) {
                         Text(
-                            text = formattedCode,
-                            style = MaterialTheme.typography.displayMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.semantics {
-                                contentDescription = AccessibilityUtils.toAccessibleSpokenOtp(safeCode)
-                            }
+                            text = stringResource(R.string.settings_shared_reject_action),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = UrgentRed
                         )
-                        if (copied) {
-                            Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
-                            Icon(
-                                imageVector = Icons.Filled.Check,
-                                contentDescription = stringResource(R.string.action_copied),
-                                tint = SafeGreen,
-                                modifier = Modifier.size(Dimensions.IconSize.medium)
+                    }
+
+                    Button(
+                        onClick = {
+                            appHaptics.click()
+                            onAcceptInvitation()
+                        },
+                        enabled = !isItemLoading,
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.settings_shared_accept_action),
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+                }
+            } else {
+                AnimatedVisibility(
+                    visible = !hideCodes && !activeCode.isNullOrBlank(),
+                    enter = expandVertically(animationSpec = Motion.Spec.privacyCollapseSpec()) +
+                            fadeIn(animationSpec = Motion.Spec.quickFadeSpec()),
+                    exit = shrinkVertically(animationSpec = Motion.Spec.privacyCollapseSpec()) +
+                            fadeOut(animationSpec = Motion.Spec.quickFadeSpec())
+                ) {
+                    val safeCode = activeCode.orEmpty()
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = Dimensions.Spacing.xs),
+                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(Dimensions.CornerRadius.small))
+                                    .clickable {
+                                        if (safeCode.isNotBlank()) {
+                                            appHaptics.copy()
+                                            onCopyCode(safeCode)
+                                            copied = true
+                                        }
+                                    }
+                                    .padding(Dimensions.Spacing.xs),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = formattedCode,
+                                    style = MaterialTheme.typography.displayMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.semantics {
+                                        contentDescription = AccessibilityUtils.toAccessibleSpokenOtp(safeCode)
+                                    }
+                                )
+                                if (copied) {
+                                    Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = stringResource(R.string.action_copied),
+                                        tint = SafeGreen,
+                                        modifier = Modifier.size(Dimensions.IconSize.medium)
+                                    )
+                                }
+                            }
+
+                            CircularTimeProgress(period = service.period)
+                        }
+
+                        if (liveWindowProgress != null) {
+                            Text(
+                                text = stringResource(
+                                    R.string.settings_shared_live_window_progress,
+                                    liveWindowProgress.first,
+                                    liveWindowProgress.second
+                                ),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = Dimensions.Spacing.xs)
                             )
                         }
                     }
-
-                    CircularTimeProgress(period = service.period)
                 }
-            }
 
-            val buttonLabelRes = when {
-                service.accessMode == ShareAccessMode.ONLINE_ONLY -> R.string.settings_shared_tap_to_fetch
-                hasValidBatch -> R.string.settings_shared_batch_ready
-                else -> R.string.settings_shared_download_batch_action
-            }
+                val showActionButton = service.accessMode != ShareAccessMode.ONLINE_ONLY || activeCode.isNullOrBlank()
+                AnimatedVisibility(
+                    visible = showActionButton,
+                    enter = expandVertically(animationSpec = Motion.Spec.privacyCollapseSpec()) +
+                            fadeIn(animationSpec = Motion.Spec.quickFadeSpec()),
+                    exit = shrinkVertically(animationSpec = Motion.Spec.privacyCollapseSpec()) +
+                            fadeOut(animationSpec = Motion.Spec.quickFadeSpec())
+                ) {
+                    val buttonLabelRes = when {
+                        service.accessMode == ShareAccessMode.ONLINE_ONLY -> R.string.settings_shared_tap_to_fetch
+                        hasValidBatch -> R.string.settings_shared_batch_ready
+                        else -> R.string.settings_shared_download_batch_action
+                    }
 
-            OutlinedButton(
-                onClick = {
-                    appHaptics.click()
-                    onRequestAction()
-                },
-                enabled = !isItemLoading,
-                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = stringResource(buttonLabelRes),
-                    style = MaterialTheme.typography.labelLarge
-                )
+                    OutlinedButton(
+                        onClick = {
+                            appHaptics.click()
+                            onRequestAction()
+                        },
+                        enabled = !isItemLoading,
+                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = stringResource(buttonLabelRes),
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+                }
             }
         }
     }
@@ -227,9 +329,9 @@ fun IncomingSharedOtpCard(
 
 /**
  * Tarjeta visual para un servicio que el usuario propietario ha compartido con un tercero,
- * permitiendo revocar el acceso en tiempo real con un solo toque desde el inicio (Directiva 31).
+ * mostrando si la invitación sigue pendiente o activa y permitiendo revocar en tiempo real (Directiva 31).
  *
- * @param grant Permiso activo otorgado por el propietario.
+ * @param grant Permiso o invitación otorgado por el propietario.
  * @param onRevoke Callback invocado al presionar el botón «Revocar».
  */
 @Composable
@@ -278,11 +380,17 @@ fun OutgoingShareGrantCard(
                     } else {
                         stringResource(R.string.share_mode_badge_online)
                     }
+                    val isPending = grant.status == ShareGrantStatus.PENDING
+                    val statusBadge = if (isPending) {
+                        stringResource(R.string.share_status_pending_badge, modeBadge)
+                    } else {
+                        stringResource(R.string.share_status_accepted_badge, modeBadge)
+                    }
                     Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
                     Text(
-                        text = modeBadge,
+                        text = statusBadge,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary
+                        color = if (isPending) MaterialTheme.colorScheme.tertiary else SafeGreen
                     )
                 }
             }

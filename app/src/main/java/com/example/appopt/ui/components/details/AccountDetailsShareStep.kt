@@ -47,6 +47,12 @@ import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.UrgentRed
 import com.example.appopt.ui.theme.rememberAppHaptics
 
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import com.example.appopt.domain.model.ShareGrantStatus
+import com.example.appopt.ui.theme.SafeGreen
+
 /**
  * Paso modal dentro de [com.example.appopt.ui.components.AccountDetailsDialog] para compartir el acceso
  * a un servicio TOTP sin exponer la clave secreta y revocar invitados en tiempo real (Directivas 14, 29 y 31).
@@ -54,28 +60,45 @@ import com.example.appopt.ui.theme.rememberAppHaptics
  * Estructura Tripartita Inmutable (Directiva 14):
  * 1. Cabecera fija superior con título estandarizado.
  * 2. Cuerpo central scrolleable aislado (`weight(1f, fill = false)`).
- * 3. Pie fijo inferior con botones simétricos 50/50 («Volver» y «Compartir acceso»).
+ * 3. Pie fijo inferior con botones simétricos 50/50 («Volver» y «Enviar invitación»).
  *
- * @param activeGrants Lista de permisos activos otorgados para este servicio.
- * @param isSharing Bandera de carga asíncrona durante el registro del permiso.
+ * @param isDriveConnected Indica si existe una cuenta de Google vinculada en Ajustes.
+ * @param activeGrants Lista de permisos e invitaciones otorgados para este servicio.
+ * @param isSharing Bandera de carga asíncrona durante el envío de la invitación.
+ * @param shareSuccessCount Contador de confirmaciones exitosas para limpiar el campo y desplazar la vista.
  * @param errorMessage Mensaje de error amigable si ocurre un fallo.
- * @param onShareService Callback invocado al confirmar la compartición `(guestEmail, accessMode, batchDuration)`.
- * @param onRevokeGrant Callback invocado al revocar inmediatamente el acceso de un invitado `(grantId)`.
+ * @param onShareService Callback invocado al confirmar la invitación `(guestEmail, accessMode, batchDuration)`.
+ * @param onRevokeGrant Callback invocado al revocar inmediatamente el acceso o invitación de un invitado `(grantId)`.
  * @param onBack Callback para regresar a la vista principal de detalles.
  */
 @Composable
 fun AccountDetailsShareStep(
+    isDriveConnected: Boolean,
     activeGrants: List<OutgoingShareGrant>,
     isSharing: Boolean,
+    shareSuccessCount: Int = 0,
     errorMessage: String?,
     onShareService: (String, ShareAccessMode, ShareBatchDuration) -> Unit,
     onRevokeGrant: (String) -> Unit,
     onBack: () -> Unit
 ) {
     val appHaptics = rememberAppHaptics()
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+    val scrollState = rememberScrollState()
+
     var guestEmail by remember { mutableStateOf("") }
     var selectedMode by remember { mutableStateOf(ShareAccessMode.ONLINE_ONLY) }
     var selectedDuration by remember { mutableStateOf(ShareBatchDuration.TWENTY_FOUR_HOURS) }
+
+    LaunchedEffect(shareSuccessCount) {
+        if (shareSuccessCount > 0) {
+            guestEmail = ""
+            focusManager.clearFocus()
+            keyboardController?.hide()
+            scrollState.animateScrollTo(scrollState.maxValue)
+        }
+    }
 
     val cleanEmail = guestEmail.trim()
     val isEmailValid = cleanEmail.contains("@") && cleanEmail.contains(".") && cleanEmail.length >= 5
@@ -99,163 +122,188 @@ fun AccountDetailsShareStep(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f, fill = false)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
         ) {
-            Text(
-                text = stringResource(R.string.share_modal_subtitle),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            OutlinedTextField(
-                value = guestEmail,
-                onValueChange = { guestEmail = it },
-                label = { Text(text = stringResource(R.string.share_guest_email_label)) },
-                placeholder = { Text(text = stringResource(R.string.share_guest_email_placeholder)) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Email,
-                    imeAction = ImeAction.Done
-                ),
-                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Selector de modo de acceso (Online vs Lote Offline)
-            Text(
-                text = stringResource(R.string.share_mode_section_title),
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            ShareModeOptionCard(
-                title = stringResource(R.string.share_mode_online_title),
-                description = stringResource(R.string.share_mode_online_desc),
-                selected = selectedMode == ShareAccessMode.ONLINE_ONLY,
-                onClick = {
-                    appHaptics.click()
-                    selectedMode = ShareAccessMode.ONLINE_ONLY
-                }
-            )
-
-            ShareModeOptionCard(
-                title = stringResource(R.string.share_mode_offline_batch_title),
-                description = stringResource(R.string.share_mode_offline_batch_desc),
-                selected = selectedMode == ShareAccessMode.OFFLINE_BATCH,
-                onClick = {
-                    appHaptics.click()
-                    selectedMode = ShareAccessMode.OFFLINE_BATCH
-                }
-            )
-
-            AnimatedVisibility(
-                visible = selectedMode == ShareAccessMode.OFFLINE_BATCH,
-                enter = fadeIn(animationSpec = Motion.Spec.quickFadeSpec()) + expandVertically(),
-                exit = fadeOut(animationSpec = Motion.Spec.quickFadeSpec()) + shrinkVertically()
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)) {
+            if (!isDriveConnected) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                    color = MaterialTheme.colorScheme.surfaceVariant
+                ) {
                     Text(
-                        text = stringResource(R.string.share_batch_duration_label),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = stringResource(R.string.share_requires_connected_account_msg),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(Dimensions.Spacing.md)
                     )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
-                    ) {
-                        ShareBatchDuration.entries.forEach { duration ->
-                            val labelRes = when (duration) {
-                                ShareBatchDuration.ONE_HOUR -> R.string.share_batch_1h
-                                ShareBatchDuration.SIX_HOURS -> R.string.share_batch_6h
-                                ShareBatchDuration.TWENTY_FOUR_HOURS -> R.string.share_batch_24h
-                            }
-                            FilterChip(
-                                selected = selectedDuration == duration,
-                                onClick = {
-                                    appHaptics.click()
-                                    selectedDuration = duration
-                                },
-                                label = {
-                                    Text(
-                                        text = stringResource(labelRes),
-                                        style = MaterialTheme.typography.labelMedium
-                                    )
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
                 }
-            }
-
-            // Mensaje de error animado sin saltos bruscos
-            AnimatedVisibility(
-                visible = !errorMessage.isNullOrBlank(),
-                enter = fadeIn(animationSpec = Motion.Spec.quickFadeSpec()) + expandVertically(),
-                exit = fadeOut(animationSpec = Motion.Spec.quickFadeSpec()) + shrinkVertically()
-            ) {
+            } else {
                 Text(
-                    text = errorMessage.orEmpty(),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
+                    text = stringResource(R.string.share_modal_subtitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
 
-            // Lista de invitados activos con opción de revocación inmediata
-            if (activeGrants.isNotEmpty()) {
+                OutlinedTextField(
+                    value = guestEmail,
+                    onValueChange = { guestEmail = it },
+                    label = { Text(text = stringResource(R.string.share_guest_email_label)) },
+                    placeholder = { Text(text = stringResource(R.string.share_guest_email_placeholder)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Email,
+                        imeAction = ImeAction.Done
+                    ),
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Mensaje de error inmediatamente debajo del campo de correo para visibilidad instantánea
+                AnimatedVisibility(
+                    visible = !errorMessage.isNullOrBlank(),
+                    enter = fadeIn(animationSpec = Motion.Spec.quickFadeSpec()) + expandVertically(),
+                    exit = fadeOut(animationSpec = Motion.Spec.quickFadeSpec()) + shrinkVertically()
+                ) {
+                    Text(
+                        text = errorMessage.orEmpty(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+
+                // Selector de modo de acceso (Online vs Lote Offline)
                 Text(
-                    text = stringResource(R.string.share_active_grants_title),
+                    text = stringResource(R.string.share_mode_section_title),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
-                Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
-                    activeGrants.forEach { grant ->
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                            color = MaterialTheme.colorScheme.surfaceVariant
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(
-                                        horizontal = Dimensions.Spacing.md,
-                                        vertical = Dimensions.Spacing.sm
-                                    ),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = grant.guestEmail,
-                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    val modeText = if (grant.accessMode == ShareAccessMode.OFFLINE_BATCH) {
-                                        stringResource(R.string.share_mode_badge_batch, grant.batchHours)
-                                    } else {
-                                        stringResource(R.string.share_mode_badge_online)
-                                    }
-                                    Text(
-                                        text = modeText,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
+                ShareModeOptionCard(
+                    title = stringResource(R.string.share_mode_online_title),
+                    description = stringResource(R.string.share_mode_online_desc),
+                    selected = selectedMode == ShareAccessMode.ONLINE_ONLY,
+                    onClick = {
+                        appHaptics.click()
+                        selectedMode = ShareAccessMode.ONLINE_ONLY
+                    }
+                )
 
-                                TextButton(
+                ShareModeOptionCard(
+                    title = stringResource(R.string.share_mode_offline_batch_title),
+                    description = stringResource(R.string.share_mode_offline_batch_desc),
+                    selected = selectedMode == ShareAccessMode.OFFLINE_BATCH,
+                    onClick = {
+                        appHaptics.click()
+                        selectedMode = ShareAccessMode.OFFLINE_BATCH
+                    }
+                )
+
+                AnimatedVisibility(
+                    visible = selectedMode == ShareAccessMode.OFFLINE_BATCH,
+                    enter = fadeIn(animationSpec = Motion.Spec.quickFadeSpec()) + expandVertically(),
+                    exit = fadeOut(animationSpec = Motion.Spec.quickFadeSpec()) + shrinkVertically()
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)) {
+                        Text(
+                            text = stringResource(R.string.share_batch_duration_label),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                        ) {
+                            ShareBatchDuration.entries.forEach { duration ->
+                                val labelRes = when (duration) {
+                                    ShareBatchDuration.ONE_HOUR -> R.string.share_batch_1h
+                                    ShareBatchDuration.SIX_HOURS -> R.string.share_batch_6h
+                                    ShareBatchDuration.TWENTY_FOUR_HOURS -> R.string.share_batch_24h
+                                }
+                                FilterChip(
+                                    selected = selectedDuration == duration,
                                     onClick = {
                                         appHaptics.click()
-                                        onRevokeGrant(grant.grantId)
-                                    }
+                                        selectedDuration = duration
+                                    },
+                                    label = {
+                                        Text(
+                                            text = stringResource(labelRes),
+                                            style = MaterialTheme.typography.labelMedium
+                                        )
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Lista de invitaciones pendientes e invitados con acceso activo
+                if (activeGrants.isNotEmpty()) {
+                    Text(
+                        text = stringResource(R.string.share_active_grants_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
+                        activeGrants.forEach { grant ->
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                                color = MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(
+                                            horizontal = Dimensions.Spacing.md,
+                                            vertical = Dimensions.Spacing.sm
+                                        ),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text(
-                                        text = stringResource(R.string.share_revoke_action),
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = UrgentRed
-                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = grant.guestEmail,
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        val modeText = if (grant.accessMode == ShareAccessMode.OFFLINE_BATCH) {
+                                            stringResource(R.string.share_mode_badge_batch, grant.batchHours)
+                                        } else {
+                                            stringResource(R.string.share_mode_badge_online)
+                                        }
+                                        val isPending = grant.status == ShareGrantStatus.PENDING
+                                        val statusAndModeText = if (isPending) {
+                                            stringResource(R.string.share_status_pending_badge, modeText)
+                                        } else {
+                                            stringResource(R.string.share_status_accepted_badge, modeText)
+                                        }
+                                        Text(
+                                            text = statusAndModeText,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = if (isPending) {
+                                                MaterialTheme.colorScheme.tertiary
+                                            } else {
+                                                SafeGreen
+                                            }
+                                        )
+                                    }
+
+                                    TextButton(
+                                        onClick = {
+                                            appHaptics.click()
+                                            onRevokeGrant(grant.grantId)
+                                        }
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.share_revoke_action),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = UrgentRed
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -270,9 +318,11 @@ fun AccountDetailsShareStep(
             confirmText = stringResource(R.string.share_confirm_action),
             onDismiss = onBack,
             onConfirm = {
+                focusManager.clearFocus()
+                keyboardController?.hide()
                 onShareService(cleanEmail, selectedMode, selectedDuration)
             },
-            confirmEnabled = isEmailValid && !isSharing,
+            confirmEnabled = isDriveConnected && isEmailValid && !isSharing,
             isLoading = isSharing
         )
     }

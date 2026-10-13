@@ -372,17 +372,25 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 
 ---
 
-## 31. Arquitectura de Servicios Compartidos Zero-Secret y Modo Dual (`SharedServicesCloudClient` & `SharedBatchKeyStore`)
+## 31. Arquitectura de Servicios Compartidos Zero-Secret, Requisitos de Vinculación/Red y Revocación en Cascada (`SharedServicesCloudClient` & `SharedBatchKeyStore`)
 - **PROHIBIDO** transmitir, almacenar o exponer la clave secreta Base32 (`secret`) en el dispositivo invitado (B) en cualquiera de los modos de compartición.
 - **PROHIBIDO** incluir servicios compartidos por terceros en las copias de seguridad de Google Drive o en la exportación por códigos QR del dispositivo invitado.
 - **PROHIBIDO** ejecutar servicios persistentes o *polling* periódico en segundo plano para consultar códigos compartidos; toda solicitud de código en línea debe dispararse estrictamente bajo demanda (*On-Demand*) en `Dispatchers.IO`.
 - **PROHIBIDO** relegar u ocultar la visualización de servicios compartidos dentro de la pantalla de Ajustes (`SettingsScreen.kt`) o duplicar vistas de compartición entre pantallas.
-- **OBLIGATORIO el acceso directo en la pantalla de Inicio (`HomeScreen.kt`):**
-  1. Integrar la sección desplegable (**«Servicios compartidos»**, `HomeSharedServicesAccordion`) dentro de la misma lista principal (`LazyColumn`) de `HomeScreen.kt`, manteniendo la barra flotante superior (`HomeTopHeader`) limpia y sin barras de pestañas adicionales.
-  2. Resolver la autenticación OAuth2 de Google directamente desde la pantalla de Inicio mediante `rememberGoogleOAuthRequester` al expandir o sincronizar la sección, sin obligar al usuario a visitar Ajustes.
-- **OBLIGATORIO el modelo de Modo Dual controlado por el propietario (A):**
-  1. **`ShareAccessMode.ONLINE_ONLY` (Por defecto):** El invitado requiere conexión activa al solicitar el código; el servidor (Cloudflare Worker + D1) valida el permiso en tiempo real y retorna únicamente los dígitos de la ventana actual de 30 segundos, garantizando revocación en 0 segundos.
-  2. **`ShareAccessMode.OFFLINE_BATCH` (Lotes temporales):** Cuando el propietario lo autoriza explícitamente, el servidor precalcula únicamente los códigos `(timeStep -> código)` para la ventana seleccionada (`1`, `6` o `24` horas). El dispositivo invitado cifra el lote en reposo mediante `CryptoManager` (Android Keystore AES-256-GCM) en `SharedBatchKeyStore`, purgando automáticamente los lotes expirados o revocados y limpiando la caché en memoria ante `ON_STOP` / `onTrimMemory`.
+- **PROHIBIDO** abrir el selector de cuentas de Google del sistema fuera de Ajustes cuando el usuario pulsa «Compartir» sin tener cuenta vinculada, o mostrar falsos avisos de *"acceso revocado"* cuando falla una petición por falta de internet.
+- **OBLIGATORIO el acceso directo condicionado a cuenta vinculada en `HomeScreen.kt` y `AccountDetailsDialog.kt`:**
+  1. **Con cuenta de Google vinculada (`isDriveConnected == true`):** Mostrar la sección desplegable (**«Servicios compartidos»**, `HomeSharedServicesAccordion`) dentro de la lista principal (`LazyColumn`) de `HomeScreen.kt` y habilitar el formulario de compartición en `AccountDetailsShareStep.kt`.
+  2. **Sin cuenta de Google vinculada (`isDriveConnected == false`):** Ocultar por completo `HomeSharedServicesAccordion` en `HomeScreen.kt`, purgar inmediatamente lotes y metadatos en caché (`SharedBatchKeyStore.clearAllBatches`) al desvincular la cuenta en Ajustes, y mostrar en `AccountDetailsShareStep.kt` el aviso informativo (`R.string.share_requires_connected_account_msg`) con el botón de confirmación deshabilitado.
+- **OBLIGATORIO el modelo de Modo Dual controlado por el propietario (A) y comportamiento sin conexión (`isNetworkAvailable`):**
+  1. **`ShareAccessMode.ONLINE_ONLY` (Por defecto):** El invitado requiere conexión activa al solicitar el código; el servidor (Cloudflare Worker + D1) valida el permiso en tiempo real y retorna únicamente los dígitos de la ventana actual de 30 segundos, garantizando revocación en 0 segundos. Sin internet, bloquear la consulta mostrando `R.string.share_error_no_internet`.
+  2. **`ShareAccessMode.OFFLINE_BATCH` (Lotes temporales):** Cuando el propietario lo autoriza explícitamente, el servidor precalcula únicamente los códigos `(timeStep -> código)` para la ventana seleccionada (`1`, `6` o `24` horas). El dispositivo invitado cifra el lote en reposo mediante `CryptoManager` (Android Keystore AES-256-GCM) junto con la caché local de metadatos en `SharedBatchKeyStore`, permitiendo consultar los códigos sin conexión a internet mientras el lote sea vigente y purgando la caché en memoria ante `ON_STOP` / `onTrimMemory`.
+- **OBLIGATORIO el apretón de manos por invitación (`ShareGrantStatus.PENDING` -> `ShareGrantStatus.ACCEPTED`) y revocación bilateral:**
+  1. **Invitación pendiente (`PENDING`):** Al compartir un servicio desde el propietario (A), el permiso nace en estado `PENDING`. Mientras esté en `PENDING`, el servidor bloquea cualquier generación de códigos (`/code` o `/batch`).
+  2. **Aceptación o rechazo explícito en el invitado (B):** En `IncomingSharedOtpCard`, las invitaciones `PENDING` muestran quién las envía con botones simétricos **«Rechazar»** y **«Aceptar»** (`POST /api/shares/:grantId/accept`). Solo tras aceptar pasa a `ACCEPTED` y habilita la consulta de códigos.
+  3. **Revocación bilateral (`DELETE /api/shares/:grantId`):** Tanto el propietario (A, botón «Revocar») como el invitado (B, botón «Rechazar» o «Quitar») pueden eliminar el permiso en la nube en cualquier momento, destruyendo físicamente el secreto cifrado en D1 cuando no queden invitados para ese servicio.
+- **OBLIGATORIO la revocación automática en cascada y advertencia explícita al eliminar un servicio propio:**
+  1. Advertir explícitamente al usuario en los diálogos de confirmación (`AccountDetailsDeleteStep.kt` y `RecentlyDeletedScreen.kt`) que al enviar a la papelera o eliminar definitivamente un servicio propio se revocará automáticamente en la nube cualquier permiso compartido activo de ese servicio.
+  2. Invocar `SharedServicesCloudClient.revokeAllGrantsForAccountsIfPossible` en `AccountRepositoryImpl` (`moveToTrash`, `permanentlyDelete` y `emptyTrash`) para revocar inmediatamente los accesos de terceros en la nube y limpiar la caché local de permisos salientes.
 
 ---
 

@@ -133,9 +133,9 @@ fun rememberGoogleOAuthRequester(
         { onAuthorized ->
             val existingToken = GoogleDriveManager.currentAccessToken
             val connectedEmail = prefsManager.getConnectedDriveEmail()
-            if (existingToken != null && !connectedEmail.isNullOrBlank()) {
+            if (existingToken != null && prefsManager.isGoogleDriveConnected()) {
                 onAuthorized(existingToken)
-            } else if (!connectedEmail.isNullOrBlank() && prefsManager.isGoogleDriveConnected()) {
+            } else if (prefsManager.isGoogleDriveConnected()) {
                 pendingAuthAction = onAuthorized
                 authorizeForAccount(connectedEmail)
             } else {

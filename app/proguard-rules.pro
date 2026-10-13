@@ -37,3 +37,6 @@
 -keepclassmembers class kotlinx.coroutines.** {
     volatile <fields>;
 }
+
+# Domain Model Enums
+-keepclassmembers enum com.example.appopt.domain.model.** { *; }

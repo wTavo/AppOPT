@@ -61,6 +61,9 @@ class HomeViewModel : ViewModel() {
     private val _cloudSyncState = MutableStateFlow(CloudSyncUiState.IDLE)
     val cloudSyncState: StateFlow<CloudSyncUiState> = _cloudSyncState.asStateFlow()
 
+    /** Estado reactivo que indica si existe una cuenta de Google vinculada actualmente. */
+    val isDriveConnected: StateFlow<Boolean> = preferencesManager.isGoogleDriveConnectedFlow
+
     /**
      * Indica si la bóveda local está completamente sincronizada con la nube en estado Idle.
      *

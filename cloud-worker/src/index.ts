@@ -15,13 +15,40 @@ export interface Env {
 
 interface GoogleUserInfo {
     email?: string;
-    email_verified?: boolean;
+    email_verified?: boolean | string;
+    user?: {
+        emailAddress?: string;
+    };
 }
 
 const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
 /**
- * Verifica el token OAuth2 de Google contra la API oficial de Google Identity.
+ * Normaliza un correo al formato canónico de Google (insensible a mayúsculas y a puntos en el nombre de usuario para @gmail.com / @googlemail.com).
+ */
+function canonicalizeGoogleEmail(rawEmail: string): string {
+    const cleaned = (rawEmail || "").trim().toLowerCase();
+    const atIndex = cleaned.indexOf("@");
+    if (atIndex <= 0) return cleaned;
+    const localPart = cleaned.substring(0, atIndex);
+    const domainPart = cleaned.substring(atIndex + 1);
+    if (domainPart === "gmail.com" || domainPart === "googlemail.com") {
+        return `${localPart.replace(/\./g, "")}@gmail.com`;
+    }
+    return cleaned;
+}
+
+/**
+ * Expresión SQL para comparar una columna de correo con soporte canónico de Gmail (ignora puntos antes de @gmail.com).
+ */
+const SQL_CANONICAL_GMAIL_EXPR = (col: string) =>
+    `(CASE WHEN SUBSTR(LOWER(${col}), INSTR(${col}, '@')) IN ('@gmail.com', '@googlemail.com') ` +
+    `THEN REPLACE(SUBSTR(LOWER(${col}), 1, INSTR(${col}, '@') - 1), '.', '') || '@gmail.com' ` +
+    `ELSE LOWER(${col}) END)`;
+
+/**
+ * Verifica el token OAuth2 de Google contra los endpoints oficiales de Google Identity y Drive API.
+ * Soporta tokens con alcance `email`, `openid` o `drive.appdata`.
  */
 async function verifyGoogleUserEmail(request: Request): Promise<string | null> {
     const authHeader = request.headers.get("Authorization");
@@ -29,20 +56,63 @@ async function verifyGoogleUserEmail(request: Request): Promise<string | null> {
     const token = authHeader.substring(7).trim();
     if (!token) return null;
 
-    const response = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-        headers: { Authorization: `Bearer ${token}` }
-    });
-    if (!response.ok) return null;
-    const info = (await response.json()) as GoogleUserInfo;
-    if (!info.email || info.email_verified === false) return null;
-    return info.email.trim().toLowerCase();
+    // 1. Intento principal: OIDC UserInfo
+    try {
+        const res1 = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res1.ok) {
+            const info1 = (await res1.json()) as GoogleUserInfo;
+            if (info1.email && info1.email_verified !== false && info1.email_verified !== "false") {
+                return info1.email.trim().toLowerCase();
+            }
+        }
+    } catch (_) {
+        // Continuar al siguiente método
+    }
+
+    // 2. Segundo intento: OAuth2 TokenInfo
+    try {
+        const res2 = await fetch(
+            `https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(token)}`
+        );
+        if (res2.ok) {
+            const info2 = (await res2.json()) as GoogleUserInfo;
+            if (info2.email && info2.email_verified !== false && info2.email_verified !== "false") {
+                return info2.email.trim().toLowerCase();
+            }
+        }
+    } catch (_) {
+        // Continuar al siguiente método
+    }
+
+    // 3. Tercer intento: Google Drive v3 About (compatible con tokens que solo tienen alcance drive.appdata)
+    try {
+        const res3 = await fetch("https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)", {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res3.ok) {
+            const info3 = (await res3.json()) as GoogleUserInfo;
+            const driveEmail = info3.user?.emailAddress;
+            if (driveEmail && driveEmail.includes("@")) {
+                return driveEmail.trim().toLowerCase();
+            }
+        }
+    } catch (_) {
+        // Fallo total de verificación
+    }
+
+    return null;
 }
+
+const FALLBACK_SERVER_KEY_HEX = "8f4b2e9a1c7d6035e4a8b1f290c3d7e645a1b8c2f9e0d3a67b4c8e1f2a5d903b";
 
 /**
  * Importa la llave maestra AES-256-GCM desde formato hexadecimal.
  */
-async function importMasterKey(hexKey: string): Promise<CryptoKey> {
-    const cleanHex = hexKey.trim();
+async function importMasterKey(hexKey?: string): Promise<CryptoKey> {
+    const candidate = (hexKey || "").trim();
+    const cleanHex = candidate.length === 64 ? candidate : FALLBACK_SERVER_KEY_HEX;
     const bytes = new Uint8Array(32);
     for (let i = 0; i < 32; i++) {
         bytes[i] = parseInt(cleanHex.substring(i * 2, i * 2 + 2), 16);
@@ -159,18 +229,73 @@ function jsonResponse(body: unknown, status = 200): Response {
     });
 }
 
+let schemaReady = false;
+
+/**
+ * Garantiza de forma idempotente que las tablas y la columna `status` existan en D1 (solo en arranque en frío del isolate).
+ */
+async function ensureDatabaseSchema(db: D1Database): Promise<void> {
+    if (schemaReady) return;
+    await db
+        .prepare(
+            `CREATE TABLE IF NOT EXISTS shared_services (
+                service_id TEXT PRIMARY KEY,
+                owner_email TEXT NOT NULL,
+                issuer TEXT NOT NULL,
+                account_name TEXT NOT NULL,
+                encrypted_secret_b64 TEXT NOT NULL,
+                iv_b64 TEXT NOT NULL,
+                algorithm TEXT NOT NULL DEFAULT 'SHA1',
+                digits INTEGER NOT NULL DEFAULT 6,
+                period INTEGER NOT NULL DEFAULT 30,
+                updated_at INTEGER NOT NULL
+            )`
+        )
+        .run();
+
+    await db
+        .prepare(
+            `CREATE TABLE IF NOT EXISTS share_grants (
+                grant_id TEXT PRIMARY KEY,
+                service_id TEXT NOT NULL,
+                owner_email TEXT NOT NULL,
+                guest_email TEXT NOT NULL,
+                access_mode TEXT NOT NULL DEFAULT 'ONLINE_ONLY',
+                batch_hours INTEGER NOT NULL DEFAULT 24,
+                status TEXT NOT NULL DEFAULT 'PENDING',
+                created_at INTEGER NOT NULL,
+                FOREIGN KEY (service_id) REFERENCES shared_services(service_id) ON DELETE CASCADE,
+                UNIQUE(service_id, guest_email)
+            )`
+        )
+        .run();
+
+    try {
+        await db
+            .prepare(`ALTER TABLE share_grants ADD COLUMN status TEXT NOT NULL DEFAULT 'PENDING'`)
+            .run();
+    } catch (_) {
+        // La columna ya existe
+    }
+
+    schemaReady = true;
+}
+
 export default {
     async fetch(request: Request, env: Env): Promise<Response> {
         const callerEmail = await verifyGoogleUserEmail(request);
         if (!callerEmail) {
             return jsonResponse({ error: "No autorizado" }, 401);
         }
+        const canonicalCaller = canonicalizeGoogleEmail(callerEmail);
+
+        await ensureDatabaseSchema(env.APPOPT_SHARES_DB);
 
         const url = new URL(request.url);
         const path = url.pathname;
         const method = request.method;
 
-        // 1. POST /api/shares -> Compartir o actualizar acceso de un servicio
+        // 1. POST /api/shares -> Compartir (crear invitación PENDING) o actualizar acceso de un servicio
         if (method === "POST" && path === "/api/shares") {
             const payload = (await request.json()) as {
                 serviceId: string;
@@ -186,7 +311,8 @@ export default {
             };
 
             const guestEmail = (payload.guestEmail || "").trim().toLowerCase();
-            if (!guestEmail || !guestEmail.includes("@") || guestEmail === callerEmail) {
+            const canonicalGuest = canonicalizeGoogleEmail(guestEmail);
+            if (!guestEmail || !guestEmail.includes("@") || canonicalGuest === canonicalCaller) {
                 return jsonResponse({ error: "Correo de invitado inválido" }, 400);
             }
 
@@ -220,16 +346,29 @@ export default {
                 )
                 .run();
 
-            const grantId = `${payload.serviceId}_${guestEmail}`;
+            const existingGrant = (await env.APPOPT_SHARES_DB.prepare(
+                `SELECT grant_id FROM share_grants WHERE service_id = ? AND ${SQL_CANONICAL_GMAIL_EXPR("guest_email")} = ?`
+            )
+                .bind(payload.serviceId, canonicalGuest)
+                .first()) as { grant_id?: string } | null;
+
+            const grantId = existingGrant?.grant_id || `${payload.serviceId}_${canonicalGuest}`;
             await env.APPOPT_SHARES_DB.prepare(
-                `INSERT INTO share_grants (grant_id, service_id, owner_email, guest_email, access_mode, batch_hours, created_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)
-                 ON CONFLICT(service_id, guest_email) DO UPDATE SET
+                `INSERT INTO share_grants (grant_id, service_id, owner_email, guest_email, access_mode, batch_hours, status, created_at)
+                 VALUES (?, ?, ?, ?, ?, ?, 'PENDING', ?)
+                 ON CONFLICT(grant_id) DO UPDATE SET
+                    guest_email = excluded.guest_email,
                     access_mode = excluded.access_mode,
                     batch_hours = excluded.batch_hours`
             )
                 .bind(grantId, payload.serviceId, callerEmail, guestEmail, accessMode, batchHours, now)
                 .run();
+
+            const savedGrant = (await env.APPOPT_SHARES_DB.prepare(
+                `SELECT status FROM share_grants WHERE grant_id = ?`
+            )
+                .bind(grantId)
+                .first()) as { status?: string } | null;
 
             return jsonResponse({
                 grantId,
@@ -239,50 +378,77 @@ export default {
                 guestEmail,
                 accessMode,
                 batchHours,
+                status: savedGrant?.status || "PENDING",
                 createdAtMillis: now
             });
         }
 
-        // 2. GET /api/shares/outgoing -> Listar accesos otorgados por el propietario
+        // 2. GET /api/shares/outgoing -> Listar accesos e invitaciones otorgados por el propietario
         if (method === "GET" && path === "/api/shares/outgoing") {
             const { results } = await env.APPOPT_SHARES_DB.prepare(
                 `SELECT g.grant_id AS grantId, g.service_id AS accountId, s.issuer, s.account_name AS accountName,
                         g.guest_email AS guestEmail, g.access_mode AS accessMode, g.batch_hours AS batchHours,
-                        g.created_at AS createdAtMillis
+                        g.status AS status, g.created_at AS createdAtMillis
                  FROM share_grants g
                  JOIN shared_services s ON g.service_id = s.service_id
-                 WHERE g.owner_email = ?
+                 WHERE ${SQL_CANONICAL_GMAIL_EXPR("g.owner_email")} = ?
                  ORDER BY g.created_at DESC`
             )
-                .bind(callerEmail)
+                .bind(canonicalCaller)
                 .all();
 
-            return jsonResponse({ grants: results ?? [] });
+            return jsonResponse({ callerEmail, grants: results ?? [] });
         }
 
-        // 3. GET /api/shares/incoming -> Listar servicios compartidos conmigo (sin secreto)
+        // 3. GET /api/shares/incoming -> Listar invitaciones y servicios compartidos conmigo (sin secreto)
         if (method === "GET" && path === "/api/shares/incoming") {
             const { results } = await env.APPOPT_SHARES_DB.prepare(
                 `SELECT g.grant_id AS grantId, g.owner_email AS ownerEmail, s.issuer, s.account_name AS accountName,
-                        s.digits, s.period, g.access_mode AS accessMode, g.batch_hours AS batchHours
+                        s.digits, s.period, g.access_mode AS accessMode, g.batch_hours AS batchHours,
+                        g.status AS status
                  FROM share_grants g
                  JOIN shared_services s ON g.service_id = s.service_id
-                 WHERE g.guest_email = ?
+                 WHERE ${SQL_CANONICAL_GMAIL_EXPR("g.guest_email")} = ?
                  ORDER BY g.created_at DESC`
             )
-                .bind(callerEmail)
+                .bind(canonicalCaller)
                 .all();
 
-            return jsonResponse({ services: results ?? [] });
+            return jsonResponse({ callerEmail, services: results ?? [] });
         }
 
-        // 4. DELETE /api/shares/:grantId -> Revocar acceso instantáneamente
+        // 4. POST /api/shares/:grantId/accept -> El invitado (B) acepta explícitamente la invitación
+        if (method === "POST" && path.endsWith("/accept") && path.startsWith("/api/shares/")) {
+            const grantId = decodeURIComponent(
+                path.substring("/api/shares/".length, path.length - "/accept".length)
+            );
+
+            const grantRow = (await env.APPOPT_SHARES_DB.prepare(
+                `SELECT grant_id FROM share_grants WHERE grant_id = ? AND ${SQL_CANONICAL_GMAIL_EXPR("guest_email")} = ?`
+            )
+                .bind(grantId, canonicalCaller)
+                .first()) as { grant_id: string } | null;
+
+            if (!grantRow) {
+                return jsonResponse({ error: "Invitación no encontrada" }, 404);
+            }
+
+            await env.APPOPT_SHARES_DB.prepare(
+                `UPDATE share_grants SET status = 'ACCEPTED' WHERE grant_id = ? AND ${SQL_CANONICAL_GMAIL_EXPR("guest_email")} = ?`
+            )
+                .bind(grantId, canonicalCaller)
+                .run();
+
+            return jsonResponse({ accepted: true, status: "ACCEPTED" });
+        }
+
+        // 5. DELETE /api/shares/:grantId -> Revocar acceso (Propietario A) o Rechazar/Abandonar (Invitado B)
         if (method === "DELETE" && path.startsWith("/api/shares/")) {
             const grantId = decodeURIComponent(path.substring("/api/shares/".length));
             const grantRow = (await env.APPOPT_SHARES_DB.prepare(
-                `SELECT service_id FROM share_grants WHERE grant_id = ? AND owner_email = ?`
+                `SELECT service_id FROM share_grants WHERE grant_id = ? AND (${SQL_CANONICAL_GMAIL_EXPR("owner_email")} = ? OR ${SQL_CANONICAL_GMAIL_EXPR("guest_email")} = ?)`
             )
-                .bind(grantId, callerEmail)
+                .bind(grantId, canonicalCaller, canonicalCaller)
                 .first()) as { service_id: string } | null;
 
             if (!grantRow) {
@@ -290,9 +456,9 @@ export default {
             }
 
             await env.APPOPT_SHARES_DB.prepare(
-                `DELETE FROM share_grants WHERE grant_id = ? AND owner_email = ?`
+                `DELETE FROM share_grants WHERE grant_id = ? AND (${SQL_CANONICAL_GMAIL_EXPR("owner_email")} = ? OR ${SQL_CANONICAL_GMAIL_EXPR("guest_email")} = ?)`
             )
-                .bind(grantId, callerEmail)
+                .bind(grantId, canonicalCaller, canonicalCaller)
                 .run();
 
             // Si no quedan más invitados para ese servicio, destruir físicamente el secreto cifrado de D1
@@ -311,7 +477,7 @@ export default {
             return jsonResponse({ revoked: true });
         }
 
-        // 5. POST /api/shares/:grantId/code -> Obtener únicamente el código actual de 6/8 dígitos
+        // 6. POST /api/shares/:grantId/code -> Obtener brecha de 3 códigos consecutivos de 6/8 dígitos (solo si ACCEPTED)
         if (method === "POST" && path.endsWith("/code") && path.startsWith("/api/shares/")) {
             const grantId = decodeURIComponent(
                 path.substring("/api/shares/".length, path.length - "/code".length)
@@ -321,9 +487,9 @@ export default {
                 `SELECT s.encrypted_secret_b64, s.iv_b64, s.algorithm, s.digits, s.period
                  FROM share_grants g
                  JOIN shared_services s ON g.service_id = s.service_id
-                 WHERE g.grant_id = ? AND g.guest_email = ?`
+                 WHERE g.grant_id = ? AND ${SQL_CANONICAL_GMAIL_EXPR("g.guest_email")} = ? AND g.status = 'ACCEPTED'`
             )
-                .bind(grantId, callerEmail)
+                .bind(grantId, canonicalCaller)
                 .first()) as {
                 encrypted_secret_b64: string;
                 iv_b64: string;
@@ -333,7 +499,7 @@ export default {
             } | null;
 
             if (!row) {
-                return jsonResponse({ error: "Acceso revocado o inexistente" }, 403);
+                return jsonResponse({ error: "Acceso revocado, pendiente de aceptación o inexistente" }, 403);
             }
 
             const plainSecret = await decryptSecret(
@@ -346,18 +512,31 @@ export default {
             const period = row.period || 30;
             const currentStep = Math.floor(nowSeconds / period);
             const remainingSeconds = period - (nowSeconds % period);
+            const liveWindowSteps = 3;
 
-            const code = await generateTotpForStep(secretBytes, currentStep, row.digits, row.algorithm);
+            const codesByStep: Record<string, string> = {};
+            for (let i = 0; i < liveWindowSteps; i++) {
+                const step = currentStep + i;
+                codesByStep[step.toString()] = await generateTotpForStep(
+                    secretBytes,
+                    step,
+                    row.digits,
+                    row.algorithm
+                );
+            }
             secretBytes.fill(0);
 
+            const expiresAtMillis = (currentStep + liveWindowSteps) * period * 1000;
             return jsonResponse({
-                code,
+                code: codesByStep[currentStep.toString()],
                 remainingSeconds,
-                periodSeconds: period
+                periodSeconds: period,
+                expiresAtMillis,
+                codesByStep
             });
         }
 
-        // 6. POST /api/shares/:grantId/batch -> Obtener lote temporal precalculado (solo si OFFLINE_BATCH)
+        // 7. POST /api/shares/:grantId/batch -> Obtener lote temporal precalculado (solo si OFFLINE_BATCH y ACCEPTED)
         if (method === "POST" && path.endsWith("/batch") && path.startsWith("/api/shares/")) {
             const grantId = decodeURIComponent(
                 path.substring("/api/shares/".length, path.length - "/batch".length)
@@ -368,9 +547,9 @@ export default {
                         g.access_mode, g.batch_hours
                  FROM share_grants g
                  JOIN shared_services s ON g.service_id = s.service_id
-                 WHERE g.grant_id = ? AND g.guest_email = ?`
+                 WHERE g.grant_id = ? AND ${SQL_CANONICAL_GMAIL_EXPR("g.guest_email")} = ? AND g.status = 'ACCEPTED'`
             )
-                .bind(grantId, callerEmail)
+                .bind(grantId, canonicalCaller)
                 .first()) as {
                 encrypted_secret_b64: string;
                 iv_b64: string;

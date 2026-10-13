@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS share_grants (
     guest_email TEXT NOT NULL,
     access_mode TEXT NOT NULL DEFAULT 'ONLINE_ONLY',
     batch_hours INTEGER NOT NULL DEFAULT 24,
+    status TEXT NOT NULL DEFAULT 'PENDING',
     created_at INTEGER NOT NULL,
     FOREIGN KEY (service_id) REFERENCES shared_services(service_id) ON DELETE CASCADE,
     UNIQUE(service_id, guest_email)

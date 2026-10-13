@@ -341,14 +341,14 @@
     <string name="trash_permanent_delete_button">Eliminar definitivamente</string>
     <string name="trash_empty_button">Vaciar papelera</string>
     <string name="trash_empty_title">Vaciar papelera de reciclaje</string>
-    <string name="trash_empty_confirm_msg">¿Deseas eliminar permanentemente todos los servicios de la papelera? Esta acción no se puede deshacer.</string>
+    <string name="trash_empty_confirm_msg">¿Deseas eliminar permanentemente todos los servicios de la papelera? Esta acción no se puede deshacer y revocará cualquier permiso compartido asociado.</string>
     <string name="trash_empty_success">Papelera vaciada correctamente</string>
     <string name="trash_permanent_delete_title">Eliminación definitiva</string>
-    <string name="trash_permanent_delete_confirm_msg">¿Deseas eliminar permanentemente este servicio? No podrás recuperar este código 2FA.</string>
+    <string name="trash_permanent_delete_confirm_msg">¿Deseas eliminar permanentemente este servicio? No podrás recuperar este código 2FA y cualquier permiso de acceso compartido asociado quedará revocado definitivamente.</string>
     <string name="trash_permanent_delete_success">Servicio eliminado definitivamente</string>
     <string name="trash_empty_state_title">La papelera está vacía</string>
     <string name="trash_empty_state_desc">Los servicios que elimines se guardarán aquí durante 30 días por si necesitas recuperarlos.</string>
-    <string name="account_details_delete_to_trash_hint">Este servicio se trasladará a la papelera de reciclaje. Podrás restaurarlo durante los próximos 30 días antes de su eliminación definitiva.</string>
+    <string name="account_details_delete_to_trash_hint">Este servicio se trasladará a la papelera de reciclaje durante 30 días. Si habías compartido este servicio con otras personas, sus permisos de acceso en la nube se revocarán automáticamente por seguridad.</string>
     <string name="account_details_move_to_trash_btn">Mover a la papelera</string>
 
     <!-- Selector de Cuentas para Importación y Restauración -->
@@ -381,29 +381,45 @@
     <string name="share_batch_1h">1 hora</string>
     <string name="share_batch_6h">6 horas</string>
     <string name="share_batch_24h">24 horas</string>
-    <string name="share_confirm_action">Compartir acceso</string>
-    <string name="share_active_grants_title">Personas con acceso activo</string>
+    <string name="share_confirm_action">Enviar invitación</string>
+    <string name="share_active_grants_title">Invitaciones y personas con acceso</string>
     <string name="share_active_grants_empty">Aún no has compartido este servicio con nadie.</string>
     <string name="share_revoke_action">Revocar</string>
     <string name="share_mode_badge_online">Solo en línea</string>
     <string name="share_mode_badge_batch">Lote de %1$d h</string>
-    <string name="share_success_msg">Acceso compartido correctamente</string>
+    <string name="share_status_pending_badge">Pendiente de aceptación · %1$s</string>
+    <string name="share_status_accepted_badge">Activo · %1$s</string>
+    <string name="share_success_msg">Invitación enviada a %1$s</string>
     <string name="share_revoke_success_msg">Acceso revocado inmediatamente</string>
     <string name="share_error_invalid_email">Ingresa un correo electrónico válido</string>
+    <string name="share_error_self_email">No puedes compartir un servicio con tu propia cuenta de Google vinculada.</string>
+    <string name="share_requires_connected_account_msg">Para compartir este servicio o gestionar accesos debes vincular primero una cuenta de Google en Ajustes.</string>
+    <string name="share_error_no_internet">Sin conexión a internet. Conéctate a una red para realizar esta acción.</string>
+    <string name="share_error_no_internet_offline_mode">Sin conexión a internet. Solo están disponibles los lotes sin conexión descargados previamente que sigan vigentes.</string>
 
     <!-- Sección Desplegable de Servicios Compartidos en Inicio -->
     <string name="home_shared_accordion_title">Servicios compartidos</string>
     <string name="home_shared_accordion_summary_tap">Toca para ver recibidos y enviados</string>
     <string name="home_shared_accordion_summary_empty">Sin servicios compartidos activos</string>
     <string name="home_shared_accordion_summary_counts">%1$d recibidos · %2$d compartidos</string>
+    <string name="home_shared_accordion_summary_pending">%1$d invitación(es) pendiente(s) de aceptar</string>
     <string name="home_shared_connect_button">Conectar cuenta de Google</string>
     <string name="settings_shared_tab_incoming">Compartidos conmigo</string>
     <string name="settings_shared_tab_outgoing">Compartidos por mí</string>
     <string name="settings_shared_incoming_empty">Nadie ha compartido servicios contigo todavía.</string>
     <string name="settings_shared_outgoing_empty">No tienes servicios compartidos activos en este momento.</string>
     <string name="settings_shared_owner_format">Compartido por %1$s</string>
+    <string name="settings_shared_invitation_from_format">Invitación de %1$s</string>
+    <string name="settings_shared_invitation_desc">Acepta esta invitación si reconoces al propietario para poder consultar los códigos temporales de este servicio.</string>
+    <string name="settings_shared_accept_action">Aceptar</string>
+    <string name="settings_shared_reject_action">Rechazar</string>
+    <string name="settings_shared_leave_action">Quitar</string>
+    <string name="settings_shared_accept_success_msg">Invitación aceptada correctamente</string>
+    <string name="settings_shared_reject_success_msg">Invitación rechazada</string>
+    <string name="settings_shared_leave_success_msg">Servicio compartido eliminado de tu lista</string>
     <string name="settings_shared_guest_format">Invitado: %1$s</string>
     <string name="settings_shared_tap_to_fetch">Toca para obtener código actual</string>
+    <string name="settings_shared_live_window_progress">Código %1$d de %2$d</string>
     <string name="settings_shared_download_batch_action">Descargar lote sin conexión</string>
     <string name="settings_shared_batch_ready">Renovar lote sin conexión</string>
     <string name="settings_shared_batch_downloaded_msg">Lote temporal descargado y cifrado en el dispositivo</string>

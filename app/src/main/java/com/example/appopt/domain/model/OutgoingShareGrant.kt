@@ -11,6 +11,7 @@ package com.example.appopt.domain.model
  * @property accessMode Modo de acceso autorizado ([ShareAccessMode.ONLINE_ONLY] o [ShareAccessMode.OFFLINE_BATCH]).
  * @property batchHours Duración en horas del lote sin conexión (si aplica).
  * @property createdAtMillis Marca de tiempo de creación del permiso en milisegundos.
+ * @property status Estado actual de la invitación ([ShareGrantStatus.PENDING] o [ShareGrantStatus.ACCEPTED]).
  */
 data class OutgoingShareGrant(
     val grantId: String,
@@ -20,5 +21,6 @@ data class OutgoingShareGrant(
     val guestEmail: String,
     val accessMode: ShareAccessMode,
     val batchHours: Int,
-    val createdAtMillis: Long
+    val createdAtMillis: Long,
+    val status: ShareGrantStatus = ShareGrantStatus.ACCEPTED
 )

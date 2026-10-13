@@ -190,6 +190,16 @@ fun AccountDetailsShareStep(
                 )
 
                 ShareModeOptionCard(
+                    title = stringResource(R.string.share_mode_single_use_title),
+                    description = stringResource(R.string.share_mode_single_use_desc),
+                    selected = selectedMode == ShareAccessMode.SINGLE_USE,
+                    onClick = {
+                        appHaptics.click()
+                        selectedMode = ShareAccessMode.SINGLE_USE
+                    }
+                )
+
+                ShareModeOptionCard(
                     title = stringResource(R.string.share_mode_offline_batch_title),
                     description = stringResource(R.string.share_mode_offline_batch_desc),
                     selected = selectedMode == ShareAccessMode.OFFLINE_BATCH,
@@ -270,10 +280,13 @@ fun AccountDetailsShareStep(
                                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
-                                        val modeText = if (grant.accessMode == ShareAccessMode.OFFLINE_BATCH) {
-                                            stringResource(R.string.share_mode_badge_batch, grant.batchHours)
-                                        } else {
-                                            stringResource(R.string.share_mode_badge_online)
+                                        val modeText = when (grant.accessMode) {
+                                            ShareAccessMode.OFFLINE_BATCH ->
+                                                stringResource(R.string.share_mode_badge_batch, grant.batchHours)
+                                            ShareAccessMode.SINGLE_USE ->
+                                                stringResource(R.string.share_mode_badge_single_use)
+                                            ShareAccessMode.ONLINE_ONLY ->
+                                                stringResource(R.string.share_mode_badge_online)
                                         }
                                         val isPending = grant.status == ShareGrantStatus.PENDING
                                         val statusAndModeText = if (isPending) {

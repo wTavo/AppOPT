@@ -5,10 +5,16 @@ package com.example.appopt.domain.model
  */
 enum class ShareAccessMode {
     /**
-     * Modo estricto en línea: el dispositivo invitado solicita únicamente el código de 30 segundos actual
-     * bajo demanda al servidor, garantizando revocación instantánea en 0 segundos.
+     * Modo estricto en línea: el dispositivo invitado solicita una brecha de 3 códigos bajo demanda
+     * al servidor, garantizando revocación instantánea en 0 segundos.
      */
     ONLINE_ONLY,
+
+    /**
+     * Modo de un solo uso: el servidor entrega una única brecha de 3 códigos consecutivos al invitado
+     * y revoca automáticamente el permiso en la base de datos en el mismo acto.
+     */
+    SINGLE_USE,
 
     /**
      * Modo de lote temporal sin conexión: el servidor entrega una lista precalculada de códigos futuros
@@ -24,7 +30,11 @@ enum class ShareAccessMode {
          * @return [ShareAccessMode] correspondiente (por defecto [ONLINE_ONLY]).
          */
         fun fromWireValue(value: String?): ShareAccessMode {
-            return if (value?.uppercase() == OFFLINE_BATCH.name) OFFLINE_BATCH else ONLINE_ONLY
+            return when (value?.uppercase()) {
+                OFFLINE_BATCH.name -> OFFLINE_BATCH
+                SINGLE_USE.name -> SINGLE_USE
+                else -> ONLINE_ONLY
+            }
         }
     }
 }

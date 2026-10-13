@@ -49,14 +49,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
-import com.example.appopt.data.cloud.LiveSharedCodeResult
 import com.example.appopt.data.cloud.SharedBatchKeyStore
 import com.example.appopt.data.cloud.SharedServicesCloudClient
 import com.example.appopt.domain.model.IncomingSharedService
 import com.example.appopt.domain.model.OutgoingShareGrant
 import com.example.appopt.domain.model.ShareAccessMode
+import com.example.appopt.domain.model.ShareGrantStatus
 import com.example.appopt.domain.model.SharedOtpBatch
+import com.example.appopt.security.SecurityConfig
 import com.example.appopt.ui.components.AppAnimatedButton
 import com.example.appopt.ui.screens.settings.coordinator.rememberGoogleOAuthRequester
 import com.example.appopt.ui.theme.Dimensions
@@ -69,9 +71,12 @@ import kotlinx.coroutines.launch
 /**
  * Sección desplegable (acordeón) de «Servicios compartidos» integrada en la lista principal de Inicio (Directivas 4, 29 y 31).
  *
- * Permite consultar y gestionar en la misma lista de Inicio tanto los servicios que terceros han compartido
- * con el usuario (en línea o por lotes sin conexión) como los permisos otorgados por el propietario,
- * manteniendo la pantalla principal limpia cuando la sección está plegada.
+ * Características:
+ * - Ocultación inteligente cuando el usuario no tiene servicios compartidos recibidos ni enviados.
+ * - Persistencia cifrada de la brecha activa de 3 códigos en [SharedBatchKeyStore] para conservar el paso exacto
+ *   (`Código 1 de 3`, `2 de 3`, `3 de 3`) aunque el usuario cierre y vuelva a abrir la aplicación antes de que concluya el 3er código.
+ * - Soporte para permisos de un solo uso ([ShareAccessMode.SINGLE_USE]) que se eliminan automáticamente al expirar el 3er código.
+ * - Diálogo modal de detalles ([IncomingSharedServiceDetailsDialog]) al tocar una tarjeta recibida.
  *
  * @param searchQuery Consulta activa del buscador superior para filtrar servicios compartidos.
  * @param hideCodes Estado del modo privacidad para ocultar dígitos OTP.
@@ -89,6 +94,8 @@ fun HomeSharedServicesAccordion(
     val scope = rememberCoroutineScope()
     val appHaptics = rememberAppHaptics()
     val currentSecondEpoch by TotpClock.currentSecondEpoch.collectAsStateWithLifecycle()
+    val cacheVersion by SharedBatchKeyStore.cacheVersion.collectAsStateWithLifecycle()
+    val isUnlocked by AuthenticatorApp.instance.appLockManager.isUnlocked.collectAsStateWithLifecycle()
 
     var isExpanded by remember { mutableStateOf(false) }
     var hasFetchedOnce by remember { mutableStateOf(false) }
@@ -101,8 +108,8 @@ fun HomeSharedServicesAccordion(
         mutableStateOf(SharedBatchKeyStore.getCachedOutgoingGrants(context))
     }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var selectedIncomingGrantId by remember { mutableStateOf<String?>(null) }
 
-    val liveCodesMap = remember { mutableStateMapOf<String, LiveSharedCodeResult>() }
     val cachedBatchesMap = remember {
         mutableStateMapOf<String, SharedOtpBatch>().apply {
             SharedBatchKeyStore.getCachedIncomingServices(context).forEach { svc ->
@@ -113,6 +120,40 @@ fun HomeSharedServicesAccordion(
         }
     }
     var loadingGrantId by remember { mutableStateOf<String?>(null) }
+
+    // Sincroniza cambios locales (p. ej. cuando el propietario comparte un servicio desde AccountDetailsDialog)
+    LaunchedEffect(cacheVersion) {
+        incomingList = SharedBatchKeyStore.getCachedIncomingServices(context)
+        outgoingList = SharedBatchKeyStore.getCachedOutgoingGrants(context)
+        incomingList.forEach { svc ->
+            val validBatch = SharedBatchKeyStore.getValidBatch(context, svc.grantId)
+            if (validBatch != null) {
+                cachedBatchesMap[svc.grantId] = validBatch
+            }
+        }
+    }
+
+    // Expira en tiempo real cualquier brecha de 3 códigos o lote cuyo bloque de tiempo haya concluido
+    val nowMillis = currentSecondEpoch * 1000L
+    LaunchedEffect(currentSecondEpoch) {
+        val expiredEntries = cachedBatchesMap.entries
+            .filter { (_, batch) -> batch.isExpired(nowMillis) || batch.getCodeAt(nowMillis) == null }
+            .toList()
+        if (expiredEntries.isNotEmpty()) {
+            var updatedIncoming = incomingList
+            expiredEntries.forEach { (grantId, batch) ->
+                SharedBatchKeyStore.removeBatch(context, grantId)
+                cachedBatchesMap.remove(grantId)
+                if (batch.isSingleUseWindow) {
+                    updatedIncoming = updatedIncoming.filterNot { it.grantId == grantId }
+                }
+            }
+            if (updatedIncoming != incomingList) {
+                incomingList = updatedIncoming
+                SharedBatchKeyStore.saveCachedIncomingServices(context, updatedIncoming)
+            }
+        }
+    }
 
     val requestOAuthToken = rememberGoogleOAuthRequester(
         onAuthError = {
@@ -149,21 +190,30 @@ fun HomeSharedServicesAccordion(
                 val incomingRes = SharedServicesCloudClient.fetchIncomingServices(token)
                 val outgoingRes = SharedServicesCloudClient.fetchOutgoingGrants(token)
 
-                incomingRes.onSuccess { list ->
-                    incomingList = list
-                    SharedBatchKeyStore.saveCachedIncomingServices(context, list)
-                    if (list.any { it.status == com.example.appopt.domain.model.ShareGrantStatus.PENDING }) {
+                incomingRes.onSuccess { remoteList ->
+                    val currentNow = System.currentTimeMillis()
+                    // Preservar servicios de un solo uso cuya brecha local de 3 códigos siga activa en este instante
+                    val activeSingleUseServices = incomingList.filter { localSvc ->
+                        val localBatch = cachedBatchesMap[localSvc.grantId]
+                            ?: SharedBatchKeyStore.getValidBatch(context, localSvc.grantId, currentNow)
+                        localBatch != null && localBatch.isSingleUseWindow && !localBatch.isExpired(currentNow) &&
+                            remoteList.none { it.grantId == localSvc.grantId }
+                    }
+                    val mergedList = remoteList + activeSingleUseServices
+                    incomingList = mergedList
+                    SharedBatchKeyStore.saveCachedIncomingServices(context, mergedList)
+                    if (mergedList.any { it.status == ShareGrantStatus.PENDING }) {
                         isExpanded = true
                     }
-                    val activeIds = list.map { it.grantId }.toSet()
+                    val activeIds = mergedList.map { it.grantId }.toSet()
                     cachedBatchesMap.keys.toList().forEach { id ->
                         if (id !in activeIds) {
                             SharedBatchKeyStore.removeBatch(context, id)
                             cachedBatchesMap.remove(id)
                         }
                     }
-                    list.forEach { svc ->
-                        SharedBatchKeyStore.getValidBatch(context, svc.grantId)?.let { batch ->
+                    mergedList.forEach { svc ->
+                        SharedBatchKeyStore.getValidBatch(context, svc.grantId, currentNow)?.let { batch ->
                             cachedBatchesMap[svc.grantId] = batch
                         }
                     }
@@ -186,8 +236,10 @@ fun HomeSharedServicesAccordion(
         }
     }
 
-    LaunchedEffect(Unit) {
-        if (SharedServicesCloudClient.isNetworkAvailable(context) && !isLoading) {
+    LaunchedEffect(isUnlocked) {
+        if (!isUnlocked) {
+            selectedIncomingGrantId = null
+        } else if (SharedServicesCloudClient.isNetworkAvailable(context) && !isLoading) {
             refreshSharedServices()
         }
     }
@@ -196,6 +248,110 @@ fun HomeSharedServicesAccordion(
         if (isExpanded && !isLoading) {
             refreshSharedServices()
         }
+    }
+
+    fun requestCodeOrOfflineBatch(item: IncomingSharedService) {
+        if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
+            appHaptics.error()
+            errorMessage = context.getString(R.string.share_error_no_internet)
+            return
+        }
+        loadingGrantId = item.grantId
+        errorMessage = null
+        requestOAuthToken { token ->
+            scope.launch {
+                if (item.accessMode == ShareAccessMode.OFFLINE_BATCH) {
+                    SharedServicesCloudClient.downloadPrecomputedBatch(token, item.grantId)
+                        .onSuccess { batch ->
+                            SharedBatchKeyStore.saveBatch(context, batch)
+                            cachedBatchesMap[item.grantId] = batch
+                            appHaptics.success()
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.settings_shared_batch_downloaded_msg),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                        .onFailure {
+                            appHaptics.error()
+                            if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
+                                errorMessage = context.getString(R.string.share_error_no_internet)
+                            } else {
+                                SharedBatchKeyStore.removeBatch(context, item.grantId)
+                                cachedBatchesMap.remove(item.grantId)
+                                errorMessage = context.getString(R.string.settings_shared_revoked_error)
+                            }
+                        }
+                } else {
+                    SharedServicesCloudClient.requestLiveCode(token, item.grantId)
+                        .onSuccess { live ->
+                            val liveBatch = live.toSharedOtpBatch(item.grantId)
+                            SharedBatchKeyStore.saveBatch(context, liveBatch)
+                            cachedBatchesMap[item.grantId] = liveBatch
+                            appHaptics.success()
+                        }
+                        .onFailure {
+                            appHaptics.error()
+                            if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
+                                errorMessage = context.getString(R.string.share_error_no_internet)
+                            } else {
+                                SharedBatchKeyStore.removeBatch(context, item.grantId)
+                                cachedBatchesMap.remove(item.grantId)
+                                errorMessage = context.getString(R.string.settings_shared_revoked_error)
+                            }
+                        }
+                }
+                loadingGrantId = null
+            }
+        }
+    }
+
+    fun rejectOrLeaveIncomingService(item: IncomingSharedService) {
+        if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
+            appHaptics.error()
+            errorMessage = context.getString(R.string.share_error_no_internet)
+            return
+        }
+        loadingGrantId = item.grantId
+        errorMessage = null
+        val wasPending = item.status == ShareGrantStatus.PENDING
+        requestOAuthToken { token ->
+            scope.launch {
+                SharedServicesCloudClient.revokeGrant(token, item.grantId)
+                    .onSuccess {
+                        val updatedList = incomingList.filterNot { it.grantId == item.grantId }
+                        incomingList = updatedList
+                        SharedBatchKeyStore.saveCachedIncomingServices(context, updatedList)
+                        SharedBatchKeyStore.removeBatch(context, item.grantId)
+                        cachedBatchesMap.remove(item.grantId)
+                        appHaptics.success()
+                        val msgRes = if (wasPending) {
+                            R.string.settings_shared_reject_success_msg
+                        } else {
+                            R.string.settings_shared_leave_success_msg
+                        }
+                        Toast.makeText(
+                            context,
+                            context.getString(msgRes),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    .onFailure {
+                        appHaptics.error()
+                        errorMessage = if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
+                            context.getString(R.string.share_error_no_internet)
+                        } else {
+                            context.getString(R.string.share_error_generic)
+                        }
+                    }
+                loadingGrantId = null
+            }
+        }
+    }
+
+    // Ocultar completamente la sección en Inicio cuando no existen servicios compartidos recibidos ni enviados
+    if (incomingList.isEmpty() && outgoingList.isEmpty()) {
+        return
     }
 
     val chevronRotation by animateFloatAsState(
@@ -226,18 +382,29 @@ fun HomeSharedServicesAccordion(
     }
 
     val pendingInvitationsCount = remember(incomingList) {
-        incomingList.count { it.status == com.example.appopt.domain.model.ShareGrantStatus.PENDING }
+        incomingList.count { it.status == ShareGrantStatus.PENDING }
     }
 
     val summaryText = when {
         pendingInvitationsCount > 0 ->
             stringResource(R.string.home_shared_accordion_summary_pending, pendingInvitationsCount)
-        !hasFetchedOnce && incomingList.isEmpty() && outgoingList.isEmpty() ->
-            stringResource(R.string.home_shared_accordion_summary_tap)
-        incomingList.isEmpty() && outgoingList.isEmpty() ->
-            stringResource(R.string.home_shared_accordion_summary_empty)
         else ->
             stringResource(R.string.home_shared_accordion_summary_counts, incomingList.size, outgoingList.size)
+    }
+
+    val selectedIncomingService = selectedIncomingGrantId?.let { id ->
+        incomingList.find { it.grantId == id }
+    }
+    if (selectedIncomingService != null) {
+        val selectedBatch = cachedBatchesMap[selectedIncomingService.grantId]
+        IncomingSharedServiceDetailsDialog(
+            service = selectedIncomingService,
+            hasValidBatch = selectedBatch != null && !selectedBatch.isExpired(nowMillis),
+            isLoading = loadingGrantId == selectedIncomingService.grantId,
+            onDismiss = { selectedIncomingGrantId = null },
+            onRenewOfflineBatch = { requestCodeOrOfflineBatch(selectedIncomingService) },
+            onConfirmLeave = { rejectOrLeaveIncomingService(selectedIncomingService) }
+        )
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
@@ -356,7 +523,7 @@ fun HomeSharedServicesAccordion(
                 }
 
                 when {
-                    isLoading -> {
+                    isLoading && filteredIncoming.isEmpty() && filteredOutgoing.isEmpty() -> {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -395,22 +562,6 @@ fun HomeSharedServicesAccordion(
                         }
                     }
 
-                    filteredIncoming.isEmpty() && filteredOutgoing.isEmpty() -> {
-                        Surface(
-                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = stringResource(R.string.settings_shared_incoming_empty),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(Dimensions.Spacing.md)
-                            )
-                        }
-                    }
-
                     else -> {
                         if (filteredIncoming.isNotEmpty()) {
                             Text(
@@ -420,20 +571,13 @@ fun HomeSharedServicesAccordion(
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.padding(horizontal = Dimensions.Spacing.xs)
                             )
-                            val nowMillis = currentSecondEpoch * 1000L
-                            LaunchedEffect(currentSecondEpoch) {
-                                val expiredGrantIds = liveCodesMap.entries
-                                    .filter { (_, live) -> live.getCodeAt(nowMillis) == null }
-                                    .map { it.key }
-                                expiredGrantIds.forEach { liveCodesMap.remove(it) }
-                            }
                             filteredIncoming.forEach { item ->
                                 val cachedBatch = cachedBatchesMap[item.grantId]
-                                val batchCode = cachedBatch?.getCodeAt(nowMillis)
-                                val liveCodeResult = liveCodesMap[item.grantId]
-                                val liveCode = liveCodeResult?.getCodeAt(nowMillis)
-                                val liveWindowProgress = liveCodeResult?.getWindowStepProgress(nowMillis)
-                                val activeCode = batchCode ?: liveCode
+                                val activeCode = cachedBatch?.getCodeAt(nowMillis)
+                                val liveWindowProgress = cachedBatch?.getWindowStepProgress(
+                                    nowMillis = nowMillis,
+                                    maxLiveWindowSteps = SecurityConfig.SHARED_LIVE_CODE_WINDOW_STEPS
+                                )
 
                                 IncomingSharedOtpCard(
                                     service = item,
@@ -443,58 +587,7 @@ fun HomeSharedServicesAccordion(
                                     hasValidBatch = cachedBatch != null && !cachedBatch.isExpired(nowMillis),
                                     isItemLoading = loadingGrantId == item.grantId,
                                     onCopyCode = { code -> onCopyCode(code, item.issuer) },
-                                    onRequestAction = {
-                                        if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-                                            appHaptics.error()
-                                            errorMessage = context.getString(R.string.share_error_no_internet)
-                                            return@IncomingSharedOtpCard
-                                        }
-                                        loadingGrantId = item.grantId
-                                        errorMessage = null
-                                        requestOAuthToken { token ->
-                                            scope.launch {
-                                                if (item.accessMode == ShareAccessMode.OFFLINE_BATCH) {
-                                                    SharedServicesCloudClient.downloadPrecomputedBatch(token, item.grantId)
-                                                        .onSuccess { batch ->
-                                                            SharedBatchKeyStore.saveBatch(context, batch)
-                                                            cachedBatchesMap[item.grantId] = batch
-                                                            appHaptics.success()
-                                                            Toast.makeText(
-                                                                context,
-                                                                context.getString(R.string.settings_shared_batch_downloaded_msg),
-                                                                Toast.LENGTH_SHORT
-                                                            ).show()
-                                                        }
-                                                        .onFailure {
-                                                            appHaptics.error()
-                                                            if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-                                                                errorMessage = context.getString(R.string.share_error_no_internet)
-                                                            } else {
-                                                                SharedBatchKeyStore.removeBatch(context, item.grantId)
-                                                                cachedBatchesMap.remove(item.grantId)
-                                                                errorMessage = context.getString(R.string.settings_shared_revoked_error)
-                                                            }
-                                                        }
-                                                } else {
-                                                    SharedServicesCloudClient.requestLiveCode(token, item.grantId)
-                                                        .onSuccess { live ->
-                                                            liveCodesMap[item.grantId] = live
-                                                            appHaptics.success()
-                                                        }
-                                                        .onFailure {
-                                                            appHaptics.error()
-                                                            if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-                                                                errorMessage = context.getString(R.string.share_error_no_internet)
-                                                            } else {
-                                                                liveCodesMap.remove(item.grantId)
-                                                                errorMessage = context.getString(R.string.settings_shared_revoked_error)
-                                                            }
-                                                        }
-                                                }
-                                                loadingGrantId = null
-                                            }
-                                        }
-                                    },
+                                    onRequestAction = { requestCodeOrOfflineBatch(item) },
                                     onAcceptInvitation = {
                                         if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
                                             appHaptics.error()
@@ -509,7 +602,7 @@ fun HomeSharedServicesAccordion(
                                                     .onSuccess {
                                                         val updatedList = incomingList.map {
                                                             if (it.grantId == item.grantId) {
-                                                                it.copy(status = com.example.appopt.domain.model.ShareGrantStatus.ACCEPTED)
+                                                                it.copy(status = ShareGrantStatus.ACCEPTED)
                                                             } else {
                                                                 it
                                                             }
@@ -542,49 +635,8 @@ fun HomeSharedServicesAccordion(
                                             }
                                         }
                                     },
-                                    onRejectOrLeave = {
-                                        if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-                                            appHaptics.error()
-                                            errorMessage = context.getString(R.string.share_error_no_internet)
-                                            return@IncomingSharedOtpCard
-                                        }
-                                        loadingGrantId = item.grantId
-                                        errorMessage = null
-                                        val wasPending = item.status == com.example.appopt.domain.model.ShareGrantStatus.PENDING
-                                        requestOAuthToken { token ->
-                                            scope.launch {
-                                                SharedServicesCloudClient.revokeGrant(token, item.grantId)
-                                                    .onSuccess {
-                                                        val updatedList = incomingList.filterNot { it.grantId == item.grantId }
-                                                        incomingList = updatedList
-                                                        SharedBatchKeyStore.saveCachedIncomingServices(context, updatedList)
-                                                        SharedBatchKeyStore.removeBatch(context, item.grantId)
-                                                        cachedBatchesMap.remove(item.grantId)
-                                                        liveCodesMap.remove(item.grantId)
-                                                        appHaptics.success()
-                                                        val msgRes = if (wasPending) {
-                                                            R.string.settings_shared_reject_success_msg
-                                                        } else {
-                                                            R.string.settings_shared_leave_success_msg
-                                                        }
-                                                        Toast.makeText(
-                                                            context,
-                                                            context.getString(msgRes),
-                                                            Toast.LENGTH_SHORT
-                                                        ).show()
-                                                    }
-                                                    .onFailure {
-                                                        appHaptics.error()
-                                                        errorMessage = if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-                                                            context.getString(R.string.share_error_no_internet)
-                                                        } else {
-                                                            context.getString(R.string.share_error_generic)
-                                                        }
-                                                    }
-                                                loadingGrantId = null
-                                            }
-                                        }
-                                    }
+                                    onRejectOrLeave = { rejectOrLeaveIncomingService(item) },
+                                    onCardClick = { selectedIncomingGrantId = item.grantId }
                                 )
                             }
                         }
@@ -642,3 +694,4 @@ fun HomeSharedServicesAccordion(
         }
     }
 }
+

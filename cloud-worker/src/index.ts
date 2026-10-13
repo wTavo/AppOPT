@@ -316,7 +316,12 @@ export default {
                 return jsonResponse({ error: "Correo de invitado inválido" }, 400);
             }
 
-            const accessMode = payload.accessMode === "OFFLINE_BATCH" ? "OFFLINE_BATCH" : "ONLINE_ONLY";
+            const accessMode =
+                payload.accessMode === "OFFLINE_BATCH"
+                    ? "OFFLINE_BATCH"
+                    : payload.accessMode === "SINGLE_USE"
+                      ? "SINGLE_USE"
+                      : "ONLINE_ONLY";
             const batchHours = [1, 6, 24].includes(payload.batchHours) ? payload.batchHours : 24;
             const now = Date.now();
 
@@ -484,13 +489,15 @@ export default {
             );
 
             const row = (await env.APPOPT_SHARES_DB.prepare(
-                `SELECT s.encrypted_secret_b64, s.iv_b64, s.algorithm, s.digits, s.period
+                `SELECT g.service_id, g.access_mode, s.encrypted_secret_b64, s.iv_b64, s.algorithm, s.digits, s.period
                  FROM share_grants g
                  JOIN shared_services s ON g.service_id = s.service_id
                  WHERE g.grant_id = ? AND ${SQL_CANONICAL_GMAIL_EXPR("g.guest_email")} = ? AND g.status = 'ACCEPTED'`
             )
                 .bind(grantId, canonicalCaller)
                 .first()) as {
+                service_id: string;
+                access_mode: string;
                 encrypted_secret_b64: string;
                 iv_b64: string;
                 algorithm: string;
@@ -526,13 +533,33 @@ export default {
             }
             secretBytes.fill(0);
 
+            const isSingleUse = row.access_mode === "SINGLE_USE";
+            if (isSingleUse) {
+                await env.APPOPT_SHARES_DB.prepare(`DELETE FROM share_grants WHERE grant_id = ?`)
+                    .bind(grantId)
+                    .run();
+
+                const remaining = (await env.APPOPT_SHARES_DB.prepare(
+                    `SELECT COUNT(*) AS count FROM share_grants WHERE service_id = ?`
+                )
+                    .bind(row.service_id)
+                    .first()) as { count: number } | null;
+
+                if (!remaining || remaining.count === 0) {
+                    await env.APPOPT_SHARES_DB.prepare(`DELETE FROM shared_services WHERE service_id = ?`)
+                        .bind(row.service_id)
+                        .run();
+                }
+            }
+
             const expiresAtMillis = (currentStep + liveWindowSteps) * period * 1000;
             return jsonResponse({
                 code: codesByStep[currentStep.toString()],
                 remainingSeconds,
                 periodSeconds: period,
                 expiresAtMillis,
-                codesByStep
+                codesByStep,
+                singleUseConsumed: isSingleUse
             });
         }
 

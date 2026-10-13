@@ -41,6 +41,7 @@ import com.example.appopt.R
 import com.example.appopt.data.cloud.GoogleDriveManager
 import com.example.appopt.ui.screens.scan.QrScannerDialog
 import com.example.appopt.ui.screens.scan.QrScannerMode
+import com.example.appopt.ui.screens.settings.components.AppUpdateSettingsCard
 import com.example.appopt.ui.screens.settings.components.DriveSyncSettingsCard
 import com.example.appopt.ui.screens.settings.components.PerformanceSettingsCard
 import com.example.appopt.ui.screens.settings.components.PermissionsSettingsCard
@@ -300,6 +301,9 @@ fun SettingsScreen(
                 onMobileDataToggle = { allowed -> viewModel.setSyncMobileDataAllowed(allowed, context) },
                 onDriveBackupEncryptedToggle = { enabled -> coordinator.handleE2eeToggle(enabled) }
             )
+
+            // 5. Tarjeta de Actualización de la Aplicación (GitHub Releases Zero-Trust)
+            AppUpdateSettingsCard()
 
             Spacer(modifier = Modifier.height(Dimensions.Spacing.sm))
         }

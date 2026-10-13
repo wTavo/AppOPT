@@ -38,14 +38,33 @@ import java.nio.charset.StandardCharsets
  * @property periodSeconds Período total de rotación en segundos.
  * @property expiresAtMillis Marca de tiempo en milisegundos en la que caduca el último código de la brecha.
  * @property codesByStep Mapa de pasos de tiempo (`epochSeconds / periodSeconds`) hacia su código OTP dentro de la brecha.
+ * @property singleUseConsumed Indica si el permiso era de un solo uso y fue consumido al entregar esta brecha.
  */
 data class LiveSharedCodeResult(
     val code: String,
     val remainingSeconds: Int,
     val periodSeconds: Int,
     val expiresAtMillis: Long = 0L,
-    val codesByStep: Map<Long, String> = emptyMap()
+    val codesByStep: Map<Long, String> = emptyMap(),
+    val singleUseConsumed: Boolean = false
 ) {
+    /**
+     * Convierte esta brecha temporal de 3 códigos en un [SharedOtpBatch] para resguardarla cifrada en [SharedBatchKeyStore]
+     * durante su vigencia exacta por bloque de tiempo.
+     *
+     * @param grantId Identificador del permiso compartido.
+     * @return [SharedOtpBatch] equivalente.
+     */
+    fun toSharedOtpBatch(grantId: String): SharedOtpBatch {
+        return SharedOtpBatch(
+            grantId = grantId,
+            periodSeconds = periodSeconds,
+            expiresAtMillis = expiresAtMillis,
+            codesByStep = codesByStep,
+            isSingleUseWindow = singleUseConsumed
+        )
+    }
+
     /**
      * Obtiene el código OTP correspondiente al instante indicado dentro de la brecha de códigos,
      * o `null` si ya finalizaron los códigos de la ventana.
@@ -333,7 +352,8 @@ object SharedServicesCloudClient {
                     remainingSeconds = remainingSeconds,
                     periodSeconds = periodSeconds,
                     expiresAtMillis = expiresAtMillis,
-                    codesByStep = codesMap
+                    codesByStep = codesMap,
+                    singleUseConsumed = obj.optBoolean("singleUseConsumed", false)
                 )
             }
         }

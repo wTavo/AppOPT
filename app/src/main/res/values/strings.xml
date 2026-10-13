@@ -375,6 +375,8 @@
     <string name="share_mode_section_title">Modo de acceso para el invitado</string>
     <string name="share_mode_online_title">Solo en línea (revocación inmediata)</string>
     <string name="share_mode_online_desc">El invitado requiere internet al consultar el código. Si revocas el permiso, el acceso se corta en 0 segundos.</string>
+    <string name="share_mode_single_use_title">Un solo uso (1 brecha de 3 códigos)</string>
+    <string name="share_mode_single_use_desc">Entrega una única brecha de 3 códigos consecutivos al invitado y cierra el permiso automáticamente.</string>
     <string name="share_mode_offline_batch_title">Permitir uso sin conexión (por lotes)</string>
     <string name="share_mode_offline_batch_desc">El servidor entrega un lote temporal de códigos precalculados sin revelar jamás la clave secreta.</string>
     <string name="share_batch_duration_label">Vigencia del lote sin conexión</string>
@@ -386,6 +388,7 @@
     <string name="share_active_grants_empty">Aún no has compartido este servicio con nadie.</string>
     <string name="share_revoke_action">Revocar</string>
     <string name="share_mode_badge_online">Solo en línea</string>
+    <string name="share_mode_badge_single_use">Un solo uso</string>
     <string name="share_mode_badge_batch">Lote de %1$d h</string>
     <string name="share_status_pending_badge">Pendiente de aceptación · %1$s</string>
     <string name="share_status_accepted_badge">Activo · %1$s</string>
@@ -414,6 +417,9 @@
     <string name="settings_shared_accept_action">Aceptar</string>
     <string name="settings_shared_reject_action">Rechazar</string>
     <string name="settings_shared_leave_action">Quitar</string>
+    <string name="settings_shared_leave_service_button">Quitar servicio compartido</string>
+    <string name="settings_shared_leave_confirm_title">¿Quitar servicio compartido?</string>
+    <string name="settings_shared_leave_confirm_desc">Dejarás de ver este servicio compartido por %1$s en tu lista. Si lo necesitas de nuevo, el propietario deberá enviarte otra invitación.</string>
     <string name="settings_shared_accept_success_msg">Invitación aceptada correctamente</string>
     <string name="settings_shared_reject_success_msg">Invitación rechazada</string>
     <string name="settings_shared_leave_success_msg">Servicio compartido eliminado de tu lista</string>
@@ -427,6 +433,20 @@
     <string name="share_error_not_signed_in">Inicia sesión con tu cuenta de Google para sincronizar tus servicios compartidos.</string>
     <string name="share_error_generic">No se pudo completar la operación con el servidor de servicios compartidos.</string>
     <string name="action_refresh">Actualizar</string>
+
+    <!-- Actualizador Integrado de Versiones (GitHub Releases Zero-Trust) -->
+    <string name="settings_update_card_title">Actualización de la aplicación</string>
+    <string name="settings_update_card_desc">Verifica e instala nuevas versiones oficiales desde GitHub Releases con validación criptográfica SHA-256.</string>
+    <string name="settings_update_current_version">Versión instalada: %1$s (compilación %2$d)</string>
+    <string name="settings_update_status_up_to_date">Tienes la versión más reciente instalada</string>
+    <string name="settings_update_status_available">Nueva versión disponible: %1$s (%2$s)</string>
+    <string name="settings_update_release_notes_title">Novedades de la versión</string>
+    <string name="settings_update_download_install_action">Descargar e instalar %1$s</string>
+    <string name="settings_update_downloading_progress">Descargando y verificando paquete… %1$d%%</string>
+    <string name="settings_update_permission_needed_msg">Autoriza la instalación desde esta fuente y vuelve a tocar instalar.</string>
+    <string name="settings_update_error_no_internet">Sin conexión a internet para buscar actualizaciones.</string>
+    <string name="settings_update_error_hash_mismatch">El archivo descargado no superó la verificación de integridad SHA-256 y fue eliminado por seguridad.</string>
+    <string name="settings_update_error_generic">No se pudo comprobar o descargar la actualización. Inténtalo de nuevo más tarde.</string>
 
 </resources>
 

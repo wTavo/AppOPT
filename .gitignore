@@ -51,6 +51,7 @@ local.properties
 *.p12
 *.pem
 secrets.properties
+keystore.properties
 
 # =========================================================================
 # OS Generated Files

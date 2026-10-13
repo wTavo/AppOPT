@@ -27,9 +27,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.appopt.AuthenticatorApp
+import com.example.appopt.data.cloud.SharedServicesCloudClient
+import com.example.appopt.data.update.AppUpdateManager
 import com.example.appopt.domain.model.AccountWithCode
 import com.example.appopt.ui.common.UiState
 import com.example.appopt.ui.components.AccountDetailsDialog
@@ -42,6 +45,7 @@ import com.example.appopt.ui.screens.home.components.HomeSharedServicesAccordion
 import com.example.appopt.ui.screens.home.components.HomeTopHeader
 import com.example.appopt.ui.screens.scan.QrScannerDialog
 import com.example.appopt.ui.screens.scan.QrScannerMode
+import com.example.appopt.ui.screens.settings.components.AppUpdateSettingsCard
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.performance.TrackJankMetrics
@@ -72,6 +76,7 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     onNavigateToRecentlyDeleted: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val isHideCodesEnabled by viewModel.isHideCodesEnabled.collectAsStateWithLifecycle()
@@ -79,6 +84,7 @@ fun HomeScreen(
     val isDriveConnected by viewModel.isDriveConnected.collectAsStateWithLifecycle()
     val isVaultSynced by viewModel.isVaultSynced.collectAsStateWithLifecycle()
     val deletedAccountsCount by viewModel.deletedAccountsCount.collectAsStateWithLifecycle()
+    val availableUpdate by AppUpdateManager.availableUpdate.collectAsStateWithLifecycle()
 
     TrackJankMetrics(screenName = "HomeScreen")
 
@@ -91,7 +97,7 @@ fun HomeScreen(
     val appLockManager = remember { AuthenticatorApp.instance.appLockManager }
     val isUnlocked by appLockManager.isUnlocked.collectAsStateWithLifecycle()
 
-    // Cierre defensivo de modales y estados transitorios al bloquearse la bóveda
+    // Cierre defensivo de modales al bloquearse la bóveda y búsqueda silenciosa de actualizaciones al abrir/desbloquear
     LaunchedEffect(isUnlocked) {
         if (!isUnlocked) {
             selectedAccountId = null
@@ -99,6 +105,8 @@ fun HomeScreen(
             isSearchActive = false
             isQrScannerDialogOpen = false
             isManualAddDialogOpen = false
+        } else if (SharedServicesCloudClient.isNetworkAvailable(context)) {
+            AppUpdateManager.checkForUpdate(context)
         }
     }
 
@@ -196,7 +204,7 @@ fun HomeScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // 1. Capa de Contenido Principal (Lista unificada con acordeón de Servicios compartidos + Cuentas propias)
+        // 1. Capa de Contenido Principal (Lista unificada con aviso de actualización + Servicios compartidos + Cuentas propias)
         if (uiState !is UiState.Loading) {
             LazyColumn(
                 state = listState,
@@ -209,6 +217,15 @@ fun HomeScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
             ) {
+                if (availableUpdate != null) {
+                    item(
+                        key = "app_update_banner_card",
+                        contentType = "app_update_card"
+                    ) {
+                        AppUpdateSettingsCard()
+                    }
+                }
+
                 if (isDriveConnected) {
                     item(
                         key = "shared_services_accordion",

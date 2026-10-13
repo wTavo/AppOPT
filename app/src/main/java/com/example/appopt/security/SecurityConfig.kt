@@ -212,5 +212,36 @@ object SecurityConfig {
      * Cantidad de códigos TOTP consecutivos entregados en una consulta bajo demanda en modo en línea (brecha de 3 códigos).
      */
     const val SHARED_LIVE_CODE_WINDOW_STEPS = 3
+
+    /**
+     * Endpoint oficial de la API de GitHub Releases para consultar la última versión publicada del proyecto.
+     */
+    const val GITHUB_LATEST_RELEASE_API_URL = "https://api.github.com/repos/wTavo/AppOPT/releases/latest"
+
+    /**
+     * Tiempo máximo de espera de conexión y lectura HTTP para el actualizador de versiones (15 segundos).
+     */
+    const val APP_UPDATE_HTTP_TIMEOUT_MILLIS = 15_000
+
+    /**
+     * Subcarpeta privada dentro de `cacheDir` dedicada exclusivamente a almacenar temporalmente el APK descargado.
+     */
+    const val APP_UPDATE_CACHE_DIR_NAME = "apk_updates"
+
+    /**
+     * Nombre determinístico del archivo APK temporal descargado para actualización.
+     */
+    const val APP_UPDATE_APK_FILE_NAME = "appopt_release_update.apk"
+
+    /**
+     * Sufijo de autoridad del `FileProvider` para conceder lectura temporal del APK al instalador del sistema Android.
+     */
+    const val APP_UPDATE_FILE_PROVIDER_SUFFIX = ".fileprovider"
+
+    /**
+     * Ventana de enfriamiento en milisegundos (60 segundos) entre consultas consecutivas a GitHub Releases
+     * para evitar llamadas de red redundantes si el usuario pulsa repetidamente el botón de búsqueda.
+     */
+    const val APP_UPDATE_CHECK_COOLDOWN_MILLIS = 60_000L
 }
 

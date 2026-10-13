@@ -10,6 +10,9 @@ import com.example.appopt.domain.model.ShareAccessMode
 import com.example.appopt.domain.model.ShareBatchDuration
 import com.example.appopt.domain.model.SharedOtpBatch
 import com.example.appopt.security.SecurityConfig
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
 import java.nio.charset.StandardCharsets
@@ -26,6 +29,13 @@ import java.util.concurrent.ConcurrentHashMap
 object SharedBatchKeyStore {
 
     private val memoryCache = ConcurrentHashMap<String, SharedOtpBatch>()
+    private val _cacheVersion = MutableStateFlow(0L)
+
+    /**
+     * Contador reactivo de revisiones para sincronizar en tiempo real la sección de Inicio
+     * cuando se agregan, aceptan o revocan permisos compartidos.
+     */
+    val cacheVersion: StateFlow<Long> = _cacheVersion.asStateFlow()
 
     private fun getPrefs(context: Context) =
         context.getSharedPreferences(SecurityConfig.SHARED_BATCH_PREFS_NAME, Context.MODE_PRIVATE)
@@ -47,6 +57,7 @@ object SharedBatchKeyStore {
                 putString("${SecurityConfig.SHARED_BATCH_KEY_PREFIX}${batch.grantId}_ct", cipherB64)
                 putString("${SecurityConfig.SHARED_BATCH_KEY_PREFIX}${batch.grantId}_iv", ivB64)
             }
+            _cacheVersion.value++
         } finally {
             plainBytes.fill(0)
         }
@@ -111,6 +122,7 @@ object SharedBatchKeyStore {
             remove("${SecurityConfig.SHARED_BATCH_KEY_PREFIX}${grantId}_ct")
             remove("${SecurityConfig.SHARED_BATCH_KEY_PREFIX}${grantId}_iv")
         }
+        _cacheVersion.value++
     }
 
     /**
@@ -128,6 +140,7 @@ object SharedBatchKeyStore {
     fun clearAllBatches(context: Context) {
         memoryCache.clear()
         getPrefs(context).edit { clear() }
+        _cacheVersion.value++
     }
 
     /**
@@ -157,6 +170,7 @@ object SharedBatchKeyStore {
         getPrefs(context).edit {
             putString(SecurityConfig.SHARED_CACHED_INCOMING_KEY, arr.toString())
         }
+        _cacheVersion.value++
     }
 
     /**
@@ -218,6 +232,7 @@ object SharedBatchKeyStore {
         getPrefs(context).edit {
             putString(SecurityConfig.SHARED_CACHED_OUTGOING_KEY, arr.toString())
         }
+        _cacheVersion.value++
     }
 
     /**
@@ -268,6 +283,7 @@ object SharedBatchKeyStore {
             put("grantId", batch.grantId)
             put("periodSeconds", batch.periodSeconds)
             put("expiresAtMillis", batch.expiresAtMillis)
+            put("isSingleUseWindow", batch.isSingleUseWindow)
             put("codesByStep", codesObj)
         }.toString()
     }
@@ -283,6 +299,7 @@ object SharedBatchKeyStore {
         val grantId = root.getString("grantId")
         val periodSeconds = root.optInt("periodSeconds", SecurityConfig.DEFAULT_TOTP_PERIOD_SECONDS)
         val expiresAtMillis = root.getLong("expiresAtMillis")
+        val isSingleUseWindow = root.optBoolean("isSingleUseWindow", false)
         val codesObj = root.optJSONObject("codesByStep") ?: JSONObject()
         val codesMap = HashMap<Long, String>(codesObj.length())
 
@@ -300,7 +317,8 @@ object SharedBatchKeyStore {
             grantId = grantId,
             periodSeconds = periodSeconds,
             expiresAtMillis = expiresAtMillis,
-            codesByStep = codesMap
+            codesByStep = codesMap,
+            isSingleUseWindow = isSingleUseWindow
         )
     }
 }

@@ -19,22 +19,28 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import com.example.appopt.R
 import com.example.appopt.ui.theme.Dimensions
 
 /**
- * Estado visual ilustrado que se muestra cuando la bóveda local no contiene ninguna cuenta registrada.
+ * Estado visual ilustrado que se muestra cuando la bóveda o el filtro seleccionado no contiene cuentas.
  *
- * Muestra el icono central de la bóveda, el título informativo y una descripción que guía al usuario
- * a utilizar el botón flotante central (+) para registrar sus servicios.
+ * Muestra un icono central en contenedor redondeado, un título informativo y una descripción orientativa.
  *
  * @param modifier Modificador de diseño Compose opcional.
+ * @param icon Icono ilustrativo central (por defecto [Icons.Filled.Lock]).
+ * @param title Título principal del estado vacío.
+ * @param description Descripción explicativa del estado vacío.
  */
 @Composable
 fun EmptyAccountsState(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    icon: ImageVector = Icons.Filled.Lock,
+    title: String = stringResource(R.string.home_empty_title),
+    description: String = stringResource(R.string.home_empty_description)
 ) {
     Column(
         modifier = modifier
@@ -53,7 +59,7 @@ fun EmptyAccountsState(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Filled.Lock,
+                    imageVector = icon,
                     contentDescription = null,
                     modifier = Modifier.size(Dimensions.IconSize.hero),
                     tint = MaterialTheme.colorScheme.primary
@@ -64,7 +70,7 @@ fun EmptyAccountsState(
         Spacer(modifier = Modifier.height(Dimensions.Spacing.xl))
 
         Text(
-            text = stringResource(R.string.home_empty_title),
+            text = title,
             style = MaterialTheme.typography.titleLarge,
             textAlign = TextAlign.Center
         )
@@ -72,7 +78,7 @@ fun EmptyAccountsState(
         Spacer(modifier = Modifier.height(Dimensions.Spacing.sm))
 
         Text(
-            text = stringResource(R.string.home_empty_description),
+            text = description,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center

@@ -1,14 +1,14 @@
 package com.example.appopt
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.appopt.domain.model.OtpAlgorithm
 import com.example.appopt.domain.model.OtpType
 import com.example.appopt.domain.model.TotpAccount
-import com.example.appopt.domain.repository.AccountWithCode
+import com.example.appopt.domain.model.AccountWithCode
 import com.example.appopt.ui.components.OtpCodeCard
 import com.example.appopt.ui.theme.AppTheme
 import org.junit.Assert.assertTrue

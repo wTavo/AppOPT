@@ -400,7 +400,14 @@
     <string name="share_error_no_internet">Sin conexión a internet. Conéctate a una red para realizar esta acción.</string>
     <string name="share_error_no_internet_offline_mode">Sin conexión a internet. Solo están disponibles los lotes sin conexión descargados previamente que sigan vigentes.</string>
 
-    <!-- Sección Desplegable de Servicios Compartidos en Inicio -->
+    <!-- Filtros Superiores en Inicio (Todos, Favoritos y Compartidos) -->
+    <string name="home_filter_all">Todos</string>
+    <string name="home_filter_favorites">Favoritos</string>
+    <string name="home_filter_shared">Compartidos</string>
+    <string name="home_empty_favorites_title">Sin servicios favoritos</string>
+    <string name="home_empty_favorites_description">Toca el icono de estrella en cualquier servicio para fijarlo aquí y acceder más rápido.</string>
+    <string name="home_empty_shared_title">Sin servicios compartidos</string>
+    <string name="home_empty_shared_description">Aquí aparecerán los servicios que otros usuarios compartan contigo y los que tú compartas desde los detalles de cada cuenta.</string>
     <string name="home_shared_accordion_title">Servicios compartidos</string>
     <string name="home_shared_accordion_summary_tap">Toca para ver recibidos y enviados</string>
     <string name="home_shared_accordion_summary_empty">Sin servicios compartidos activos</string>

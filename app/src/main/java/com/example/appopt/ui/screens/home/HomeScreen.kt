@@ -3,10 +3,14 @@ package com.example.appopt.ui.screens.home
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -15,7 +19,10 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -24,41 +31,51 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.appopt.AuthenticatorApp
+import com.example.appopt.R
+import com.example.appopt.data.cloud.SharedBatchKeyStore
 import com.example.appopt.data.cloud.SharedServicesCloudClient
 import com.example.appopt.data.update.AppUpdateManager
 import com.example.appopt.domain.model.AccountWithCode
+import com.example.appopt.domain.model.ShareGrantStatus
 import com.example.appopt.ui.common.UiState
 import com.example.appopt.ui.components.AccountDetailsDialog
 import com.example.appopt.ui.components.OtpCodeCard
 import com.example.appopt.ui.screens.add.AddAccountDialog
 import com.example.appopt.ui.screens.home.components.AddAccountSpeedDialOverlay
 import com.example.appopt.ui.screens.home.components.EmptyAccountsState
+import com.example.appopt.ui.screens.home.components.HomeCategoryFilter
+import com.example.appopt.ui.screens.home.components.HomeCategoryFilterBar
 import com.example.appopt.ui.screens.home.components.HomeFloatingDock
 import com.example.appopt.ui.screens.home.components.HomeSharedServicesAccordion
 import com.example.appopt.ui.screens.home.components.HomeTopHeader
 import com.example.appopt.ui.screens.scan.QrScannerDialog
 import com.example.appopt.ui.screens.scan.QrScannerMode
 import com.example.appopt.ui.screens.settings.components.AppUpdateSettingsCard
+import com.example.appopt.ui.screens.settings.coordinator.rememberGoogleOAuthRequester
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.performance.TrackJankMetrics
 import com.example.appopt.performance.TrackJankOperationState
+import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
 /**
- * Pantalla principal que visualiza las cuentas 2FA propias y la sección desplegable de servicios compartidos.
+ * Pantalla principal que visualiza las cuentas 2FA con barra de filtros superior («Todos», «Favoritos» y «Compartidos»)
+ * y navegación táctil deslizando hacia la izquierda o derecha ([HorizontalPager]).
  *
  * Características de seguridad, diseño e interacción:
- * - Barra superior modular: Búsqueda interactiva y alternador de modo de privacidad con animaciones fluidas ([HomeTopHeader]).
- * - Lista reactiva unificada: Sección desplegable de «Servicios compartidos» ([HomeSharedServicesAccordion]) y tarjetas de cuentas 2FA propias con arrastre, favoritos y actualización en tiempo real.
+ * - Cabecera superior flotante: Búsqueda interactiva, alternador de modo de privacidad ([HomeTopHeader]) y filtros rápidos por categoría ([HomeCategoryFilterBar]).
+ * - Paginación horizontal fluida: Permite cambiar entre «Todos», «Favoritos» y «Compartidos» tanto tocando el filtro superior como deslizando lateralmente la pantalla.
  * - Dock flotante inferior: Acciones rápidas ergonómicas inferiores accesibles con una sola mano ([HomeFloatingDock]).
  * - Menú Speed Dial contextual: Despliegue de opciones directamente sobre el botón (+) con rotación animada a 'x'.
  * - Diálogos modales atómicos: Visualización de detalles, compartición y edición de cuentas.
@@ -68,7 +85,6 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
  * @param modifier Modificador de diseño Compose opcional.
  * @param onNavigateToRecentlyDeleted Callback para navegar hacia la papelera de reciclaje.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
@@ -77,6 +93,7 @@ fun HomeScreen(
     onNavigateToRecentlyDeleted: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val isHideCodesEnabled by viewModel.isHideCodesEnabled.collectAsStateWithLifecycle()
@@ -85,6 +102,7 @@ fun HomeScreen(
     val isVaultSynced by viewModel.isVaultSynced.collectAsStateWithLifecycle()
     val deletedAccountsCount by viewModel.deletedAccountsCount.collectAsStateWithLifecycle()
     val availableUpdate by AppUpdateManager.availableUpdate.collectAsStateWithLifecycle()
+    val sharedCacheVersion by SharedBatchKeyStore.cacheVersion.collectAsStateWithLifecycle()
 
     TrackJankMetrics(screenName = "HomeScreen")
 
@@ -94,11 +112,19 @@ fun HomeScreen(
     var isQrScannerDialogOpen by remember { mutableStateOf(false) }
     var isManualAddDialogOpen by remember { mutableStateOf(false) }
 
+    val pagerState = rememberPagerState(
+        initialPage = HomeCategoryFilter.ALL.ordinal,
+        pageCount = { HomeCategoryFilter.entries.size }
+    )
+    val selectedFilter = HomeCategoryFilter.entries[pagerState.currentPage]
+
     val appLockManager = remember { AuthenticatorApp.instance.appLockManager }
     val isUnlocked by appLockManager.isUnlocked.collectAsStateWithLifecycle()
 
-    // Cierre defensivo de modales al bloquearse la bóveda y búsqueda silenciosa de actualizaciones al abrir/desbloquear
-    LaunchedEffect(isUnlocked) {
+    val requestOAuthToken = rememberGoogleOAuthRequester(onAuthError = {})
+
+    // Cierre defensivo de modales al bloquearse la bóveda, búsqueda silenciosa de actualizaciones y sincronización de invitaciones compartidas
+    LaunchedEffect(isUnlocked, isDriveConnected) {
         if (!isUnlocked) {
             selectedAccountId = null
             isAddMenuOpen = false
@@ -107,7 +133,31 @@ fun HomeScreen(
             isManualAddDialogOpen = false
         } else if (SharedServicesCloudClient.isNetworkAvailable(context)) {
             AppUpdateManager.checkForUpdate(context)
+            if (isDriveConnected) {
+                requestOAuthToken { token ->
+                    scope.launch {
+                        SharedServicesCloudClient.fetchIncomingServices(token).onSuccess { remoteList ->
+                            val currentNow = System.currentTimeMillis()
+                            val cachedIn = SharedBatchKeyStore.getCachedIncomingServices(context)
+                            val activeSingleUse = cachedIn.filter { localSvc ->
+                                val batch = SharedBatchKeyStore.getValidBatch(context, localSvc.grantId, currentNow)
+                                batch != null && batch.isSingleUseWindow && !batch.isExpired(currentNow) &&
+                                    remoteList.none { it.grantId == localSvc.grantId }
+                            }
+                            SharedBatchKeyStore.saveCachedIncomingServices(context, remoteList + activeSingleUse)
+                        }
+                        SharedServicesCloudClient.fetchOutgoingGrants(token).onSuccess { list ->
+                            SharedBatchKeyStore.saveCachedOutgoingGrants(context, list)
+                        }
+                    }
+                }
+            }
         }
+    }
+
+    val pendingSharedCount = remember(sharedCacheVersion, isUnlocked) {
+        SharedBatchKeyStore.getCachedIncomingServices(context)
+            .count { it.status == ShareGrantStatus.PENDING }
     }
 
     val appHaptics = rememberAppHaptics()
@@ -148,27 +198,36 @@ fun HomeScreen(
             val newById = currentSuccessAccounts.associateBy { it.account.id }
             val localIds = localAccounts.map { it.account.id }.toSet()
             val newIds = newById.keys
-
-            // 1. Actualizar elementos existentes cuyo código o datos hayan cambiado
-            for (i in localAccounts.indices) {
-                val item = localAccounts[i]
+            val favoriteStatusChanged = localAccounts.any { item ->
                 val updated = newById[item.account.id]
-                if (updated != null && updated != item) {
-                    localAccounts[i] = updated
-                }
+                updated != null && updated.account.isFavorite != item.account.isFavorite
             }
 
-            // 2. Eliminar elementos que ya no existen (eliminaciones de cuenta)
-            localAccounts.removeAll { it.account.id !in newIds }
+            if (favoriteStatusChanged) {
+                localAccounts.clear()
+                localAccounts.addAll(currentSuccessAccounts)
+            } else {
+                // 1. Actualizar elementos existentes cuyo código o datos hayan cambiado
+                for (i in localAccounts.indices) {
+                    val item = localAccounts[i]
+                    val updated = newById[item.account.id]
+                    if (updated != null && updated != item) {
+                        localAccounts[i] = updated
+                    }
+                }
 
-            // 3. Añadir elementos nuevos que no estaban (altas de cuenta)
-            val toAdd = currentSuccessAccounts.filter { it.account.id !in localIds }
-            localAccounts.addAll(toAdd)
+                // 2. Eliminar elementos que ya no existen (eliminaciones de cuenta)
+                localAccounts.removeAll { it.account.id !in newIds }
+
+                // 3. Añadir elementos nuevos que no estaban (altas de cuenta)
+                val toAdd = currentSuccessAccounts.filter { it.account.id !in localIds }
+                localAccounts.addAll(toAdd)
+            }
         }
     }
 
     val accountsToDisplay = localAccounts.ifEmpty { currentSuccessAccounts }
-    val listState = rememberLazyListState()
+    val favoriteAccounts = accountsToDisplay.filter { it.account.isFavorite }
 
     // Lambdas estabilizadas: se fijan en la primera composición y no cambian mientras el ViewModel sea el mismo
     val onCopyCode = remember(viewModel) { { code: String, issuer: String -> viewModel.copyCode(code, issuer) } }
@@ -176,27 +235,19 @@ fun HomeScreen(
     val onNextHotpCode = remember(viewModel) { { id: String -> viewModel.nextHotpCode(id) } }
     val onCommitReorder = remember(viewModel) { { ids: List<String> -> viewModel.commitReorder(ids) } }
 
-    // Estado del motor de reordenamiento estándar por clave inmutable (sh.calvin.reorderable)
-    val reorderableLazyListState = rememberReorderableLazyListState(listState) { from, to ->
-        val fromIndex = localAccounts.indexOfFirst { it.account.id == from.key }
-        val toIndex = localAccounts.indexOfFirst { it.account.id == to.key }
-        val fromAccount = localAccounts.getOrNull(fromIndex)
-        val toAccount = localAccounts.getOrNull(toIndex)
-        if (fromAccount != null && toAccount != null && fromAccount.account.isFavorite == toAccount.account.isFavorite) {
-            val item = localAccounts.removeAt(fromIndex)
-            localAccounts.add(toIndex, item)
-            appHaptics.dragTick()
-        }
-    }
-
     val selectedAccountWithCode = selectedAccountId?.let { id ->
         accountsToDisplay.find { it.account.id == id }
     }
 
-    // Cálculo reactivo de resguardo vertical para evitar que el header flotante y el dock tapen las tarjetas en cualquier dispositivo
+    // Cálculo reactivo de resguardo vertical para evitar que el header flotante + barra de filtros y el dock tapen las tarjetas
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val listTopPadding = statusBarTop + Dimensions.ComponentHeight.buttonDefault + (Dimensions.Spacing.sm * 2) + Dimensions.Spacing.lg
+    val listTopPadding = statusBarTop +
+        Dimensions.ComponentHeight.buttonDefault +
+        Dimensions.ComponentHeight.buttonCompact +
+        Dimensions.Spacing.xs +
+        (Dimensions.Spacing.sm * 2) +
+        Dimensions.Spacing.lg
     val listBottomPadding = navBarBottom + Dimensions.Spacing.lg + Dimensions.ComponentSize.heroFab + (Dimensions.Spacing.sm * 2) + Dimensions.Spacing.xl
 
     Box(
@@ -204,81 +255,171 @@ fun HomeScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // 1. Capa de Contenido Principal (Lista unificada con aviso de actualización + Servicios compartidos + Cuentas propias)
+        // 1. Capa de Contenido Principal con deslizamiento horizontal entre Todos, Favoritos y Compartidos
         if (uiState !is UiState.Loading) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = Dimensions.Spacing.lg,
-                    end = Dimensions.Spacing.lg,
-                    top = listTopPadding,
-                    bottom = listBottomPadding
-                ),
-                verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
-            ) {
-                if (availableUpdate != null) {
-                    item(
-                        key = "app_update_banner_card",
-                        contentType = "app_update_card"
-                    ) {
-                        AppUpdateSettingsCard()
+            HorizontalPager(
+                state = pagerState,
+                userScrollEnabled = !isDraggingAny,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                val pageFilter = HomeCategoryFilter.entries[page]
+                val pageListState = rememberLazyListState()
+                val pageReorderableState = rememberReorderableLazyListState(pageListState) { from, to ->
+                    val fromIndex = localAccounts.indexOfFirst { it.account.id == from.key }
+                    val toIndex = localAccounts.indexOfFirst { it.account.id == to.key }
+                    val fromAccount = localAccounts.getOrNull(fromIndex)
+                    val toAccount = localAccounts.getOrNull(toIndex)
+                    if (fromAccount != null && toAccount != null && fromAccount.account.isFavorite == toAccount.account.isFavorite) {
+                        val item = localAccounts.removeAt(fromIndex)
+                        localAccounts.add(toIndex, item)
+                        appHaptics.dragTick()
                     }
                 }
-
-                if (isDriveConnected) {
-                    item(
-                        key = "shared_services_accordion",
-                        contentType = "shared_accordion"
-                    ) {
-                        HomeSharedServicesAccordion(
-                            searchQuery = searchQuery,
-                            hideCodes = isHideCodesEnabled,
-                            onCopyCode = onCopyCode
-                        )
-                    }
+                val hasIncomingSharedServices = remember(sharedCacheVersion, isUnlocked) {
+                    SharedBatchKeyStore.getCachedIncomingServices(context).isNotEmpty()
                 }
 
-                if (accountsToDisplay.isNotEmpty()) {
-                    items(
-                        items = accountsToDisplay,
-                        key = { it.account.id },
-                        contentType = { "otp_card" }
-                    ) { item ->
-                        ReorderableItem(reorderableLazyListState, key = item.account.id) { isDragging ->
-                            OtpCodeCard(
-                                accountWithCode = item,
-                                hideCodes = isHideCodesEnabled,
-                                isDragging = isDragging,
-                                modifier = Modifier
-                                    .longPressDraggableHandle(
-                                        enabled = !isSearchActive && searchQuery.isBlank(),
-                                        onDragStarted = {
-                                            isDraggingAny = true
-                                            appHaptics.dragTick()
-                                        },
-                                        onDragStopped = {
-                                            isDraggingAny = false
-                                            onCommitReorder(localAccounts.map { it.account.id })
-                                        }
-                                    ),
-                                onCardClick = { selectedAccountId = item.account.id },
-                                onCopyCode = { code -> onCopyCode(code, item.account.issuer) },
-                                onToggleFavorite = onToggleFavorite,
-                                onNextHotpCode = onNextHotpCode
-                            )
+                LazyColumn(
+                    state = pageListState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = Dimensions.Spacing.lg,
+                        end = Dimensions.Spacing.lg,
+                        top = listTopPadding,
+                        bottom = listBottomPadding
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+                ) {
+                    if (availableUpdate != null) {
+                        item(
+                            key = "app_update_banner_card",
+                            contentType = "app_update_card"
+                        ) {
+                            AppUpdateSettingsCard()
                         }
                     }
-                } else if (uiState is UiState.Empty) {
-                    item(
-                        key = "empty_accounts_state",
-                        contentType = "empty_state"
-                    ) {
-                        EmptyAccountsState(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(top = Dimensions.Spacing.xl)
-                        )
+
+                    when (pageFilter) {
+                        HomeCategoryFilter.SHARED -> {
+                            item(
+                                key = "shared_services_view",
+                                contentType = "shared_view"
+                            ) {
+                                HomeSharedServicesAccordion(
+                                    searchQuery = searchQuery,
+                                    hideCodes = isHideCodesEnabled,
+                                    onCopyCode = onCopyCode,
+                                    showEmptyStateAndHeader = true
+                                )
+                            }
+                        }
+
+                        HomeCategoryFilter.ALL -> {
+                            if (accountsToDisplay.isNotEmpty()) {
+                                items(
+                                    items = accountsToDisplay,
+                                    key = { it.account.id },
+                                    contentType = { "otp_card" }
+                                ) { item ->
+                                    ReorderableItem(pageReorderableState, key = item.account.id) { isDragging ->
+                                        OtpCodeCard(
+                                            accountWithCode = item,
+                                            hideCodes = isHideCodesEnabled,
+                                            isDragging = isDragging,
+                                            modifier = Modifier
+                                                .longPressDraggableHandle(
+                                                    enabled = !isSearchActive && searchQuery.isBlank(),
+                                                    onDragStarted = {
+                                                        isDraggingAny = true
+                                                        appHaptics.dragTick()
+                                                    },
+                                                    onDragStopped = {
+                                                        isDraggingAny = false
+                                                        onCommitReorder(localAccounts.map { it.account.id })
+                                                    }
+                                                ),
+                                            onCardClick = { selectedAccountId = item.account.id },
+                                            onCopyCode = { code -> onCopyCode(code, item.account.issuer) },
+                                            onToggleFavorite = onToggleFavorite,
+                                            onNextHotpCode = onNextHotpCode
+                                        )
+                                    }
+                                }
+                            }
+
+                            item(
+                                key = "shared_services_in_all",
+                                contentType = "shared_view"
+                            ) {
+                                HomeSharedServicesAccordion(
+                                    searchQuery = searchQuery,
+                                    hideCodes = isHideCodesEnabled,
+                                    onCopyCode = onCopyCode,
+                                    showEmptyStateAndHeader = false
+                                )
+                            }
+
+                            if (accountsToDisplay.isEmpty() && !hasIncomingSharedServices && uiState is UiState.Empty) {
+                                item(
+                                    key = "empty_accounts_state",
+                                    contentType = "empty_state"
+                                ) {
+                                    EmptyAccountsState(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(top = Dimensions.Spacing.xl)
+                                    )
+                                }
+                            }
+                        }
+
+                        HomeCategoryFilter.FAVORITES -> {
+                            if (favoriteAccounts.isNotEmpty()) {
+                                items(
+                                    items = favoriteAccounts,
+                                    key = { it.account.id },
+                                    contentType = { "otp_card" }
+                                ) { item ->
+                                    ReorderableItem(pageReorderableState, key = item.account.id) { isDragging ->
+                                        OtpCodeCard(
+                                            accountWithCode = item,
+                                            hideCodes = isHideCodesEnabled,
+                                            isDragging = isDragging,
+                                            modifier = Modifier
+                                                .longPressDraggableHandle(
+                                                    enabled = !isSearchActive && searchQuery.isBlank(),
+                                                    onDragStarted = {
+                                                        isDraggingAny = true
+                                                        appHaptics.dragTick()
+                                                    },
+                                                    onDragStopped = {
+                                                        isDraggingAny = false
+                                                        onCommitReorder(localAccounts.map { it.account.id })
+                                                    }
+                                                ),
+                                            onCardClick = { selectedAccountId = item.account.id },
+                                            onCopyCode = { code -> onCopyCode(code, item.account.issuer) },
+                                            onToggleFavorite = onToggleFavorite,
+                                            onNextHotpCode = onNextHotpCode
+                                        )
+                                    }
+                                }
+                            } else {
+                                item(
+                                    key = "empty_favorites_state",
+                                    contentType = "empty_state"
+                                ) {
+                                    EmptyAccountsState(
+                                        icon = Icons.Filled.Star,
+                                        title = stringResource(R.string.home_empty_favorites_title),
+                                        description = stringResource(R.string.home_empty_favorites_description),
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(top = Dimensions.Spacing.xl)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -315,22 +456,38 @@ fun HomeScreen(
                 .zIndex(20f)
         )
 
-        // 4. Header Flotante Superior
-        HomeTopHeader(
-            isSearchActive = isSearchActive,
-            searchQuery = searchQuery,
-            isHideCodesEnabled = isHideCodesEnabled,
-            cloudSyncState = cloudSyncState,
-            isVaultSynced = isVaultSynced,
-            onSearchActiveChange = { isSearchActive = it },
-            onSearchQueryChange = viewModel::onSearchQueryChanged,
-            onToggleHideCodes = { viewModel.toggleHideCodes() },
+        // 4. Header Flotante Superior + Barra de Filtros (Todos, Favoritos, Compartidos)
+        Column(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .statusBarsPadding()
                 .padding(horizontal = Dimensions.Spacing.lg, vertical = Dimensions.Spacing.sm)
                 .zIndex(20f)
-        )
+        ) {
+            HomeTopHeader(
+                isSearchActive = isSearchActive,
+                searchQuery = searchQuery,
+                isHideCodesEnabled = isHideCodesEnabled,
+                cloudSyncState = cloudSyncState,
+                isVaultSynced = isVaultSynced,
+                onSearchActiveChange = { isSearchActive = it },
+                onSearchQueryChange = viewModel::onSearchQueryChanged,
+                onToggleHideCodes = { viewModel.toggleHideCodes() },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
+
+            HomeCategoryFilterBar(
+                selectedFilter = selectedFilter,
+                onFilterSelected = { filter ->
+                    scope.launch {
+                        pagerState.animateScrollToPage(filter.ordinal)
+                    }
+                },
+                pendingSharedCount = pendingSharedCount
+            )
+        }
     }
 
     // Modales interactivos en la bóveda

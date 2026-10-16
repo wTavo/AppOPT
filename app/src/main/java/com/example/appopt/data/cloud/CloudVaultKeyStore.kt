@@ -5,7 +5,7 @@ import android.util.Base64
 import androidx.core.content.edit
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.security.BackupCrypto
-import com.example.appopt.security.CryptoManager
+import com.example.appopt.data.local.PreferencesManager
 
 /**
  * Gestor de persistencia segura para la clave de bóveda en la nube ([vaultKey]) y ranuras asociadas.
@@ -17,18 +17,8 @@ import com.example.appopt.security.CryptoManager
  */
 object CloudVaultKeyStore {
 
-    private const val PREFS_NAME = "appopt_cloud_vault_keystore"
-    private const val KEY_ENCRYPTED_VAULT_KEY = "encrypted_vault_key"
-    private const val KEY_VAULT_KEY_IV = "vault_key_iv"
-    private const val KEY_MAIN_SLOT_SALT = "main_slot_salt"
-    private const val KEY_MAIN_SLOT_IV = "main_slot_iv"
-    private const val KEY_MAIN_SLOT_WRAPPED_KEY = "main_slot_wrapped_key"
-    private const val KEY_EMERGENCY_SLOT_SALT = "emergency_slot_salt"
-    private const val KEY_EMERGENCY_SLOT_IV = "emergency_slot_iv"
-    private const val KEY_EMERGENCY_SLOT_WRAPPED_KEY = "emergency_slot_wrapped_key"
-
     private fun getPrefs(context: Context) =
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        context.getSharedPreferences(PreferencesManager.PREFS_CLOUD_VAULT_KEYSTORE, Context.MODE_PRIVATE)
 
     /**
      * Guarda la clave de la bóveda (cifrada con Android Keystore) y los metadatos de las ranuras.
@@ -49,19 +39,19 @@ object CloudVaultKeyStore {
 
         val prefs = getPrefs(context)
         prefs.edit {
-            putString(KEY_ENCRYPTED_VAULT_KEY, Base64.encodeToString(encrypted.ciphertext, Base64.NO_WRAP))
-            putString(KEY_VAULT_KEY_IV, Base64.encodeToString(encrypted.iv, Base64.NO_WRAP))
-            putString(KEY_MAIN_SLOT_SALT, mainSlot.saltB64)
-            putString(KEY_MAIN_SLOT_IV, mainSlot.ivB64)
-            putString(KEY_MAIN_SLOT_WRAPPED_KEY, mainSlot.wrappedKeyB64)
+            putString(PreferencesManager.KEY_ENCRYPTED_VAULT_KEY, Base64.encodeToString(encrypted.ciphertext, Base64.NO_WRAP))
+            putString(PreferencesManager.KEY_VAULT_KEY_IV, Base64.encodeToString(encrypted.iv, Base64.NO_WRAP))
+            putString(PreferencesManager.KEY_MAIN_SLOT_SALT, mainSlot.saltB64)
+            putString(PreferencesManager.KEY_MAIN_SLOT_IV, mainSlot.ivB64)
+            putString(PreferencesManager.KEY_MAIN_SLOT_WRAPPED_KEY, mainSlot.wrappedKeyB64)
             if (emergencySlot != null) {
-                putString(KEY_EMERGENCY_SLOT_SALT, emergencySlot.saltB64)
-                putString(KEY_EMERGENCY_SLOT_IV, emergencySlot.ivB64)
-                putString(KEY_EMERGENCY_SLOT_WRAPPED_KEY, emergencySlot.wrappedKeyB64)
+                putString(PreferencesManager.KEY_EMERGENCY_SLOT_SALT, emergencySlot.saltB64)
+                putString(PreferencesManager.KEY_EMERGENCY_SLOT_IV, emergencySlot.ivB64)
+                putString(PreferencesManager.KEY_EMERGENCY_SLOT_WRAPPED_KEY, emergencySlot.wrappedKeyB64)
             } else {
-                remove(KEY_EMERGENCY_SLOT_SALT)
-                remove(KEY_EMERGENCY_SLOT_IV)
-                remove(KEY_EMERGENCY_SLOT_WRAPPED_KEY)
+                remove(PreferencesManager.KEY_EMERGENCY_SLOT_SALT)
+                remove(PreferencesManager.KEY_EMERGENCY_SLOT_IV)
+                remove(PreferencesManager.KEY_EMERGENCY_SLOT_WRAPPED_KEY)
             }
         }
     }
@@ -92,7 +82,7 @@ object CloudVaultKeyStore {
      */
     fun hasVaultKey(context: Context): Boolean {
         val prefs = getPrefs(context)
-        return prefs.contains(KEY_ENCRYPTED_VAULT_KEY) && prefs.contains(KEY_MAIN_SLOT_WRAPPED_KEY)
+        return prefs.contains(PreferencesManager.KEY_ENCRYPTED_VAULT_KEY) && prefs.contains(PreferencesManager.KEY_MAIN_SLOT_WRAPPED_KEY)
     }
 
     /**
@@ -112,11 +102,11 @@ object CloudVaultKeyStore {
      */
     fun getVaultKeyAndSlots(context: Context): VaultKeySession? {
         val prefs = getPrefs(context)
-        val cipherB64 = prefs.getString(KEY_ENCRYPTED_VAULT_KEY, null) ?: return null
-        val ivB64 = prefs.getString(KEY_VAULT_KEY_IV, null) ?: return null
-        val mainSalt = prefs.getString(KEY_MAIN_SLOT_SALT, null) ?: return null
-        val mainIv = prefs.getString(KEY_MAIN_SLOT_IV, null) ?: return null
-        val mainKey = prefs.getString(KEY_MAIN_SLOT_WRAPPED_KEY, null) ?: return null
+        val cipherB64 = prefs.getString(PreferencesManager.KEY_ENCRYPTED_VAULT_KEY, null) ?: return null
+        val ivB64 = prefs.getString(PreferencesManager.KEY_VAULT_KEY_IV, null) ?: return null
+        val mainSalt = prefs.getString(PreferencesManager.KEY_MAIN_SLOT_SALT, null) ?: return null
+        val mainIv = prefs.getString(PreferencesManager.KEY_MAIN_SLOT_IV, null) ?: return null
+        val mainKey = prefs.getString(PreferencesManager.KEY_MAIN_SLOT_WRAPPED_KEY, null) ?: return null
 
         val cryptoManager = AuthenticatorApp.instance.cryptoManager
         val cipherBytes = Base64.decode(cipherB64, Base64.NO_WRAP)
@@ -128,10 +118,10 @@ object CloudVaultKeyStore {
         }
 
         val mainSlot = BackupCrypto.WrappedSlot(mainSalt, mainIv, mainKey)
-        val emergencySlot = if (prefs.contains(KEY_EMERGENCY_SLOT_WRAPPED_KEY)) {
-            val emSalt = prefs.getString(KEY_EMERGENCY_SLOT_SALT, null)
-            val emIv = prefs.getString(KEY_EMERGENCY_SLOT_IV, null)
-            val emKey = prefs.getString(KEY_EMERGENCY_SLOT_WRAPPED_KEY, null)
+        val emergencySlot = if (prefs.contains(PreferencesManager.KEY_EMERGENCY_SLOT_WRAPPED_KEY)) {
+            val emSalt = prefs.getString(PreferencesManager.KEY_EMERGENCY_SLOT_SALT, null)
+            val emIv = prefs.getString(PreferencesManager.KEY_EMERGENCY_SLOT_IV, null)
+            val emKey = prefs.getString(PreferencesManager.KEY_EMERGENCY_SLOT_WRAPPED_KEY, null)
             if (emSalt != null && emIv != null && emKey != null) {
                 BackupCrypto.WrappedSlot(emSalt, emIv, emKey)
             } else {

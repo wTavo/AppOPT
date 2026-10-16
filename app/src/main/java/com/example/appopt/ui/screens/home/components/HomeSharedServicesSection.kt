@@ -50,6 +50,7 @@ import com.example.appopt.domain.model.ShareGrantStatus
 import com.example.appopt.domain.model.SharedOtpBatch
 import com.example.appopt.security.SecurityConfig
 import com.example.appopt.ui.components.AppAnimatedButton
+import com.example.appopt.ui.components.OtpCodeCard
 import com.example.appopt.ui.screens.settings.coordinator.rememberGoogleOAuthRequester
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.UrgentRed
@@ -528,12 +529,11 @@ fun HomeSharedServicesAccordion(
                             maxLiveWindowSteps = SecurityConfig.SHARED_LIVE_CODE_WINDOW_STEPS
                         )
 
-                        IncomingSharedOtpCard(
+                        OtpCodeCard(
                             service = item,
                             activeCode = activeCode,
                             liveWindowProgress = liveWindowProgress,
                             hideCodes = hideCodes,
-                            hasValidBatch = cachedBatch != null && !cachedBatch.isExpired(nowMillis),
                             isItemLoading = loadingGrantId == item.grantId,
                             onCopyCode = { code -> onCopyCode(code, item.issuer) },
                             onRequestAction = { requestCodeOrOfflineBatch(item) },
@@ -544,7 +544,7 @@ fun HomeSharedServicesAccordion(
                                 if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
                                     appHaptics.error()
                                     errorMessage = context.getString(R.string.share_error_no_internet)
-                                    return@IncomingSharedOtpCard
+                                    return@OtpCodeCard
                                 }
                                 loadingGrantId = item.grantId
                                 errorMessage = null
@@ -587,7 +587,7 @@ fun HomeSharedServicesAccordion(
                                     }
                                 }
                             },
-                            onRejectOrLeave = { rejectOrLeaveIncomingService(item) },
+                            onRejectInvitation = { rejectOrLeaveIncomingService(item) },
                             onCardClick = { selectedIncomingGrantId = item.grantId }
                         )
                     }

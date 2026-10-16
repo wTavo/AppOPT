@@ -81,65 +81,6 @@ import com.example.appopt.util.AccessibilityUtils
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
 
-/**
- * Tarjeta visual para representar un servicio compartido recibido (Zero-Secret) en la pantalla de inicio,
- * homologada en geometría, sombras, elevación animada, tipografía, animación de privacidad y respuesta háptica con [com.example.appopt.ui.components.OtpCodeCard] (Directivas 1, 3, 4, 10, 11 y 31).
- *
- * Características de diseño e interacción:
- * - Geometría perimetral, bordes y elevación animada [Dimensions.Elevation.cardDefault] idénticos a las tarjetas de cuentas propias.
- * - Cabecera con avatar de marca ([ServiceBrandAvatar]), título del emisor, subtítulo de cuenta/propietario con icono compartido e indicador de favorito.
- * - Modo de privacidad (`hideCodes`): colapso y despliegue animado mediante [Motion.Spec.privacyCollapseSpec].
- * - Pulsar directamente sobre los dígitos copia el código al portapapeles si está activo, o solicita la obtención del código si aún no está cargado.
- * - Junto a los dígitos: badge estilizado tipo píldora indicando el avance de códigos temporales ([liveWindowProgress]) y confirmación animada de copiado.
- * - En el extremo derecho: temporizador circular ([CircularTimeProgress]) si el código está activo, o botón de revelación ([Icons.Outlined.Visibility]) para obtenerlo y revelarlo.
- *
- * @param service Metadatos del servicio compartido entrante.
- * @param activeCode Código OTP actual de 6/8 dígitos (obtenido en línea o del lote temporal cifrado).
- * @param hideCodes Bandera del modo privacidad de la cabecera principal.
- * @param hasValidBatch Indica si existe un lote precalculado vigente en el almacén local.
- * @param isItemLoading Indica si hay una petición en curso para esta tarjeta.
- * @param modifier Modificador de diseño Compose opcional.
- * @param onCopyCode Callback invocado al pulsar sobre el código numérico para copiarlo al portapapeles.
- * @param onRequestAction Callback para solicitar el código en línea o descargar/renovar el lote temporal.
- * @param onAcceptInvitation Callback invocado cuando el invitado acepta explícitamente la invitación.
- * @param onRejectOrLeave Callback invocado cuando el invitado rechaza la invitación.
- * @param onToggleFavorite Callback para marcar o desmarcar el servicio compartido como favorito.
- * @param onCardClick Callback invocado al tocar la tarjeta aceptada para abrir el diálogo de detalles.
- * @param liveWindowProgress Par opcional `(pasoActual, totalPasos)` que indica el código vigente dentro de la brecha de 3 códigos.
- */
-@Composable
-fun IncomingSharedOtpCard(
-    service: IncomingSharedService,
-    activeCode: String?,
-    hideCodes: Boolean,
-    hasValidBatch: Boolean,
-    isItemLoading: Boolean,
-    modifier: Modifier = Modifier,
-    isDragging: Boolean = false,
-    onCopyCode: (String) -> Unit,
-    onRequestAction: () -> Unit,
-    onAcceptInvitation: () -> Unit,
-    onRejectOrLeave: () -> Unit,
-    onToggleFavorite: (String) -> Unit = {},
-    onCardClick: () -> Unit = {},
-    liveWindowProgress: Pair<Int, Int>? = null
-) {
-    com.example.appopt.ui.components.OtpCodeCard(
-        service = service,
-        activeCode = activeCode,
-        hideCodes = hideCodes,
-        modifier = modifier,
-        isDragging = isDragging,
-        liveWindowProgress = liveWindowProgress,
-        isItemLoading = isItemLoading,
-        onCopyCode = onCopyCode,
-        onRequestAction = onRequestAction,
-        onToggleFavorite = onToggleFavorite,
-        onCardClick = onCardClick,
-        onAcceptInvitation = onAcceptInvitation,
-        onRejectInvitation = onRejectOrLeave
-    )
-}
 
 /**
  * Sub-estados del diálogo modal de detalles para un servicio compartido recibido.

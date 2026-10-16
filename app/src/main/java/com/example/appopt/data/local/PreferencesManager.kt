@@ -396,5 +396,16 @@ class PreferencesManager(context: Context) {
         private const val KEY_LAST_KNOWN_DRIVE_EMAIL = "key_last_known_drive_email"
         private const val KEY_LAST_KNOWN_SYNCED_VAULT_HASH = "key_last_known_synced_vault_hash"
         private const val KEY_VAULT_MODIFIED_WHILE_DISCONNECTED = "key_vault_modified_while_disconnected"
+
+        // Constantes centralizadas para CloudVaultKeyStore (Directiva 6)
+        const val PREFS_CLOUD_VAULT_KEYSTORE = "appopt_cloud_vault_keystore"
+        const val KEY_ENCRYPTED_VAULT_KEY = "encrypted_vault_key"
+        const val KEY_VAULT_KEY_IV = "vault_key_iv"
+        const val KEY_MAIN_SLOT_SALT = "main_slot_salt"
+        const val KEY_MAIN_SLOT_IV = "main_slot_iv"
+        const val KEY_MAIN_SLOT_WRAPPED_KEY = "main_slot_wrapped_key"
+        const val KEY_EMERGENCY_SLOT_SALT = "emergency_slot_salt"
+        const val KEY_EMERGENCY_SLOT_IV = "emergency_slot_iv"
+        const val KEY_EMERGENCY_SLOT_WRAPPED_KEY = "emergency_slot_wrapped_key"
     }
 }

@@ -67,37 +67,22 @@ data class LiveSharedCodeResult(
 
     /**
      * Obtiene el código OTP correspondiente al instante indicado dentro de la brecha de códigos,
-     * o `null` si ya finalizaron los códigos de la ventana.
+     * o `null` si ya finalizaron los códigos de la ventana delegando a [SharedOtpBatch].
      *
      * @param nowMillis Marca de tiempo actual en milisegundos.
      * @return Código OTP vigente de 6 u 8 dígitos, o `null` si la brecha expiró.
      */
-    fun getCodeAt(nowMillis: Long): String? {
-        if (expiresAtMillis > 0L && nowMillis >= expiresAtMillis) return null
-        if (codesByStep.isNotEmpty()) {
-            val safePeriod = periodSeconds.coerceAtLeast(1)
-            val currentStep = (nowMillis / 1000L) / safePeriod
-            return codesByStep[currentStep]
-        }
-        return code
-    }
+    fun getCodeAt(nowMillis: Long): String? = toSharedOtpBatch("").getCodeAt(nowMillis)
 
     /**
      * Calcula el progreso actual dentro de la brecha de códigos (ej. `1 to 3`, `2 to 3`, `3 to 3`),
-     * o `null` si la brecha ya concluyó.
+     * o `null` si la brecha ya concluyó delegando a [SharedOtpBatch].
      *
      * @param nowMillis Marca de tiempo actual en milisegundos.
      * @return Par `(pasoActualBase1, totalPasos)` o `null`.
      */
-    fun getWindowStepProgress(nowMillis: Long): Pair<Int, Int>? {
-        if (codesByStep.isEmpty()) return null
-        if (expiresAtMillis > 0L && nowMillis >= expiresAtMillis) return null
-        val safePeriod = periodSeconds.coerceAtLeast(1)
-        val currentStep = (nowMillis / 1000L) / safePeriod
-        val sortedSteps = codesByStep.keys.sorted()
-        val idx = sortedSteps.indexOf(currentStep)
-        return if (idx >= 0) (idx + 1) to sortedSteps.size else null
-    }
+    fun getWindowStepProgress(nowMillis: Long): Pair<Int, Int>? =
+        toSharedOtpBatch("").getWindowStepProgress(nowMillis, maxLiveWindowSteps = SecurityConfig.SHARED_LIVE_CODE_WINDOW_STEPS)
 }
 
 /**

@@ -6,11 +6,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.example.appopt.R
 import com.example.appopt.data.cloud.GoogleDriveManager
+import com.example.appopt.ui.components.AppConfirmDialog
 import com.example.appopt.ui.components.AppDestructiveConfirmDialog
+import com.example.appopt.ui.components.ModalTone
 import com.example.appopt.ui.screens.settings.SettingsUiState
 import com.example.appopt.ui.screens.settings.coordinator.DriveDialogCoordinator
-import com.example.appopt.ui.screens.settings.dialogs.components.DriveCreateStandardBackupConfirmDialog
-import com.example.appopt.ui.screens.settings.dialogs.components.DriveDisableE2eeConfirmDialog
 
 /**
  * Contenedor orquestador de diálogos modales para la pantalla de configuración.
@@ -70,7 +70,12 @@ fun SettingsDialogContainer(
 
     // 3.1 Modal: Confirmación de Creación de Respaldo Estándar sin Cifrado E2EE
     if (coordinator.showCreateStandardBackupConfirmDialog) {
-        DriveCreateStandardBackupConfirmDialog(
+        AppConfirmDialog(
+            title = stringResource(R.string.settings_drive_create_standard_confirm_title),
+            message = stringResource(R.string.settings_drive_create_standard_confirm_desc),
+            confirmText = stringResource(R.string.settings_drive_create_confirm_action),
+            dismissText = stringResource(R.string.settings_drive_details_back),
+            tone = ModalTone.STANDARD,
             onConfirm = {
                 coordinator.showCreateStandardBackupConfirmDialog = false
                 coordinator.createBackupWithExistingKey()
@@ -114,7 +119,12 @@ fun SettingsDialogContainer(
 
     // 6. Modal: Advertencia y Confirmación para Desactivar Cifrado E2EE
     if (coordinator.showDisableE2eeConfirmDialog) {
-        DriveDisableE2eeConfirmDialog(
+        AppConfirmDialog(
+            title = stringResource(R.string.settings_drive_disable_e2ee_title),
+            message = stringResource(R.string.settings_drive_disable_e2ee_msg),
+            confirmText = stringResource(R.string.settings_drive_disable_e2ee_confirm_btn),
+            dismissText = stringResource(R.string.settings_drive_details_back),
+            tone = ModalTone.DESTRUCTIVE,
             onConfirm = { coordinator.confirmDisableE2ee() },
             onDismiss = { coordinator.showDisableE2eeConfirmDialog = false }
         )

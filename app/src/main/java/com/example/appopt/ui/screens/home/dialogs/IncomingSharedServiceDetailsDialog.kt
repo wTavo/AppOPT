@@ -1,21 +1,11 @@
-package com.example.appopt.ui.screens.home.components
+package com.example.appopt.ui.screens.home.dialogs
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,64 +13,33 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.outlined.Group
-import androidx.compose.material.icons.outlined.Mail
-import androidx.compose.material.icons.outlined.StarBorder
-import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.LayoutCoordinates
-import androidx.compose.ui.layout.onPlaced
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import com.example.appopt.R
 import com.example.appopt.domain.model.IncomingSharedService
-import com.example.appopt.domain.model.OutgoingShareGrant
 import com.example.appopt.domain.model.ShareAccessMode
-import com.example.appopt.domain.model.ShareGrantStatus
 import com.example.appopt.ui.components.AppDialogActionButtons
 import com.example.appopt.ui.components.AppModalDialog
-import com.example.appopt.ui.components.CircularTimeProgress
 import com.example.appopt.ui.components.ModalTone
 import com.example.appopt.ui.components.ServiceBrandAvatar
-import com.example.appopt.ui.navigation.NavigationOriginTracker
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.SafeGreen
-import com.example.appopt.ui.theme.UrgentRed
-import com.example.appopt.ui.theme.WarningOrange
 import com.example.appopt.ui.theme.rememberAppHaptics
-import com.example.appopt.util.AccessibilityUtils
-import kotlinx.coroutines.delay
-import kotlin.time.Duration.Companion.milliseconds
-
 
 /**
  * Sub-estados del diálogo modal de detalles para un servicio compartido recibido.
@@ -215,7 +174,7 @@ fun IncomingSharedServiceDetailsDialog(
                                     Text(
                                         text = stringResource(
                                             if (hasValidBatch) R.string.settings_shared_batch_ready
-                                            else R.string.settings_shared_download_batch_action
+                                             else R.string.settings_shared_download_batch_action
                                         ),
                                         style = MaterialTheme.typography.labelLarge
                                     )
@@ -294,91 +253,3 @@ fun IncomingSharedServiceDetailsDialog(
         }
     }
 }
-
-/**
- * Tarjeta visual para un servicio que el usuario propietario ha compartido con un tercero,
- * mostrando si la invitación sigue pendiente o activa y permitiendo revocar en tiempo real (Directiva 31).
- *
- * @param grant Permiso o invitación otorgado por el propietario.
- * @param onRevoke Callback invocado al presionar el botón «Revocar».
- */
-@Composable
-fun OutgoingShareGrantCard(
-    grant: OutgoingShareGrant,
-    onRevoke: () -> Unit
-) {
-    val appHaptics = rememberAppHaptics()
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = Dimensions.Elevation.cardDefault),
-        border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
-        shape = RoundedCornerShape(Dimensions.CornerRadius.large)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(Dimensions.Spacing.lg),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                ServiceBrandAvatar(
-                    issuer = grant.issuer,
-                    size = Dimensions.IconSize.large
-                )
-                Spacer(modifier = Modifier.width(Dimensions.Spacing.md))
-                Column {
-                    Text(
-                        text = grant.issuer.ifEmpty { stringResource(R.string.home_default_issuer) },
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_shared_guest_format, grant.guestEmail),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    val modeBadge = when (grant.accessMode) {
-                        ShareAccessMode.OFFLINE_BATCH ->
-                            stringResource(R.string.share_mode_badge_batch, grant.batchHours)
-                        ShareAccessMode.SINGLE_USE ->
-                            stringResource(R.string.share_mode_badge_single_use)
-                        ShareAccessMode.ONLINE_ONLY ->
-                            stringResource(R.string.share_mode_badge_online)
-                    }
-                    val isPending = grant.status == ShareGrantStatus.PENDING
-                    val statusBadge = if (isPending) {
-                        stringResource(R.string.share_status_pending_badge, modeBadge)
-                    } else {
-                        stringResource(R.string.share_status_accepted_badge, modeBadge)
-                    }
-                    Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
-                    Text(
-                        text = statusBadge,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (isPending) MaterialTheme.colorScheme.tertiary else SafeGreen
-                    )
-                }
-            }
-
-            TextButton(
-                onClick = {
-                    appHaptics.click()
-                    onRevoke()
-                }
-            ) {
-                Text(
-                    text = stringResource(R.string.share_revoke_action),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = UrgentRed
-                )
-            }
-        }
-    }
-}
-

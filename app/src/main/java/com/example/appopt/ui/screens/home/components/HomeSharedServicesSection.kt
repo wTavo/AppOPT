@@ -85,7 +85,8 @@ fun HomeSharedServicesAccordion(
     onlyFavorites: Boolean = false,
     isDriveConnected: Boolean = false,
     isConnectingDrive: Boolean = false,
-    onConnectClick: () -> Unit = {}
+    onConnectClick: () -> Unit = {},
+    onSharedCardClick: (IncomingSharedService) -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -103,7 +104,6 @@ fun HomeSharedServicesAccordion(
         mutableStateOf(SharedBatchKeyStore.getCachedOutgoingGrants(context))
     }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var selectedIncomingGrantId by remember { mutableStateOf<String?>(null) }
 
     val cachedBatchesMap = remember {
         mutableStateMapOf<String, SharedOtpBatch>().apply {
@@ -213,9 +213,7 @@ fun HomeSharedServicesAccordion(
     }
 
     LaunchedEffect(isUnlocked, isDriveConnected) {
-        if (!isUnlocked) {
-            selectedIncomingGrantId = null
-        } else if (isDriveConnected && SharedServicesCloudClient.isNetworkAvailable(context) && !isLoading) {
+        if (isUnlocked && isDriveConnected && SharedServicesCloudClient.isNetworkAvailable(context) && !isLoading) {
             refreshSharedServices()
         }
     }
@@ -356,21 +354,6 @@ fun HomeSharedServicesAccordion(
             stringResource(R.string.home_shared_accordion_summary_pending, pendingInvitationsCount)
         else ->
             stringResource(R.string.home_shared_accordion_summary_counts, incomingList.size, outgoingList.size)
-    }
-
-    val selectedIncomingService = selectedIncomingGrantId?.let { id ->
-        incomingList.find { it.grantId == id }
-    }
-    if (selectedIncomingService != null) {
-        val selectedBatch = cachedBatchesMap[selectedIncomingService.grantId]
-        IncomingSharedServiceDetailsDialog(
-            service = selectedIncomingService,
-            hasValidBatch = selectedBatch != null && !selectedBatch.isExpired(nowMillis),
-            isLoading = loadingGrantId == selectedIncomingService.grantId,
-            onDismiss = { selectedIncomingGrantId = null },
-            onRenewOfflineBatch = { requestCodeOrOfflineBatch(selectedIncomingService) },
-            onConfirmLeave = { rejectOrLeaveIncomingService(selectedIncomingService) }
-        )
     }
 
     Column(
@@ -588,7 +571,7 @@ fun HomeSharedServicesAccordion(
                                 }
                             },
                             onRejectInvitation = { rejectOrLeaveIncomingService(item) },
-                            onCardClick = { selectedIncomingGrantId = item.grantId }
+                            onCardClick = { onSharedCardClick(item) }
                         )
                     }
                 }

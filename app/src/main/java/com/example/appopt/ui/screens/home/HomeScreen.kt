@@ -278,7 +278,8 @@ fun HomeScreen(
                                                 ).show()
                                             }
                                         }
-                                    }
+                                    },
+                                    onSharedCardClick = { selectedSharedServiceForDetails = it }
                                 )
                             }
                         }

@@ -431,7 +431,7 @@
     <string name="settings_shared_reject_success_msg">Invitación rechazada</string>
     <string name="settings_shared_leave_success_msg">Servicio compartido eliminado de tu lista</string>
     <string name="settings_shared_guest_format">Invitado: %1$s</string>
-    <string name="settings_shared_tap_to_fetch">Toca para obtener código actual</string>
+    <string name="settings_shared_tap_to_fetch">Toca para revelar el código actual</string>
     <string name="settings_shared_live_window_progress">Código %1$d de %2$d</string>
     <string name="settings_shared_download_batch_action">Descargar lote sin conexión</string>
     <string name="settings_shared_batch_ready">Renovar lote sin conexión</string>

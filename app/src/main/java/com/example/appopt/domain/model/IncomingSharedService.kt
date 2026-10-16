@@ -16,15 +16,19 @@ package com.example.appopt.domain.model
  * @property accessMode Modo de acceso configurado por el propietario ([ShareAccessMode]).
  * @property batchHours Horas de validez del lote sin conexión (si [accessMode] es [ShareAccessMode.OFFLINE_BATCH]).
  * @property status Estado actual de la invitación ([ShareGrantStatus.PENDING] o [ShareGrantStatus.ACCEPTED]).
+ * @property isFavorite Indica si el usuario ha marcado el servicio compartido como favorito.
+ * @property orderIndex Posición de ordenación personalizada asignada por el usuario al arrastrar la tarjeta.
  */
 data class IncomingSharedService(
     val grantId: String,
     val ownerEmail: String,
     val issuer: String,
     val accountName: String,
-    val digits: Int,
-    val period: Int,
-    val accessMode: ShareAccessMode,
-    val batchHours: Int,
-    val status: ShareGrantStatus = ShareGrantStatus.ACCEPTED
+    val digits: Int = 6,
+    val period: Int = 30,
+    val accessMode: ShareAccessMode = ShareAccessMode.ONLINE_ONLY,
+    val batchHours: Int = 24,
+    val status: ShareGrantStatus = ShareGrantStatus.ACCEPTED,
+    val isFavorite: Boolean = false,
+    val orderIndex: Int = 0
 )

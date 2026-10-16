@@ -115,60 +115,8 @@ class DriveVaultHandler(
      * 6. La huella criptográfica SHA-256 actual de las cuentas locales coincide bit a bit con la huella del respaldo en la nube (`currentLocalHash == expectedRemoteHash`).
      */
     private suspend fun relinkAutoSyncIfEligible(mostRecent: DriveBackupItem?) {
-        if (prefsManager.getLastSyncTimestamp() > 0L) return
-        if (mostRecent == null) {
-            prefsManager.setAutoSyncEnabled(false)
-            internalState.update { it.copy(isAutoSyncEnabled = false) }
-            return
-        }
-
-        val appContext = AuthenticatorApp.instance
-        val connectedEmail = prefsManager.getConnectedDriveEmail()
-        val lastKnownEmail = prefsManager.getLastKnownDriveEmail()
-        val isSameAccount = (connectedEmail.isNullOrBlank() && lastKnownEmail.isNullOrBlank()) ||
-                (!connectedEmail.isNullOrBlank() && !lastKnownEmail.isNullOrBlank() &&
-                        connectedEmail.equals(lastKnownEmail, ignoreCase = true))
-
-        val wasModifiedOffline = prefsManager.wasVaultModifiedWhileDisconnected()
-        val hasValidKey = !mostRecent.isEncrypted || CloudVaultKeyStore.hasVaultKey(appContext)
-        val isSameDeviceOrigin = mostRecent.deviceId.isEmpty() ||
-                mostRecent.deviceId == prefsManager.getInstallationId()
-
-        val expectedRemoteHash = mostRecent.vaultHash.ifEmpty {
-            prefsManager.getLastKnownSyncedVaultHash().orEmpty()
-        }
-
-        val currentAccounts = appContext.accountRepository.getAccounts().first()
-        val currentLocalHash = if (currentAccounts.isNotEmpty()) {
-            CloudVaultSyncManager.computeAccountsSignature(currentAccounts)
-        } else {
-            ""
-        }
-
-        val hasExactParity = if (mostRecent.vaultHash.isNotEmpty()) {
-            currentAccounts.isNotEmpty() && currentLocalHash == mostRecent.vaultHash
-        } else {
-            !wasModifiedOffline &&
-                currentAccounts.isNotEmpty() &&
-                expectedRemoteHash.isNotEmpty() &&
-                currentLocalHash == expectedRemoteHash
-        }
-
-        if (isSameAccount && hasValidKey && isSameDeviceOrigin && hasExactParity) {
-            if (!connectedEmail.isNullOrBlank()) {
-                prefsManager.setLastKnownDriveEmail(connectedEmail)
-            }
-            prefsManager.setLastSyncTimestamp(mostRecent.modifiedTimeMillis)
-            prefsManager.setLastSyncedVaultHash(currentLocalHash)
-            prefsManager.setLastKnownSyncedVaultHash(currentLocalHash)
-            prefsManager.setVaultModifiedWhileDisconnected(false)
-            prefsManager.setDriveBackupEncrypted(mostRecent.isEncrypted)
-            prefsManager.setAutoSyncEnabled(true)
-            internalState.update { it.copy(isAutoSyncEnabled = true) }
-        } else {
-            prefsManager.setAutoSyncEnabled(false)
-            internalState.update { it.copy(isAutoSyncEnabled = false) }
-        }
+        ManualSyncManager.relinkAutoSyncIfEligible(mostRecent)
+        internalState.update { it.copy(isAutoSyncEnabled = prefsManager.isAutoSyncEnabled()) }
     }
 
     /**
@@ -186,48 +134,21 @@ class DriveVaultHandler(
     ) {
         internalState.update { it.copy(isDriveLoading = true, isFetchingBackupHistory = true) }
         scope.launch(Dispatchers.IO) {
-            try {
-                val historyResult = ManualSyncManager.fetchBackupHistory(token)
-                if (historyResult.isSuccess) {
-                    val items = historyResult.getOrNull().orEmpty()
-                    prefsManager.setLastBackupHistoryFetchTimestamp(System.currentTimeMillis())
-                    prefsManager.setCachedBackupHistory(items)
-                    val mostRecent = items.firstOrNull()
-                    relinkAutoSyncIfEligible(mostRecent)
-                    internalState.update {
-                        it.copy(
-                            backupHistoryList = items,
-                            driveBackupExists = items.isNotEmpty(),
-                            driveBackupInfo = mostRecent,
-                            isDriveLoading = false,
-                            isFetchingBackupHistory = false
-                        )
-                    }
-                } else {
-                    relinkAutoSyncIfEligible(null)
-                    internalState.update {
-                        it.copy(
-                            isDriveLoading = false,
-                            isFetchingBackupHistory = false
-                        )
-                    }
-                }
-                prefsManager.setGoogleDriveConnected(true)
-                withContext(Dispatchers.Main) {
-                    onComplete()
-                }
-            } catch (_: Exception) {
-                relinkAutoSyncIfEligible(null)
-                internalState.update {
-                    it.copy(
-                        isDriveLoading = false,
-                        isFetchingBackupHistory = false
-                    )
-                }
-                prefsManager.setGoogleDriveConnected(true)
-                withContext(Dispatchers.Main) {
-                    onComplete()
-                }
+            val result = ManualSyncManager.connectAndVerifyDrive(token)
+            val items = result.getOrNull().orEmpty()
+            val mostRecent = items.firstOrNull()
+            internalState.update {
+                it.copy(
+                    backupHistoryList = items,
+                    driveBackupExists = items.isNotEmpty(),
+                    driveBackupInfo = mostRecent,
+                    isDriveLoading = false,
+                    isFetchingBackupHistory = false,
+                    isAutoSyncEnabled = prefsManager.isAutoSyncEnabled()
+                )
+            }
+            withContext(Dispatchers.Main) {
+                onComplete()
             }
         }
     }

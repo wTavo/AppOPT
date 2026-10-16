@@ -64,6 +64,10 @@ class HomeViewModel : ViewModel() {
     /** Estado reactivo que indica si existe una cuenta de Google vinculada actualmente. */
     val isDriveConnected: StateFlow<Boolean> = preferencesManager.isGoogleDriveConnectedFlow
 
+    /** Estado reactivo que indica si la vinculación con Google Drive se encuentra en progreso. */
+    private val _isDriveConnecting = MutableStateFlow(false)
+    val isDriveConnecting: StateFlow<Boolean> = _isDriveConnecting.asStateFlow()
+
     /**
      * Indica si la bóveda local está completamente sincronizada con la nube en estado Idle.
      *
@@ -284,5 +288,30 @@ class HomeViewModel : ViewModel() {
      */
     fun lockVault() {
         appLockManager.lock()
+    }
+
+    /**
+     * Conecta la cuenta de Google Drive de forma unificada en toda la aplicación,
+     * sincronizando el estado con Ajustes y recargando los servicios compartidos.
+     *
+     * @param token Token OAuth2 de Google recién autorizado.
+     * @param onComplete Callback opcional al finalizar la vinculación.
+     */
+    fun onGoogleDriveConnected(token: String, onComplete: () -> Unit = {}) {
+        _isDriveConnecting.value = true
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                com.example.appopt.data.cloud.ManualSyncManager.connectAndVerifyDrive(token)
+                com.example.appopt.data.cloud.SharedBatchKeyStore.syncSharedServicesFromCloud(
+                    AuthenticatorApp.instance.applicationContext,
+                    token
+                )
+            } finally {
+                _isDriveConnecting.value = false
+                kotlinx.coroutines.withContext(Dispatchers.Main) {
+                    onComplete()
+                }
+            }
+        }
     }
 }

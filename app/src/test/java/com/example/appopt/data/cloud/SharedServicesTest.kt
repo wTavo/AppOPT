@@ -1,5 +1,6 @@
 package com.example.appopt.data.cloud
 
+import com.example.appopt.domain.model.IncomingSharedService
 import com.example.appopt.domain.model.ShareAccessMode
 import com.example.appopt.domain.model.ShareBatchDuration
 import com.example.appopt.domain.model.ShareGrantStatus
@@ -189,5 +190,128 @@ class SharedServicesTest {
         // Al terminar el 3er código, desaparece y retorna null
         assertNull(liveWindow.getCodeAt(expiresAtMillis))
         assertNull(liveWindow.getWindowStepProgress(expiresAtMillis))
+    }
+
+    /**
+     * Verifica que [IncomingSharedService] mantenga `isFavorite = false` por defecto y permita
+     * su actualización inmutable preservando todos sus campos.
+     */
+    @Test
+    fun `IncomingSharedService defaults isFavorite to false and supports copy`() {
+        val service = IncomingSharedService(
+            grantId = "grant-fav-1",
+            ownerEmail = "alice@example.com",
+            issuer = "GitHub",
+            accountName = "alice@corp",
+            digits = 6,
+            period = 30,
+            accessMode = ShareAccessMode.ONLINE_ONLY,
+            batchHours = 24,
+            status = ShareGrantStatus.ACCEPTED
+        )
+
+        assertFalse(service.isFavorite)
+
+        val favoriteService = service.copy(isFavorite = true)
+        assertTrue(favoriteService.isFavorite)
+        assertEquals("grant-fav-1", favoriteService.grantId)
+        assertEquals("GitHub", favoriteService.issuer)
+    }
+
+    /**
+     * Verifica que la serialización y deserialización JSON en [SharedBatchKeyStore]
+     * conserve fielmente el estado [IncomingSharedService.isFavorite].
+     */
+    @Test
+    fun `SharedBatchKeyStore preserves isFavorite across JSON serialization`() {
+        val list = listOf(
+            IncomingSharedService(
+                grantId = "g-fav",
+                ownerEmail = "owner1@example.com",
+                issuer = "Slack",
+                accountName = "work",
+                digits = 6,
+                period = 30,
+                accessMode = ShareAccessMode.ONLINE_ONLY,
+                batchHours = 24,
+                status = ShareGrantStatus.ACCEPTED,
+                isFavorite = true
+            ),
+            IncomingSharedService(
+                grantId = "g-non-fav",
+                ownerEmail = "owner2@example.com",
+                issuer = "Google",
+                accountName = "personal",
+                digits = 6,
+                period = 30,
+                accessMode = ShareAccessMode.OFFLINE_BATCH,
+                batchHours = 6,
+                status = ShareGrantStatus.PENDING,
+                isFavorite = false
+            )
+        )
+
+        val json = SharedBatchKeyStore.serializeIncomingServicesJson(list)
+        val restored = SharedBatchKeyStore.deserializeIncomingServicesJson(json)
+
+        assertEquals(2, restored.size)
+        assertTrue(restored[0].isFavorite)
+        assertEquals("g-fav", restored[0].grantId)
+        assertFalse(restored[1].isFavorite)
+        assertEquals("g-non-fav", restored[1].grantId)
+    }
+
+    /**
+     * Verifica que [SharedBatchKeyStore.deserializeIncomingServicesJson] ordene los servicios
+     * entrantes colocando primero los favoritos (`isFavorite == true`) y luego por emisor.
+     */
+    @Test
+    fun `deserializeIncomingServicesJson sorts favorites first then by issuer`() {
+        val list = listOf(
+            IncomingSharedService(
+                grantId = "g-1",
+                ownerEmail = "owner@example.com",
+                issuer = "Zoom",
+                accountName = "work",
+                isFavorite = false
+            ),
+            IncomingSharedService(
+                grantId = "g-2",
+                ownerEmail = "owner@example.com",
+                issuer = "Slack",
+                accountName = "team",
+                isFavorite = true
+            ),
+            IncomingSharedService(
+                grantId = "g-3",
+                ownerEmail = "owner@example.com",
+                issuer = "Amazon",
+                accountName = "aws",
+                isFavorite = false
+            ),
+            IncomingSharedService(
+                grantId = "g-4",
+                ownerEmail = "owner@example.com",
+                issuer = "GitHub",
+                accountName = "repo",
+                isFavorite = true
+            )
+        )
+
+        val json = SharedBatchKeyStore.serializeIncomingServicesJson(list)
+        val restored = SharedBatchKeyStore.deserializeIncomingServicesJson(json)
+
+        assertEquals(4, restored.size)
+        // Favoritos primero, ordenados alfabéticamente: GitHub, luego Slack
+        assertTrue(restored[0].isFavorite)
+        assertEquals("GitHub", restored[0].issuer)
+        assertTrue(restored[1].isFavorite)
+        assertEquals("Slack", restored[1].issuer)
+
+        // No favoritos después, ordenados alfabéticamente: Amazon, luego Zoom
+        assertFalse(restored[2].isFavorite)
+        assertEquals("Amazon", restored[2].issuer)
+        assertFalse(restored[3].isFavorite)
+        assertEquals("Zoom", restored[3].issuer)
     }
 }

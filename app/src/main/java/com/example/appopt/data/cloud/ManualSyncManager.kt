@@ -356,4 +356,99 @@ object ManualSyncManager {
             Result.failure(deleteResult.exceptionOrNull() ?: IllegalStateException("Error al eliminar la copia de seguridad"))
         }
     }
+
+    /**
+     * Evalúa bajo el principio de Cero Divergencia si es seguro re-vincular automáticamente el estado
+     * de sincronización y activar la copia automática al reconectar una cuenta de Google.
+     *
+     * @param mostRecent Elemento de copia de seguridad más reciente en la nube o `null`.
+     */
+    suspend fun relinkAutoSyncIfEligible(mostRecent: DriveBackupItem?) {
+        val prefsManager = AuthenticatorApp.instance.preferencesManager
+        if (prefsManager.getLastSyncTimestamp() > 0L) return
+        if (mostRecent == null) {
+            prefsManager.setAutoSyncEnabled(false)
+            return
+        }
+
+        val appContext = AuthenticatorApp.instance
+        val connectedEmail = prefsManager.getConnectedDriveEmail()
+        val lastKnownEmail = prefsManager.getLastKnownDriveEmail()
+        val isSameAccount = (connectedEmail.isNullOrBlank() && lastKnownEmail.isNullOrBlank()) ||
+                (!connectedEmail.isNullOrBlank() && !lastKnownEmail.isNullOrBlank() &&
+                        connectedEmail.equals(lastKnownEmail, ignoreCase = true))
+
+        val wasModifiedOffline = prefsManager.wasVaultModifiedWhileDisconnected()
+        val hasValidKey = !mostRecent.isEncrypted || CloudVaultKeyStore.hasVaultKey(appContext)
+        val isSameDeviceOrigin = mostRecent.deviceId.isEmpty() ||
+                mostRecent.deviceId == prefsManager.getInstallationId()
+
+        val expectedRemoteHash = mostRecent.vaultHash.ifEmpty {
+            prefsManager.getLastKnownSyncedVaultHash().orEmpty()
+        }
+
+        val currentAccounts = appContext.accountRepository.getAccounts().first()
+        val currentLocalHash = if (currentAccounts.isNotEmpty()) {
+            CloudVaultSyncManager.computeAccountsSignature(currentAccounts)
+        } else {
+            ""
+        }
+
+        val hasExactParity = if (mostRecent.vaultHash.isNotEmpty()) {
+            currentAccounts.isNotEmpty() && currentLocalHash == mostRecent.vaultHash
+        } else {
+            !wasModifiedOffline &&
+                currentAccounts.isNotEmpty() &&
+                expectedRemoteHash.isNotEmpty() &&
+                currentLocalHash == expectedRemoteHash
+        }
+
+        if (isSameAccount && hasValidKey && isSameDeviceOrigin && hasExactParity) {
+            if (!connectedEmail.isNullOrBlank()) {
+                prefsManager.setLastKnownDriveEmail(connectedEmail)
+            }
+            prefsManager.setLastSyncTimestamp(mostRecent.modifiedTimeMillis)
+            prefsManager.setLastSyncedVaultHash(currentLocalHash)
+            prefsManager.setLastKnownSyncedVaultHash(currentLocalHash)
+            prefsManager.setVaultModifiedWhileDisconnected(false)
+            prefsManager.setDriveBackupEncrypted(mostRecent.isEncrypted)
+            prefsManager.setAutoSyncEnabled(true)
+        } else {
+            prefsManager.setAutoSyncEnabled(false)
+        }
+    }
+
+    /**
+     * Completa de forma atómica y centralizada la vinculación de la cuenta de Google Drive en toda la aplicación.
+     *
+     * Asigna el token activo, consulta el historial de respaldos en la nube, reconcilia el estado de sincronización
+     * automática y activa [com.example.appopt.data.local.PreferencesManager.setGoogleDriveConnected], garantizando
+     * que cualquier pantalla (Ajustes, Inicio o Compartidos) reconozca la cuenta conectada inmediatamente y de forma persistente.
+     *
+     * @param token Token OAuth2 válido de Google.
+     * @return [Result] con la lista de copias de seguridad encontradas.
+     */
+    suspend fun connectAndVerifyDrive(token: String): Result<List<DriveBackupItem>> = withContext(Dispatchers.IO) {
+        val prefsManager = AuthenticatorApp.instance.preferencesManager
+        GoogleDriveManager.currentAccessToken = token
+        try {
+            val historyResult = fetchBackupHistory(token)
+            val items = if (historyResult.isSuccess) {
+                val list = historyResult.getOrNull().orEmpty()
+                prefsManager.setLastBackupHistoryFetchTimestamp(System.currentTimeMillis())
+                prefsManager.setCachedBackupHistory(list)
+                relinkAutoSyncIfEligible(list.firstOrNull())
+                list
+            } else {
+                relinkAutoSyncIfEligible(null)
+                emptyList()
+            }
+            prefsManager.setGoogleDriveConnected(true)
+            Result.success(items)
+        } catch (e: Exception) {
+            relinkAutoSyncIfEligible(null)
+            prefsManager.setGoogleDriveConnected(true)
+            Result.failure(e)
+        }
+    }
 }

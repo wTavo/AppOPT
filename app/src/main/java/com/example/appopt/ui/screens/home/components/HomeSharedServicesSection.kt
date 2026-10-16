@@ -1,6 +1,8 @@
 package com.example.appopt.ui.screens.home.components
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,10 +12,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -31,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -66,7 +71,8 @@ import kotlinx.coroutines.launch
  * @param hideCodes Estado del modo privacidad para ocultar dígitos OTP.
  * @param onCopyCode Callback para copiar códigos con limpieza automática del portapapeles.
  * @param modifier Modificador de diseño Compose opcional.
- * @param showEmptyStateAndHeader Si es `true` (filtro «Compartidos»), muestra la barra de resumen/actualizar y el estado vacío ilustrado; si es `false` (filtro «Todos»), muestra directamente las tarjetas compartidas cuando existen y se oculta si no hay ninguna.
+ * @param showEmptyStateAndHeader Si es `true` (filtro «Compartidos»), muestra la barra de resumen/actualizar y el estado vacío ilustrado; si es `false` (filtro «Todos» o «Favoritos»), muestra directamente las tarjetas compartidas cuando existen y se oculta si no hay ninguna.
+ * @param onlyFavorites Si es `true`, filtra los servicios entrantes para mostrar únicamente los marcados como favoritos y oculta los salientes.
  */
 @Composable
 fun HomeSharedServicesAccordion(
@@ -74,7 +80,11 @@ fun HomeSharedServicesAccordion(
     hideCodes: Boolean,
     onCopyCode: (String, String) -> Unit,
     modifier: Modifier = Modifier,
-    showEmptyStateAndHeader: Boolean = true
+    showEmptyStateAndHeader: Boolean = true,
+    onlyFavorites: Boolean = false,
+    isDriveConnected: Boolean = false,
+    isConnectingDrive: Boolean = false,
+    onConnectClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -170,55 +180,41 @@ fun HomeSharedServicesAccordion(
         requestOAuthToken { token ->
             needsGoogleSignIn = false
             scope.launch {
-                val incomingRes = SharedServicesCloudClient.fetchIncomingServices(token)
-                val outgoingRes = SharedServicesCloudClient.fetchOutgoingGrants(token)
-
-                incomingRes.onSuccess { remoteList ->
-                    val currentNow = System.currentTimeMillis()
-                    // Preservar servicios de un solo uso cuya brecha local de 3 códigos siga activa en este instante
-                    val activeSingleUseServices = incomingList.filter { localSvc ->
-                        val localBatch = cachedBatchesMap[localSvc.grantId]
-                            ?: SharedBatchKeyStore.getValidBatch(context, localSvc.grantId, currentNow)
-                        localBatch != null && localBatch.isSingleUseWindow && !localBatch.isExpired(currentNow) &&
-                            remoteList.none { it.grantId == localSvc.grantId }
-                    }
-                    val mergedList = remoteList + activeSingleUseServices
-                    incomingList = mergedList
-                    SharedBatchKeyStore.saveCachedIncomingServices(context, mergedList)
-                    val activeIds = mergedList.map { it.grantId }.toSet()
-                    cachedBatchesMap.keys.toList().forEach { id ->
-                        if (id !in activeIds) {
-                            SharedBatchKeyStore.removeBatch(context, id)
-                            cachedBatchesMap.remove(id)
+                SharedBatchKeyStore.syncSharedServicesFromCloud(context, token)
+                    .onSuccess {
+                        val currentNow = System.currentTimeMillis()
+                        val mergedList = SharedBatchKeyStore.getCachedIncomingServices(context)
+                        incomingList = mergedList
+                        outgoingList = SharedBatchKeyStore.getCachedOutgoingGrants(context)
+                        val activeIds = mergedList.map { it.grantId }.toSet()
+                        cachedBatchesMap.keys.toList().forEach { id ->
+                            if (id !in activeIds) {
+                                SharedBatchKeyStore.removeBatch(context, id)
+                                cachedBatchesMap.remove(id)
+                            }
+                        }
+                        mergedList.forEach { svc ->
+                            SharedBatchKeyStore.getValidBatch(context, svc.grantId, currentNow)?.let { batch ->
+                                cachedBatchesMap[svc.grantId] = batch
+                            }
                         }
                     }
-                    mergedList.forEach { svc ->
-                        SharedBatchKeyStore.getValidBatch(context, svc.grantId, currentNow)?.let { batch ->
-                            cachedBatchesMap[svc.grantId] = batch
+                    .onFailure {
+                        errorMessage = if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
+                            context.getString(R.string.share_error_no_internet_offline_mode)
+                        } else {
+                            context.getString(R.string.share_error_generic)
                         }
                     }
-                }.onFailure {
-                    errorMessage = if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-                        context.getString(R.string.share_error_no_internet_offline_mode)
-                    } else {
-                        context.getString(R.string.share_error_generic)
-                    }
-                }
-
-                outgoingRes.onSuccess { list ->
-                    outgoingList = list
-                    SharedBatchKeyStore.saveCachedOutgoingGrants(context, list)
-                }
-
                 isLoading = false
             }
         }
     }
 
-    LaunchedEffect(isUnlocked) {
+    LaunchedEffect(isUnlocked, isDriveConnected) {
         if (!isUnlocked) {
             selectedIncomingGrantId = null
-        } else if (SharedServicesCloudClient.isNetworkAvailable(context) && !isLoading) {
+        } else if (isDriveConnected && SharedServicesCloudClient.isNetworkAvailable(context) && !isLoading) {
             refreshSharedServices()
         }
     }
@@ -322,21 +318,27 @@ fun HomeSharedServicesAccordion(
         }
     }
 
-    val filteredIncoming = remember(incomingList, searchQuery) {
-        if (searchQuery.isBlank()) incomingList
-        else incomingList.filter {
+    val filteredIncoming = remember(incomingList, searchQuery, onlyFavorites) {
+        val baseList = if (onlyFavorites) incomingList.filter { it.isFavorite } else incomingList
+        if (searchQuery.isBlank()) baseList
+        else baseList.filter {
             it.issuer.contains(searchQuery, ignoreCase = true) ||
                 it.accountName.contains(searchQuery, ignoreCase = true) ||
                 it.ownerEmail.contains(searchQuery, ignoreCase = true)
         }
     }
 
-    val filteredOutgoing = remember(outgoingList, searchQuery) {
-        if (searchQuery.isBlank()) outgoingList
-        else outgoingList.filter {
-            it.issuer.contains(searchQuery, ignoreCase = true) ||
-                it.accountName.contains(searchQuery, ignoreCase = true) ||
-                it.guestEmail.contains(searchQuery, ignoreCase = true)
+    val filteredOutgoing = remember(outgoingList, searchQuery, onlyFavorites) {
+        if (onlyFavorites) {
+            emptyList()
+        } else if (searchQuery.isBlank()) {
+            outgoingList
+        } else {
+            outgoingList.filter {
+                it.issuer.contains(searchQuery, ignoreCase = true) ||
+                    it.accountName.contains(searchQuery, ignoreCase = true) ||
+                    it.guestEmail.contains(searchQuery, ignoreCase = true)
+            }
         }
     }
 
@@ -434,30 +436,64 @@ fun HomeSharedServicesAccordion(
                 }
             }
 
-            needsGoogleSignIn && showEmptyStateAndHeader -> {
+            (!isDriveConnected || needsGoogleSignIn) && showEmptyStateAndHeader -> {
                 Surface(
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.large),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
-                        modifier = Modifier.padding(Dimensions.Spacing.md),
+                        modifier = Modifier.padding(Dimensions.Spacing.lg),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
+                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                     ) {
+                        Icon(
+                            imageVector = Icons.Filled.Group,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(Dimensions.IconSize.hero)
+                        )
                         Text(
-                            text = stringResource(R.string.share_error_not_signed_in),
-                            style = MaterialTheme.typography.bodyMedium,
+                            text = stringResource(R.string.home_shared_accordion_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            text = stringResource(R.string.home_empty_shared_description),
+                            style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
-                        AppAnimatedButton(
-                            text = stringResource(R.string.home_shared_connect_button),
+                        Button(
                             onClick = {
-                                refreshSharedServices()
-                                true
+                                appHaptics.click()
+                                onConnectClick()
+                            },
+                            enabled = !isConnectingDrive && !isLoading,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                        ) {
+                            if (isConnectingDrive || isLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(Dimensions.IconSize.small),
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    strokeWidth = Dimensions.Stroke.regular
+                                )
+                            } else {
+                                Image(
+                                    painter = painterResource(R.drawable.ic_brand_google),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(Dimensions.IconSize.small)
+                                )
+                                Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
+                                Text(
+                                    text = stringResource(R.string.settings_drive_connect_button),
+                                    style = MaterialTheme.typography.labelLarge
+                                )
                             }
-                        )
+                        }
                     }
                 }
             }
@@ -501,6 +537,9 @@ fun HomeSharedServicesAccordion(
                             isItemLoading = loadingGrantId == item.grantId,
                             onCopyCode = { code -> onCopyCode(code, item.issuer) },
                             onRequestAction = { requestCodeOrOfflineBatch(item) },
+                            onToggleFavorite = { grantId ->
+                                SharedBatchKeyStore.toggleIncomingFavorite(context, grantId)
+                            },
                             onAcceptInvitation = {
                                 if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
                                     appHaptics.error()

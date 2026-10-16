@@ -24,10 +24,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.Mail
+import androidx.compose.material.icons.outlined.StarBorder
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -73,6 +75,7 @@ import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.SafeGreen
 import com.example.appopt.ui.theme.UrgentRed
+import com.example.appopt.ui.theme.WarningOrange
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.util.AccessibilityUtils
 import kotlinx.coroutines.delay
@@ -84,10 +87,11 @@ import kotlin.time.Duration.Companion.milliseconds
  *
  * Características de diseño e interacción:
  * - Geometría perimetral, bordes y elevación animada [Dimensions.Elevation.cardDefault] idénticos a las tarjetas de cuentas propias.
- * - Cabecera con avatar de marca ([ServiceBrandAvatar]), título del emisor, subtítulo de cuenta/propietario y botón de acción superior.
+ * - Cabecera con avatar de marca ([ServiceBrandAvatar]), título del emisor, subtítulo de cuenta/propietario con icono compartido e indicador de favorito.
  * - Modo de privacidad (`hideCodes`): colapso y despliegue animado mediante [Motion.Spec.privacyCollapseSpec].
  * - Pulsar directamente sobre los dígitos copia el código al portapapeles si está activo, o solicita la obtención del código si aún no está cargado.
- * - En el extremo derecho: temporizador circular ([CircularTimeProgress]) si el código está activo, o botón de refresco ([Icons.Filled.Refresh]) para obtenerlo.
+ * - Junto a los dígitos: badge estilizado tipo píldora indicando el avance de códigos temporales ([liveWindowProgress]) y confirmación animada de copiado.
+ * - En el extremo derecho: temporizador circular ([CircularTimeProgress]) si el código está activo, o botón de revelación ([Icons.Outlined.Visibility]) para obtenerlo y revelarlo.
  *
  * @param service Metadatos del servicio compartido entrante.
  * @param activeCode Código OTP actual de 6/8 dígitos (obtenido en línea o del lote temporal cifrado).
@@ -99,6 +103,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * @param onRequestAction Callback para solicitar el código en línea o descargar/renovar el lote temporal.
  * @param onAcceptInvitation Callback invocado cuando el invitado acepta explícitamente la invitación.
  * @param onRejectOrLeave Callback invocado cuando el invitado rechaza la invitación.
+ * @param onToggleFavorite Callback para marcar o desmarcar el servicio compartido como favorito.
  * @param onCardClick Callback invocado al tocar la tarjeta aceptada para abrir el diálogo de detalles.
  * @param liveWindowProgress Par opcional `(pasoActual, totalPasos)` que indica el código vigente dentro de la brecha de 3 códigos.
  */
@@ -110,289 +115,30 @@ fun IncomingSharedOtpCard(
     hasValidBatch: Boolean,
     isItemLoading: Boolean,
     modifier: Modifier = Modifier,
+    isDragging: Boolean = false,
     onCopyCode: (String) -> Unit,
     onRequestAction: () -> Unit,
     onAcceptInvitation: () -> Unit,
     onRejectOrLeave: () -> Unit,
+    onToggleFavorite: (String) -> Unit = {},
     onCardClick: () -> Unit = {},
     liveWindowProgress: Pair<Int, Int>? = null
 ) {
-    val appHaptics = rememberAppHaptics()
-    val context = LocalContext.current
-    val interactionSource = remember { MutableInteractionSource() }
-    var copied by remember { mutableStateOf(false) }
-    var cardCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
-    val isPending = service.status == ShareGrantStatus.PENDING
-
-    LaunchedEffect(copied) {
-        if (copied) {
-            delay(Motion.Duration.FEEDBACK_TOAST.toLong().milliseconds)
-            copied = false
-        }
-    }
-
-    val formattedCode = remember(activeCode) {
-        val raw = activeCode.orEmpty()
-        when (raw.length) {
-            6 -> "${raw.substring(0, 3)} ${raw.substring(3)}"
-            8 -> "${raw.substring(0, 4)} ${raw.substring(4)}"
-            else -> raw
-        }
-    }
-
-    val cardElevation by animateDpAsState(
-        targetValue = Dimensions.Elevation.cardDefault,
-        animationSpec = Motion.Spec.quickFadeSpec(),
-        label = "shared_card_elevation"
+    com.example.appopt.ui.components.OtpCodeCard(
+        service = service,
+        activeCode = activeCode,
+        hideCodes = hideCodes,
+        modifier = modifier,
+        isDragging = isDragging,
+        liveWindowProgress = liveWindowProgress,
+        isItemLoading = isItemLoading,
+        onCopyCode = onCopyCode,
+        onRequestAction = onRequestAction,
+        onToggleFavorite = onToggleFavorite,
+        onCardClick = onCardClick,
+        onAcceptInvitation = onAcceptInvitation,
+        onRejectInvitation = onRejectOrLeave
     )
-
-    val outlineBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
-    val cardBorder = remember(outlineBorderColor) {
-        BorderStroke(Dimensions.Stroke.thin, outlineBorderColor)
-    }
-
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .onPlaced { cardCoordinates = it }
-            .clickable(
-                enabled = !isPending,
-                interactionSource = interactionSource,
-                indication = ripple(),
-                onClick = {
-                    NavigationOriginTracker.updateModalOrigin(cardCoordinates)
-                    appHaptics.click()
-                    onCardClick()
-                }
-            )
-            .semantics {
-                contentDescription = AccessibilityUtils.buildAccountCardContentDescription(
-                    context = context,
-                    issuer = service.issuer,
-                    accountName = service.accountName.ifBlank { service.ownerEmail },
-                    code = activeCode.orEmpty(),
-                    isFavorite = false
-                )
-            },
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = cardElevation
-        ),
-        border = cardBorder,
-        shape = RoundedCornerShape(Dimensions.CornerRadius.large)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(Dimensions.Spacing.lg)
-        ) {
-            // Cabecera: Avatar de Marca, Nombres y Botón de Acción/Estado Compartido
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    ServiceBrandAvatar(
-                        issuer = service.issuer,
-                        size = Dimensions.IconSize.hero
-                    )
-
-                    Spacer(modifier = Modifier.width(Dimensions.Spacing.md))
-
-                    Column {
-                        Text(
-                            text = service.issuer.ifEmpty { stringResource(R.string.home_default_issuer) },
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        val subtitleText = when {
-                            isPending -> stringResource(R.string.settings_shared_invitation_from_format, service.ownerEmail)
-                            liveWindowProgress != null -> {
-                                val base = service.accountName.ifBlank { service.ownerEmail }
-                                "$base · ${stringResource(R.string.settings_shared_live_window_progress, liveWindowProgress.first, liveWindowProgress.second)}"
-                            }
-                            service.accountName.isNotBlank() -> service.accountName
-                            else -> stringResource(R.string.settings_shared_owner_format, service.ownerEmail)
-                        }
-                        if (subtitleText.isNotBlank()) {
-                            Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
-                            Text(
-                                text = subtitleText,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                }
-
-                IconButton(
-                    onClick = {
-                        if (!isPending) {
-                            NavigationOriginTracker.updateModalOrigin(cardCoordinates)
-                            appHaptics.click()
-                            onCardClick()
-                        }
-                    },
-                    modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
-                ) {
-                    Icon(
-                        imageVector = if (isPending) Icons.Outlined.Mail else Icons.Outlined.Group,
-                        contentDescription = stringResource(R.string.settings_shared_tab_incoming),
-                        tint = if (isPending) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-
-            if (isPending) {
-                Spacer(modifier = Modifier.height(Dimensions.Spacing.sm))
-                Text(
-                    text = stringResource(R.string.settings_shared_invitation_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(Dimensions.Spacing.md))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
-                ) {
-                    OutlinedButton(
-                        onClick = {
-                            appHaptics.click()
-                            onRejectOrLeave()
-                        },
-                        enabled = !isItemLoading,
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.settings_shared_reject_action),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-
-                    Button(
-                        onClick = {
-                            appHaptics.click()
-                            onAcceptInvitation()
-                        },
-                        enabled = !isItemLoading,
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.settings_shared_accept_action),
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                    }
-                }
-            } else {
-                // Modo de privacidad: despliegue animado idéntico a OtpCodeCard
-                AnimatedVisibility(
-                    visible = !hideCodes,
-                    enter = expandVertically(animationSpec = Motion.Spec.privacyCollapseSpec()) +
-                            fadeIn(animationSpec = Motion.Spec.quickFadeSpec()),
-                    exit = shrinkVertically(animationSpec = Motion.Spec.privacyCollapseSpec()) +
-                            fadeOut(animationSpec = Motion.Spec.quickFadeSpec())
-                ) {
-                    Column {
-                        Spacer(modifier = Modifier.height(Dimensions.Spacing.md))
-
-                        // Cuerpo: Dígitos OTP y Temporizador / Acción de solicitud
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            val isCodePresent = !activeCode.isNullOrBlank()
-                            val displayCode = if (isCodePresent) formattedCode else "--- ---"
-
-                            val fetchDescription = stringResource(R.string.settings_shared_tap_to_fetch)
-
-                            // Zona táctil de los dígitos: toque directo para copiar o solicitar
-                            Row(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(Dimensions.CornerRadius.small))
-                                    .clickable {
-                                        if (!activeCode.isNullOrBlank()) {
-                                            appHaptics.copy()
-                                            onCopyCode(activeCode)
-                                            copied = true
-                                        } else {
-                                            appHaptics.click()
-                                            onRequestAction()
-                                        }
-                                    }
-                                    .padding(Dimensions.Spacing.xs),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = displayCode,
-                                    style = MaterialTheme.typography.displayMedium,
-                                    color = if (isCodePresent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                    modifier = Modifier.semantics {
-                                        if (!activeCode.isNullOrBlank()) {
-                                            contentDescription = AccessibilityUtils.toAccessibleSpokenOtp(activeCode)
-                                        } else {
-                                            contentDescription = fetchDescription
-                                        }
-                                    }
-                                )
-
-                                if (copied) {
-                                    Row {
-                                        Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
-                                        Icon(
-                                            imageVector = Icons.Filled.Check,
-                                            contentDescription = stringResource(R.string.action_copied),
-                                            tint = SafeGreen,
-                                            modifier = Modifier.size(Dimensions.IconSize.medium)
-                                        )
-                                    }
-                                }
-                            }
-
-                            if (isItemLoading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(Dimensions.IconSize.medium),
-                                    strokeWidth = Dimensions.Stroke.regular,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            } else if (isCodePresent) {
-                                CircularTimeProgress(
-                                    period = service.period
-                                )
-                            } else {
-                                IconButton(
-                                    onClick = {
-                                        appHaptics.click()
-                                        onRequestAction()
-                                    },
-                                    modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Refresh,
-                                        contentDescription = stringResource(R.string.settings_shared_tap_to_fetch),
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
 }
 
 /**

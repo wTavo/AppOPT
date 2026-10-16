@@ -151,6 +151,20 @@ object SharedBatchKeyStore {
      * @param services Lista de [IncomingSharedService] recibidos.
      */
     fun saveCachedIncomingServices(context: Context, services: List<IncomingSharedService>) {
+        val json = serializeIncomingServicesJson(services)
+        getPrefs(context).edit {
+            putString(SecurityConfig.SHARED_CACHED_INCOMING_KEY, json)
+        }
+        _cacheVersion.value++
+    }
+
+    /**
+     * Serializa una lista de [IncomingSharedService] a una cadena JSON.
+     *
+     * @param services Lista de servicios entrantes.
+     * @return Cadena JSON que representa la lista.
+     */
+    internal fun serializeIncomingServicesJson(services: List<IncomingSharedService>): String {
         val arr = JSONArray()
         for (s in services) {
             arr.put(
@@ -164,23 +178,21 @@ object SharedBatchKeyStore {
                     put("accessMode", s.accessMode.name)
                     put("batchHours", s.batchHours)
                     put("status", s.status.name)
+                    put("isFavorite", s.isFavorite)
+                    put("orderIndex", s.orderIndex)
                 }
             )
         }
-        getPrefs(context).edit {
-            putString(SecurityConfig.SHARED_CACHED_INCOMING_KEY, arr.toString())
-        }
-        _cacheVersion.value++
+        return arr.toString()
     }
 
     /**
-     * Recupera de la caché local los metadatos de servicios compartidos recibidos.
+     * Deserializa una cadena JSON a una lista inmutable de [IncomingSharedService].
      *
-     * @param context Contexto de la aplicación.
-     * @return Lista de [IncomingSharedService] almacenada o lista vacía.
+     * @param raw Cadena JSON cruda.
+     * @return Lista parseada o lista vacía ante error.
      */
-    fun getCachedIncomingServices(context: Context): List<IncomingSharedService> {
-        val raw = getPrefs(context).getString(SecurityConfig.SHARED_CACHED_INCOMING_KEY, null) ?: return emptyList()
+    internal fun deserializeIncomingServicesJson(raw: String): List<IncomingSharedService> {
         return try {
             val arr = JSONArray(raw)
             val list = ArrayList<IncomingSharedService>(arr.length())
@@ -196,14 +208,49 @@ object SharedBatchKeyStore {
                         period = obj.optInt("period", SecurityConfig.DEFAULT_TOTP_PERIOD_SECONDS),
                         accessMode = ShareAccessMode.fromWireValue(obj.optString("accessMode")),
                         batchHours = obj.optInt("batchHours", ShareBatchDuration.TWENTY_FOUR_HOURS.hours),
-                        status = com.example.appopt.domain.model.ShareGrantStatus.fromWireValue(obj.optString("status"))
+                        status = com.example.appopt.domain.model.ShareGrantStatus.fromWireValue(obj.optString("status")),
+                        isFavorite = obj.optBoolean("isFavorite", false),
+                        orderIndex = obj.optInt("orderIndex", 0)
                     )
                 )
             }
-            list
+            list.sortedWith(
+                compareByDescending<IncomingSharedService> { it.isFavorite }
+                    .thenBy { it.orderIndex }
+                    .thenBy { it.issuer.lowercase() }
+            )
         } catch (_: Exception) {
             emptyList()
         }
+    }
+
+    /**
+     * Recupera de la caché local los metadatos de servicios compartidos recibidos.
+     *
+     * @param context Contexto de la aplicación.
+     * @return Lista de [IncomingSharedService] almacenada o lista vacía.
+     */
+    fun getCachedIncomingServices(context: Context): List<IncomingSharedService> {
+        val raw = getPrefs(context).getString(SecurityConfig.SHARED_CACHED_INCOMING_KEY, null) ?: return emptyList()
+        return deserializeIncomingServicesJson(raw)
+    }
+
+    /**
+     * Alterna el estado de favorito de un servicio compartido recibido.
+     *
+     * @param context Contexto de la aplicación.
+     * @param grantId Identificador único del permiso de servicio compartido.
+     */
+    fun toggleIncomingFavorite(context: Context, grantId: String) {
+        val current = getCachedIncomingServices(context)
+        val updated = current.map {
+            if (it.grantId == grantId) it.copy(isFavorite = !it.isFavorite) else it
+        }.sortedWith(
+            compareByDescending<IncomingSharedService> { it.isFavorite }
+                .thenBy { it.orderIndex }
+                .thenBy { it.issuer.lowercase() }
+        )
+        saveCachedIncomingServices(context, updated)
     }
 
     /**
@@ -321,4 +368,50 @@ object SharedBatchKeyStore {
             isSingleUseWindow = isSingleUseWindow
         )
     }
+
+    /**
+     * Sincroniza desde la nube los servicios compartidos entrantes y salientes, unificando el estado
+     * con la caché local y preservando favoritos, índices de ordenación y ventanas de un solo uso activas.
+     *
+     * @param context Contexto de la aplicación.
+     * @param token Token OAuth2 de Google con autorización vigente.
+     * @return [Result] que confirma la sincronización exitosa o reporta el fallo de red.
+     */
+    suspend fun syncSharedServicesFromCloud(context: Context, token: String): Result<Unit> =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val incomingRes = SharedServicesCloudClient.fetchIncomingServices(token)
+                val outgoingRes = SharedServicesCloudClient.fetchOutgoingGrants(token)
+
+                incomingRes.onSuccess { remoteList ->
+                    val currentNow = System.currentTimeMillis()
+                    val cachedIn = getCachedIncomingServices(context)
+                    val existingFavoritesMap = cachedIn.associate { it.grantId to it.isFavorite }
+                    val existingOrderMap = cachedIn.associate { it.grantId to it.orderIndex }
+                    val activeSingleUse = cachedIn.filter { localSvc ->
+                        val batch = getValidBatch(context, localSvc.grantId, currentNow)
+                        batch != null && batch.isSingleUseWindow && !batch.isExpired(currentNow) &&
+                            remoteList.none { it.grantId == localSvc.grantId }
+                    }
+                    val remoteMerged = remoteList.map { remoteSvc ->
+                        val isFav = existingFavoritesMap[remoteSvc.grantId] ?: false
+                        val orderIdx = existingOrderMap[remoteSvc.grantId] ?: remoteSvc.orderIndex
+                        remoteSvc.copy(isFavorite = isFav, orderIndex = orderIdx)
+                    }
+                    saveCachedIncomingServices(context, remoteMerged + activeSingleUse)
+                }
+
+                outgoingRes.onSuccess { list ->
+                    saveCachedOutgoingGrants(context, list)
+                }
+
+                if (incomingRes.isFailure) {
+                    Result.failure(incomingRes.exceptionOrNull() ?: RuntimeException("Error al consultar servicios compartidos"))
+                } else {
+                    Result.success(Unit)
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
 }

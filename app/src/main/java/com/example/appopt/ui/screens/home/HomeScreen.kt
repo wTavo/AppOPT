@@ -1,5 +1,6 @@
 package com.example.appopt.ui.screens.home
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,7 +46,10 @@ import com.example.appopt.data.cloud.SharedBatchKeyStore
 import com.example.appopt.data.cloud.SharedServicesCloudClient
 import com.example.appopt.data.update.AppUpdateManager
 import com.example.appopt.domain.model.AccountWithCode
+import com.example.appopt.domain.model.IncomingSharedService
+import com.example.appopt.domain.model.ShareAccessMode
 import com.example.appopt.domain.model.ShareGrantStatus
+import com.example.appopt.security.SecurityConfig
 import com.example.appopt.ui.common.UiState
 import com.example.appopt.ui.components.AccountDetailsDialog
 import com.example.appopt.ui.components.OtpCodeCard
@@ -57,6 +61,7 @@ import com.example.appopt.ui.screens.home.components.HomeCategoryFilterBar
 import com.example.appopt.ui.screens.home.components.HomeFloatingDock
 import com.example.appopt.ui.screens.home.components.HomeSharedServicesAccordion
 import com.example.appopt.ui.screens.home.components.HomeTopHeader
+import com.example.appopt.ui.screens.home.components.IncomingSharedServiceDetailsDialog
 import com.example.appopt.ui.screens.scan.QrScannerDialog
 import com.example.appopt.ui.screens.scan.QrScannerMode
 import com.example.appopt.ui.screens.settings.components.AppUpdateSettingsCard
@@ -65,9 +70,31 @@ import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.performance.TrackJankMetrics
 import com.example.appopt.performance.TrackJankOperationState
+import com.example.appopt.util.TotpClock
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+
+/**
+ * Modela un elemento visual de tarjeta OTP para la pantalla principal unificando cuentas propias y compartidas (Directivas 8 y DRY).
+ */
+private sealed interface HomeCardItem {
+    val key: String
+    val isFavorite: Boolean
+    val issuer: String
+
+    data class Own(val item: AccountWithCode) : HomeCardItem {
+        override val key: String get() = item.account.id
+        override val isFavorite: Boolean get() = item.account.isFavorite
+        override val issuer: String get() = item.account.issuer
+    }
+
+    data class Shared(val service: IncomingSharedService) : HomeCardItem {
+        override val key: String get() = "shared_${service.grantId}"
+        override val isFavorite: Boolean get() = service.isFavorite
+        override val issuer: String get() = service.issuer
+    }
+}
 
 /**
  * Pantalla principal que visualiza las cuentas 2FA con barra de filtros superior («Todos», «Favoritos» y «Compartidos»)
@@ -99,6 +126,7 @@ fun HomeScreen(
     val isHideCodesEnabled by viewModel.isHideCodesEnabled.collectAsStateWithLifecycle()
     val cloudSyncState by viewModel.cloudSyncState.collectAsStateWithLifecycle()
     val isDriveConnected by viewModel.isDriveConnected.collectAsStateWithLifecycle()
+    val isDriveConnecting by viewModel.isDriveConnecting.collectAsStateWithLifecycle()
     val isVaultSynced by viewModel.isVaultSynced.collectAsStateWithLifecycle()
     val deletedAccountsCount by viewModel.deletedAccountsCount.collectAsStateWithLifecycle()
     val availableUpdate by AppUpdateManager.availableUpdate.collectAsStateWithLifecycle()
@@ -108,6 +136,8 @@ fun HomeScreen(
 
     var isSearchActive by remember { mutableStateOf(false) }
     var selectedAccountId by remember { mutableStateOf<String?>(null) }
+    var selectedSharedServiceForDetails by remember { mutableStateOf<IncomingSharedService?>(null) }
+    var loadingSharedGrantId by remember { mutableStateOf<String?>(null) }
     var isAddMenuOpen by remember { mutableStateOf(false) }
     var isQrScannerDialogOpen by remember { mutableStateOf(false) }
     var isManualAddDialogOpen by remember { mutableStateOf(false) }
@@ -127,6 +157,7 @@ fun HomeScreen(
     LaunchedEffect(isUnlocked, isDriveConnected) {
         if (!isUnlocked) {
             selectedAccountId = null
+            selectedSharedServiceForDetails = null
             isAddMenuOpen = false
             isSearchActive = false
             isQrScannerDialogOpen = false
@@ -136,19 +167,7 @@ fun HomeScreen(
             if (isDriveConnected) {
                 requestOAuthToken { token ->
                     scope.launch {
-                        SharedServicesCloudClient.fetchIncomingServices(token).onSuccess { remoteList ->
-                            val currentNow = System.currentTimeMillis()
-                            val cachedIn = SharedBatchKeyStore.getCachedIncomingServices(context)
-                            val activeSingleUse = cachedIn.filter { localSvc ->
-                                val batch = SharedBatchKeyStore.getValidBatch(context, localSvc.grantId, currentNow)
-                                batch != null && batch.isSingleUseWindow && !batch.isExpired(currentNow) &&
-                                    remoteList.none { it.grantId == localSvc.grantId }
-                            }
-                            SharedBatchKeyStore.saveCachedIncomingServices(context, remoteList + activeSingleUse)
-                        }
-                        SharedServicesCloudClient.fetchOutgoingGrants(token).onSuccess { list ->
-                            SharedBatchKeyStore.saveCachedOutgoingGrants(context, list)
-                        }
+                        SharedBatchKeyStore.syncSharedServicesFromCloud(context, token)
                     }
                 }
             }
@@ -162,8 +181,8 @@ fun HomeScreen(
 
     val appHaptics = rememberAppHaptics()
 
-    // Lista de renderizado local que mantiene el orden visual determinístico y fluido sin parpadeos
-    val localAccounts = remember { mutableStateListOf<AccountWithCode>() }
+    // Lista de tarjetas visuales que mantiene el orden unificado determinístico y fluido sin parpadeos (Directivas 8 y DRY)
+    val localCards = remember { mutableStateListOf<HomeCardItem>() }
     var isDraggingAny by remember { mutableStateOf(false) }
 
     TrackJankOperationState(
@@ -179,64 +198,324 @@ fun HomeScreen(
         }
     }
 
-    // Sincroniza la lista local con las emisiones del ViewModel mediante diff incremental:
-    // Solo actualiza los elementos que realmente cambiaron, evitando que LazyColumn redibuje
-    // todas las tarjetas en cada emisión del ticker (cada ~30s al rotar el código OTP).
-    LaunchedEffect(currentSuccessAccounts) {
+    val incomingServices = remember(sharedCacheVersion, isUnlocked) {
+        SharedBatchKeyStore.getCachedIncomingServices(context)
+    }
+
+    // Sincroniza la lista unificada local con las emisiones de Room y servicios compartidos
+    LaunchedEffect(currentSuccessAccounts, incomingServices) {
         if (isDraggingAny) {
-            // Durante arrastre: solo actualizar códigos sin alterar el orden visual
-            val codeMap = currentSuccessAccounts.associate { it.account.id to it.code }
-            for (i in localAccounts.indices) {
-                val item = localAccounts[i]
-                val updatedCode = codeMap[item.account.id]
-                if (updatedCode != null && updatedCode != item.code) {
-                    localAccounts[i] = item.copy(code = updatedCode)
+            // Durante arrastre: solo actualizar códigos/datos sin alterar el orden visual
+            val ownMap = currentSuccessAccounts.associateBy { it.account.id }
+            val sharedMap = incomingServices.associateBy { it.grantId }
+            for (i in localCards.indices) {
+                when (val card = localCards[i]) {
+                    is HomeCardItem.Own -> {
+                        val updated = ownMap[card.item.account.id]
+                        if (updated != null && updated != card.item) {
+                            localCards[i] = HomeCardItem.Own(updated)
+                        }
+                    }
+                    is HomeCardItem.Shared -> {
+                        val updated = sharedMap[card.service.grantId]
+                        if (updated != null && updated != card.service) {
+                            localCards[i] = HomeCardItem.Shared(updated)
+                        }
+                    }
                 }
             }
         } else {
-            // Fuera de arrastre: diff incremental por ID para minimizar invalidaciones en LazyColumn
-            val newById = currentSuccessAccounts.associateBy { it.account.id }
-            val localIds = localAccounts.map { it.account.id }.toSet()
-            val newIds = newById.keys
-            val favoriteStatusChanged = localAccounts.any { item ->
-                val updated = newById[item.account.id]
-                updated != null && updated.account.isFavorite != item.account.isFavorite
-            }
+            val currentOwnIds = currentSuccessAccounts.map { it.account.id }.toSet()
+            val currentSharedGrantIds = incomingServices.map { it.grantId }.toSet()
+            val localOwnIds = localCards.filterIsInstance<HomeCardItem.Own>().map { it.item.account.id }.toSet()
+            val localSharedGrantIds = localCards.filterIsInstance<HomeCardItem.Shared>().map { it.service.grantId }.toSet()
 
-            if (favoriteStatusChanged) {
-                localAccounts.clear()
-                localAccounts.addAll(currentSuccessAccounts)
+            if (localCards.isEmpty()) {
+                val favOwn = currentSuccessAccounts.filter { it.account.isFavorite }.map { HomeCardItem.Own(it) }
+                val favShared = incomingServices.filter { it.isFavorite }.map { HomeCardItem.Shared(it) }
+                val nonFavOwn = currentSuccessAccounts.filterNot { it.account.isFavorite }.map { HomeCardItem.Own(it) }
+                val nonFavShared = incomingServices.filterNot { it.isFavorite }.map { HomeCardItem.Shared(it) }
+                localCards.addAll((favOwn + favShared) + (nonFavOwn + nonFavShared))
             } else {
-                // 1. Actualizar elementos existentes cuyo código o datos hayan cambiado
-                for (i in localAccounts.indices) {
-                    val item = localAccounts[i]
-                    val updated = newById[item.account.id]
-                    if (updated != null && updated != item) {
-                        localAccounts[i] = updated
+                val ownMap = currentSuccessAccounts.associateBy { it.account.id }
+                val sharedMap = incomingServices.associateBy { it.grantId }
+
+                // Eliminar tarjetas que ya no existen
+                localCards.removeAll { card ->
+                    when (card) {
+                        is HomeCardItem.Own -> card.item.account.id !in currentOwnIds
+                        is HomeCardItem.Shared -> card.service.grantId !in currentSharedGrantIds
                     }
                 }
 
-                // 2. Eliminar elementos que ya no existen (eliminaciones de cuenta)
-                localAccounts.removeAll { it.account.id !in newIds }
+                // Actualizar tarjetas existentes
+                for (i in localCards.indices) {
+                    when (val card = localCards[i]) {
+                        is HomeCardItem.Own -> {
+                            val updated = ownMap[card.item.account.id]
+                            if (updated != null && updated != card.item) {
+                                localCards[i] = HomeCardItem.Own(updated)
+                            }
+                        }
+                        is HomeCardItem.Shared -> {
+                            val updated = sharedMap[card.service.grantId]
+                            if (updated != null && updated != card.service) {
+                                localCards[i] = HomeCardItem.Shared(updated)
+                            }
+                        }
+                    }
+                }
 
-                // 3. Añadir elementos nuevos que no estaban (altas de cuenta)
-                val toAdd = currentSuccessAccounts.filter { it.account.id !in localIds }
-                localAccounts.addAll(toAdd)
+                // Incorporar nuevas cuentas
+                val newOwn = currentSuccessAccounts.filter { it.account.id !in localOwnIds }
+                for (item in newOwn) {
+                    val newCard = HomeCardItem.Own(item)
+                    if (item.account.isFavorite) {
+                        localCards.add(0, newCard)
+                    } else {
+                        localCards.add(newCard)
+                    }
+                }
+
+                // Incorporar nuevos servicios compartidos
+                val newShared = incomingServices.filter { it.grantId !in localSharedGrantIds }
+                for (svc in newShared) {
+                    val newCard = HomeCardItem.Shared(svc)
+                    if (svc.isFavorite) {
+                        localCards.add(0, newCard)
+                    } else {
+                        localCards.add(newCard)
+                    }
+                }
             }
         }
     }
 
-    val accountsToDisplay = localAccounts.ifEmpty { currentSuccessAccounts }
-    val favoriteAccounts = accountsToDisplay.filter { it.account.isFavorite }
+    val currentSecondEpoch by TotpClock.currentSecondEpoch.collectAsStateWithLifecycle()
+    val nowMillis = currentSecondEpoch * 1000L
 
-    // Lambdas estabilizadas: se fijan en la primera composición y no cambian mientras el ViewModel sea el mismo
+    val allDisplayItems by remember(searchQuery) {
+        derivedStateOf {
+            if (searchQuery.isBlank()) {
+                localCards.toList()
+            } else {
+                localCards.filter { card ->
+                    when (card) {
+                        is HomeCardItem.Own -> {
+                            card.item.account.issuer.contains(searchQuery, ignoreCase = true) ||
+                                card.item.account.accountName.contains(searchQuery, ignoreCase = true)
+                        }
+                        is HomeCardItem.Shared -> {
+                            card.service.issuer.contains(searchQuery, ignoreCase = true) ||
+                                card.service.accountName.contains(searchQuery, ignoreCase = true) ||
+                                card.service.ownerEmail.contains(searchQuery, ignoreCase = true)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    val favoriteDisplayItems by remember(allDisplayItems) {
+        derivedStateOf {
+            allDisplayItems.filter { it.isFavorite }
+        }
+    }
+
+    fun requestSharedCode(service: IncomingSharedService) {
+        if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
+            appHaptics.error()
+            Toast.makeText(context, context.getString(R.string.share_error_no_internet), Toast.LENGTH_SHORT).show()
+            return
+        }
+        loadingSharedGrantId = service.grantId
+        requestOAuthToken { token ->
+            scope.launch {
+                if (service.accessMode == ShareAccessMode.OFFLINE_BATCH) {
+                    SharedServicesCloudClient.downloadPrecomputedBatch(token, service.grantId)
+                        .onSuccess { batch ->
+                            SharedBatchKeyStore.saveBatch(context, batch)
+                            appHaptics.success()
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.settings_shared_batch_downloaded_msg),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                        .onFailure {
+                            appHaptics.error()
+                            SharedBatchKeyStore.removeBatch(context, service.grantId)
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.settings_shared_revoked_error),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                } else {
+                    SharedServicesCloudClient.requestLiveCode(token, service.grantId)
+                        .onSuccess { live ->
+                            val liveBatch = live.toSharedOtpBatch(service.grantId)
+                            SharedBatchKeyStore.saveBatch(context, liveBatch)
+                            appHaptics.success()
+                        }
+                        .onFailure {
+                            appHaptics.error()
+                            SharedBatchKeyStore.removeBatch(context, service.grantId)
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.settings_shared_revoked_error),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                }
+                loadingSharedGrantId = null
+            }
+        }
+    }
+
+    fun acceptSharedInvitation(item: IncomingSharedService) {
+        if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
+            appHaptics.error()
+            Toast.makeText(context, context.getString(R.string.share_error_no_internet), Toast.LENGTH_SHORT).show()
+            return
+        }
+        loadingSharedGrantId = item.grantId
+        requestOAuthToken { token ->
+            scope.launch {
+                SharedServicesCloudClient.acceptInvitation(token, item.grantId)
+                    .onSuccess {
+                        val current = SharedBatchKeyStore.getCachedIncomingServices(context)
+                        val updated = current.map {
+                            if (it.grantId == item.grantId) it.copy(status = ShareGrantStatus.ACCEPTED) else it
+                        }
+                        SharedBatchKeyStore.saveCachedIncomingServices(context, updated)
+                        if (item.accessMode == ShareAccessMode.OFFLINE_BATCH) {
+                            SharedServicesCloudClient.downloadPrecomputedBatch(token, item.grantId)
+                                .onSuccess { batch ->
+                                    SharedBatchKeyStore.saveBatch(context, batch)
+                                }
+                        }
+                        appHaptics.success()
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.settings_shared_accept_success_msg),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    .onFailure {
+                        appHaptics.error()
+                        Toast.makeText(context, context.getString(R.string.share_error_generic), Toast.LENGTH_SHORT).show()
+                    }
+                loadingSharedGrantId = null
+            }
+        }
+    }
+
+    fun rejectSharedInvitation(item: IncomingSharedService) {
+        if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
+            appHaptics.error()
+            Toast.makeText(context, context.getString(R.string.share_error_no_internet), Toast.LENGTH_SHORT).show()
+            return
+        }
+        loadingSharedGrantId = item.grantId
+        val wasPending = item.status == ShareGrantStatus.PENDING
+        requestOAuthToken { token ->
+            scope.launch {
+                SharedServicesCloudClient.revokeGrant(token, item.grantId)
+                    .onSuccess {
+                        val current = SharedBatchKeyStore.getCachedIncomingServices(context)
+                        val updated = current.filterNot { it.grantId == item.grantId }
+                        SharedBatchKeyStore.saveCachedIncomingServices(context, updated)
+                        SharedBatchKeyStore.removeBatch(context, item.grantId)
+                        appHaptics.success()
+                        val msgRes = if (wasPending) {
+                            R.string.settings_shared_reject_success_msg
+                        } else {
+                            R.string.settings_shared_leave_success_msg
+                        }
+                        Toast.makeText(context, context.getString(msgRes), Toast.LENGTH_SHORT).show()
+                    }
+                    .onFailure {
+                        appHaptics.error()
+                        Toast.makeText(context, context.getString(R.string.share_error_generic), Toast.LENGTH_SHORT).show()
+                    }
+                loadingSharedGrantId = null
+            }
+        }
+    }
+
+    // Lambdas estabilizadas y funciones de interacción directa (Directivas 8 y DRY)
     val onCopyCode = remember(viewModel) { { code: String, issuer: String -> viewModel.copyCode(code, issuer) } }
-    val onToggleFavorite = remember(viewModel) { { id: String -> viewModel.toggleFavorite(id) } }
     val onNextHotpCode = remember(viewModel) { { id: String -> viewModel.nextHotpCode(id) } }
-    val onCommitReorder = remember(viewModel) { { ids: List<String> -> viewModel.commitReorder(ids) } }
+
+    fun commitAllCardsOrder() {
+        val ownIds = localCards.filterIsInstance<HomeCardItem.Own>().map { it.item.account.id }
+        viewModel.commitReorder(ownIds)
+
+        val currentShared = SharedBatchKeyStore.getCachedIncomingServices(context)
+        val sharedPositionMap = localCards.filterIsInstance<HomeCardItem.Shared>()
+            .mapIndexed { index, shared -> shared.service.grantId to index }
+            .toMap()
+        val reorderedShared = currentShared.map { svc ->
+            val newIndex = sharedPositionMap[svc.grantId] ?: svc.orderIndex
+            svc.copy(orderIndex = newIndex)
+        }.sortedWith(
+            compareByDescending<IncomingSharedService> { it.isFavorite }
+                .thenBy { it.orderIndex }
+                .thenBy { it.issuer.lowercase() }
+        )
+        SharedBatchKeyStore.saveCachedIncomingServices(context, reorderedShared)
+    }
+
+    fun onToggleFavoriteOwn(id: String) {
+        appHaptics.click()
+        val index = localCards.indexOfFirst { it is HomeCardItem.Own && it.item.account.id == id }
+        if (index != -1) {
+            val card = localCards[index] as HomeCardItem.Own
+            val willBeFavorite = !card.isFavorite
+            val updated = card.item.copy(account = card.item.account.copy(isFavorite = willBeFavorite))
+            localCards.removeAt(index)
+            val updatedCard = HomeCardItem.Own(updated)
+            if (willBeFavorite) {
+                localCards.add(0, updatedCard)
+            } else {
+                val firstNonFavIndex = localCards.indexOfFirst { !it.isFavorite }
+                if (firstNonFavIndex != -1) {
+                    localCards.add(firstNonFavIndex, updatedCard)
+                } else {
+                    localCards.add(updatedCard)
+                }
+            }
+        }
+        viewModel.toggleFavorite(id)
+    }
+
+    fun onToggleFavoriteShared(grantId: String) {
+        appHaptics.click()
+        val index = localCards.indexOfFirst { it is HomeCardItem.Shared && it.service.grantId == grantId }
+        if (index != -1) {
+            val card = localCards[index] as HomeCardItem.Shared
+            val willBeFavorite = !card.isFavorite
+            val updated = card.service.copy(isFavorite = willBeFavorite)
+            localCards.removeAt(index)
+            val updatedCard = HomeCardItem.Shared(updated)
+            if (willBeFavorite) {
+                localCards.add(0, updatedCard)
+            } else {
+                val firstNonFavIndex = localCards.indexOfFirst { !it.isFavorite }
+                if (firstNonFavIndex != -1) {
+                    localCards.add(firstNonFavIndex, updatedCard)
+                } else {
+                    localCards.add(updatedCard)
+                }
+            }
+        }
+        SharedBatchKeyStore.toggleIncomingFavorite(context, grantId)
+    }
 
     val selectedAccountWithCode = selectedAccountId?.let { id ->
-        accountsToDisplay.find { it.account.id == id }
+        localCards.filterIsInstance<HomeCardItem.Own>().find { it.item.account.id == id }?.item
+            ?: currentSuccessAccounts.find { it.account.id == id }
     }
 
     // Cálculo reactivo de resguardo vertical para evitar que el header flotante + barra de filtros y el dock tapen las tarjetas
@@ -265,18 +544,15 @@ fun HomeScreen(
                 val pageFilter = HomeCategoryFilter.entries[page]
                 val pageListState = rememberLazyListState()
                 val pageReorderableState = rememberReorderableLazyListState(pageListState) { from, to ->
-                    val fromIndex = localAccounts.indexOfFirst { it.account.id == from.key }
-                    val toIndex = localAccounts.indexOfFirst { it.account.id == to.key }
-                    val fromAccount = localAccounts.getOrNull(fromIndex)
-                    val toAccount = localAccounts.getOrNull(toIndex)
-                    if (fromAccount != null && toAccount != null && fromAccount.account.isFavorite == toAccount.account.isFavorite) {
-                        val item = localAccounts.removeAt(fromIndex)
-                        localAccounts.add(toIndex, item)
+                    val fromIndex = localCards.indexOfFirst { it.key == from.key }
+                    val toIndex = localCards.indexOfFirst { it.key == to.key }
+                    val fromCard = localCards.getOrNull(fromIndex)
+                    val toCard = localCards.getOrNull(toIndex)
+                    if (fromCard != null && toCard != null && fromCard.isFavorite == toCard.isFavorite) {
+                        val item = localCards.removeAt(fromIndex)
+                        localCards.add(toIndex, item)
                         appHaptics.dragTick()
                     }
-                }
-                val hasIncomingSharedServices = remember(sharedCacheVersion, isUnlocked) {
-                    SharedBatchKeyStore.getCachedIncomingServices(context).isNotEmpty()
                 }
 
                 LazyColumn(
@@ -309,57 +585,101 @@ fun HomeScreen(
                                     searchQuery = searchQuery,
                                     hideCodes = isHideCodesEnabled,
                                     onCopyCode = onCopyCode,
-                                    showEmptyStateAndHeader = true
+                                    showEmptyStateAndHeader = true,
+                                    isDriveConnected = isDriveConnected,
+                                    isConnectingDrive = isDriveConnecting,
+                                    onConnectClick = {
+                                        requestOAuthToken { token ->
+                                            viewModel.onGoogleDriveConnected(token) {
+                                                appHaptics.success()
+                                                Toast.makeText(
+                                                    context,
+                                                    context.getString(R.string.settings_drive_connected_success),
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                        }
+                                    }
                                 )
                             }
                         }
 
                         HomeCategoryFilter.ALL -> {
-                            if (accountsToDisplay.isNotEmpty()) {
+                            if (allDisplayItems.isNotEmpty()) {
                                 items(
-                                    items = accountsToDisplay,
-                                    key = { it.account.id },
+                                    items = allDisplayItems,
+                                    key = { it.key },
                                     contentType = { "otp_card" }
                                 ) { item ->
-                                    ReorderableItem(pageReorderableState, key = item.account.id) { isDragging ->
-                                        OtpCodeCard(
-                                            accountWithCode = item,
-                                            hideCodes = isHideCodesEnabled,
-                                            isDragging = isDragging,
-                                            modifier = Modifier
-                                                .longPressDraggableHandle(
-                                                    enabled = !isSearchActive && searchQuery.isBlank(),
-                                                    onDragStarted = {
-                                                        isDraggingAny = true
-                                                        appHaptics.dragTick()
-                                                    },
-                                                    onDragStopped = {
-                                                        isDraggingAny = false
-                                                        onCommitReorder(localAccounts.map { it.account.id })
-                                                    }
-                                                ),
-                                            onCardClick = { selectedAccountId = item.account.id },
-                                            onCopyCode = { code -> onCopyCode(code, item.account.issuer) },
-                                            onToggleFavorite = onToggleFavorite,
-                                            onNextHotpCode = onNextHotpCode
-                                        )
+                                    when (item) {
+                                        is HomeCardItem.Own -> {
+                                            ReorderableItem(pageReorderableState, key = item.key) { isDragging ->
+                                                OtpCodeCard(
+                                                    accountWithCode = item.item,
+                                                    hideCodes = isHideCodesEnabled,
+                                                    isDragging = isDragging,
+                                                    modifier = Modifier
+                                                        .longPressDraggableHandle(
+                                                            enabled = !isSearchActive && searchQuery.isBlank(),
+                                                            onDragStarted = {
+                                                                isDraggingAny = true
+                                                                appHaptics.dragTick()
+                                                            },
+                                                            onDragStopped = {
+                                                                isDraggingAny = false
+                                                                commitAllCardsOrder()
+                                                            }
+                                                        ),
+                                                    onCardClick = { selectedAccountId = item.item.account.id },
+                                                    onCopyCode = { code -> onCopyCode(code, item.item.account.issuer) },
+                                                    onToggleFavorite = { onToggleFavoriteOwn(item.item.account.id) },
+                                                    onNextHotpCode = onNextHotpCode
+                                                )
+                                            }
+                                        }
+
+                                        is HomeCardItem.Shared -> {
+                                            val service = item.service
+                                            val cachedBatch = SharedBatchKeyStore.getValidBatch(context, service.grantId, nowMillis)
+                                            val activeCode = cachedBatch?.getCodeAt(nowMillis)
+                                            val liveWindowProgress = cachedBatch?.getWindowStepProgress(
+                                                nowMillis = nowMillis,
+                                                maxLiveWindowSteps = SecurityConfig.SHARED_LIVE_CODE_WINDOW_STEPS
+                                            )
+                                            ReorderableItem(pageReorderableState, key = item.key) { isDragging ->
+                                                OtpCodeCard(
+                                                    service = service,
+                                                    activeCode = activeCode,
+                                                    hideCodes = isHideCodesEnabled,
+                                                    liveWindowProgress = liveWindowProgress,
+                                                    isItemLoading = loadingSharedGrantId == service.grantId,
+                                                    isDragging = isDragging,
+                                                    modifier = Modifier
+                                                        .longPressDraggableHandle(
+                                                            enabled = !isSearchActive && searchQuery.isBlank(),
+                                                            onDragStarted = {
+                                                                isDraggingAny = true
+                                                                appHaptics.dragTick()
+                                                            },
+                                                            onDragStopped = {
+                                                                isDraggingAny = false
+                                                                commitAllCardsOrder()
+                                                            }
+                                                        ),
+                                                    onCopyCode = { code -> onCopyCode(code, service.issuer) },
+                                                    onRequestAction = { requestSharedCode(service) },
+                                                    onToggleFavorite = { onToggleFavoriteShared(service.grantId) },
+                                                    onCardClick = { selectedSharedServiceForDetails = service },
+                                                    onAcceptInvitation = { acceptSharedInvitation(service) },
+                                                    onRejectInvitation = { rejectSharedInvitation(service) }
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
 
-                            item(
-                                key = "shared_services_in_all",
-                                contentType = "shared_view"
-                            ) {
-                                HomeSharedServicesAccordion(
-                                    searchQuery = searchQuery,
-                                    hideCodes = isHideCodesEnabled,
-                                    onCopyCode = onCopyCode,
-                                    showEmptyStateAndHeader = false
-                                )
-                            }
-
-                            if (accountsToDisplay.isEmpty() && !hasIncomingSharedServices && uiState is UiState.Empty) {
+                            if (allDisplayItems.isEmpty() && uiState is UiState.Empty) {
                                 item(
                                     key = "empty_accounts_state",
                                     contentType = "empty_state"
@@ -374,37 +694,81 @@ fun HomeScreen(
                         }
 
                         HomeCategoryFilter.FAVORITES -> {
-                            if (favoriteAccounts.isNotEmpty()) {
+                            if (favoriteDisplayItems.isNotEmpty()) {
                                 items(
-                                    items = favoriteAccounts,
-                                    key = { it.account.id },
+                                    items = favoriteDisplayItems,
+                                    key = { it.key },
                                     contentType = { "otp_card" }
                                 ) { item ->
-                                    ReorderableItem(pageReorderableState, key = item.account.id) { isDragging ->
-                                        OtpCodeCard(
-                                            accountWithCode = item,
-                                            hideCodes = isHideCodesEnabled,
-                                            isDragging = isDragging,
-                                            modifier = Modifier
-                                                .longPressDraggableHandle(
-                                                    enabled = !isSearchActive && searchQuery.isBlank(),
-                                                    onDragStarted = {
-                                                        isDraggingAny = true
-                                                        appHaptics.dragTick()
-                                                    },
-                                                    onDragStopped = {
-                                                        isDraggingAny = false
-                                                        onCommitReorder(localAccounts.map { it.account.id })
-                                                    }
-                                                ),
-                                            onCardClick = { selectedAccountId = item.account.id },
-                                            onCopyCode = { code -> onCopyCode(code, item.account.issuer) },
-                                            onToggleFavorite = onToggleFavorite,
-                                            onNextHotpCode = onNextHotpCode
-                                        )
+                                    when (item) {
+                                        is HomeCardItem.Own -> {
+                                            ReorderableItem(pageReorderableState, key = item.key) { isDragging ->
+                                                OtpCodeCard(
+                                                    accountWithCode = item.item,
+                                                    hideCodes = isHideCodesEnabled,
+                                                    isDragging = isDragging,
+                                                    modifier = Modifier
+                                                        .longPressDraggableHandle(
+                                                            enabled = !isSearchActive && searchQuery.isBlank(),
+                                                            onDragStarted = {
+                                                                isDraggingAny = true
+                                                                appHaptics.dragTick()
+                                                            },
+                                                            onDragStopped = {
+                                                                isDraggingAny = false
+                                                                commitAllCardsOrder()
+                                                            }
+                                                        ),
+                                                    onCardClick = { selectedAccountId = item.item.account.id },
+                                                    onCopyCode = { code -> onCopyCode(code, item.item.account.issuer) },
+                                                    onToggleFavorite = { onToggleFavoriteOwn(item.item.account.id) },
+                                                    onNextHotpCode = onNextHotpCode
+                                                )
+                                            }
+                                        }
+
+                                        is HomeCardItem.Shared -> {
+                                            val service = item.service
+                                            val cachedBatch = SharedBatchKeyStore.getValidBatch(context, service.grantId, nowMillis)
+                                            val activeCode = cachedBatch?.getCodeAt(nowMillis)
+                                            val liveWindowProgress = cachedBatch?.getWindowStepProgress(
+                                                nowMillis = nowMillis,
+                                                maxLiveWindowSteps = SecurityConfig.SHARED_LIVE_CODE_WINDOW_STEPS
+                                            )
+                                            ReorderableItem(pageReorderableState, key = item.key) { isDragging ->
+                                                OtpCodeCard(
+                                                    service = service,
+                                                    activeCode = activeCode,
+                                                    hideCodes = isHideCodesEnabled,
+                                                    liveWindowProgress = liveWindowProgress,
+                                                    isItemLoading = loadingSharedGrantId == service.grantId,
+                                                    isDragging = isDragging,
+                                                    modifier = Modifier
+                                                        .longPressDraggableHandle(
+                                                            enabled = !isSearchActive && searchQuery.isBlank(),
+                                                            onDragStarted = {
+                                                                isDraggingAny = true
+                                                                appHaptics.dragTick()
+                                                            },
+                                                            onDragStopped = {
+                                                                isDraggingAny = false
+                                                                commitAllCardsOrder()
+                                                            }
+                                                        ),
+                                                    onCopyCode = { code -> onCopyCode(code, service.issuer) },
+                                                    onRequestAction = { requestSharedCode(service) },
+                                                    onToggleFavorite = { onToggleFavoriteShared(service.grantId) },
+                                                    onCardClick = { selectedSharedServiceForDetails = service },
+                                                    onAcceptInvitation = { acceptSharedInvitation(service) },
+                                                    onRejectInvitation = { rejectSharedInvitation(service) }
+                                                )
+                                            }
+                                        }
                                     }
                                 }
-                            } else {
+                            }
+
+                            if (favoriteDisplayItems.isEmpty()) {
                                 item(
                                     key = "empty_favorites_state",
                                     contentType = "empty_state"
@@ -517,6 +881,22 @@ fun HomeScreen(
                 onDeleteAccount = {
                     viewModel.deleteAccount(it)
                     selectedAccountId = null
+                }
+            )
+        }
+
+        // Modal de Detalles para Servicio Compartido recibido
+        selectedSharedServiceForDetails?.let { service ->
+            val batch = SharedBatchKeyStore.getValidBatch(context, service.grantId, nowMillis)
+            IncomingSharedServiceDetailsDialog(
+                service = service,
+                hasValidBatch = batch != null && !batch.isExpired(nowMillis),
+                isLoading = loadingSharedGrantId == service.grantId,
+                onDismiss = { selectedSharedServiceForDetails = null },
+                onRenewOfflineBatch = { requestSharedCode(service) },
+                onConfirmLeave = {
+                    rejectSharedInvitation(service)
+                    selectedSharedServiceForDetails = null
                 }
             )
         }

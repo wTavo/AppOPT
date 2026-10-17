@@ -3,7 +3,6 @@ package com.example.appopt.data.update
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
@@ -23,6 +22,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
+import androidx.core.net.toUri
 
 /**
  * Excepción de seguridad Zero-Trust cuando el archivo APK descargado no supera la verificación de integridad SHA-256
@@ -267,7 +267,7 @@ object AppUpdateManager {
     fun openManageUnknownAppSourcesSettings(context: Context) {
         val intent = Intent(
             Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-            Uri.parse("package:${context.packageName}")
+            "package:${context.packageName}".toUri()
         ).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }

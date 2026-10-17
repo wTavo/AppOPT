@@ -90,7 +90,7 @@ data class AccountEntity(
         result = 31 * result + isFavorite.hashCode()
         result = 31 * result + orderIndex
         result = 31 * result + isDeleted.hashCode()
-        result = 31 * result + (deletedAt?.hashCode() ?: 0)
+        result = 31 * result + deletedAt.hashCode()
         result = 31 * result + createdAt.hashCode()
         result = 31 * result + updatedAt.hashCode()
         return result

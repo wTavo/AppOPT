@@ -166,20 +166,20 @@ object SharedBatchKeyStore {
      */
     internal fun serializeIncomingServicesJson(services: List<IncomingSharedService>): String {
         val arr = JSONArray()
-        for (s in services) {
+        for ((grantId, ownerEmail, issuer, accountName, digits, period, accessMode, batchHours, status, isFavorite, orderIndex) in services) {
             arr.put(
                 JSONObject().apply {
-                    put("grantId", s.grantId)
-                    put("ownerEmail", s.ownerEmail)
-                    put("issuer", s.issuer)
-                    put("accountName", s.accountName)
-                    put("digits", s.digits)
-                    put("period", s.period)
-                    put("accessMode", s.accessMode.name)
-                    put("batchHours", s.batchHours)
-                    put("status", s.status.name)
-                    put("isFavorite", s.isFavorite)
-                    put("orderIndex", s.orderIndex)
+                    put("grantId", grantId)
+                    put("ownerEmail", ownerEmail)
+                    put("issuer", issuer)
+                    put("accountName", accountName)
+                    put("digits", digits)
+                    put("period", period)
+                    put("accessMode", accessMode.name)
+                    put("batchHours", batchHours)
+                    put("status", status.name)
+                    put("isFavorite", isFavorite)
+                    put("orderIndex", orderIndex)
                 }
             )
         }
@@ -261,18 +261,18 @@ object SharedBatchKeyStore {
      */
     fun saveCachedOutgoingGrants(context: Context, grants: List<OutgoingShareGrant>) {
         val arr = JSONArray()
-        for (g in grants) {
+        for ((grantId, accountId, issuer, accountName, guestEmail, accessMode, batchHours, createdAtMillis, status) in grants) {
             arr.put(
                 JSONObject().apply {
-                    put("grantId", g.grantId)
-                    put("accountId", g.accountId)
-                    put("issuer", g.issuer)
-                    put("accountName", g.accountName)
-                    put("guestEmail", g.guestEmail)
-                    put("accessMode", g.accessMode.name)
-                    put("batchHours", g.batchHours)
-                    put("createdAtMillis", g.createdAtMillis)
-                    put("status", g.status.name)
+                    put("grantId", grantId)
+                    put("accountId", accountId)
+                    put("issuer", issuer)
+                    put("accountName", accountName)
+                    put("guestEmail", guestEmail)
+                    put("accessMode", accessMode.name)
+                    put("batchHours", batchHours)
+                    put("createdAtMillis", createdAtMillis)
+                    put("status", status.name)
                 }
             )
         }

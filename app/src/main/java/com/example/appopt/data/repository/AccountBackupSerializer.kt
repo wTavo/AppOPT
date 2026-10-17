@@ -78,31 +78,31 @@ object AccountBackupSerializer {
         cryptoManager: CryptoManager
     ): String {
         val jsonArray = JSONArray()
-        for (entity in entities) {
+        for ((_, issuer, accountName, encryptedSecret, iv, algorithm, digits, period, type, counter) in entities) {
             var secretBytes: ByteArray? = null
             try {
-                secretBytes = cryptoManager.decrypt(entity.encryptedSecret, entity.iv)
+                secretBytes = cryptoManager.decrypt(encryptedSecret, iv)
                 val secretBase32 = Base32.encode(secretBytes)
                 val item = JSONObject().apply {
-                    put("i", entity.issuer)
-                    if (entity.accountName.isNotBlank()) {
-                        put("a", entity.accountName)
+                    put("i", issuer)
+                    if (accountName.isNotBlank()) {
+                        put("a", accountName)
                     }
                     put("s", secretBase32)
-                    if (entity.algorithm != "SHA1") {
-                        put("alg", entity.algorithm)
+                    if (algorithm != "SHA1") {
+                        put("alg", algorithm)
                     }
-                    if (entity.digits != 6) {
-                        put("d", entity.digits)
+                    if (digits != 6) {
+                        put("d", digits)
                     }
-                    if (entity.period != 30) {
-                        put("p", entity.period)
+                    if (period != 30) {
+                        put("p", period)
                     }
-                    if (entity.type != "TOTP") {
-                        put("t", entity.type)
+                    if (type != "TOTP") {
+                        put("t", type)
                     }
-                    if (entity.counter > 0) {
-                        put("c", entity.counter)
+                    if (counter > 0) {
+                        put("c", counter)
                     }
                 }
                 jsonArray.put(item)

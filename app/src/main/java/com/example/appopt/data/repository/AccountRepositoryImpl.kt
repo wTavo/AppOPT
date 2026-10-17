@@ -518,24 +518,24 @@ class AccountRepositoryImpl(
     override suspend fun importSelectedAccounts(accounts: List<ParsedAccountPreview>): Int {
         return withContext(Dispatchers.IO) {
             var changesCount = 0
-            for (preview in accounts) {
+            for ((_, issuer, accountName, algorithm, digits, period, type, counter, _, _, secretBytes) in accounts) {
                 try {
                     val changed = AccountMergeEngine.mergeSingleAccount(
-                        issuer = preview.issuer,
-                        accountName = preview.accountName,
-                        secretBytes = preview.secretBytes,
-                        algorithm = preview.algorithm,
-                        digits = preview.digits,
-                        period = preview.period,
-                        type = preview.type,
-                        counter = preview.counter,
+                        issuer = issuer,
+                        accountName = accountName,
+                        secretBytes = secretBytes,
+                        algorithm = algorithm,
+                        digits = digits,
+                        period = period,
+                        type = type,
+                        counter = counter,
                         accountDao = accountDao,
                         cryptoManager = cryptoManager,
                         onInvalidateCache = { id -> otpCodeCache.remove(id) }
                     )
                     changesCount += changed
                 } finally {
-                    CryptoManager.zeroize(preview.secretBytes)
+                    CryptoManager.zeroize(secretBytes)
                 }
             }
             if (changesCount > 0) {

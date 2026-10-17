@@ -232,11 +232,11 @@ object TransferCrypto {
                 throw IncompleteTransferException("Se recibieron ${chunks.size} de $total fragmentos")
             }
 
-            for (chunk in chunks) {
-                if (chunk.total != total || chunk.sessionId != sessionId) {
+            for ((_, sessionId1, _, total1, salt, iv) in chunks) {
+                if (total1 != total || sessionId1 != sessionId) {
                     throw IllegalArgumentException("Los fragmentos pertenecen a sesiones de transferencia diferentes")
                 }
-                if (!chunk.salt.contentEquals(first.salt) || !chunk.iv.contentEquals(first.iv)) {
+                if (!salt.contentEquals(first.salt) || !iv.contentEquals(first.iv)) {
                     throw IllegalArgumentException("Parámetros criptográficos inconsistentes entre fragmentos")
                 }
             }
@@ -251,9 +251,9 @@ object TransferCrypto {
             val totalCiphertextSize = sortedChunks.sumOf { it.chunkCiphertext.size }
             val fullCiphertext = ByteArray(totalCiphertextSize)
             var currentOffset = 0
-            for (chunk in sortedChunks) {
-                System.arraycopy(chunk.chunkCiphertext, 0, fullCiphertext, currentOffset, chunk.chunkCiphertext.size)
-                currentOffset += chunk.chunkCiphertext.size
+            for ((_, _, _, _, _, _, chunkCiphertext) in sortedChunks) {
+                System.arraycopy(chunkCiphertext, 0, fullCiphertext, currentOffset, chunkCiphertext.size)
+                currentOffset += chunkCiphertext.size
             }
 
             val salt = first.salt

@@ -274,17 +274,17 @@ class PreferencesManager(context: Context) {
     fun setCachedBackupHistory(items: List<DriveBackupItem>) {
         try {
             val jsonArray = JSONArray()
-            for (item in items) {
+            for ((fileId, fileName, modifiedTimeMillis, sizeBytes, deviceName, isMostRecent, deviceId, isEncrypted, vaultHash) in items) {
                 val obj = JSONObject().apply {
-                    put("fileId", item.fileId)
-                    put("fileName", item.fileName)
-                    put("modifiedTimeMillis", item.modifiedTimeMillis)
-                    put("sizeBytes", item.sizeBytes)
-                    put("deviceName", item.deviceName)
-                    put("deviceId", item.deviceId)
-                    put("isMostRecent", item.isMostRecent)
-                    put("isEncrypted", item.isEncrypted)
-                    put("vaultHash", item.vaultHash)
+                    put("fileId", fileId)
+                    put("fileName", fileName)
+                    put("modifiedTimeMillis", modifiedTimeMillis)
+                    put("sizeBytes", sizeBytes)
+                    put("deviceName", deviceName)
+                    put("deviceId", deviceId)
+                    put("isMostRecent", isMostRecent)
+                    put("isEncrypted", isEncrypted)
+                    put("vaultHash", vaultHash)
                 }
                 jsonArray.put(obj)
             }

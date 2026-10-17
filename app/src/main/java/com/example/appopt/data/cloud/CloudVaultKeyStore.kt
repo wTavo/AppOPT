@@ -159,7 +159,7 @@ object CloudVaultKeyStore {
         override fun hashCode(): Int {
             var result = vaultKey.contentHashCode()
             result = 31 * result + mainSlot.hashCode()
-            result = 31 * result + (emergencySlot?.hashCode() ?: 0)
+            result = 31 * result + emergencySlot.hashCode()
             return result
         }
     }

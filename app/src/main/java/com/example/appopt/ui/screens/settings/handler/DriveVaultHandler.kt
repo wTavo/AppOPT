@@ -2,7 +2,6 @@ package com.example.appopt.ui.screens.settings.handler
 
 import android.content.Context
 import com.example.appopt.AuthenticatorApp
-import com.example.appopt.data.cloud.CloudVaultKeyStore
 import com.example.appopt.data.cloud.CloudVaultSyncManager
 import com.example.appopt.data.cloud.DriveBackupItem
 import com.example.appopt.data.cloud.GoogleDriveManager
@@ -12,7 +11,6 @@ import com.example.appopt.ui.screens.settings.SettingsUiState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext

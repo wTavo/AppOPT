@@ -5,7 +5,6 @@ import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.example.appopt.R
-import com.example.appopt.data.cloud.GoogleDriveManager
 import com.example.appopt.ui.components.AppConfirmDialog
 import com.example.appopt.ui.components.AppDestructiveConfirmDialog
 import com.example.appopt.ui.components.ModalTone

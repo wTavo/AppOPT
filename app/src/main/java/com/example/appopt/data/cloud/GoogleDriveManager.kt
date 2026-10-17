@@ -473,7 +473,6 @@ object GoogleDriveManager {
             downloadedFilesCache.remove(fileId)
             cachedBackupItems = emptyList()
             lastNetworkFetchMillis = 0L
-            Unit
         }
     }
 }

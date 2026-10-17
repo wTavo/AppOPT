@@ -217,28 +217,28 @@ object AccountMergeEngine {
 
         var changesCount = 0
 
-        for (item in parsedList) {
+        for ((id, secretBytes, issuer, accountName, algorithm, digits, period, type, counter, isFavorite, orderIndex, updatedAt) in parsedList) {
             try {
-                val remoteHash = item.secretBytes.sha256Hex()
-                val existingEntity = (if (item.id.isNotBlank()) localById[item.id] else null) ?: localBySecretHash[remoteHash]
+                val remoteHash = secretBytes.sha256Hex()
+                val existingEntity = (if (id.isNotBlank()) localById[id] else null) ?: localBySecretHash[remoteHash]
 
                 if (existingEntity == null) {
-                    val payload = cryptoManager.encrypt(item.secretBytes)
-                    val newId = item.id.ifBlank { UUID.randomUUID().toString() }
-                    val now = if (item.updatedAt > 0L) item.updatedAt else System.currentTimeMillis()
+                    val payload = cryptoManager.encrypt(secretBytes)
+                    val newId = id.ifBlank { UUID.randomUUID().toString() }
+                    val now = if (updatedAt > 0L) updatedAt else System.currentTimeMillis()
                     val newEntity = AccountEntity(
                         id = newId,
-                        issuer = item.issuer,
-                        accountName = item.accountName,
+                        issuer = issuer,
+                        accountName = accountName,
                         encryptedSecret = payload.ciphertext,
                         iv = payload.iv,
-                        algorithm = item.algorithm.name,
-                        digits = item.digits,
-                        period = item.period,
-                        type = item.type.name,
-                        counter = item.counter,
-                        isFavorite = item.isFavorite,
-                        orderIndex = item.orderIndex,
+                        algorithm = algorithm.name,
+                        digits = digits,
+                        period = period,
+                        type = type.name,
+                        counter = counter,
+                        isFavorite = isFavorite,
+                        orderIndex = orderIndex,
                         isDeleted = false,
                         deletedAt = null,
                         createdAt = now,
@@ -250,43 +250,43 @@ object AccountMergeEngine {
                     changesCount++
                 } else {
                     if (existingEntity.isDeleted) {
-                        val payload = cryptoManager.encrypt(item.secretBytes)
+                        val payload = cryptoManager.encrypt(secretBytes)
                         val restoredEntity = existingEntity.copy(
-                            issuer = item.issuer,
-                            accountName = item.accountName,
+                            issuer = issuer,
+                            accountName = accountName,
                             encryptedSecret = payload.ciphertext,
                             iv = payload.iv,
-                            algorithm = item.algorithm.name,
-                            digits = item.digits,
-                            period = item.period,
-                            type = item.type.name,
-                            counter = maxOf(existingEntity.counter, item.counter),
+                            algorithm = algorithm.name,
+                            digits = digits,
+                            period = period,
+                            type = type.name,
+                            counter = maxOf(existingEntity.counter, counter),
                             isDeleted = false,
                             deletedAt = null,
-                            updatedAt = if (item.updatedAt > 0L) item.updatedAt else System.currentTimeMillis()
+                            updatedAt = if (updatedAt > 0L) updatedAt else System.currentTimeMillis()
                         )
                         accountDao.updateAccount(restoredEntity)
                         localById[existingEntity.id] = restoredEntity
                         localBySecretHash[remoteHash] = restoredEntity
                         onInvalidateCache(existingEntity.id)
                         changesCount++
-                    } else if (item.updatedAt > existingEntity.updatedAt ||
-                        item.issuer != existingEntity.issuer ||
-                        item.accountName != existingEntity.accountName ||
-                        item.counter > existingEntity.counter
+                    } else if (updatedAt > existingEntity.updatedAt ||
+                        issuer != existingEntity.issuer ||
+                        accountName != existingEntity.accountName ||
+                        counter > existingEntity.counter
                     ) {
-                        val payload = cryptoManager.encrypt(item.secretBytes)
+                        val payload = cryptoManager.encrypt(secretBytes)
                         val updatedEntity = existingEntity.copy(
-                            issuer = item.issuer,
-                            accountName = item.accountName,
+                            issuer = issuer,
+                            accountName = accountName,
                             encryptedSecret = payload.ciphertext,
                             iv = payload.iv,
-                            algorithm = item.algorithm.name,
-                            digits = item.digits,
-                            period = item.period,
-                            type = item.type.name,
-                            counter = maxOf(existingEntity.counter, item.counter),
-                            updatedAt = if (item.updatedAt > 0L) item.updatedAt else System.currentTimeMillis()
+                            algorithm = algorithm.name,
+                            digits = digits,
+                            period = period,
+                            type = type.name,
+                            counter = maxOf(existingEntity.counter, counter),
+                            updatedAt = if (updatedAt > 0L) updatedAt else System.currentTimeMillis()
                         )
                         accountDao.updateAccount(updatedEntity)
                         localById[existingEntity.id] = updatedEntity
@@ -296,7 +296,7 @@ object AccountMergeEngine {
                     }
                 }
             } finally {
-                CryptoManager.zeroize(item.secretBytes)
+                CryptoManager.zeroize(secretBytes)
             }
         }
 
@@ -451,10 +451,10 @@ object AccountMergeEngine {
         val currentEntities = accountDao.getAllAccountsSync()
         val localHashes = mutableSetOf<String>()
 
-        for (entity in currentEntities) {
-            if (!entity.isDeleted) {
+        for ((_, _, _, encryptedSecret, iv, _, _, _, _, _, _, _, isDeleted) in currentEntities) {
+            if (!isDeleted) {
                 try {
-                    val decBytes = cryptoManager.decrypt(entity.encryptedSecret, entity.iv)
+                    val decBytes = cryptoManager.decrypt(encryptedSecret, iv)
                     val hash = decBytes.sha256Hex()
                     CryptoManager.zeroize(decBytes)
                     localHashes.add(hash)

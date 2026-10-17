@@ -7,7 +7,6 @@ import com.example.appopt.domain.model.AccountWithCode
 import com.example.appopt.domain.model.IncomingSharedService
 import com.example.appopt.ui.components.AccountDetailsDialog
 import com.example.appopt.ui.screens.add.AddAccountDialog
-import com.example.appopt.ui.screens.home.dialogs.IncomingSharedServiceDetailsDialog
 import com.example.appopt.ui.screens.scan.QrScannerDialog
 import com.example.appopt.ui.screens.scan.QrScannerMode
 

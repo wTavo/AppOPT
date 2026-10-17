@@ -13,6 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
 import com.example.appopt.data.cloud.SharedBatchKeyStore
@@ -83,13 +84,15 @@ fun AccountDetailsDialog(
     var activeGrants by remember { mutableStateOf<List<OutgoingShareGrant>>(emptyList()) }
     var isSharing by remember { mutableStateOf(false) }
     var shareSuccessCount by remember { mutableStateOf(0) }
-    var shareErrorMessage by remember { mutableStateOf<String?>(null) }
+    var shareErrorMessageResId by remember { mutableStateOf<Int?>(null) }
+    val shareErrorMessage = shareErrorMessageResId?.let { stringResource(it) }
+    val shareSuccessTemplate = stringResource(R.string.share_success_msg)
 
     val requestOAuthToken = rememberGoogleOAuthRequester(
         onAuthError = {
             isSharing = false
             appHaptics.error()
-            shareErrorMessage = context.getString(R.string.share_error_not_signed_in)
+            shareErrorMessageResId = R.string.share_error_not_signed_in
         }
     )
 
@@ -107,7 +110,7 @@ fun AccountDetailsDialog(
 
     LaunchedEffect(isShareMode, account.id, isDriveConnected) {
         if (isShareMode) {
-            shareErrorMessage = null
+            shareErrorMessageResId = null
             if (!isDriveConnected) {
                 activeGrants = emptyList()
                 return@LaunchedEffect
@@ -116,7 +119,7 @@ fun AccountDetailsDialog(
             activeGrants = cachedAll.filter { it.accountId == account.id }
 
             if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-                shareErrorMessage = context.getString(R.string.share_error_no_internet)
+                shareErrorMessageResId = R.string.share_error_no_internet
                 return@LaunchedEffect
             }
 
@@ -129,7 +132,7 @@ fun AccountDetailsDialog(
                         }
                         .onFailure {
                             if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-                                shareErrorMessage = context.getString(R.string.share_error_no_internet)
+                                shareErrorMessageResId = R.string.share_error_no_internet
                             }
                         }
                 }
@@ -150,7 +153,7 @@ fun AccountDetailsDialog(
                 }
                 isShareMode -> {
                     isSharing = false
-                    shareErrorMessage = null
+                    shareErrorMessageResId = null
                     isShareMode = false
                     true
                 }
@@ -176,7 +179,7 @@ fun AccountDetailsDialog(
                     AccountDetailsViewStep(
                         accountWithCode = accountWithCode,
                         onShareClick = {
-                            shareErrorMessage = null
+                            shareErrorMessageResId = null
                             isShareMode = true
                         },
                         onEditClick = { isEditMode = true },
@@ -217,16 +220,16 @@ fun AccountDetailsDialog(
                             val connectedEmail = AuthenticatorApp.instance.preferencesManager.getConnectedDriveEmail()
                             if (!connectedEmail.isNullOrBlank() && guestEmail.trim().equals(connectedEmail.trim(), ignoreCase = true)) {
                                 appHaptics.error()
-                                shareErrorMessage = context.getString(R.string.share_error_self_email)
+                                shareErrorMessageResId = R.string.share_error_self_email
                                 return@AccountDetailsShareStep
                             }
                             if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
                                 appHaptics.error()
-                                shareErrorMessage = context.getString(R.string.share_error_no_internet)
+                                shareErrorMessageResId = R.string.share_error_no_internet
                                 return@AccountDetailsShareStep
                             }
                             isSharing = true
-                            shareErrorMessage = null
+                            shareErrorMessageResId = null
                             requestOAuthToken { token ->
                                 coroutineScope.launch {
                                     SharedServicesCloudClient.shareService(
@@ -246,16 +249,16 @@ fun AccountDetailsDialog(
                                         shareSuccessCount++
                                         android.widget.Toast.makeText(
                                             context,
-                                            context.getString(R.string.share_success_msg, newGrant.guestEmail),
+                                            String.format(shareSuccessTemplate, newGrant.guestEmail),
                                             android.widget.Toast.LENGTH_SHORT
                                         ).show()
                                     }.onFailure {
                                         isSharing = false
                                         appHaptics.error()
-                                        shareErrorMessage = if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-                                            context.getString(R.string.share_error_no_internet)
+                                        shareErrorMessageResId = if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
+                                            R.string.share_error_no_internet
                                         } else {
-                                            context.getString(R.string.share_error_generic)
+                                            R.string.share_error_generic
                                         }
                                     }
                                 }
@@ -265,7 +268,7 @@ fun AccountDetailsDialog(
                             if (!isDriveConnected) return@AccountDetailsShareStep
                             if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
                                 appHaptics.error()
-                                shareErrorMessage = context.getString(R.string.share_error_no_internet)
+                                shareErrorMessageResId = R.string.share_error_no_internet
                                 return@AccountDetailsShareStep
                             }
                             requestOAuthToken { token ->
@@ -281,10 +284,10 @@ fun AccountDetailsDialog(
                                         }
                                         .onFailure {
                                             appHaptics.error()
-                                            shareErrorMessage = if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-                                                context.getString(R.string.share_error_no_internet)
+                                            shareErrorMessageResId = if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
+                                                R.string.share_error_no_internet
                                             } else {
-                                                context.getString(R.string.share_error_generic)
+                                                R.string.share_error_generic
                                             }
                                         }
                                 }
@@ -292,7 +295,7 @@ fun AccountDetailsDialog(
                         },
                         onBack = {
                             isSharing = false
-                            shareErrorMessage = null
+                            shareErrorMessageResId = null
                             isShareMode = false
                         }
                     )

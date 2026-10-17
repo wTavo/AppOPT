@@ -360,7 +360,7 @@ fun rememberHomeCardsCoordinator(
     val appHaptics = rememberAppHaptics()
     val localCards = remember { mutableStateListOf<HomeCardItem>() }
 
-    return remember(viewModel) {
+    return remember(viewModel, context) {
         HomeCardsCoordinator(
             localCards = localCards,
             context = context,

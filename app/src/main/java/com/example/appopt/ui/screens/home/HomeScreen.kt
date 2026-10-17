@@ -106,6 +106,8 @@ fun HomeScreen(
     val availableUpdate by AppUpdateManager.availableUpdate.collectAsStateWithLifecycle()
     val sharedCacheVersion by SharedBatchKeyStore.cacheVersion.collectAsStateWithLifecycle()
 
+    val driveConnectedSuccessText = stringResource(R.string.settings_drive_connected_success)
+
     TrackJankMetrics(screenName = "HomeScreen")
 
     var isSearchActive by remember { mutableStateOf(false) }
@@ -273,7 +275,7 @@ fun HomeScreen(
                                                 appHaptics.success()
                                                 Toast.makeText(
                                                     context,
-                                                    context.getString(R.string.settings_drive_connected_success),
+                                                    driveConnectedSuccessText,
                                                     Toast.LENGTH_SHORT
                                                 ).show()
                                             }

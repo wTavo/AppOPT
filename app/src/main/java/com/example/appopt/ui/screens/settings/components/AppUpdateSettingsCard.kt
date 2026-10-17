@@ -69,7 +69,9 @@ fun AppUpdateSettingsCard(
     var isDownloading by remember { mutableStateOf(false) }
     var downloadProgress by remember { mutableIntStateOf(0) }
     var verifiedApkFile by remember { mutableStateOf<File?>(null) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var errorMessageResId by remember { mutableStateOf<Int?>(null) }
+    val errorMessage = errorMessageResId?.let { stringResource(it) }
+    val permissionNeededMsg = stringResource(R.string.settings_update_permission_needed_msg)
 
     LaunchedEffect(Unit) {
         if (SharedServicesCloudClient.isNetworkAvailable(context)) {
@@ -181,7 +183,7 @@ fun AppUpdateSettingsCard(
                         if (!AppUpdateManager.canRequestPackageInstalls(context)) {
                             Toast.makeText(
                                 context,
-                                context.getString(R.string.settings_update_permission_needed_msg),
+                                permissionNeededMsg,
                                 Toast.LENGTH_LONG
                             ).show()
                             AppUpdateManager.openManageUnknownAppSourcesSettings(context)
@@ -192,13 +194,13 @@ fun AppUpdateSettingsCard(
                     }
 
                     if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-                        errorMessage = context.getString(R.string.settings_update_error_no_internet)
+                        errorMessageResId = R.string.settings_update_error_no_internet
                         return@AppAnimatedButton false
                     }
 
                     isDownloading = true
                     downloadProgress = 0
-                    errorMessage = null
+                    errorMessageResId = null
 
                     val downloadResult = AppUpdateManager.downloadAndVerifyApk(
                         context = context,
@@ -213,7 +215,7 @@ fun AppUpdateSettingsCard(
                             if (!AppUpdateManager.canRequestPackageInstalls(context)) {
                                 Toast.makeText(
                                     context,
-                                    context.getString(R.string.settings_update_permission_needed_msg),
+                                    permissionNeededMsg,
                                     Toast.LENGTH_LONG
                                 ).show()
                                 AppUpdateManager.openManageUnknownAppSourcesSettings(context)
@@ -223,11 +225,11 @@ fun AppUpdateSettingsCard(
                             true
                         },
                         onFailure = { err ->
-                            errorMessage = when (err) {
+                            errorMessageResId = when (err) {
                                 is ApkIntegrityVerificationException ->
-                                    context.getString(R.string.settings_update_error_hash_mismatch)
+                                    R.string.settings_update_error_hash_mismatch
                                 else ->
-                                    context.getString(R.string.settings_update_error_generic)
+                                    R.string.settings_update_error_generic
                             }
                             false
                         }

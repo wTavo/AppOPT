@@ -49,7 +49,6 @@ import com.example.appopt.domain.model.ShareAccessMode
 import com.example.appopt.domain.model.ShareGrantStatus
 import com.example.appopt.domain.model.SharedOtpBatch
 import com.example.appopt.security.SecurityConfig
-import com.example.appopt.ui.components.AppAnimatedButton
 import com.example.appopt.ui.components.OtpCodeCard
 import com.example.appopt.ui.screens.settings.coordinator.rememberGoogleOAuthRequester
 import com.example.appopt.ui.theme.Dimensions
@@ -103,7 +102,14 @@ fun HomeSharedServicesAccordion(
     var outgoingList by remember {
         mutableStateOf(SharedBatchKeyStore.getCachedOutgoingGrants(context))
     }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var errorMessageResId by remember { mutableStateOf<Int?>(null) }
+    val errorMessage = errorMessageResId?.let { stringResource(it) }
+
+    val batchDownloadedMsg = stringResource(R.string.settings_shared_batch_downloaded_msg)
+    val acceptSuccessMsg = stringResource(R.string.settings_shared_accept_success_msg)
+    val revokeSuccessMsg = stringResource(R.string.share_revoke_success_msg)
+    val rejectSuccessMsg = stringResource(R.string.settings_shared_reject_success_msg)
+    val leaveSuccessMsg = stringResource(R.string.settings_shared_leave_success_msg)
 
     val cachedBatchesMap = remember {
         mutableStateMapOf<String, SharedOtpBatch>().apply {
@@ -154,7 +160,7 @@ fun HomeSharedServicesAccordion(
         onAuthError = {
             isLoading = false
             needsGoogleSignIn = true
-            errorMessage = context.getString(R.string.share_error_not_signed_in)
+            errorMessageResId = R.string.share_error_not_signed_in
         }
     )
 
@@ -172,12 +178,12 @@ fun HomeSharedServicesAccordion(
                 }
             }
             isLoading = false
-            errorMessage = context.getString(R.string.share_error_no_internet_offline_mode)
+            errorMessageResId = R.string.share_error_no_internet_offline_mode
             return
         }
 
         isLoading = true
-        errorMessage = null
+        errorMessageResId = null
         requestOAuthToken { token ->
             needsGoogleSignIn = false
             scope.launch {
@@ -201,10 +207,10 @@ fun HomeSharedServicesAccordion(
                         }
                     }
                     .onFailure {
-                        errorMessage = if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-                            context.getString(R.string.share_error_no_internet_offline_mode)
+                        errorMessageResId = if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
+                            R.string.share_error_no_internet_offline_mode
                         } else {
-                            context.getString(R.string.share_error_generic)
+                            R.string.share_error_generic
                         }
                     }
                 isLoading = false
@@ -221,11 +227,11 @@ fun HomeSharedServicesAccordion(
     fun requestCodeOrOfflineBatch(item: IncomingSharedService) {
         if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
             appHaptics.error()
-            errorMessage = context.getString(R.string.share_error_no_internet)
+            errorMessageResId = R.string.share_error_no_internet
             return
         }
         loadingGrantId = item.grantId
-        errorMessage = null
+        errorMessageResId = null
         requestOAuthToken { token ->
             scope.launch {
                 if (item.accessMode == ShareAccessMode.OFFLINE_BATCH) {
@@ -236,18 +242,18 @@ fun HomeSharedServicesAccordion(
                             appHaptics.success()
                             Toast.makeText(
                                 context,
-                                context.getString(R.string.settings_shared_batch_downloaded_msg),
+                                batchDownloadedMsg,
                                 Toast.LENGTH_SHORT
                             ).show()
                         }
                         .onFailure {
                             appHaptics.error()
                             if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-                                errorMessage = context.getString(R.string.share_error_no_internet)
+                                errorMessageResId = R.string.share_error_no_internet
                             } else {
                                 SharedBatchKeyStore.removeBatch(context, item.grantId)
                                 cachedBatchesMap.remove(item.grantId)
-                                errorMessage = context.getString(R.string.settings_shared_revoked_error)
+                                errorMessageResId = R.string.settings_shared_revoked_error
                             }
                         }
                 } else {
@@ -261,11 +267,11 @@ fun HomeSharedServicesAccordion(
                         .onFailure {
                             appHaptics.error()
                             if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-                                errorMessage = context.getString(R.string.share_error_no_internet)
+                                errorMessageResId = R.string.share_error_no_internet
                             } else {
                                 SharedBatchKeyStore.removeBatch(context, item.grantId)
                                 cachedBatchesMap.remove(item.grantId)
-                                errorMessage = context.getString(R.string.settings_shared_revoked_error)
+                                errorMessageResId = R.string.settings_shared_revoked_error
                             }
                         }
                 }
@@ -277,11 +283,11 @@ fun HomeSharedServicesAccordion(
     fun rejectOrLeaveIncomingService(item: IncomingSharedService) {
         if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
             appHaptics.error()
-            errorMessage = context.getString(R.string.share_error_no_internet)
+            errorMessageResId = R.string.share_error_no_internet
             return
         }
         loadingGrantId = item.grantId
-        errorMessage = null
+        errorMessageResId = null
         val wasPending = item.status == ShareGrantStatus.PENDING
         requestOAuthToken { token ->
             scope.launch {
@@ -293,23 +299,18 @@ fun HomeSharedServicesAccordion(
                         SharedBatchKeyStore.removeBatch(context, item.grantId)
                         cachedBatchesMap.remove(item.grantId)
                         appHaptics.success()
-                        val msgRes = if (wasPending) {
-                            R.string.settings_shared_reject_success_msg
-                        } else {
-                            R.string.settings_shared_leave_success_msg
-                        }
                         Toast.makeText(
                             context,
-                            context.getString(msgRes),
+                            if (wasPending) rejectSuccessMsg else leaveSuccessMsg,
                             Toast.LENGTH_SHORT
                         ).show()
                     }
                     .onFailure {
                         appHaptics.error()
-                        errorMessage = if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-                            context.getString(R.string.share_error_no_internet)
+                        errorMessageResId = if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
+                            R.string.share_error_no_internet
                         } else {
-                            context.getString(R.string.share_error_generic)
+                            R.string.share_error_generic
                         }
                     }
                 loadingGrantId = null
@@ -526,11 +527,11 @@ fun HomeSharedServicesAccordion(
                             onAcceptInvitation = {
                                 if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
                                     appHaptics.error()
-                                    errorMessage = context.getString(R.string.share_error_no_internet)
+                                    errorMessageResId = R.string.share_error_no_internet
                                     return@OtpCodeCard
                                 }
                                 loadingGrantId = item.grantId
-                                errorMessage = null
+                                errorMessageResId = null
                                 requestOAuthToken { token ->
                                     scope.launch {
                                         SharedServicesCloudClient.acceptInvitation(token, item.grantId)
@@ -554,16 +555,16 @@ fun HomeSharedServicesAccordion(
                                                 appHaptics.success()
                                                 Toast.makeText(
                                                     context,
-                                                    context.getString(R.string.settings_shared_accept_success_msg),
+                                                    acceptSuccessMsg,
                                                     Toast.LENGTH_SHORT
                                                 ).show()
                                             }
                                             .onFailure {
                                                 appHaptics.error()
-                                                errorMessage = if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-                                                    context.getString(R.string.share_error_no_internet)
+                                                errorMessageResId = if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
+                                                    R.string.share_error_no_internet
                                                 } else {
-                                                    context.getString(R.string.share_error_generic)
+                                                    R.string.share_error_generic
                                                 }
                                             }
                                         loadingGrantId = null
@@ -591,10 +592,10 @@ fun HomeSharedServicesAccordion(
                             onRevoke = {
                                 if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
                                     appHaptics.error()
-                                    errorMessage = context.getString(R.string.share_error_no_internet)
+                                    errorMessageResId = R.string.share_error_no_internet
                                     return@OutgoingShareGrantCard
                                 }
-                                errorMessage = null
+                                errorMessageResId = null
                                 requestOAuthToken { token ->
                                     scope.launch {
                                         SharedServicesCloudClient.revokeGrant(token, grant.grantId)
@@ -605,16 +606,16 @@ fun HomeSharedServicesAccordion(
                                                 appHaptics.success()
                                                 Toast.makeText(
                                                     context,
-                                                    context.getString(R.string.share_revoke_success_msg),
+                                                    revokeSuccessMsg,
                                                     Toast.LENGTH_SHORT
                                                 ).show()
                                             }
                                             .onFailure {
                                                 appHaptics.error()
-                                                errorMessage = if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-                                                    context.getString(R.string.share_error_no_internet)
+                                                errorMessageResId = if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
+                                                    R.string.share_error_no_internet
                                                 } else {
-                                                    context.getString(R.string.share_error_generic)
+                                                    R.string.share_error_generic
                                                 }
                                             }
                                     }

@@ -2,6 +2,8 @@ package com.example.appopt.ui.screens.settings.components
 
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -180,6 +182,12 @@ fun AppUpdateSettingsCard(
             }
         }
 
+        val animatedProgress by animateFloatAsState(
+            targetValue = (downloadProgress / 100f).coerceIn(0f, 1f),
+            animationSpec = tween(durationMillis = Motion.Duration.FAST, easing = Motion.EasingCurve.Standard),
+            label = "downloadProgressAnimation"
+        )
+
         AnimatedVisibility(
             visible = isDownloading,
             enter = fadeIn(animationSpec = Motion.Spec.quickFadeSpec()) + expandVertically(),
@@ -195,7 +203,7 @@ fun AppUpdateSettingsCard(
                     color = MaterialTheme.colorScheme.primary
                 )
                 LinearProgressIndicator(
-                    progress = { (downloadProgress / 100f).coerceIn(0f, 1f) },
+                    progress = { animatedProgress },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(Dimensions.ComponentHeight.progressIndicator)
@@ -206,8 +214,12 @@ fun AppUpdateSettingsCard(
 
         if (currentUpdate != null) {
             AppAnimatedButton(
-                text = stringResource(R.string.settings_update_download_install_action, currentUpdate.tagName),
-                leadingIcon = Icons.Filled.CloudDownload,
+                text = if (verifiedApkFile != null) {
+                    stringResource(R.string.settings_update_action_install)
+                } else {
+                    stringResource(R.string.settings_update_download_install_action)
+                },
+                leadingIcon = if (verifiedApkFile != null) Icons.Filled.SystemUpdate else Icons.Filled.CloudDownload,
                 enabled = !isDownloading,
                 onClick = {
                     val readyFile = verifiedApkFile

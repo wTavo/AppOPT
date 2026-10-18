@@ -448,7 +448,8 @@
     <string name="settings_update_status_up_to_date">Tienes la versión más reciente instalada</string>
     <string name="settings_update_status_available">Nueva versión disponible: %1$s (%2$s)</string>
     <string name="settings_update_release_notes_title">Novedades de la versión</string>
-    <string name="settings_update_download_install_action">Descargar e instalar %1$s</string>
+    <string name="settings_update_download_install_action">Descargar e instalar</string>
+    <string name="settings_update_action_install">Instalar actualización</string>
     <string name="settings_update_downloading_progress">Descargando y verificando paquete… %1$d%%</string>
     <string name="settings_update_permission_needed_msg">Autoriza la instalación desde esta fuente y vuelve a tocar instalar.</string>
     <string name="settings_update_error_no_internet">Sin conexión a internet para buscar actualizaciones.</string>

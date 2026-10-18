@@ -419,3 +419,18 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
      - Mismo dispositivo de origen (`mostRecent.deviceId == installationId`) y clave válida en Keystore (`!mostRecent.isEncrypted || CloudVaultKeyStore.hasVaultKey(context)`).
   4. **Resolución Explícita ante Divergencias:** Si la bóveda fue modificada sin cuenta vinculada o difiere del respaldo en la nube, mantener `lastSyncTimestamp = 0L` e `isAutoSyncEnabled = false` (con el interruptor de copia automática apagado y deshabilitado en `DriveSyncSettingsCard`) hasta que el usuario cree explícitamente una nueva copia de seguridad o restaure/fusione desde el historial.
 
+
+---
+
+## 34. Estándar de Versionado Semántico y Despliegue de Lanzamientos (*Semantic Versioning & Release Management*)
+- **PROHIBIDO** modificar o asignar números de versión al azar o de forma arbitraria sin justificación semántica.
+- **PROHIBIDO** publicar o compilar una actualización de la aplicación sin incrementar estrictamente el `versionCode` numérico entero en `build.gradle.kts`. Si el `versionCode` no aumenta (+1), Android OS y los instaladores de paquetes bloquearán la actualización sobre versiones instaladas previamente.
+- **PROHIBIDO** publicar un Release de actualización con un número `versionName` menor o igual al previamente distribuido, ya que el motor de actualización integrado (`AppUpdateManager.isRemoteVersionNewer`) considerará que la aplicación ya se encuentra en su versión más reciente y no ofrecerá la descarga al usuario.
+- **OBLIGATORIO seguir estrictamente la especificación de Versionado Semántico (SemVer 2.0.0 - `MAJOR.MINOR.PATCH`):**
+  1. **PARCHE (`0.0.X`):** Incrementar ante correcciones de errores (*bug fixes*), ajustes visuales, mejoras internas de rendimiento o cambios de texto/estilo retrocompatibles (ej. `1.0.0` -> `1.0.1`).
+  2. **MENOR (`0.X.0`):** Incrementar ante la adición de nuevas funcionalidades, modelos o características sustanciales que preserven compatibilidad hacia atrás (ej. `1.0.1` -> `1.1.0`), reseteando el parche a `0`.
+  3. **MAYOR (`X.0.0`):** Incrementar ante rupturas de compatibilidad (*breaking changes*), reestructuración radical de la arquitectura o cambios en el esquema de base de datos o cifrado que no admitan migración transparente (ej. `1.x.x` -> `2.0.0`), reseteando menor y parche a `0`.
+- **OBLIGATORIO la paridad de artefactos en cada Release de GitHub:**
+  1. **Tag anotado inmutable:** Crear y subir siempre el tag de Git correspondiente (`vMAJOR.MINOR.PATCH`, ej. `git tag -a v1.0.1 -m "Release v1.0.1 - AppOPT Authenticator"` y `git push origin v1.0.1`).
+  2. **Binario optimizado adjunto:** Compilar la versión Release (`./gradlew assembleRelease`), optimizada mediante R8/ProGuard y firmada, y adjuntar el archivo `AppOPT-v<version>.apk` a los activos (*assets*) del lanzamiento de GitHub.
+  3. **Huella criptográfica SHA-256 en la descripción:** Calcular e incluir obligatoriamente el hash SHA-256 de 64 caracteres hexadecimales en el cuerpo del Release (`SHA-256: <hash>`) para que el motor `AppUpdateManager` valide automáticamente la integridad del paquete en vuelo bajo el principio Zero-Trust antes de permitir su instalación.

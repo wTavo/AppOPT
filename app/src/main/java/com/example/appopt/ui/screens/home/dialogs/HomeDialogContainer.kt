@@ -50,7 +50,10 @@ fun HomeDialogContainer(
     nowMillis: Long,
     onDismissSharedDetails: () -> Unit,
     onRequestSharedCode: (IncomingSharedService) -> Unit,
-    onRejectSharedInvitation: (IncomingSharedService) -> Unit
+    onRejectSharedInvitation: (IncomingSharedService) -> Unit,
+    availableUpdate: com.example.appopt.domain.model.AppUpdateInfo? = null,
+    onDismissUpdatePrompt: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {}
 ) {
     if (!isUnlocked) return
     val context = LocalContext.current
@@ -92,5 +95,19 @@ fun HomeDialogContainer(
             onRenewOfflineBatch = { onRequestSharedCode(service) },
             onConfirmLeave = { onRejectSharedInvitation(service) }
         )
+    }
+
+    // Modal emergente de Actualización disponible al entrar a la app (Directiva 14: no apilado con otros modales)
+    if (!isManualAddDialogOpen && !isQrScannerDialogOpen && selectedAccountWithCode == null && selectedSharedServiceForDetails == null) {
+        availableUpdate?.let { update ->
+            AppUpdateAvailableDialog(
+                updateInfo = update,
+                onDismiss = onDismissUpdatePrompt,
+                onUpdateNow = {
+                    onDismissUpdatePrompt()
+                    onNavigateToSettings()
+                }
+            )
+        }
     }
 }

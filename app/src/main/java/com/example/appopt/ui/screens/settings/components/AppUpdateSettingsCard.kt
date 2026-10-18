@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.LinearProgressIndicator
@@ -27,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,6 +47,9 @@ import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.SafeGreen
 import com.example.appopt.ui.theme.UrgentRed
+import com.example.appopt.ui.theme.rememberAppHaptics
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.io.File
 
 /**
@@ -58,6 +63,8 @@ fun AppUpdateSettingsCard(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val appHaptics = rememberAppHaptics()
 
     val (installedVersionName, _) = remember(context) {
         AppUpdateManager.getInstalledVersion(context)
@@ -66,6 +73,7 @@ fun AppUpdateSettingsCard(
     val availableUpdate by AppUpdateManager.availableUpdate.collectAsStateWithLifecycle()
     val currentUpdate = availableUpdate
 
+    var isCheckingUpdates by remember { mutableStateOf(false) }
     var isDownloading by remember { mutableStateOf(false) }
     var downloadProgress by remember { mutableIntStateOf(0) }
     var verifiedApkFile by remember { mutableStateOf<File?>(null) }
@@ -73,9 +81,20 @@ fun AppUpdateSettingsCard(
     val errorMessage = errorMessageResId?.let { stringResource(it) }
     val permissionNeededMsg = stringResource(R.string.settings_update_permission_needed_msg)
 
+    val formattedNotes = remember(currentUpdate) {
+        currentUpdate?.getFormattedReleaseNotes().orEmpty()
+    }
+
+    // Comprobación inicial y sondeo periódico suave mientras el usuario permanezca en la pantalla de Ajustes
     LaunchedEffect(Unit) {
         if (SharedServicesCloudClient.isNetworkAvailable(context)) {
             AppUpdateManager.checkForUpdate(context)
+        }
+        while (true) {
+            delay(20_000L)
+            if (SharedServicesCloudClient.isNetworkAvailable(context) && !isDownloading && !isCheckingUpdates) {
+                AppUpdateManager.checkForUpdate(context)
+            }
         }
     }
 
@@ -119,7 +138,7 @@ fun AppUpdateSettingsCard(
         }
 
         AnimatedVisibility(
-            visible = currentUpdate != null && currentUpdate.releaseNotes.isNotBlank(),
+            visible = currentUpdate != null && formattedNotes.isNotEmpty(),
             enter = fadeIn(animationSpec = Motion.Spec.quickFadeSpec()) + expandVertically(),
             exit = fadeOut(animationSpec = Motion.Spec.quickFadeSpec()) + shrinkVertically()
         ) {
@@ -138,11 +157,30 @@ fun AppUpdateSettingsCard(
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    Text(
-                        text = currentUpdate?.releaseNotes.orEmpty(),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
+                    ) {
+                        formattedNotes.forEach { noteLine ->
+                            Text(
+                                text = noteLine,
+                                style = if (noteLine.endsWith(":")) {
+                                    MaterialTheme.typography.labelMedium
+                                } else {
+                                    MaterialTheme.typography.bodySmall
+                                },
+                                fontWeight = if (noteLine.endsWith(":")) {
+                                    FontWeight.SemiBold
+                                } else {
+                                    FontWeight.Normal
+                                },
+                                color = if (noteLine.endsWith(":")) {
+                                    MaterialTheme.colorScheme.onSurface
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -233,6 +271,32 @@ fun AppUpdateSettingsCard(
                             false
                         }
                     )
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+        } else {
+            AppAnimatedButton(
+                text = if (isCheckingUpdates) {
+                    stringResource(R.string.settings_update_checking)
+                } else {
+                    stringResource(R.string.settings_update_check_action)
+                },
+                leadingIcon = Icons.Filled.Refresh,
+                enabled = !isCheckingUpdates,
+                onClick = {
+                    if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
+                        errorMessageResId = R.string.settings_update_error_no_internet
+                        appHaptics.error()
+                        return@AppAnimatedButton false
+                    }
+                    errorMessageResId = null
+                    isCheckingUpdates = true
+                    scope.launch {
+                        AppUpdateManager.checkForUpdate(context, force = true)
+                        isCheckingUpdates = false
+                        appHaptics.click()
+                    }
+                    true
                 },
                 modifier = Modifier.fillMaxWidth()
             )

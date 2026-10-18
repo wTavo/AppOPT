@@ -105,13 +105,19 @@ object AppUpdateManager {
      * a la instalada, retorna `Result.success(null)` indicando que la aplicación está al día.
      *
      * @param context Contexto de la aplicación.
+     * @param force Si es `true`, ignora la ventana de enfriamiento y fuerza una consulta fresca a GitHub.
      * @return [Result] con el [AppUpdateInfo] si hay una versión más reciente, o `null` si ya está actualizada.
      */
-    suspend fun checkForUpdate(context: Context): Result<AppUpdateInfo?> = withContext(Dispatchers.IO) {
+    suspend fun checkForUpdate(context: Context, force: Boolean = false): Result<AppUpdateInfo?> = withContext(Dispatchers.IO) {
         runCatching {
             val now = System.currentTimeMillis()
-            if (hasValidCachedCheck && (now - lastCheckTimestampMillis) < SecurityConfig.APP_UPDATE_CHECK_COOLDOWN_MILLIS) {
+            if (!force && hasValidCachedCheck && (now - lastCheckTimestampMillis) < SecurityConfig.APP_UPDATE_CHECK_COOLDOWN_MILLIS) {
                 return@runCatching lastCheckedResult
+            }
+
+            if (force) {
+                cachedETag = null
+                hasValidCachedCheck = false
             }
 
             val (installedVersionName, _) = getInstalledVersion(context)

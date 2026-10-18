@@ -79,4 +79,35 @@ class AppUpdateManagerTest {
 
         assertNull(AppUpdateManager.parseLatestReleaseJson(draftJson))
     }
+
+    /**
+     * Verifica que getFormattedReleaseNotes limpie hashes SHA-256, títulos redundantes y formatee viñetas limpiamente.
+     */
+    @Test
+    fun `AppUpdateInfo getFormattedReleaseNotes strips sha256 and formats clean bullets`() {
+        val rawBody = """
+            ## AppOPT Authenticator v1.0.1
+            ### Novedades:
+            - **Seguridad**: Cifrado mejorado de claves.
+            - **Interfaz**: Navegación fluida.
+            
+            ### Verificación de Integridad (SHA-256)
+            `912022b605c9999298040db3ddf7558213a78da009da37f308161a36ad3560be`
+        """.trimIndent()
+
+        val info = AppUpdateInfo(
+            tagName = "v1.0.1",
+            versionName = "1.0.1",
+            releaseNotes = rawBody,
+            apkDownloadUrl = "https://example.com/app.apk",
+            apkSizeBytes = 1024L,
+            expectedSha256 = "912022b605c9999298040db3ddf7558213a78da009da37f308161a36ad3560be"
+        )
+
+        val notes = info.getFormattedReleaseNotes()
+        assertEquals(3, notes.size)
+        assertEquals("Novedades:", notes[0])
+        assertEquals("• Seguridad: Cifrado mejorado de claves.", notes[1])
+        assertEquals("• Interfaz: Navegación fluida.", notes[2])
+    }
 }

@@ -30,6 +30,68 @@ data class AppUpdateInfo(
         return String.format(Locale.US, "%.1f MB", mb.coerceAtLeast(0.1))
     }
 
+    /**
+     * Procesa y limpia las notas de la versión para su visualización estética en la interfaz de usuario.
+     *
+     * Filtra los bloques técnicos de verificación criptográfica (como hashes SHA-256), títulos redundantes
+     * con el nombre de la app y limpia las marcas Markdown (`##`, `###`, `**`) transformando las listas
+     * en viñetas legibles (`• `).
+     *
+     * @return Lista de líneas limpias listas para renderizar.
+     */
+    fun getFormattedReleaseNotes(): List<String> {
+        val lines = releaseNotes.lines()
+        val result = mutableListOf<String>()
+        var skipTechnicalSection = false
+
+        for (rawLine in lines) {
+            val line = rawLine.trim()
+            if (line.isBlank()) continue
+
+            // 1. Filtrar bloques técnicos de verificación criptográfica (SHA-256)
+            if (line.contains("Verificación de Integridad", ignoreCase = true) ||
+                line.contains("SHA-256", ignoreCase = true) ||
+                line.matches(Regex("""`?[a-f0-9]{64}`?""", RegexOption.IGNORE_CASE))
+            ) {
+                skipTechnicalSection = true
+                continue
+            }
+
+            if (skipTechnicalSection) {
+                if (line.startsWith("#")) {
+                    skipTechnicalSection = false
+                } else {
+                    continue
+                }
+            }
+
+            // 2. Filtrar título redundante con nombre de versión (ej. "## AppOPT Authenticator v1.0.1")
+            if (line.startsWith("#") && (line.contains("AppOPT", ignoreCase = true) || line.contains(versionName))) {
+                continue
+            }
+
+            // 3. Limpiar subtítulos y viñetas
+            val cleaned = when {
+                line.startsWith("###") || line.startsWith("##") -> {
+                    line.replace(Regex("""^#+\s*"""), "").replace("**", "").trim().let {
+                        if (!it.endsWith(":")) "$it:" else it
+                    }
+                }
+                line.startsWith("- ") || line.startsWith("* ") -> {
+                    "• " + line.substring(2).replace("**", "").replace("`", "").trim()
+                }
+                else -> {
+                    line.replace("**", "").replace("`", "").trim()
+                }
+            }
+
+            if (cleaned.isNotBlank()) {
+                result.add(cleaned)
+            }
+        }
+        return result
+    }
+
     companion object {
         /**
          * Normaliza una cadena de versión eliminando prefijos como `v` y sufijos como `-debug`.

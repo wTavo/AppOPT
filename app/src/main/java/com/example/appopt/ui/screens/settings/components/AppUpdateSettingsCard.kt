@@ -59,7 +59,7 @@ fun AppUpdateSettingsCard(
 ) {
     val context = LocalContext.current
 
-    val (installedVersionName, installedVersionCode) = remember(context) {
+    val (installedVersionName, _) = remember(context) {
         AppUpdateManager.getInstalledVersion(context)
     }
 
@@ -100,8 +100,7 @@ fun AppUpdateSettingsCard(
             },
             subtitle = stringResource(
                 R.string.settings_update_current_version,
-                installedVersionName,
-                installedVersionCode
+                installedVersionName
             ),
             titleColor = if (currentUpdate != null) MaterialTheme.colorScheme.primary else SafeGreen
         )

@@ -454,8 +454,6 @@
     <string name="settings_update_error_no_internet">Sin conexión a internet para buscar actualizaciones.</string>
     <string name="settings_update_error_hash_mismatch">El archivo descargado no superó la verificación de integridad SHA-256 y fue eliminado por seguridad.</string>
     <string name="settings_update_error_generic">No se pudo comprobar o descargar la actualización. Inténtalo de nuevo más tarde.</string>
-    <string name="settings_update_check_action">Buscar actualizaciones</string>
-    <string name="settings_update_checking">Buscando actualizaciones…</string>
     <string name="settings_update_release_notes_fallback">Mejoras de rendimiento y estabilidad del sistema.</string>
     <string name="update_dialog_title">Actualización disponible</string>
     <string name="update_dialog_subtitle">Se ha publicado una nueva versión oficial de la aplicación.</string>

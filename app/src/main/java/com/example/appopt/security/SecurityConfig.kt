@@ -239,9 +239,9 @@ object SecurityConfig {
     const val APP_UPDATE_FILE_PROVIDER_SUFFIX = ".fileprovider"
 
     /**
-     * Ventana de enfriamiento en milisegundos (60 segundos) entre consultas consecutivas a GitHub Releases
-     * para evitar llamadas de red redundantes si el usuario pulsa repetidamente el botón de búsqueda.
+     * Ventana de enfriamiento en milisegundos (15 segundos) entre consultas automáticas a GitHub Releases
+     * para optimizar el sondeo reactivo en segundo plano protegiendo la cuota mediante HTTP ETag (304 Not Modified).
      */
-    const val APP_UPDATE_CHECK_COOLDOWN_MILLIS = 60_000L
+    const val APP_UPDATE_CHECK_COOLDOWN_MILLIS = 15_000L
 }
 

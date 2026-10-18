@@ -22,6 +22,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.SearchOff
+import androidx.compose.material.icons.filled.StarOutline
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -313,16 +316,36 @@ fun HomeScreen(
                                         onRejectSharedInvitation = { cardsCoordinator.rejectSharedInvitation(it) }
                                     )
                                 }
-                            } else if (uiState is UiState.Empty && pageFilter == HomeCategoryFilter.ALL) {
+                            } else {
                                 item(
-                                    key = "empty_accounts_state",
+                                    key = "empty_state_${pageFilter.name}",
                                     contentType = "empty_state"
                                 ) {
-                                    EmptyAccountsState(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(top = Dimensions.Spacing.xl)
-                                    )
+                                    if (searchQuery.isNotBlank()) {
+                                        EmptyAccountsState(
+                                            icon = Icons.Filled.SearchOff,
+                                            title = stringResource(R.string.home_search_empty_title),
+                                            description = stringResource(R.string.home_search_empty_description, searchQuery),
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(top = Dimensions.Spacing.xl)
+                                        )
+                                    } else if (pageFilter == HomeCategoryFilter.FAVORITES) {
+                                        EmptyAccountsState(
+                                            icon = Icons.Filled.StarOutline,
+                                            title = stringResource(R.string.home_empty_favorites_title),
+                                            description = stringResource(R.string.home_empty_favorites_description),
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(top = Dimensions.Spacing.xl)
+                                        )
+                                    } else {
+                                        EmptyAccountsState(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(top = Dimensions.Spacing.xl)
+                                        )
+                                    }
                                 }
                             }
                         }

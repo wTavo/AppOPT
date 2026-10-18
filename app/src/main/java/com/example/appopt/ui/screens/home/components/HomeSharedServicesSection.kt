@@ -6,7 +6,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,11 +15,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -346,59 +343,12 @@ fun HomeSharedServicesAccordion(
         return
     }
 
-    val pendingInvitationsCount = remember(incomingList) {
-        incomingList.count { it.status == ShareGrantStatus.PENDING }
-    }
-
-    val summaryText = when {
-        pendingInvitationsCount > 0 ->
-            stringResource(R.string.home_shared_accordion_summary_pending, pendingInvitationsCount)
-        else ->
-            stringResource(R.string.home_shared_accordion_summary_counts, incomingList.size, outgoingList.size)
-    }
-
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(
             if (showEmptyStateAndHeader) Dimensions.Spacing.sm else Dimensions.Spacing.md
         )
     ) {
-        if (showEmptyStateAndHeader) {
-            // Barra compacta de resumen y botón de actualización manual en la pestaña «Compartidos»
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = Dimensions.Spacing.xs),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = summaryText,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = if (pendingInvitationsCount > 0) FontWeight.SemiBold else FontWeight.Medium,
-                    color = if (pendingInvitationsCount > 0) {
-                        MaterialTheme.colorScheme.tertiary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    }
-                )
-
-                IconButton(
-                    onClick = {
-                        appHaptics.click()
-                        refreshSharedServices()
-                    },
-                    modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Refresh,
-                        contentDescription = stringResource(R.string.action_refresh),
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(Dimensions.IconSize.medium)
-                    )
-                }
-            }
-        }
 
         if (errorMessage != null && showEmptyStateAndHeader) {
             Text(

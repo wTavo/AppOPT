@@ -33,7 +33,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -119,7 +118,6 @@ fun HomeScreen(
     var isAddMenuOpen by remember { mutableStateOf(false) }
     var isQrScannerDialogOpen by remember { mutableStateOf(false) }
     var isManualAddDialogOpen by remember { mutableStateOf(false) }
-    var isUpdatePromptDismissed by rememberSaveable { mutableStateOf(false) }
 
     val pagerState = rememberPagerState(
         initialPage = HomeCategoryFilter.ALL.ordinal,
@@ -443,9 +441,6 @@ fun HomeScreen(
         onRejectSharedInvitation = {
             cardsCoordinator.rejectSharedInvitation(it)
             selectedSharedServiceForDetails = null
-        },
-        availableUpdate = if (!isUpdatePromptDismissed) availableUpdate else null,
-        onDismissUpdatePrompt = { isUpdatePromptDismissed = true },
-        onNavigateToSettings = onNavigateToSettings
+        }
     )
 }

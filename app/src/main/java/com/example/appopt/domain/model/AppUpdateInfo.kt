@@ -65,8 +65,8 @@ data class AppUpdateInfo(
                 }
             }
 
-            // 2. Filtrar título redundante con nombre de versión (ej. "## AppOPT Authenticator v1.0.1")
-            if (line.startsWith("#") && (line.contains("AppOPT", ignoreCase = true) || line.contains(versionName))) {
+            // 2. Filtrar título redundante con nombre de versión o encabezado genérico redundante "Novedades"
+            if (line.startsWith("#") && (line.contains("AppOPT", ignoreCase = true) || line.contains(versionName) || line.replace(Regex("""^#+\s*"""), "").trim().startsWith("Novedad", ignoreCase = true))) {
                 continue
             }
 

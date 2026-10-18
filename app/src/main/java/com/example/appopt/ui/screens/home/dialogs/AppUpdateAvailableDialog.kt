@@ -190,7 +190,8 @@ fun AppUpdateAvailableDialog(
                     Text(
                         text = stringResource(R.string.update_dialog_later),
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1
                     )
                 }
 
@@ -211,7 +212,8 @@ fun AppUpdateAvailableDialog(
                     Text(
                         text = stringResource(R.string.update_dialog_action),
                         style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1
                     )
                 }
             }

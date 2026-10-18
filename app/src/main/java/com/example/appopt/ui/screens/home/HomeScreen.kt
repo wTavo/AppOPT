@@ -60,7 +60,6 @@ import com.example.appopt.ui.screens.home.components.HomeTopHeader
 import com.example.appopt.ui.screens.home.coordinator.rememberHomeCardsCoordinator
 import com.example.appopt.ui.screens.home.dialogs.HomeDialogContainer
 import com.example.appopt.ui.screens.home.model.HomeCardItem
-import com.example.appopt.ui.screens.settings.components.AppUpdateSettingsCard
 import com.example.appopt.ui.screens.settings.coordinator.rememberGoogleOAuthRequester
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
@@ -249,15 +248,6 @@ fun HomeScreen(
                     ),
                     verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                 ) {
-                    if (availableUpdate != null) {
-                        item(
-                            key = "app_update_banner_card",
-                            contentType = "app_update_card"
-                        ) {
-                            AppUpdateSettingsCard()
-                        }
-                    }
-
                     when (pageFilter) {
                         HomeCategoryFilter.SHARED -> {
                             item(
@@ -365,6 +355,7 @@ fun HomeScreen(
             onNavigateToSettings = onNavigateToSettings,
             isAddMenuOpen = isAddMenuOpen,
             deletedAccountsCount = deletedAccountsCount,
+            hasUpdateAvailable = availableUpdate != null,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()

@@ -105,9 +105,8 @@ class AppUpdateManagerTest {
         )
 
         val notes = info.getFormattedReleaseNotes()
-        assertEquals(3, notes.size)
-        assertEquals("Novedades:", notes[0])
-        assertEquals("• Seguridad: Cifrado mejorado de claves.", notes[1])
-        assertEquals("• Interfaz: Navegación fluida.", notes[2])
+        assertEquals(2, notes.size)
+        assertEquals("• Seguridad: Cifrado mejorado de claves.", notes[0])
+        assertEquals("• Interfaz: Navegación fluida.", notes[1])
     }
 }

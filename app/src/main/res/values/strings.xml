@@ -458,7 +458,7 @@
     <string name="update_dialog_title">Actualización disponible</string>
     <string name="update_dialog_subtitle">Se ha publicado una nueva versión oficial de la aplicación.</string>
     <string name="update_dialog_later">Más tarde</string>
-    <string name="update_dialog_action">Actualizar ahora</string>
+    <string name="update_dialog_action">Actualizar</string>
 
 </resources>
 

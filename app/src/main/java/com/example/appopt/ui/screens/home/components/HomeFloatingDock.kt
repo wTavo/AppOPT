@@ -60,6 +60,7 @@ import com.example.appopt.ui.theme.rememberAppHaptics
  * @param onNavigateToSettings Callback invocado al presionar el botón de ajustes.
  * @param isAddMenuOpen Indica si el menú de adición Speed Dial está abierto para rotar el botón (+).
  * @param deletedAccountsCount Cantidad de servicios en papelera de reciclaje para mostrar badge.
+ * @param hasUpdateAvailable Indica si existe una actualización pendiente para mostrar un badge sutil en Ajustes.
  * @param modifier Modificador de diseño Compose opcional.
  */
 @Composable
@@ -70,7 +71,8 @@ fun HomeFloatingDock(
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier,
     isAddMenuOpen: Boolean = false,
-    deletedAccountsCount: Int = 0
+    deletedAccountsCount: Int = 0,
+    hasUpdateAvailable: Boolean = false
 ) {
     val appHaptics = rememberAppHaptics()
     val context: Context = LocalContext.current
@@ -260,11 +262,22 @@ fun HomeFloatingDock(
                     .onPlaced { settingsCoordinates = it }
                     .graphicsLayer { alpha = dockRestAlpha }
             ) {
-                Icon(
-                    imageVector = Icons.Filled.Settings,
-                    contentDescription = stringResource(R.string.settings_title),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                BadgedBox(
+                    badge = {
+                        if (hasUpdateAvailable) {
+                            Badge(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(Dimensions.Spacing.sm)
+                            )
+                        }
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Settings,
+                        contentDescription = stringResource(R.string.settings_title),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }

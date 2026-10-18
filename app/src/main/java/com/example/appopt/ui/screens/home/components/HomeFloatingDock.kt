@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -15,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Settings
@@ -267,8 +269,17 @@ fun HomeFloatingDock(
                         if (hasUpdateAvailable) {
                             Badge(
                                 containerColor = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(Dimensions.Spacing.sm)
-                            )
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier
+                                    .size(Dimensions.IconSize.small)
+                                    .border(Dimensions.Stroke.thin, MaterialTheme.colorScheme.surface, CircleShape)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.ArrowDownward,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(Dimensions.IconSize.micro)
+                                )
+                            }
                         }
                     }
                 ) {

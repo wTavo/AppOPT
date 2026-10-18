@@ -76,6 +76,9 @@ object Dimensions {
      * Tamaños estándar de iconos y gráficos.
      */
     object IconSize {
+        /** Iconos micro incrustados en badges y chips (10.dp). */
+        val micro: Dp = 10.dp
+
         /** Iconos pequeños dentro de badges o campos compactos (16.dp). */
         val small: Dp = 16.dp
 

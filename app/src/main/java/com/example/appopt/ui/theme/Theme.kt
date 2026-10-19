@@ -1,6 +1,7 @@
 package com.example.appopt.ui.theme
 
 import android.app.Activity
+import android.content.Context
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
@@ -88,6 +89,88 @@ val DarkColorScheme = buildDarkColorScheme(AccentColor.BLUE)
 private val LightColorScheme = buildLightColorScheme(AccentColor.BLUE)
 
 /**
+ * Construye el esquema de colores oscuros adaptando dinámicamente los acentos desde Material You
+ * pero preservando inmutables los fondos y superficies azabache de alto contraste de la aplicación.
+ *
+ * @param context Contexto de Android para consultar el motor dinámico del sistema.
+ * @return [ColorScheme] de Material 3 con acentos dinámicos y superficies de seguridad intactas.
+ */
+fun buildDynamicDarkColorScheme(context: Context): ColorScheme {
+    val dynamic = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        dynamicDarkColorScheme(context)
+    } else {
+        DarkColorScheme
+    }
+    return darkColorScheme(
+        primary = dynamic.primary,
+        onPrimary = dynamic.onPrimary,
+        primaryContainer = dynamic.primaryContainer,
+        onPrimaryContainer = dynamic.onPrimaryContainer,
+        secondary = dynamic.secondary,
+        onSecondary = dynamic.onSecondary,
+        secondaryContainer = dynamic.secondaryContainer,
+        onSecondaryContainer = dynamic.onSecondaryContainer,
+        tertiary = dynamic.tertiary,
+        onTertiary = dynamic.onTertiary,
+        tertiaryContainer = dynamic.tertiaryContainer,
+        onTertiaryContainer = dynamic.onTertiaryContainer,
+        background = BackgroundDark,
+        surface = SurfaceDark,
+        surfaceVariant = SurfaceVariantDark,
+        outline = OutlineDark,
+        outlineVariant = OutlineVariantDark,
+        onBackground = TextPrimaryDark,
+        onSurface = TextPrimaryDark,
+        onSurfaceVariant = TextSecondaryDark,
+        error = UrgentRed,
+        onError = Color.White,
+        errorContainer = ErrorContainerDark,
+        onErrorContainer = OnErrorContainerDark
+    )
+}
+
+/**
+ * Construye el esquema de colores claros adaptando dinámicamente los acentos desde Material You
+ * pero preservando inmutables los fondos y superficies blanco y hielo de alto contraste de la aplicación.
+ *
+ * @param context Contexto de Android para consultar el motor dinámico del sistema.
+ * @return [ColorScheme] de Material 3 con acentos dinámicos y superficies de seguridad intactas.
+ */
+fun buildDynamicLightColorScheme(context: Context): ColorScheme {
+    val dynamic = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        dynamicLightColorScheme(context)
+    } else {
+        LightColorScheme
+    }
+    return lightColorScheme(
+        primary = dynamic.primary,
+        onPrimary = dynamic.onPrimary,
+        primaryContainer = dynamic.primaryContainer,
+        onPrimaryContainer = dynamic.onPrimaryContainer,
+        secondary = dynamic.secondary,
+        onSecondary = dynamic.onSecondary,
+        secondaryContainer = dynamic.secondaryContainer,
+        onSecondaryContainer = dynamic.onSecondaryContainer,
+        tertiary = dynamic.tertiary,
+        onTertiary = dynamic.onTertiary,
+        tertiaryContainer = dynamic.tertiaryContainer,
+        onTertiaryContainer = dynamic.onTertiaryContainer,
+        background = BackgroundLight,
+        surface = SurfaceLight,
+        surfaceVariant = SurfaceVariantLight,
+        outline = OutlineLight,
+        outlineVariant = OutlineVariantLight,
+        onBackground = TextPrimaryLight,
+        onSurface = TextPrimaryLight,
+        onSurfaceVariant = TextSecondaryLight,
+        error = UrgentRed,
+        onError = Color.White,
+        errorContainer = ErrorContainerLight,
+        onErrorContainer = OnErrorContainerLight
+    )
+}
+
+/**
  * Tema principal de la aplicación con soporte para personalización de tema (Claro/Oscuro/Sistema),
  * colores de acento dinámicos o personalizados de alto contraste.
  *
@@ -106,7 +189,7 @@ fun AppTheme(
     val context = LocalContext.current
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            if (darkTheme) buildDynamicDarkColorScheme(context) else buildDynamicLightColorScheme(context)
         }
         darkTheme -> buildDarkColorScheme(accentColor)
         else -> buildLightColorScheme(accentColor)

@@ -46,7 +46,7 @@ import com.example.appopt.ui.components.SettingsSectionCard
 import com.example.appopt.ui.components.SettingsStatusTile
 import com.example.appopt.ui.navigation.NavigationOriginTracker
 import com.example.appopt.ui.theme.Dimensions
-import com.example.appopt.ui.theme.SafeGreen
+import com.example.appopt.ui.theme.WarningOrange
 import com.example.appopt.ui.theme.appSwitchColors
 
 /**
@@ -99,28 +99,36 @@ fun DriveSyncSettingsCard(
 
     val isSyncingActive = isDriveLoading && isDriveConnected
     val isVaultSynced = isDriveConnected && lastSyncTimestamp > 0L && !hasUnsyncedChanges
+    val isPendingSync = isDriveConnected && !isVaultSynced && !isSyncingActive
 
     val badgeColor = when {
         isSyncingActive -> MaterialTheme.colorScheme.primary
-        isVaultSynced -> SafeGreen
+        isVaultSynced -> MaterialTheme.colorScheme.primary
+        isPendingSync -> WarningOrange
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     val badgeBg = when {
         isSyncingActive -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-        isVaultSynced -> SafeGreen.copy(alpha = 0.12f)
+        isVaultSynced -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+        isPendingSync -> WarningOrange.copy(alpha = 0.12f)
         else -> MaterialTheme.colorScheme.surfaceVariant
     }
     val badgeText = when {
         isSyncingActive -> stringResource(R.string.settings_drive_status_syncing)
         isVaultSynced -> stringResource(R.string.settings_drive_status_synced)
+        isPendingSync -> stringResource(R.string.settings_drive_status_pending)
         else -> stringResource(R.string.settings_drive_status_not_synced)
     }
 
     SettingsSectionCard(
         title = stringResource(R.string.settings_drive_title),
         description = stringResource(R.string.settings_drive_description),
-        icon = if (isVaultSynced) Icons.Filled.CloudDone else Icons.Filled.Sync,
-        iconTint = if (isVaultSynced) SafeGreen else MaterialTheme.colorScheme.primary,
+        icon = when {
+            !isDriveConnected -> Icons.Filled.SyncDisabled
+            isSyncingActive -> Icons.Filled.Sync
+            else -> Icons.Filled.CloudDone
+        },
+        iconTint = if (isDriveConnected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         headerTrailing = {
             Surface(
                 shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
@@ -150,11 +158,7 @@ fun DriveSyncSettingsCard(
                         hasBackupInfo -> Icons.Filled.CloudDone
                         else -> Icons.Filled.Search
                     },
-                    iconTint = when {
-                        isSyncingActive -> MaterialTheme.colorScheme.primary
-                        hasBackupInfo -> SafeGreen
-                        else -> MaterialTheme.colorScheme.primary
-                    },
+                    iconTint = MaterialTheme.colorScheme.primary,
                     title = when {
                         isSyncingActive -> stringResource(R.string.settings_drive_syncing)
                         formattedLastSync != null -> stringResource(R.string.settings_drive_last_sync, formattedLastSync)

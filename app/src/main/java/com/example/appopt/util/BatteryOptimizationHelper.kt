@@ -56,7 +56,7 @@ object BatteryOptimizationHelper {
         } catch (_: Exception) {
             try {
                 val fallbackIntent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_HISTORY or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
                 }
                 context.startActivity(fallbackIntent)
             } catch (_: Exception) {

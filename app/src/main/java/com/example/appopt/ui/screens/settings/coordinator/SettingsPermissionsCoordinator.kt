@@ -122,7 +122,7 @@ class SettingsPermissionsState(
                     Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                     "package:${context.packageName}".toUri()
                 ).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_HISTORY or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
                 }
                 context.startActivity(intent)
             } catch (_: Exception) {}

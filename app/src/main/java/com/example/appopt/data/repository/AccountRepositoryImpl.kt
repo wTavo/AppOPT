@@ -518,7 +518,7 @@ class AccountRepositoryImpl(
     override suspend fun importSelectedAccounts(accounts: List<ParsedAccountPreview>): Int {
         return withContext(Dispatchers.IO) {
             var changesCount = 0
-            for ((_, issuer, accountName, algorithm, digits, period, type, counter, _, _, secretBytes) in accounts) {
+            for ((id, issuer, accountName, algorithm, digits, period, type, counter, isFavorite, _, secretBytes) in accounts) {
                 try {
                     val changed = AccountMergeEngine.mergeSingleAccount(
                         issuer = issuer,
@@ -531,15 +531,14 @@ class AccountRepositoryImpl(
                         counter = counter,
                         accountDao = accountDao,
                         cryptoManager = cryptoManager,
-                        onInvalidateCache = { id -> otpCodeCache.remove(id) }
+                        onInvalidateCache = { cacheId -> otpCodeCache.remove(cacheId) },
+                        preferredId = id,
+                        isFavorite = isFavorite
                     )
                     changesCount += changed
                 } finally {
                     CryptoManager.zeroize(secretBytes)
                 }
-            }
-            if (changesCount > 0) {
-                com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
             }
             changesCount
         }

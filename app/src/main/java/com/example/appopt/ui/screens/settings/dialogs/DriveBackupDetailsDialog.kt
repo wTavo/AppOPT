@@ -338,7 +338,8 @@ fun DriveBackupDetailsDialog(
                                 val currentVaultHash = CloudVaultSyncManager.computeAccountsSignature(updatedAccounts)
                                 val targetBackup = pendingRestoreBackup
                                 val remoteHash = targetBackup?.vaultHash.orEmpty()
-                                val effectiveSyncedHash = remoteHash.ifEmpty { currentVaultHash }
+                                val isFullRestore = remoteHash.isNotEmpty() && selectedAccountIds.size == parsedAccounts.size
+                                val effectiveSyncedHash = if (isFullRestore) remoteHash else currentVaultHash
                                 prefsManager.getConnectedDriveEmail()?.takeIf { it.isNotBlank() }?.let {
                                     prefsManager.setLastKnownDriveEmail(it)
                                 }
@@ -347,8 +348,10 @@ fun DriveBackupDetailsDialog(
                                 prefsManager.setLastKnownSyncedVaultHash(effectiveSyncedHash)
                                 prefsManager.setVaultModifiedWhileDisconnected(false)
                                 prefsManager.setAutoSyncEnabled(true)
-                                if (remoteHash.isNotEmpty() && currentVaultHash != remoteHash) {
+                                if (!isFullRestore && remoteHash.isNotEmpty() && currentVaultHash != remoteHash) {
                                     CloudVaultSyncManager.triggerReactiveSync(context.applicationContext)
+                                } else {
+                                    CloudVaultSyncManager.cancelAllSync(context.applicationContext)
                                 }
                             }
                             true

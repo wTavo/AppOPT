@@ -229,6 +229,7 @@ object ManualSyncManager {
             prefsManager.setLastKnownSyncedVaultHash(currentVaultHash)
             prefsManager.setVaultModifiedWhileDisconnected(false)
             prefsManager.setAutoSyncEnabled(true)
+            CloudVaultSyncManager.cancelAllSync(AuthenticatorApp.instance.applicationContext)
             GoogleDriveManager.currentAccessToken = accessToken
 
             Result.success(count)
@@ -293,6 +294,7 @@ object ManualSyncManager {
             prefsManager.setLastKnownSyncedVaultHash(currentVaultHash)
             prefsManager.setVaultModifiedWhileDisconnected(false)
             prefsManager.setAutoSyncEnabled(true)
+            CloudVaultSyncManager.cancelAllSync(AuthenticatorApp.instance.applicationContext)
             GoogleDriveManager.currentAccessToken = accessToken
 
             Result.success(count)

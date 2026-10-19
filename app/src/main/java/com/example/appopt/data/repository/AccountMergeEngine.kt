@@ -300,10 +300,6 @@ object AccountMergeEngine {
             }
         }
 
-        if (changesCount > 0) {
-            com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
-        }
-
         changesCount
     }
 
@@ -321,6 +317,9 @@ object AccountMergeEngine {
      * @param accountDao DAO de Room para operaciones locales.
      * @param cryptoManager Gestor criptográfico para cifrado AES-256-GCM.
      * @param onInvalidateCache Callback opcional para invalidar la caché en memoria.
+     * @param preferredId Identificador único UUID preferido para conservar consistencia con respaldos externos.
+     * @param isFavorite Indicador booleano que define si el servicio está marcado como favorito.
+     * @param orderIndex Posición ordinal de ordenamiento personalizado.
      * @return 1 si se insertó, actualizó o restauró el servicio; 0 si ya existía de forma idéntica.
      */
     suspend fun mergeSingleAccount(
@@ -334,7 +333,10 @@ object AccountMergeEngine {
         counter: Long,
         accountDao: AccountDao,
         cryptoManager: CryptoManager,
-        onInvalidateCache: (String) -> Unit
+        onInvalidateCache: (String) -> Unit,
+        preferredId: String = "",
+        isFavorite: Boolean = false,
+        orderIndex: Int = 0
     ): Int {
         val currentEntities = accountDao.getAllAccountsSync()
         val incomingHash = secretBytes.sha256Hex()
@@ -360,8 +362,9 @@ object AccountMergeEngine {
 
         return if (existingEntity == null) {
             val payload = cryptoManager.encrypt(secretBytes)
+            val newId = preferredId.ifBlank { UUID.randomUUID().toString() }
             val newEntity = AccountEntity(
-                id = UUID.randomUUID().toString(),
+                id = newId,
                 issuer = trimmedIssuer,
                 accountName = trimmedAccountName,
                 encryptedSecret = payload.ciphertext,
@@ -371,15 +374,14 @@ object AccountMergeEngine {
                 period = period,
                 type = type.name,
                 counter = counter,
-                isFavorite = false,
-                orderIndex = 0,
+                isFavorite = isFavorite,
+                orderIndex = orderIndex,
                 isDeleted = false,
                 deletedAt = null,
                 createdAt = now,
                 updatedAt = now
             )
             accountDao.insertAccount(newEntity)
-            com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
             1
         } else if (existingEntity.isDeleted) {
             val payload = cryptoManager.encrypt(secretBytes)
@@ -399,7 +401,6 @@ object AccountMergeEngine {
             )
             accountDao.updateAccount(restoredEntity)
             onInvalidateCache(existingEntity.id)
-            com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
             1
         } else if (existingEntity.issuer != trimmedIssuer ||
             existingEntity.accountName != trimmedAccountName ||
@@ -424,7 +425,6 @@ object AccountMergeEngine {
             )
             accountDao.updateAccount(updatedEntity)
             onInvalidateCache(existingEntity.id)
-            com.example.appopt.data.cloud.CloudVaultSyncManager.triggerReactiveSync(com.example.appopt.AuthenticatorApp.instance)
             1
         } else {
             0

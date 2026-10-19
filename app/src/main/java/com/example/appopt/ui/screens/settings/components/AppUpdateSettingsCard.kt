@@ -99,26 +99,33 @@ fun AppUpdateSettingsCard(
         title = stringResource(R.string.settings_update_card_title),
         description = stringResource(R.string.settings_update_card_desc),
         icon = Icons.Filled.SystemUpdate,
-        iconTint = if (currentUpdate != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        iconTint = if (currentUpdate != null) SafeGreen else MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = modifier
     ) {
         SettingsStatusTile(
             icon = if (currentUpdate != null) Icons.Filled.CloudDownload else Icons.Filled.CheckCircle,
-            iconTint = if (currentUpdate != null) MaterialTheme.colorScheme.primary else SafeGreen,
+            iconTint = SafeGreen,
             title = if (currentUpdate != null) {
                 stringResource(
-                    R.string.settings_update_status_available,
-                    currentUpdate.tagName,
-                    currentUpdate.formattedSizeMb()
+                    R.string.settings_update_title_available,
+                    currentUpdate.tagName
                 )
             } else {
                 stringResource(R.string.settings_update_status_up_to_date)
             },
-            subtitle = stringResource(
-                R.string.settings_update_current_version,
-                installedVersionName
-            ),
-            titleColor = if (currentUpdate != null) MaterialTheme.colorScheme.primary else SafeGreen
+            subtitle = if (currentUpdate != null) {
+                stringResource(
+                    R.string.settings_update_subtitle_available,
+                    currentUpdate.formattedSizeMb(),
+                    installedVersionName
+                )
+            } else {
+                stringResource(
+                    R.string.settings_update_current_version,
+                    installedVersionName
+                )
+            },
+            titleColor = SafeGreen
         )
 
         AnimatedVisibility(

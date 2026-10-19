@@ -103,30 +103,33 @@ fun AppUpdateSettingsCard(
         modifier = modifier
     ) {
         SettingsStatusTile(
-            icon = if (currentUpdate != null) Icons.Filled.CloudDownload else Icons.Filled.CheckCircle,
+            icon = Icons.Filled.CheckCircle,
             iconTint = SafeGreen,
-            title = if (currentUpdate != null) {
-                stringResource(
-                    R.string.settings_update_title_available,
-                    currentUpdate.tagName
-                )
-            } else {
-                stringResource(R.string.settings_update_status_up_to_date)
-            },
-            subtitle = if (currentUpdate != null) {
-                stringResource(
-                    R.string.settings_update_subtitle_available,
-                    currentUpdate.formattedSizeMb(),
-                    installedVersionName
-                )
-            } else {
-                stringResource(
-                    R.string.settings_update_current_version,
-                    installedVersionName
-                )
-            },
-            titleColor = SafeGreen
+            title = stringResource(R.string.settings_update_installed_version_title),
+            subtitle = installedVersionName
         )
+
+        AnimatedVisibility(
+            visible = currentUpdate != null,
+            enter = fadeIn(animationSpec = Motion.Spec.quickFadeSpec()) + expandVertically(),
+            exit = fadeOut(animationSpec = Motion.Spec.quickFadeSpec()) + shrinkVertically()
+        ) {
+            if (currentUpdate != null) {
+                SettingsStatusTile(
+                    icon = Icons.Filled.CloudDownload,
+                    iconTint = SafeGreen,
+                    title = stringResource(
+                        R.string.settings_update_title_available,
+                        currentUpdate.tagName
+                    ),
+                    subtitle = stringResource(
+                        R.string.settings_update_size_subtitle,
+                        currentUpdate.formattedSizeMb()
+                    ),
+                    titleColor = SafeGreen
+                )
+            }
+        }
 
         AnimatedVisibility(
             visible = errorMessage != null,

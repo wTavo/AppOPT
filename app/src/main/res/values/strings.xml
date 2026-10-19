@@ -449,9 +449,11 @@
     <string name="settings_update_card_title">Actualización de la aplicación</string>
     <string name="settings_update_card_desc">Verifica e instala nuevas versiones oficiales desde GitHub.</string>
     <string name="settings_update_current_version">Versión instalada: %1$s</string>
+    <string name="settings_update_installed_version_title">Versión instalada</string>
     <string name="settings_update_status_up_to_date">Tienes la versión más reciente instalada</string>
     <string name="settings_update_status_available">Nueva versión disponible: %1$s (%2$s)</string>
     <string name="settings_update_title_available">Actualización %1$s disponible</string>
+    <string name="settings_update_size_subtitle">Tamaño: %1$s</string>
     <string name="settings_update_subtitle_available">Descarga: %1$s • Instalada: %2$s</string>
     <string name="settings_update_release_notes_title">Novedades de la versión</string>
     <string name="settings_update_download_install_action">Descargar e instalar</string>

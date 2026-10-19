@@ -194,9 +194,11 @@ fun SettingsScreen(
                 isCameraGranted = permissionsState.isCameraGranted,
                 isNotificationGranted = permissionsState.isNotificationGranted,
                 isBatteryOptimizationIgnored = permissionsState.isBatteryOptimizationIgnored,
+                isInstallPackagesGranted = permissionsState.isInstallPackagesGranted,
                 onRequestCameraPermission = { permissionsState.requestCamera() },
                 onRequestNotificationPermission = { permissionsState.requestNotifications() },
-                onRequestBatteryOptimization = { permissionsState.requestBatteryOptimization() }
+                onRequestBatteryOptimization = { permissionsState.requestBatteryOptimization() },
+                onRequestInstallPackages = { permissionsState.requestInstallPackages() }
             )
 
             // 2. Tarjeta de Rendimiento y Diagnóstico

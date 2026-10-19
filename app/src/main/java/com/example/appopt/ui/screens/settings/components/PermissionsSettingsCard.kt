@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -71,9 +72,11 @@ private data class PermissionItemData(
  * @param isCameraGranted Indica si el permiso de cámara para escaneo QR está concedido.
  * @param isNotificationGranted Indica si las notificaciones del sistema están habilitadas.
  * @param isBatteryOptimizationIgnored Indica si la app está excluida del ahorro de batería.
+ * @param isInstallPackagesGranted Indica si la app cuenta con autorización para instalar paquetes APK de actualización.
  * @param onRequestCameraPermission Callback invocado al solicitar el permiso de cámara.
  * @param onRequestNotificationPermission Callback invocado al solicitar el permiso de notificaciones.
  * @param onRequestBatteryOptimization Callback invocado al solicitar la exclusión del ahorro de batería.
+ * @param onRequestInstallPackages Callback invocado al solicitar el permiso de instalación de paquetes.
  * @param modifier Modificador de diseño Compose opcional.
  */
 @Composable
@@ -81,9 +84,11 @@ fun PermissionsSettingsCard(
     isCameraGranted: Boolean,
     isNotificationGranted: Boolean,
     isBatteryOptimizationIgnored: Boolean,
+    isInstallPackagesGranted: Boolean,
     onRequestCameraPermission: () -> Unit,
     onRequestNotificationPermission: () -> Unit,
     onRequestBatteryOptimization: () -> Unit,
+    onRequestInstallPackages: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val appHaptics = rememberAppHaptics()
@@ -113,6 +118,14 @@ fun PermissionsSettingsCard(
             descriptionRes = R.string.settings_permission_battery_desc,
             isGranted = isBatteryOptimizationIgnored,
             onRequest = onRequestBatteryOptimization
+        ),
+        PermissionItemData(
+            id = "install_packages",
+            icon = Icons.Filled.SystemUpdate,
+            titleRes = R.string.settings_permission_install_title,
+            descriptionRes = R.string.settings_permission_install_desc,
+            isGranted = isInstallPackagesGranted,
+            onRequest = onRequestInstallPackages
         )
     )
 

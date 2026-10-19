@@ -44,6 +44,7 @@ class SettingsPermissionsState(
     initialCamera: Boolean,
     initialNotification: Boolean,
     initialBattery: Boolean,
+    initialInstallPackages: Boolean,
     private val onSuccessHaptic: () -> Unit
 ) {
     var isCameraGranted by mutableStateOf(initialCamera)
@@ -53,6 +54,9 @@ class SettingsPermissionsState(
         internal set
 
     var isBatteryOptimizationIgnored by mutableStateOf(initialBattery)
+        internal set
+
+    var isInstallPackagesGranted by mutableStateOf(initialInstallPackages)
         internal set
 
     fun refreshPermissions() {
@@ -71,6 +75,12 @@ class SettingsPermissionsState(
         }
 
         isBatteryOptimizationIgnored = BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)
+
+        isInstallPackagesGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.packageManager.canRequestPackageInstalls()
+        } else {
+            true
+        }
     }
 
     fun requestCamera() {
@@ -105,6 +115,20 @@ class SettingsPermissionsState(
         }
     }
 
+    fun requestInstallPackages() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            try {
+                val intent = Intent(
+                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    "package:${context.packageName}".toUri()
+                ).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+            } catch (_: Exception) {}
+        }
+    }
+
     internal fun onBatteryResult() {
         isBatteryOptimizationIgnored = BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)
         if (isBatteryOptimizationIgnored) {
@@ -134,6 +158,13 @@ fun rememberSettingsPermissionsState(): SettingsPermissionsState {
     val initialBattery = remember {
         BatteryOptimizationHelper.isIgnoringBatteryOptimizations(context)
     }
+    val initialInstallPackages = remember {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.packageManager.canRequestPackageInstalls()
+        } else {
+            true
+        }
+    }
 
     var stateRef: SettingsPermissionsState? by remember { mutableStateOf(null) }
 
@@ -160,6 +191,7 @@ fun rememberSettingsPermissionsState(): SettingsPermissionsState {
             initialCamera = initialCamera,
             initialNotification = initialNotification,
             initialBattery = initialBattery,
+            initialInstallPackages = initialInstallPackages,
             onSuccessHaptic = { appHaptics.success() }
         ).also { stateRef = it }
     }

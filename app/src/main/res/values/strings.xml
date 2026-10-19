@@ -293,13 +293,15 @@
 
     <!-- Permisos de la Aplicación -->
     <string name="settings_permissions_title">Permisos de la aplicación</string>
-    <string name="settings_permissions_description">Gestiona los permisos recomendados para asegurar el funcionamiento óptimo del escáner y la sincronización.</string>
+    <string name="settings_permissions_description">Gestiona los permisos recomendados para asegurar el funcionamiento óptimo del escáner, sincronización y actualizaciones.</string>
     <string name="settings_permission_camera_title">Cámara</string>
     <string name="settings_permission_camera_desc">Necesaria para escanear códigos QR de autenticación 2FA y transferir servicios.</string>
     <string name="settings_permission_notifications_title">Notificaciones</string>
     <string name="settings_permission_notifications_desc">Te avisa en segundo plano cuando la copia de seguridad en Google Drive se complete.</string>
     <string name="settings_permission_battery_title">Sin restricciones de batería</string>
     <string name="settings_permission_battery_desc">Evita que Android congele o retrase la copia de seguridad automática en segundo plano.</string>
+    <string name="settings_permission_install_title">Instalar actualizaciones</string>
+    <string name="settings_permission_install_desc">Permite instalar directamente las nuevas versiones descargadas de la aplicación.</string>
     <string name="settings_permission_granted">Permitido</string>
     <string name="settings_permissions_granted_count">Permisos concedidos (%1$d)</string>
     <string name="settings_permission_action_grant">Permitir</string>

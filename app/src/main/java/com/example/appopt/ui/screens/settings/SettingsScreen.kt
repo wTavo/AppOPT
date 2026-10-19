@@ -288,6 +288,7 @@ fun SettingsScreen(
                 isSyncMobileDataAllowed = uiState.isSyncMobileDataAllowed,
                 isDriveBackupEncrypted = uiState.isDriveBackupEncrypted,
                 hasLocalAccounts = uiState.accounts.isNotEmpty(),
+                connectedDriveEmail = uiState.connectedDriveEmail,
                 onConnectClick = {
                     requestGoogleAuthorization { token ->
                         viewModel.onGoogleDriveConnected(token) {

@@ -67,10 +67,13 @@ class SettingsViewModel : ViewModel() {
             prefsManager.isDriveBackupEncryptedFlow,
             prefsManager.lastSyncTimestampFlow,
             prefsManager.lastSyncedVaultHashFlow,
-            prefsManager.lastBackupHistoryFetchTimestampFlow,
-            prefsManager.isAutoSyncEnabledFlow
-        ) { isEncrypted, lastSync, lastHash, lastFetch, autoSync ->
-            arrayOf<Any>(isEncrypted, lastSync, lastHash.orEmpty(), lastFetch, autoSync)
+            combine(
+                prefsManager.lastBackupHistoryFetchTimestampFlow,
+                prefsManager.isAutoSyncEnabledFlow,
+                prefsManager.connectedDriveEmailFlow
+            ) { lastFetch, autoSync, driveEmail -> Triple(lastFetch, autoSync, driveEmail) }
+        ) { isEncrypted, lastSync, lastHash, extra ->
+            arrayOf<Any?>(isEncrypted, lastSync, lastHash.orEmpty(), extra.first, extra.second, extra.third)
         }
     ) { internal, accounts, isConnected, appearance, syncMeta ->
         val themeMode = appearance.first
@@ -80,6 +83,7 @@ class SettingsViewModel : ViewModel() {
         val safeLastHash = syncMeta[2] as String
         val lastFetch = syncMeta[3] as Long
         val autoSync = syncMeta[4] as Boolean
+        val driveEmail = syncMeta[5] as? String
         val isSynced = CloudVaultSyncManager.isVaultSyncedWithCloud(isConnected, lastSync, safeLastHash, accounts)
         val hasChanges = isConnected && lastSync > 0L && safeLastHash.isNotEmpty() && !isSynced
 
@@ -93,7 +97,8 @@ class SettingsViewModel : ViewModel() {
             lastSyncTimestamp = lastSync,
             lastSyncedHash = safeLastHash,
             hasUnsyncedChanges = hasChanges,
-            lastHistoryFetchTimestamp = lastFetch
+            lastHistoryFetchTimestamp = lastFetch,
+            connectedDriveEmail = driveEmail
         )
     }.flowOn(Dispatchers.Default)
     .stateIn(
@@ -107,7 +112,8 @@ class SettingsViewModel : ViewModel() {
             isAutoSyncEnabled = prefsManager.isAutoSyncEnabledFlow.value,
             lastSyncTimestamp = prefsManager.lastSyncTimestampFlow.value,
             lastSyncedHash = prefsManager.lastSyncedVaultHashFlow.value.orEmpty(),
-            lastHistoryFetchTimestamp = prefsManager.lastBackupHistoryFetchTimestampFlow.value
+            lastHistoryFetchTimestamp = prefsManager.lastBackupHistoryFetchTimestampFlow.value,
+            connectedDriveEmail = prefsManager.connectedDriveEmailFlow.value
         )
     )
 

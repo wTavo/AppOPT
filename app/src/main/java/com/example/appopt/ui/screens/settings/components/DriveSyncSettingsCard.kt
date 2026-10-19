@@ -46,7 +46,6 @@ import com.example.appopt.ui.components.SettingsSectionCard
 import com.example.appopt.ui.components.SettingsStatusTile
 import com.example.appopt.ui.navigation.NavigationOriginTracker
 import com.example.appopt.ui.theme.Dimensions
-import com.example.appopt.ui.theme.WarningOrange
 import com.example.appopt.ui.theme.appSwitchColors
 
 /**
@@ -71,6 +70,7 @@ import com.example.appopt.ui.theme.appSwitchColors
  * @param onDriveBackupEncryptedToggle Callback para alternar el cifrado de extremo a extremo.
  * @param modifier Modificador de diseño Compose opcional.
  * @param hasLocalAccounts Indica si existen cuentas o servicios 2FA locales registrados en la bóveda.
+ * @param connectedDriveEmail Correo electrónico de la cuenta de Google actualmente vinculada, o `null` si no hay cuenta activa.
  */
 @Composable
 fun DriveSyncSettingsCard(
@@ -91,34 +91,14 @@ fun DriveSyncSettingsCard(
     onMobileDataToggle: (Boolean) -> Unit,
     onDriveBackupEncryptedToggle: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
-    hasLocalAccounts: Boolean = true
+    hasLocalAccounts: Boolean = true,
+    connectedDriveEmail: String? = null
 ) {
     var backupDetailsCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var createBackupCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var disconnectCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
     val isSyncingActive = isDriveLoading && isDriveConnected
-    val isVaultSynced = isDriveConnected && lastSyncTimestamp > 0L && !hasUnsyncedChanges
-    val isPendingSync = isDriveConnected && !isVaultSynced && !isSyncingActive
-
-    val badgeColor = when {
-        isSyncingActive -> MaterialTheme.colorScheme.primary
-        isVaultSynced -> MaterialTheme.colorScheme.primary
-        isPendingSync -> WarningOrange
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    val badgeBg = when {
-        isSyncingActive -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-        isVaultSynced -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-        isPendingSync -> WarningOrange.copy(alpha = 0.12f)
-        else -> MaterialTheme.colorScheme.surfaceVariant
-    }
-    val badgeText = when {
-        isSyncingActive -> stringResource(R.string.settings_drive_status_syncing)
-        isVaultSynced -> stringResource(R.string.settings_drive_status_synced)
-        isPendingSync -> stringResource(R.string.settings_drive_status_pending)
-        else -> stringResource(R.string.settings_drive_status_not_synced)
-    }
 
     SettingsSectionCard(
         title = stringResource(R.string.settings_drive_title),
@@ -129,19 +109,6 @@ fun DriveSyncSettingsCard(
             else -> Icons.Filled.CloudDone
         },
         iconTint = if (isDriveConnected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-        headerTrailing = {
-            Surface(
-                shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
-                color = badgeBg
-            ) {
-                Text(
-                    text = badgeText,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = badgeColor,
-                    modifier = Modifier.padding(horizontal = Dimensions.Spacing.sm, vertical = Dimensions.Spacing.xs)
-                )
-            }
-        },
         modifier = modifier
     ) {
         // 3. Fila con Contenedor de Estado de Copia y Desvinculación
@@ -165,6 +132,7 @@ fun DriveSyncSettingsCard(
                         driveBackupExists -> stringResource(R.string.settings_drive_backup_found)
                         else -> stringResource(R.string.settings_drive_press_to_search_backups)
                     },
+                    subtitle = if (!isSyncingActive) connectedDriveEmail else null,
                     titleColor = when {
                         isSyncingActive -> MaterialTheme.colorScheme.primary
                         hasBackupInfo -> MaterialTheme.colorScheme.onSurface

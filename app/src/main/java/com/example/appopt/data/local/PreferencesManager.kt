@@ -57,6 +57,10 @@ class PreferencesManager(context: Context) {
     private val _lastBackupHistoryFetchTimestamp = MutableStateFlow(sharedPreferences.getLong(KEY_LAST_BACKUP_HISTORY_FETCH, 0L))
     val lastBackupHistoryFetchTimestampFlow: StateFlow<Long> = _lastBackupHistoryFetchTimestamp.asStateFlow()
 
+    private val _connectedDriveEmail = MutableStateFlow(sharedPreferences.getString(KEY_CONNECTED_DRIVE_EMAIL, null))
+    /** Flujo reactivo del correo electrónico de la cuenta de Google actualmente vinculada. */
+    val connectedDriveEmailFlow: StateFlow<String?> = _connectedDriveEmail.asStateFlow()
+
     private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
         when (key) {
             KEY_HIDE_CODES -> _isHideCodesEnabled.value = prefs.getBoolean(KEY_HIDE_CODES, false)
@@ -70,6 +74,7 @@ class PreferencesManager(context: Context) {
             KEY_LAST_BACKUP_HISTORY_FETCH -> _lastBackupHistoryFetchTimestamp.value = prefs.getLong(KEY_LAST_BACKUP_HISTORY_FETCH, 0L)
             KEY_THEME_MODE -> _themeMode.value = ThemeMode.fromKey(prefs.getString(KEY_THEME_MODE, ThemeMode.SYSTEM.name))
             KEY_ACCENT_COLOR -> _accentColor.value = AccentColor.fromKey(prefs.getString(KEY_ACCENT_COLOR, AccentColor.BLUE.name))
+            KEY_CONNECTED_DRIVE_EMAIL -> _connectedDriveEmail.value = prefs.getString(KEY_CONNECTED_DRIVE_EMAIL, null)
         }
     }
 
@@ -315,11 +320,13 @@ class PreferencesManager(context: Context) {
      * Guarda o limpia el correo electrónico de la cuenta de Google actualmente vinculada.
      */
     fun setConnectedDriveEmail(email: String?) {
+        val sanitized = email?.takeIf { it.isNotBlank() }
+        _connectedDriveEmail.value = sanitized
         sharedPreferences.edit {
-            if (email.isNullOrBlank()) {
+            if (sanitized == null) {
                 remove(KEY_CONNECTED_DRIVE_EMAIL)
             } else {
-                putString(KEY_CONNECTED_DRIVE_EMAIL, email)
+                putString(KEY_CONNECTED_DRIVE_EMAIL, sanitized)
             }
         }
     }

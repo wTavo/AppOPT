@@ -1,5 +1,6 @@
 package com.example.appopt.ui.components
 
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,7 +18,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.SafeGreen
 
@@ -25,6 +28,7 @@ import com.example.appopt.ui.theme.SafeGreen
  * Contenedor de estado estilizado y reutilizable para filas informativas y de diagnóstico dentro de tarjetas de ajustes.
  *
  * Cumple con el estándar de geometría de superficies secundarias (`CornerRadius.medium`, `Spacing.md`, `bodyMedium`).
+ * Soporta desplazamiento marquesina automático ([basicMarquee]) en subtítulos que excedan el ancho disponible.
  *
  * @param icon Icono indicativo del estado.
  * @param title Texto principal del estado o diagnóstico.
@@ -76,7 +80,7 @@ fun SettingsStatusTile(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
-                modifier = Modifier.weight(1f, fill = false)
+                modifier = Modifier.weight(1f)
             ) {
                 Icon(
                     imageVector = icon,
@@ -85,18 +89,27 @@ fun SettingsStatusTile(
                     modifier = Modifier.size(iconSize)
                 )
                 Column(
+                    modifier = Modifier.weight(1f, fill = false),
                     verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
                 ) {
                     Text(
                         text = title,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = titleColor
+                        color = titleColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     if (subtitle != null) {
                         Text(
                             text = subtitle,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            modifier = Modifier.basicMarquee(
+                                iterations = Int.MAX_VALUE,
+                                initialDelayMillis = 2000,
+                                velocity = 30.dp
+                            )
                         )
                     }
                 }

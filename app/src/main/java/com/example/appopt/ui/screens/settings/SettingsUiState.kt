@@ -29,6 +29,7 @@ import com.example.appopt.domain.model.TotpAccount
  * @param lastHistoryFetchTimestamp Marca de tiempo Unix de la última consulta del historial de respaldos.
  * @param themeMode Modo de tema visual configurado (Sistema, Claro, Oscuro).
  * @param accentColor Paleta cromática de acento seleccionada por el usuario.
+ * @param connectedDriveEmail Correo electrónico de la cuenta de Google actualmente vinculada, o `null` si no hay cuenta activa.
  */
 @Immutable
 data class SettingsUiState(
@@ -50,7 +51,8 @@ data class SettingsUiState(
     val isAutoSyncRunning: Boolean = false,
     val lastHistoryFetchTimestamp: Long = 0L,
     val themeMode: com.example.appopt.ui.theme.ThemeMode = com.example.appopt.ui.theme.ThemeMode.SYSTEM,
-    val accentColor: com.example.appopt.ui.theme.AccentColor = com.example.appopt.ui.theme.AccentColor.BLUE
+    val accentColor: com.example.appopt.ui.theme.AccentColor = com.example.appopt.ui.theme.AccentColor.BLUE,
+    val connectedDriveEmail: String? = null
 ) {
     /** Indica si cualquier proceso de sincronización local, global o en segundo plano está en curso. */
     val isSyncActive: Boolean

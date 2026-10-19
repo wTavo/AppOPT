@@ -5,6 +5,8 @@ import android.content.SharedPreferences
 import androidx.core.content.edit
 import com.example.appopt.data.cloud.DriveBackupItem
 import com.example.appopt.performance.PerformanceMonitor
+import com.example.appopt.ui.theme.AccentColor
+import com.example.appopt.ui.theme.ThemeMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,6 +24,12 @@ class PreferencesManager(context: Context) {
         PREFS_NAME,
         Context.MODE_PRIVATE
     )
+
+    private val _themeMode = MutableStateFlow(ThemeMode.fromKey(sharedPreferences.getString(KEY_THEME_MODE, ThemeMode.SYSTEM.name)))
+    val themeModeFlow: StateFlow<ThemeMode> = _themeMode.asStateFlow()
+
+    private val _accentColor = MutableStateFlow(AccentColor.fromKey(sharedPreferences.getString(KEY_ACCENT_COLOR, AccentColor.BLUE.name)))
+    val accentColorFlow: StateFlow<AccentColor> = _accentColor.asStateFlow()
 
     private val _isHideCodesEnabled = MutableStateFlow(sharedPreferences.getBoolean(KEY_HIDE_CODES, false))
 
@@ -60,6 +68,8 @@ class PreferencesManager(context: Context) {
             KEY_SYNC_MOBILE_DATA -> _isSyncMobileData.value = prefs.getBoolean(KEY_SYNC_MOBILE_DATA, false)
             KEY_FPS_OVERLAY -> _isFpsOverlayEnabled.value = prefs.getBoolean(KEY_FPS_OVERLAY, false)
             KEY_LAST_BACKUP_HISTORY_FETCH -> _lastBackupHistoryFetchTimestamp.value = prefs.getLong(KEY_LAST_BACKUP_HISTORY_FETCH, 0L)
+            KEY_THEME_MODE -> _themeMode.value = ThemeMode.fromKey(prefs.getString(KEY_THEME_MODE, ThemeMode.SYSTEM.name))
+            KEY_ACCENT_COLOR -> _accentColor.value = AccentColor.fromKey(prefs.getString(KEY_ACCENT_COLOR, AccentColor.BLUE.name))
         }
     }
 
@@ -378,10 +388,37 @@ class PreferencesManager(context: Context) {
             setVaultModifiedWhileDisconnected(true)
         }
     }
+    /**
+     * Retorna el modo de tema configurado por el usuario.
+     */
+    fun getThemeMode(): ThemeMode = _themeMode.value
+
+    /**
+     * Guarda el modo de tema visual configurado en almacenamiento persistente.
+     */
+    fun setThemeMode(mode: ThemeMode) {
+        _themeMode.value = mode
+        sharedPreferences.edit { putString(KEY_THEME_MODE, mode.name) }
+    }
+
+    /**
+     * Retorna la paleta de color de acento seleccionada por el usuario.
+     */
+    fun getAccentColor(): AccentColor = _accentColor.value
+
+    /**
+     * Guarda la paleta de color de acento seleccionada en almacenamiento persistente.
+     */
+    fun setAccentColor(accent: AccentColor) {
+        _accentColor.value = accent
+        sharedPreferences.edit { putString(KEY_ACCENT_COLOR, accent.name) }
+    }
 
     companion object {
         private const val PREFS_NAME = "authenticator_user_preferences"
         private const val KEY_HIDE_CODES = "key_hide_codes"
+        private const val KEY_THEME_MODE = "key_theme_mode"
+        private const val KEY_ACCENT_COLOR = "key_accent_color"
         private const val KEY_DRIVE_CONNECTED = "key_drive_connected"
         private const val KEY_DRIVE_BACKUP_ENCRYPTED = "key_drive_backup_encrypted"
         private const val KEY_DRIVE_LAST_SYNC = "key_drive_last_sync"

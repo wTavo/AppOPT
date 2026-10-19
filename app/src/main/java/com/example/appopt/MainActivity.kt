@@ -3,12 +3,16 @@ package com.example.appopt
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.appopt.ui.navigation.AppNavigation
 import com.example.appopt.ui.theme.AppTheme
+import com.example.appopt.ui.theme.ThemeMode
 
 import com.example.appopt.performance.PerformanceMonitor
 
@@ -36,7 +40,20 @@ class MainActivity : FragmentActivity() {
         )
 
         setContent {
-            AppTheme {
+            val prefs = AuthenticatorApp.instance.preferencesManager
+            val themeMode by prefs.themeModeFlow.collectAsStateWithLifecycle()
+            val accentColor by prefs.accentColorFlow.collectAsStateWithLifecycle()
+
+            val isDark = when (themeMode) {
+                ThemeMode.SYSTEM -> isSystemInDarkTheme()
+                ThemeMode.DARK -> true
+                ThemeMode.LIGHT -> false
+            }
+
+            AppTheme(
+                darkTheme = isDark,
+                accentColor = accentColor
+            ) {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     AppNavigation()
                 }

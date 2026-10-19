@@ -27,6 +27,8 @@ import com.example.appopt.domain.model.TotpAccount
  * @param isRefreshingBackupHistory Indica si el usuario solicitó un refresco manual explícito con animación de carga.
  * @param isAutoSyncRunning Indica si hay un worker de WorkManager ejecutando sincronización reactiva o periódica.
  * @param lastHistoryFetchTimestamp Marca de tiempo Unix de la última consulta del historial de respaldos.
+ * @param themeMode Modo de tema visual configurado (Sistema, Claro, Oscuro).
+ * @param accentColor Paleta cromática de acento seleccionada por el usuario.
  */
 @Immutable
 data class SettingsUiState(
@@ -46,7 +48,9 @@ data class SettingsUiState(
     val isFetchingBackupHistory: Boolean = false,
     val isRefreshingBackupHistory: Boolean = false,
     val isAutoSyncRunning: Boolean = false,
-    val lastHistoryFetchTimestamp: Long = 0L
+    val lastHistoryFetchTimestamp: Long = 0L,
+    val themeMode: com.example.appopt.ui.theme.ThemeMode = com.example.appopt.ui.theme.ThemeMode.SYSTEM,
+    val accentColor: com.example.appopt.ui.theme.AccentColor = com.example.appopt.ui.theme.AccentColor.BLUE
 ) {
     /** Indica si cualquier proceso de sincronización local, global o en segundo plano está en curso. */
     val isSyncActive: Boolean

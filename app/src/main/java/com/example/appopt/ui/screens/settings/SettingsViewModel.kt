@@ -45,7 +45,9 @@ class SettingsViewModel : ViewModel() {
                 isDriveBackupEncrypted = prefsManager.isDriveBackupEncrypted(),
                 backupHistoryList = cachedHistory,
                 driveBackupExists = cachedHistory.isNotEmpty(),
-                driveBackupInfo = mostRecent
+                driveBackupInfo = mostRecent,
+                themeMode = prefsManager.getThemeMode(),
+                accentColor = prefsManager.getAccentColor()
             )
         }
     )
@@ -57,20 +59,27 @@ class SettingsViewModel : ViewModel() {
         _internalState,
         repository.getAccounts(),
         prefsManager.isGoogleDriveConnectedFlow,
-        prefsManager.isDriveBackupEncryptedFlow,
         combine(
+            prefsManager.themeModeFlow,
+            prefsManager.accentColorFlow
+        ) { mode, accent -> Pair(mode, accent) },
+        combine(
+            prefsManager.isDriveBackupEncryptedFlow,
             prefsManager.lastSyncTimestampFlow,
             prefsManager.lastSyncedVaultHashFlow,
             prefsManager.lastBackupHistoryFetchTimestampFlow,
             prefsManager.isAutoSyncEnabledFlow
-        ) { lastSync, lastHash, lastFetch, autoSync ->
-            arrayOf<Any>(lastSync, lastHash.orEmpty(), lastFetch, autoSync)
+        ) { isEncrypted, lastSync, lastHash, lastFetch, autoSync ->
+            arrayOf<Any>(isEncrypted, lastSync, lastHash.orEmpty(), lastFetch, autoSync)
         }
-    ) { internal, accounts, isConnected, isEncrypted, syncMeta ->
-        val lastSync = syncMeta[0] as Long
-        val safeLastHash = syncMeta[1] as String
-        val lastFetch = syncMeta[2] as Long
-        val autoSync = syncMeta[3] as Boolean
+    ) { internal, accounts, isConnected, appearance, syncMeta ->
+        val themeMode = appearance.first
+        val accentColor = appearance.second
+        val isEncrypted = syncMeta[0] as Boolean
+        val lastSync = syncMeta[1] as Long
+        val safeLastHash = syncMeta[2] as String
+        val lastFetch = syncMeta[3] as Long
+        val autoSync = syncMeta[4] as Boolean
         val isSynced = CloudVaultSyncManager.isVaultSyncedWithCloud(isConnected, lastSync, safeLastHash, accounts)
         val hasChanges = isConnected && lastSync > 0L && safeLastHash.isNotEmpty() && !isSynced
 
@@ -78,6 +87,8 @@ class SettingsViewModel : ViewModel() {
             accounts = accounts,
             isDriveConnected = isConnected,
             isDriveBackupEncrypted = isEncrypted,
+            themeMode = themeMode,
+            accentColor = accentColor,
             isAutoSyncEnabled = autoSync,
             lastSyncTimestamp = lastSync,
             lastSyncedHash = safeLastHash,
@@ -91,6 +102,8 @@ class SettingsViewModel : ViewModel() {
         initialValue = _internalState.value.copy(
             isDriveConnected = prefsManager.isGoogleDriveConnectedFlow.value,
             isDriveBackupEncrypted = prefsManager.isDriveBackupEncryptedFlow.value,
+            themeMode = prefsManager.themeModeFlow.value,
+            accentColor = prefsManager.accentColorFlow.value,
             isAutoSyncEnabled = prefsManager.isAutoSyncEnabledFlow.value,
             lastSyncTimestamp = prefsManager.lastSyncTimestampFlow.value,
             lastSyncedHash = prefsManager.lastSyncedVaultHashFlow.value.orEmpty(),
@@ -264,5 +277,23 @@ class SettingsViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             ids.forEach { id -> repository.deleteAccount(id) }
         }
+    }
+
+    /**
+     * Establece el modo de tema visual de la aplicación.
+     *
+     * @param mode Modo de tema (Sistema, Claro u Oscuro).
+     */
+    fun setThemeMode(mode: com.example.appopt.ui.theme.ThemeMode) {
+        prefsManager.setThemeMode(mode)
+    }
+
+    /**
+     * Establece la paleta de color de acento de la aplicación.
+     *
+     * @param accent Paleta de color de acento seleccionada.
+     */
+    fun setAccentColor(accent: com.example.appopt.ui.theme.AccentColor) {
+        prefsManager.setAccentColor(accent)
     }
 }

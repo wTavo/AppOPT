@@ -145,6 +145,12 @@ object Dimensions {
 
         /** Radio de desenfoque de fondo para ventanas modales en hardware compositor y Skia (20.dp). */
         val modalBlurRadius: Dp = 20.dp
+
+        /** Tamaño del círculo selector de muestra de color de acento (44.dp). */
+        val colorSwatchSize: Dp = 44.dp
+
+        /** Altura estándar para botones del selector segmentado de temas (42.dp). */
+        val themeSegmentHeight: Dp = 42.dp
     }
 
     /**

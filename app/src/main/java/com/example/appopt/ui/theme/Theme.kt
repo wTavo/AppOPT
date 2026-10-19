@@ -3,6 +3,7 @@ package com.example.appopt.ui.theme
 import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -16,19 +17,25 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-val DarkColorScheme = darkColorScheme(
-    primary = PrimaryBlueDark,
+/**
+ * Construye el esquema de colores oscuros adaptado al color de acento seleccionado.
+ *
+ * @param accent Paleta de acento seleccionada.
+ * @return [ColorScheme] de Material 3 para tema oscuro.
+ */
+fun buildDarkColorScheme(accent: AccentColor = AccentColor.BLUE): ColorScheme = darkColorScheme(
+    primary = accent.primaryDark,
     onPrimary = Color.White,
-    primaryContainer = PrimaryContainerDark,
-    onPrimaryContainer = OnPrimaryContainerDark,
-    secondary = AccentCyan,
+    primaryContainer = accent.primaryContainerDark,
+    onPrimaryContainer = accent.onPrimaryContainerDark,
+    secondary = accent.secondaryDark,
     onSecondary = Color.White,
-    secondaryContainer = PrimaryContainerDark,
-    onSecondaryContainer = OnPrimaryContainerDark,
-    tertiary = AccentCyan,
+    secondaryContainer = accent.primaryContainerDark,
+    onSecondaryContainer = accent.onPrimaryContainerDark,
+    tertiary = accent.secondaryDark,
     onTertiary = Color.White,
-    tertiaryContainer = PrimaryContainerDark,
-    onTertiaryContainer = OnPrimaryContainerDark,
+    tertiaryContainer = accent.primaryContainerDark,
+    onTertiaryContainer = accent.onPrimaryContainerDark,
     background = BackgroundDark,
     surface = SurfaceDark,
     surfaceVariant = SurfaceVariantDark,
@@ -43,19 +50,25 @@ val DarkColorScheme = darkColorScheme(
     onErrorContainer = OnErrorContainerDark
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = PrimaryBlue,
+/**
+ * Construye el esquema de colores claros adaptado al color de acento seleccionado.
+ *
+ * @param accent Paleta de acento seleccionada.
+ * @return [ColorScheme] de Material 3 para tema claro.
+ */
+fun buildLightColorScheme(accent: AccentColor = AccentColor.BLUE): ColorScheme = lightColorScheme(
+    primary = accent.primaryLight,
     onPrimary = Color.White,
-    primaryContainer = PrimaryContainerLight,
-    onPrimaryContainer = OnPrimaryContainerLight,
-    secondary = AccentCyan,
+    primaryContainer = accent.primaryContainerLight,
+    onPrimaryContainer = accent.onPrimaryContainerLight,
+    secondary = accent.secondaryLight,
     onSecondary = Color.White,
-    secondaryContainer = PrimaryContainerLight,
-    onSecondaryContainer = OnPrimaryContainerLight,
-    tertiary = AccentCyan,
+    secondaryContainer = accent.primaryContainerLight,
+    onSecondaryContainer = accent.onPrimaryContainerLight,
+    tertiary = accent.secondaryLight,
     onTertiary = Color.White,
-    tertiaryContainer = PrimaryContainerLight,
-    onTertiaryContainer = OnPrimaryContainerLight,
+    tertiaryContainer = accent.primaryContainerLight,
+    onTertiaryContainer = accent.onPrimaryContainerLight,
     background = BackgroundLight,
     surface = SurfaceLight,
     surfaceVariant = SurfaceVariantLight,
@@ -70,26 +83,33 @@ private val LightColorScheme = lightColorScheme(
     onErrorContainer = OnErrorContainerLight
 )
 
+val DarkColorScheme = buildDarkColorScheme(AccentColor.BLUE)
+
+private val LightColorScheme = buildLightColorScheme(AccentColor.BLUE)
+
 /**
- * Tema principal de la aplicación con soporte para Material You (Dynamic Color) y temas Claro/Oscuro de alto contraste.
+ * Tema principal de la aplicación con soporte para personalización de tema (Claro/Oscuro/Sistema),
+ * colores de acento dinámicos o personalizados de alto contraste.
  *
- * @param darkTheme Determina si se aplica la paleta oscura (por defecto según el sistema operativo).
- * @param dynamicColor Habilita colores dinámicos del sistema (falso por defecto para garantizar contraste de seguridad).
+ * @param darkTheme Determina si se aplica la paleta oscura.
+ * @param accentColor Color de acento seleccionado por el usuario.
+ * @param dynamicColor Habilita colores dinámicos del sistema si accentColor es [AccentColor.DYNAMIC].
  * @param content Contenido composable a envolver en el tema.
  */
 @Composable
 fun AppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false,
+    accentColor: AccentColor = AccentColor.BLUE,
+    dynamicColor: Boolean = (accentColor == AccentColor.DYNAMIC),
     content: @Composable () -> Unit
 ) {
+    val context = LocalContext.current
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        darkTheme -> buildDarkColorScheme(accentColor)
+        else -> buildLightColorScheme(accentColor)
     }
 
     val view = LocalView.current
@@ -99,6 +119,7 @@ fun AppTheme(
             @Suppress("DEPRECATION")
             window.statusBarColor = colorScheme.background.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
         }
     }
 

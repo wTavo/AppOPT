@@ -41,6 +41,7 @@ import com.example.appopt.R
 import com.example.appopt.data.cloud.GoogleDriveManager
 import com.example.appopt.ui.screens.scan.QrScannerDialog
 import com.example.appopt.ui.screens.scan.QrScannerMode
+import com.example.appopt.ui.screens.settings.components.AppearanceSettingsCard
 import com.example.appopt.ui.screens.settings.components.AppUpdateSettingsCard
 import com.example.appopt.ui.screens.settings.components.DriveSyncSettingsCard
 import com.example.appopt.ui.screens.settings.components.PerformanceSettingsCard
@@ -201,13 +202,21 @@ fun SettingsScreen(
                 onRequestInstallPackages = { permissionsState.requestInstallPackages() }
             )
 
-            // 2. Tarjeta de Rendimiento y Diagnóstico
+            // 2. Tarjeta de Aspecto y Tema (Modo claro/oscuro y Color de acento)
+            AppearanceSettingsCard(
+                currentThemeMode = uiState.themeMode,
+                currentAccentColor = uiState.accentColor,
+                onThemeModeChanged = { mode -> viewModel.setThemeMode(mode) },
+                onAccentColorChanged = { accent -> viewModel.setAccentColor(accent) }
+            )
+
+            // 3. Tarjeta de Rendimiento y Diagnóstico
             PerformanceSettingsCard(
                 isFpsOverlayEnabled = uiState.isFpsOverlayEnabled,
                 onFpsOverlayChanged = { enabled -> viewModel.setFpsOverlayEnabled(enabled) }
             )
 
-            // 3. Tarjeta de Transferencia Offline por Código QR
+            // 4. Tarjeta de Transferencia Offline por Código QR
             TransferSettingsCard(
                 accounts = uiState.accounts,
                 onExportClick = {

@@ -469,5 +469,21 @@
     <string name="update_dialog_later">Más tarde</string>
     <string name="update_dialog_action">Actualizar</string>
 
+    <!-- Personalización de Aspecto y Tema (Directivas 1 y 2) -->
+    <string name="settings_appearance_card_title">Aspecto y tema</string>
+    <string name="settings_appearance_card_desc">Personaliza el tema visual y el color de acento de la aplicación.</string>
+    <string name="settings_appearance_theme_mode_title">Tema visual</string>
+    <string name="settings_appearance_accent_color_title">Color de acento</string>
+    <string name="theme_mode_system">Sistema</string>
+    <string name="theme_mode_light">Claro</string>
+    <string name="theme_mode_dark">Oscuro</string>
+    <string name="accent_color_blue">Azul zafiro</string>
+    <string name="accent_color_green">Verde esmeralda</string>
+    <string name="accent_color_purple">Púrpura</string>
+    <string name="accent_color_orange">Ámbar</string>
+    <string name="accent_color_red">Carmesí</string>
+    <string name="accent_color_teal">Turquesa</string>
+    <string name="accent_color_dynamic">Dinámico</string>
+
 </resources>
 

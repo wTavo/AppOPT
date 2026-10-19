@@ -8,11 +8,14 @@ import com.example.appopt.domain.model.IncomingSharedService
 import com.example.appopt.domain.model.OutgoingShareGrant
 import com.example.appopt.domain.model.ShareAccessMode
 import com.example.appopt.domain.model.ShareBatchDuration
+import com.example.appopt.domain.model.ShareGrantStatus
 import com.example.appopt.domain.model.SharedOtpBatch
 import com.example.appopt.security.SecurityConfig
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.nio.charset.StandardCharsets
@@ -42,9 +45,6 @@ object SharedBatchKeyStore {
 
     /**
      * Guarda un lote precalculado cifrándolo con la clave maestra del Android Keystore.
-     *
-     * @param context Contexto de la aplicación.
-     * @param batch Lote de códigos temporales a resguardar.
      */
     fun saveBatch(context: Context, batch: SharedOtpBatch) {
         memoryCache[batch.grantId] = batch
@@ -65,11 +65,6 @@ object SharedBatchKeyStore {
 
     /**
      * Recupera un lote precalculado válido para el permiso indicado, o lo destruye si ha expirado.
-     *
-     * @param context Contexto de la aplicación.
-     * @param grantId Identificador del permiso compartido.
-     * @param nowMillis Marca de tiempo actual en milisegundos.
-     * @return [SharedOtpBatch] vigente, o `null` si no existe o caducó.
      */
     fun getValidBatch(
         context: Context,
@@ -77,9 +72,7 @@ object SharedBatchKeyStore {
         nowMillis: Long = System.currentTimeMillis()
     ): SharedOtpBatch? {
         memoryCache[grantId]?.let { cached ->
-            if (!cached.isExpired(nowMillis)) {
-                return cached
-            }
+            if (!cached.isExpired(nowMillis)) return cached
             removeBatch(context, grantId)
             return null
         }
@@ -112,9 +105,6 @@ object SharedBatchKeyStore {
 
     /**
      * Elimina de forma inmediata y permanente el lote asociado a un permiso (ej. tras revocación).
-     *
-     * @param context Contexto de la aplicación.
-     * @param grantId Identificador del permiso revocado o caducado.
      */
     fun removeBatch(context: Context, grantId: String) {
         memoryCache.remove(grantId)
@@ -134,8 +124,6 @@ object SharedBatchKeyStore {
 
     /**
      * Elimina todos los lotes y metadatos almacenados tanto en memoria como en disco al desvincular la cuenta.
-     *
-     * @param context Contexto de la aplicación.
      */
     fun clearAllBatches(context: Context) {
         memoryCache.clear()
@@ -144,11 +132,7 @@ object SharedBatchKeyStore {
     }
 
     /**
-     * Guarda en caché local la lista de metadatos de servicios compartidos recibidos (sin secretos)
-     * para permitir la consulta de lotes sin conexión vigentes cuando el dispositivo no tiene internet.
-     *
-     * @param context Contexto de la aplicación.
-     * @param services Lista de [IncomingSharedService] recibidos.
+     * Guarda en caché local la lista de metadatos de servicios compartidos recibidos (sin secretos).
      */
     fun saveCachedIncomingServices(context: Context, services: List<IncomingSharedService>) {
         val json = serializeIncomingServicesJson(services)
@@ -159,27 +143,60 @@ object SharedBatchKeyStore {
     }
 
     /**
+     * Parsea un objeto JSON individual hacia [IncomingSharedService].
+     */
+    internal fun parseIncomingServiceJsonObject(obj: JSONObject): IncomingSharedService {
+        return IncomingSharedService(
+            grantId = obj.getString("grantId"),
+            ownerEmail = obj.getString("ownerEmail"),
+            issuer = obj.optString("issuer", ""),
+            accountName = obj.optString("accountName", ""),
+            digits = obj.optInt("digits", SecurityConfig.DEFAULT_OTP_DIGITS),
+            period = obj.optInt("period", SecurityConfig.DEFAULT_TOTP_PERIOD_SECONDS),
+            accessMode = ShareAccessMode.fromWireValue(obj.optString("accessMode")),
+            batchHours = obj.optInt("batchHours", ShareBatchDuration.TWENTY_FOUR_HOURS.hours),
+            status = ShareGrantStatus.fromWireValue(obj.optString("status")),
+            isFavorite = obj.optBoolean("isFavorite", false),
+            orderIndex = obj.optInt("orderIndex", 0)
+        )
+    }
+
+    /**
+     * Parsea un objeto JSON individual hacia [OutgoingShareGrant].
+     */
+    internal fun parseOutgoingGrantJsonObject(obj: JSONObject): OutgoingShareGrant {
+        return OutgoingShareGrant(
+            grantId = obj.getString("grantId"),
+            accountId = obj.optString("accountId", obj.optString("serviceId", "")),
+            issuer = obj.optString("issuer", ""),
+            accountName = obj.optString("accountName", ""),
+            guestEmail = obj.getString("guestEmail"),
+            accessMode = ShareAccessMode.fromWireValue(obj.optString("accessMode")),
+            batchHours = obj.optInt("batchHours", ShareBatchDuration.TWENTY_FOUR_HOURS.hours),
+            createdAtMillis = obj.optLong("createdAtMillis", 0L),
+            status = ShareGrantStatus.fromWireValue(obj.optString("status"))
+        )
+    }
+
+    /**
      * Serializa una lista de [IncomingSharedService] a una cadena JSON.
-     *
-     * @param services Lista de servicios entrantes.
-     * @return Cadena JSON que representa la lista.
      */
     internal fun serializeIncomingServicesJson(services: List<IncomingSharedService>): String {
         val arr = JSONArray()
-        for ((grantId, ownerEmail, issuer, accountName, digits, period, accessMode, batchHours, status, isFavorite, orderIndex) in services) {
+        for (s in services) {
             arr.put(
                 JSONObject().apply {
-                    put("grantId", grantId)
-                    put("ownerEmail", ownerEmail)
-                    put("issuer", issuer)
-                    put("accountName", accountName)
-                    put("digits", digits)
-                    put("period", period)
-                    put("accessMode", accessMode.name)
-                    put("batchHours", batchHours)
-                    put("status", status.name)
-                    put("isFavorite", isFavorite)
-                    put("orderIndex", orderIndex)
+                    put("grantId", s.grantId)
+                    put("ownerEmail", s.ownerEmail)
+                    put("issuer", s.issuer)
+                    put("accountName", s.accountName)
+                    put("digits", s.digits)
+                    put("period", s.period)
+                    put("accessMode", s.accessMode.name)
+                    put("batchHours", s.batchHours)
+                    put("status", s.status.name)
+                    put("isFavorite", s.isFavorite)
+                    put("orderIndex", s.orderIndex)
                 }
             )
         }
@@ -188,9 +205,6 @@ object SharedBatchKeyStore {
 
     /**
      * Deserializa una cadena JSON a una lista inmutable de [IncomingSharedService].
-     *
-     * @param raw Cadena JSON cruda.
-     * @return Lista parseada o lista vacía ante error.
      */
     internal fun deserializeIncomingServicesJson(raw: String): List<IncomingSharedService> {
         return try {
@@ -198,21 +212,7 @@ object SharedBatchKeyStore {
             val list = ArrayList<IncomingSharedService>(arr.length())
             for (i in 0 until arr.length()) {
                 val obj = arr.optJSONObject(i) ?: continue
-                list.add(
-                    IncomingSharedService(
-                        grantId = obj.getString("grantId"),
-                        ownerEmail = obj.getString("ownerEmail"),
-                        issuer = obj.optString("issuer", ""),
-                        accountName = obj.optString("accountName", ""),
-                        digits = obj.optInt("digits", SecurityConfig.DEFAULT_OTP_DIGITS),
-                        period = obj.optInt("period", SecurityConfig.DEFAULT_TOTP_PERIOD_SECONDS),
-                        accessMode = ShareAccessMode.fromWireValue(obj.optString("accessMode")),
-                        batchHours = obj.optInt("batchHours", ShareBatchDuration.TWENTY_FOUR_HOURS.hours),
-                        status = com.example.appopt.domain.model.ShareGrantStatus.fromWireValue(obj.optString("status")),
-                        isFavorite = obj.optBoolean("isFavorite", false),
-                        orderIndex = obj.optInt("orderIndex", 0)
-                    )
-                )
+                list.add(parseIncomingServiceJsonObject(obj))
             }
             list.sortedWith(
                 compareByDescending<IncomingSharedService> { it.isFavorite }
@@ -226,9 +226,6 @@ object SharedBatchKeyStore {
 
     /**
      * Recupera de la caché local los metadatos de servicios compartidos recibidos.
-     *
-     * @param context Contexto de la aplicación.
-     * @return Lista de [IncomingSharedService] almacenada o lista vacía.
      */
     fun getCachedIncomingServices(context: Context): List<IncomingSharedService> {
         val raw = getPrefs(context).getString(SecurityConfig.SHARED_CACHED_INCOMING_KEY, null) ?: return emptyList()
@@ -237,13 +234,9 @@ object SharedBatchKeyStore {
 
     /**
      * Alterna el estado de favorito de un servicio compartido recibido.
-     *
-     * @param context Contexto de la aplicación.
-     * @param grantId Identificador único del permiso de servicio compartido.
      */
     fun toggleIncomingFavorite(context: Context, grantId: String) {
-        val current = getCachedIncomingServices(context)
-        val updated = current.map {
+        val updated = getCachedIncomingServices(context).map {
             if (it.grantId == grantId) it.copy(isFavorite = !it.isFavorite) else it
         }.sortedWith(
             compareByDescending<IncomingSharedService> { it.isFavorite }
@@ -255,24 +248,21 @@ object SharedBatchKeyStore {
 
     /**
      * Guarda en caché local la lista de permisos otorgados por el propietario.
-     *
-     * @param context Contexto de la aplicación.
-     * @param grants Lista de [OutgoingShareGrant] activos.
      */
     fun saveCachedOutgoingGrants(context: Context, grants: List<OutgoingShareGrant>) {
         val arr = JSONArray()
-        for ((grantId, accountId, issuer, accountName, guestEmail, accessMode, batchHours, createdAtMillis, status) in grants) {
+        for (g in grants) {
             arr.put(
                 JSONObject().apply {
-                    put("grantId", grantId)
-                    put("accountId", accountId)
-                    put("issuer", issuer)
-                    put("accountName", accountName)
-                    put("guestEmail", guestEmail)
-                    put("accessMode", accessMode.name)
-                    put("batchHours", batchHours)
-                    put("createdAtMillis", createdAtMillis)
-                    put("status", status.name)
+                    put("grantId", g.grantId)
+                    put("accountId", g.accountId)
+                    put("issuer", g.issuer)
+                    put("accountName", g.accountName)
+                    put("guestEmail", g.guestEmail)
+                    put("accessMode", g.accessMode.name)
+                    put("batchHours", g.batchHours)
+                    put("createdAtMillis", g.createdAtMillis)
+                    put("status", g.status.name)
                 }
             )
         }
@@ -284,9 +274,6 @@ object SharedBatchKeyStore {
 
     /**
      * Recupera de la caché local la lista de permisos otorgados por el propietario.
-     *
-     * @param context Contexto de la aplicación.
-     * @return Lista de [OutgoingShareGrant] almacenada o lista vacía.
      */
     fun getCachedOutgoingGrants(context: Context): List<OutgoingShareGrant> {
         val raw = getPrefs(context).getString(SecurityConfig.SHARED_CACHED_OUTGOING_KEY, null) ?: return emptyList()
@@ -295,19 +282,7 @@ object SharedBatchKeyStore {
             val list = ArrayList<OutgoingShareGrant>(arr.length())
             for (i in 0 until arr.length()) {
                 val obj = arr.optJSONObject(i) ?: continue
-                list.add(
-                    OutgoingShareGrant(
-                        grantId = obj.getString("grantId"),
-                        accountId = obj.optString("accountId", ""),
-                        issuer = obj.optString("issuer", ""),
-                        accountName = obj.optString("accountName", ""),
-                        guestEmail = obj.getString("guestEmail"),
-                        accessMode = ShareAccessMode.fromWireValue(obj.optString("accessMode")),
-                        batchHours = obj.optInt("batchHours", ShareBatchDuration.TWENTY_FOUR_HOURS.hours),
-                        createdAtMillis = obj.optLong("createdAtMillis", 0L),
-                        status = com.example.appopt.domain.model.ShareGrantStatus.fromWireValue(obj.optString("status"))
-                    )
-                )
+                list.add(parseOutgoingGrantJsonObject(obj))
             }
             list
         } catch (_: Exception) {
@@ -317,9 +292,6 @@ object SharedBatchKeyStore {
 
     /**
      * Serializa un [SharedOtpBatch] a una cadena JSON compacta.
-     *
-     * @param batch Lote de códigos temporales.
-     * @return Representación JSON.
      */
     fun serializeBatch(batch: SharedOtpBatch): String {
         val codesObj = JSONObject()
@@ -337,9 +309,6 @@ object SharedBatchKeyStore {
 
     /**
      * Deserializa un [SharedOtpBatch] a partir de su representación JSON.
-     *
-     * @param jsonString Cadena JSON con la estructura del lote.
-     * @return Instancia reconstruida de [SharedOtpBatch].
      */
     fun deserializeBatch(jsonString: String): SharedOtpBatch {
         val root = JSONObject(jsonString)
@@ -372,13 +341,9 @@ object SharedBatchKeyStore {
     /**
      * Sincroniza desde la nube los servicios compartidos entrantes y salientes, unificando el estado
      * con la caché local y preservando favoritos, índices de ordenación y ventanas de un solo uso activas.
-     *
-     * @param context Contexto de la aplicación.
-     * @param token Token OAuth2 de Google con autorización vigente.
-     * @return [Result] que confirma la sincronización exitosa o reporta el fallo de red.
      */
     suspend fun syncSharedServicesFromCloud(context: Context, token: String): Result<Unit> =
-        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        withContext(Dispatchers.IO) {
             try {
                 val incomingRes = SharedServicesCloudClient.fetchIncomingServices(token)
                 val outgoingRes = SharedServicesCloudClient.fetchOutgoingGrants(token)

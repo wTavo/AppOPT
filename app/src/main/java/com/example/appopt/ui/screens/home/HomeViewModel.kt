@@ -6,7 +6,6 @@ import com.example.appopt.AuthenticatorApp
 import com.example.appopt.domain.model.AccountWithCode
 import com.example.appopt.security.SecurityConfig
 import com.example.appopt.ui.common.UiState
-import com.example.appopt.ui.screens.home.model.CloudSyncUiState
 import com.example.appopt.data.cloud.CloudVaultSyncManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

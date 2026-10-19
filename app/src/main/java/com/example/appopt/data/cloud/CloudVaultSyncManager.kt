@@ -176,7 +176,7 @@ object CloudVaultSyncManager {
      * @param context Contexto de la aplicación.
      */
     fun syncImmediately(context: Context) {
-        val prefsManager = com.example.appopt.data.local.PreferencesManager(context)
+        val prefsManager = com.example.appopt.AuthenticatorApp.instance.preferencesManager
         if (!prefsManager.isGoogleDriveConnected()) {
             return
         }
@@ -225,7 +225,7 @@ object CloudVaultSyncManager {
         context: Context,
         debounceSeconds: Long = DEFAULT_DEBOUNCE_SECONDS
     ) {
-        val prefsManager = com.example.appopt.data.local.PreferencesManager(context)
+        val prefsManager = com.example.appopt.AuthenticatorApp.instance.preferencesManager
         if (debounceSeconds > 0L) {
             prefsManager.markVaultModifiedIfDisconnected()
         }

@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
 import com.example.appopt.data.cloud.DriveBackupItem
+import com.example.appopt.performance.AppCrashTracker
 import com.example.appopt.performance.PerformanceMonitor
 import com.example.appopt.ui.theme.AccentColor
 import com.example.appopt.ui.theme.ThemeMode
@@ -12,9 +13,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.UUID
 
 /**
- * Gestor de preferencias de usuario persistentes (modo de privacidad, etc.).
+ * Gestor centralizado de preferencias persistentes del usuario y estado de sincronización local (Directiva 6).
  *
  * @param context Contexto de la aplicación.
  */
@@ -26,26 +28,33 @@ class PreferencesManager(context: Context) {
     )
 
     private val _themeMode = MutableStateFlow(ThemeMode.fromKey(sharedPreferences.getString(KEY_THEME_MODE, ThemeMode.SYSTEM.name)))
+    /** Flujo reactivo del modo de tema visual. */
     val themeModeFlow: StateFlow<ThemeMode> = _themeMode.asStateFlow()
 
     private val _accentColor = MutableStateFlow(AccentColor.fromKey(sharedPreferences.getString(KEY_ACCENT_COLOR, AccentColor.BLUE.name)))
+    /** Flujo reactivo de la paleta de color de acento. */
     val accentColorFlow: StateFlow<AccentColor> = _accentColor.asStateFlow()
 
     private val _isHideCodesEnabled = MutableStateFlow(sharedPreferences.getBoolean(KEY_HIDE_CODES, false))
 
     private val _isDriveConnected = MutableStateFlow(sharedPreferences.getBoolean(KEY_DRIVE_CONNECTED, false))
+    /** Flujo reactivo que indica si existe una cuenta de Google Drive vinculada. */
     val isGoogleDriveConnectedFlow: StateFlow<Boolean> = _isDriveConnected.asStateFlow()
 
     private val _isDriveBackupEncrypted = MutableStateFlow(sharedPreferences.getBoolean(KEY_DRIVE_BACKUP_ENCRYPTED, true))
+    /** Flujo reactivo que indica si la copia en Google Drive usa cifrado E2EE. */
     val isDriveBackupEncryptedFlow: StateFlow<Boolean> = _isDriveBackupEncrypted.asStateFlow()
 
     private val _lastSyncTimestamp = MutableStateFlow(sharedPreferences.getLong(KEY_DRIVE_LAST_SYNC, 0L))
+    /** Flujo reactivo de la marca de tiempo de la última sincronización en la nube. */
     val lastSyncTimestampFlow: StateFlow<Long> = _lastSyncTimestamp.asStateFlow()
 
     private val _lastSyncedVaultHash = MutableStateFlow(sharedPreferences.getString(KEY_LAST_VAULT_HASH, null))
+    /** Flujo reactivo de la última huella SHA-256 sincronizada. */
     val lastSyncedVaultHashFlow: StateFlow<String?> = _lastSyncedVaultHash.asStateFlow()
 
     private val _isAutoSyncEnabled = MutableStateFlow(sharedPreferences.getBoolean(KEY_AUTO_SYNC_ENABLED, true))
+    /** Flujo reactivo del estado de activación de la copia automática. */
     val isAutoSyncEnabledFlow: StateFlow<Boolean> = _isAutoSyncEnabled.asStateFlow()
 
     private val _isSyncMobileData = MutableStateFlow(sharedPreferences.getBoolean(KEY_SYNC_MOBILE_DATA, false))
@@ -55,6 +64,7 @@ class PreferencesManager(context: Context) {
     val isFpsOverlayEnabledFlow: StateFlow<Boolean> = _isFpsOverlayEnabled.asStateFlow()
 
     private val _lastBackupHistoryFetchTimestamp = MutableStateFlow(sharedPreferences.getLong(KEY_LAST_BACKUP_HISTORY_FETCH, 0L))
+    /** Flujo reactivo de la marca de tiempo de la última consulta del historial de copias. */
     val lastBackupHistoryFetchTimestampFlow: StateFlow<Long> = _lastBackupHistoryFetchTimestamp.asStateFlow()
 
     private val _connectedDriveEmail = MutableStateFlow(sharedPreferences.getString(KEY_CONNECTED_DRIVE_EMAIL, null))
@@ -82,178 +92,103 @@ class PreferencesManager(context: Context) {
         sharedPreferences.registerOnSharedPreferenceChangeListener(preferenceChangeListener)
     }
 
-    /**
-     * Retorna si el modo de ocultar códigos está habilitado de forma persistente.
-     */
-    fun isHideCodesEnabled(): Boolean {
-        return _isHideCodesEnabled.value
-    }
+    /** Retorna si el modo de ocultar códigos está habilitado de forma persistente. */
+    fun isHideCodesEnabled(): Boolean = _isHideCodesEnabled.value
 
-    /**
-     * Guarda el estado de ocultar códigos en disco.
-     */
+    /** Guarda el estado de ocultar códigos en disco. */
     fun setHideCodesEnabled(enabled: Boolean) {
         _isHideCodesEnabled.value = enabled
         sharedPreferences.edit { putBoolean(KEY_HIDE_CODES, enabled) }
     }
 
-    /**
-     * Retorna si la cuenta de Google Drive ha sido conectada previamente.
-     */
-    fun isGoogleDriveConnected(): Boolean {
-        return _isDriveConnected.value
-    }
+    /** Retorna si la cuenta de Google Drive ha sido conectada previamente. */
+    fun isGoogleDriveConnected(): Boolean = _isDriveConnected.value
 
-    /**
-     * Guarda el estado de conexión con Google Drive.
-     */
+    /** Guarda el estado de conexión con Google Drive. */
     fun setGoogleDriveConnected(connected: Boolean) {
         _isDriveConnected.value = connected
         sharedPreferences.edit { putBoolean(KEY_DRIVE_CONNECTED, connected) }
     }
 
-    /**
-     * Retorna si el cifrado de extremo a extremo (E2EE) está habilitado para las copias en Google Drive.
-     */
-    fun isDriveBackupEncrypted(): Boolean {
-        return _isDriveBackupEncrypted.value
-    }
+    /** Retorna si el cifrado de extremo a extremo (E2EE) está habilitado para las copias en Google Drive. */
+    fun isDriveBackupEncrypted(): Boolean = _isDriveBackupEncrypted.value
 
-    /**
-     * Guarda la preferencia de cifrado de extremo a extremo para las copias en Google Drive.
-     */
+    /** Guarda la preferencia de cifrado de extremo a extremo para las copias en Google Drive. */
     fun setDriveBackupEncrypted(enabled: Boolean) {
         _isDriveBackupEncrypted.value = enabled
         sharedPreferences.edit { putBoolean(KEY_DRIVE_BACKUP_ENCRYPTED, enabled) }
     }
 
-    /**
-     * Retorna la marca de tiempo (timestamp en millis) de la última sincronización en Drive.
-     */
-    fun getLastSyncTimestamp(): Long {
-        return _lastSyncTimestamp.value
-    }
+    /** Retorna la marca de tiempo (ms) de la última sincronización en Drive. */
+    fun getLastSyncTimestamp(): Long = _lastSyncTimestamp.value
 
-    /**
-     * Guarda la marca de tiempo de la última sincronización en Drive.
-     */
+    /** Guarda la marca de tiempo de la última sincronización en Drive. */
     fun setLastSyncTimestamp(timestamp: Long) {
         _lastSyncTimestamp.value = timestamp
         sharedPreferences.edit { putLong(KEY_DRIVE_LAST_SYNC, timestamp) }
     }
 
-    /**
-     * Indica si la bóveda local ha sido inicializada y sincronizada con Google Drive en este dispositivo.
-     *
-     * Una bóveda se considera inicializada cuando la cuenta de Google Drive está conectada
-     * y se ha creado o restaurado exitosamente al menos una copia de seguridad ([getLastSyncTimestamp] > 0).
-     *
-     * @return `true` si la bóveda está inicializada y lista para sincronización automática, `false` en caso contrario.
-     */
-    fun isCloudVaultInitialized(): Boolean {
-        return isGoogleDriveConnected() && getLastSyncTimestamp() > 0L
-    }
+    /** Indica si la bóveda local ha sido inicializada y sincronizada con Google Drive en este dispositivo. */
+    fun isCloudVaultInitialized(): Boolean = isGoogleDriveConnected() && getLastSyncTimestamp() > 0L
 
-    /**
-     * Retorna si la copia de seguridad automática está activada (por defecto true).
-     */
-    fun isAutoSyncEnabled(): Boolean {
-        return _isAutoSyncEnabled.value
-    }
+    /** Retorna si la copia de seguridad automática está activada (por defecto true). */
+    fun isAutoSyncEnabled(): Boolean = _isAutoSyncEnabled.value
 
-    /**
-     * Guarda el estado de activación de la copia de seguridad automática.
-     */
+    /** Guarda el estado de activación de la copia de seguridad automática. */
     fun setAutoSyncEnabled(enabled: Boolean) {
         _isAutoSyncEnabled.value = enabled
         sharedPreferences.edit { putBoolean(KEY_AUTO_SYNC_ENABLED, enabled) }
     }
 
-    /**
-     * Retorna si la sincronización puede usar datos móviles (por defecto false -> solo Wi-Fi).
-     */
-    fun isSyncMobileDataAllowed(): Boolean {
-        return _isSyncMobileData.value
-    }
+    /** Retorna si la sincronización puede usar datos móviles (por defecto false -> solo Wi-Fi). */
+    fun isSyncMobileDataAllowed(): Boolean = _isSyncMobileData.value
 
-    /**
-     * Guarda la preferencia de uso de datos móviles para sincronización.
-     */
+    /** Guarda la preferencia de uso de datos móviles para sincronización. */
     fun setSyncMobileDataAllowed(allowed: Boolean) {
         _isSyncMobileData.value = allowed
         sharedPreferences.edit { putBoolean(KEY_SYNC_MOBILE_DATA, allowed) }
     }
 
-    /**
-     * Retorna el último hash SHA-256 de la bóveda sincronizada en la nube.
-     */
-    fun getLastSyncedVaultHash(): String? {
-        return _lastSyncedVaultHash.value
-    }
+    /** Retorna el último hash SHA-256 de la bóveda sincronizada en la nube. */
+    fun getLastSyncedVaultHash(): String? = _lastSyncedVaultHash.value
 
-    /**
-     * Guarda el hash SHA-256 de la bóveda sincronizada.
-     */
+    /** Guarda el hash SHA-256 de la bóveda sincronizada. */
     fun setLastSyncedVaultHash(hash: String) {
         _lastSyncedVaultHash.value = hash
         sharedPreferences.edit { putString(KEY_LAST_VAULT_HASH, hash) }
     }
 
+    /** Retorna si la superposición visual de FPS y registros de rendimiento está habilitada. */
+    fun isFpsOverlayEnabled(): Boolean = _isFpsOverlayEnabled.value
 
-    /**
-     * Retorna si la superposición visual de FPS y registros de rendimiento está habilitada.
-     */
-    fun isFpsOverlayEnabled(): Boolean {
-        return _isFpsOverlayEnabled.value
-    }
-
-    /**
-     * Guarda el estado de la superposición visual de FPS y activa/detiene el monitor y rastreo de diagnóstico.
-     */
+    /** Guarda el estado de la superposición visual de FPS y activa/detiene el monitor y rastreo de diagnóstico. */
     fun setFpsOverlayEnabled(enabled: Boolean) {
         _isFpsOverlayEnabled.value = enabled
         sharedPreferences.edit { putBoolean(KEY_FPS_OVERLAY, enabled) }
-        com.example.appopt.performance.AppCrashTracker.isEnabled = enabled
-        if (enabled) {
-            PerformanceMonitor.start()
-        } else {
-            PerformanceMonitor.stop()
-        }
+        AppCrashTracker.isEnabled = enabled
+        if (enabled) PerformanceMonitor.start() else PerformanceMonitor.stop()
     }
 
-    /**
-     * Retorna la marca de tiempo de la última consulta de historial de copias de seguridad de Google Drive.
-     */
-    fun getLastBackupHistoryFetchTimestamp(): Long {
-        return _lastBackupHistoryFetchTimestamp.value
-    }
+    /** Retorna la marca de tiempo de la última consulta de historial de copias de seguridad de Google Drive. */
+    fun getLastBackupHistoryFetchTimestamp(): Long = _lastBackupHistoryFetchTimestamp.value
 
-    /**
-     * Guarda la marca de tiempo de la última consulta de historial de copias de seguridad.
-     */
+    /** Guarda la marca de tiempo de la última consulta de historial de copias de seguridad. */
     fun setLastBackupHistoryFetchTimestamp(timestamp: Long) {
         _lastBackupHistoryFetchTimestamp.value = timestamp
         sharedPreferences.edit { putLong(KEY_LAST_BACKUP_HISTORY_FETCH, timestamp) }
     }
 
-    /**
-     * Retorna el identificador único e inmutable de instalación de este dispositivo.
-     * Si no existe, se genera determinísticamente mediante [java.util.UUID] y se persiste en disco.
-     */
+    /** Retorna el identificador único e inmutable de instalación de este dispositivo. */
     fun getInstallationId(): String {
         var id = sharedPreferences.getString(KEY_INSTALLATION_ID, null)
         if (id.isNullOrEmpty()) {
-            id = java.util.UUID.randomUUID().toString()
+            id = UUID.randomUUID().toString()
             sharedPreferences.edit { putString(KEY_INSTALLATION_ID, id) }
         }
         return id
     }
 
-    /**
-     * Recupera la lista de versiones de respaldo de Google Drive almacenadas localmente en caché.
-     *
-     * @return Lista de [DriveBackupItem] o lista vacía si no hay caché persistida.
-     */
+    /** Recupera la lista de versiones de respaldo de Google Drive almacenadas localmente en caché. */
     fun getCachedBackupHistory(): List<DriveBackupItem> {
         val jsonStr = sharedPreferences.getString(KEY_CACHED_BACKUP_HISTORY, null) ?: return emptyList()
         return try {
@@ -281,144 +216,89 @@ class PreferencesManager(context: Context) {
         }
     }
 
-    /**
-     * Guarda de forma persistente la lista de versiones de respaldo de Google Drive en caché local JSON.
-     *
-     * @param items Lista de [DriveBackupItem] a guardar.
-     */
+    /** Guarda de forma persistente la lista de versiones de respaldo de Google Drive en caché local JSON. */
     fun setCachedBackupHistory(items: List<DriveBackupItem>) {
-        try {
+        runCatching {
             val jsonArray = JSONArray()
-            for ((fileId, fileName, modifiedTimeMillis, sizeBytes, deviceName, isMostRecent, deviceId, isEncrypted, vaultHash) in items) {
-                val obj = JSONObject().apply {
-                    put("fileId", fileId)
-                    put("fileName", fileName)
-                    put("modifiedTimeMillis", modifiedTimeMillis)
-                    put("sizeBytes", sizeBytes)
-                    put("deviceName", deviceName)
-                    put("deviceId", deviceId)
-                    put("isMostRecent", isMostRecent)
-                    put("isEncrypted", isEncrypted)
-                    put("vaultHash", vaultHash)
-                }
-                jsonArray.put(obj)
+            for (item in items) {
+                jsonArray.put(
+                    JSONObject().apply {
+                        put("fileId", item.fileId)
+                        put("fileName", item.fileName)
+                        put("modifiedTimeMillis", item.modifiedTimeMillis)
+                        put("sizeBytes", item.sizeBytes)
+                        put("deviceName", item.deviceName)
+                        put("deviceId", item.deviceId)
+                        put("isMostRecent", item.isMostRecent)
+                        put("isEncrypted", item.isEncrypted)
+                        put("vaultHash", item.vaultHash)
+                    }
+                )
             }
             sharedPreferences.edit { putString(KEY_CACHED_BACKUP_HISTORY, jsonArray.toString()) }
-        } catch (_: Exception) {
-            // Ignorar errores no críticos de persistencia de caché
         }
     }
 
-    /**
-     * Retorna el correo electrónico de la cuenta de Google actualmente vinculada, o `null` si está desconectada.
-     */
-    fun getConnectedDriveEmail(): String? {
-        return sharedPreferences.getString(KEY_CONNECTED_DRIVE_EMAIL, null)
-    }
+    /** Retorna el correo electrónico de la cuenta de Google actualmente vinculada, o `null` si está desconectada. */
+    fun getConnectedDriveEmail(): String? = sharedPreferences.getString(KEY_CONNECTED_DRIVE_EMAIL, null)
 
-    /**
-     * Guarda o limpia el correo electrónico de la cuenta de Google actualmente vinculada.
-     */
+    /** Guarda o limpia el correo electrónico de la cuenta de Google actualmente vinculada. */
     fun setConnectedDriveEmail(email: String?) {
         val sanitized = email?.takeIf { it.isNotBlank() }
         _connectedDriveEmail.value = sanitized
-        sharedPreferences.edit {
-            if (sanitized == null) {
-                remove(KEY_CONNECTED_DRIVE_EMAIL)
-            } else {
-                putString(KEY_CONNECTED_DRIVE_EMAIL, sanitized)
-            }
-        }
+        setNullableString(KEY_CONNECTED_DRIVE_EMAIL, sanitized)
     }
 
-    /**
-     * Retorna el último correo de Google que inicializó la bóveda en este dispositivo para detectar cambios de cuenta.
-     */
-    fun getLastKnownDriveEmail(): String? {
-        return sharedPreferences.getString(KEY_LAST_KNOWN_DRIVE_EMAIL, null)
-    }
+    /** Retorna el último correo de Google que inicializó la bóveda en este dispositivo para detectar cambios de cuenta. */
+    fun getLastKnownDriveEmail(): String? = sharedPreferences.getString(KEY_LAST_KNOWN_DRIVE_EMAIL, null)
 
-    /**
-     * Guarda el correo de Google propietario de la clave custodiada actualmente en [com.example.appopt.data.cloud.CloudVaultKeyStore].
-     */
-    fun setLastKnownDriveEmail(email: String?) {
-        sharedPreferences.edit {
-            if (email.isNullOrBlank()) {
-                remove(KEY_LAST_KNOWN_DRIVE_EMAIL)
-            } else {
-                putString(KEY_LAST_KNOWN_DRIVE_EMAIL, email)
-            }
-        }
-    }
+    /** Guarda el correo de Google propietario de la clave custodiada actualmente. */
+    fun setLastKnownDriveEmail(email: String?) = setNullableString(KEY_LAST_KNOWN_DRIVE_EMAIL, email)
 
-    /**
-     * Retorna la última firma criptográfica SHA-256 confirmada en la nube antes de desvincular la cuenta.
-     */
-    fun getLastKnownSyncedVaultHash(): String? {
-        return sharedPreferences.getString(KEY_LAST_KNOWN_SYNCED_VAULT_HASH, null)
-    }
+    /** Retorna la última firma criptográfica SHA-256 confirmada en la nube antes de desvincular la cuenta. */
+    fun getLastKnownSyncedVaultHash(): String? = sharedPreferences.getString(KEY_LAST_KNOWN_SYNCED_VAULT_HASH, null)
 
-    /**
-     * Guarda la última firma criptográfica SHA-256 confirmada en la nube para validar paridad exacta al reconectar.
-     */
-    fun setLastKnownSyncedVaultHash(hash: String?) {
-        sharedPreferences.edit {
-            if (hash.isNullOrBlank()) {
-                remove(KEY_LAST_KNOWN_SYNCED_VAULT_HASH)
-            } else {
-                putString(KEY_LAST_KNOWN_SYNCED_VAULT_HASH, hash)
-            }
-        }
-    }
+    /** Guarda la última firma criptográfica SHA-256 confirmada en la nube para validar paridad exacta al reconectar. */
+    fun setLastKnownSyncedVaultHash(hash: String?) = setNullableString(KEY_LAST_KNOWN_SYNCED_VAULT_HASH, hash)
 
-    /**
-     * Indica si la bóveda local sufrió cualquier alta, edición, borrado o importación mientras no había una cuenta vinculada.
-     */
-    fun wasVaultModifiedWhileDisconnected(): Boolean {
-        return sharedPreferences.getBoolean(KEY_VAULT_MODIFIED_WHILE_DISCONNECTED, false)
-    }
+    /** Indica si la bóveda local sufrió cualquier modificación mientras no había una cuenta vinculada. */
+    fun wasVaultModifiedWhileDisconnected(): Boolean =
+        sharedPreferences.getBoolean(KEY_VAULT_MODIFIED_WHILE_DISCONNECTED, false)
 
-    /**
-     * Establece explícitamente el indicador de modificación local durante desconexión.
-     */
+    /** Establece explícitamente el indicador de modificación local durante desconexión. */
     fun setVaultModifiedWhileDisconnected(modified: Boolean) {
-        sharedPreferences.edit {
-            putBoolean(KEY_VAULT_MODIFIED_WHILE_DISCONNECTED, modified)
-        }
+        sharedPreferences.edit { putBoolean(KEY_VAULT_MODIFIED_WHILE_DISCONNECTED, modified) }
     }
 
-    /**
-     * Marca que la bóveda local fue modificada si en el momento de la operación no existe una cuenta vinculada o inicializada.
-     */
+    /** Marca que la bóveda local fue modificada si en el momento de la operación no existe una cuenta vinculada o inicializada. */
     fun markVaultModifiedIfDisconnected() {
         if (!isGoogleDriveConnected() || getLastSyncTimestamp() == 0L) {
             setVaultModifiedWhileDisconnected(true)
         }
     }
-    /**
-     * Retorna el modo de tema configurado por el usuario.
-     */
+
+    /** Retorna el modo de tema configurado por el usuario. */
     fun getThemeMode(): ThemeMode = _themeMode.value
 
-    /**
-     * Guarda el modo de tema visual configurado en almacenamiento persistente.
-     */
+    /** Guarda el modo de tema visual configurado en almacenamiento persistente. */
     fun setThemeMode(mode: ThemeMode) {
         _themeMode.value = mode
         sharedPreferences.edit { putString(KEY_THEME_MODE, mode.name) }
     }
 
-    /**
-     * Retorna la paleta de color de acento seleccionada por el usuario.
-     */
+    /** Retorna la paleta de color de acento seleccionada por el usuario. */
     fun getAccentColor(): AccentColor = _accentColor.value
 
-    /**
-     * Guarda la paleta de color de acento seleccionada en almacenamiento persistente.
-     */
+    /** Guarda la paleta de color de acento seleccionada en almacenamiento persistente. */
     fun setAccentColor(accent: AccentColor) {
         _accentColor.value = accent
         sharedPreferences.edit { putString(KEY_ACCENT_COLOR, accent.name) }
+    }
+
+    private fun setNullableString(key: String, value: String?) {
+        sharedPreferences.edit {
+            if (value.isNullOrBlank()) remove(key) else putString(key, value)
+        }
     }
 
     companion object {

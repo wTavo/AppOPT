@@ -30,8 +30,10 @@ import com.example.appopt.ui.screens.scan.components.QrScanTransferSelectStep
 import com.example.appopt.ui.screens.scan.components.QrScannerBarcodeHandler
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.rememberAppHaptics
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.milliseconds
 
 private enum class QrScannerStep {
@@ -45,16 +47,10 @@ private enum class QrScannerStep {
  * Modos de filtrado y operación del escáner de códigos QR.
  */
 enum class QrScannerMode {
-    /**
-     * Modo exclusivo para alta de servicios 2FA individuales (`otpauth://`).
-     * Ignora silenciosamente transferencias por lotes o formatos incompatibles.
-     */
+    /** Modo exclusivo para alta de servicios 2FA individuales (`otpauth://`). */
     SINGLE_ACCOUNT,
 
-    /**
-     * Modo exclusivo para importación y transferencia de cuentas por lotes cifrados (`appopt-transfer://`).
-     * Ignora silenciosamente códigos OTP individuales estándar.
-     */
+    /** Modo exclusivo para importación de cuentas por lotes cifrados (`appopt-transfer://`). */
     TRANSFER_MIGRATION
 }
 
@@ -63,16 +59,11 @@ enum class QrScannerMode {
  *
  * Estándares aplicados:
  * - Directiva 14: Máquina de estados monolítica dentro de [AppModalDialog] con navegación defensiva ([onBackStep]).
- * - Directiva 14: Estructura tripartita inmutable (Cabecera y Botones fijos con cuerpo central scrolleable).
- * - Directiva 22: Idempotencia y feedback háptico con [com.example.appopt.ui.components.AppAnimatedButton] y [com.example.appopt.ui.theme.AppHaptics].
- * - Directiva 9: Zeroización de memoria tras procesar claves criptográficas.
- * - Directiva 28: Inicio bajo demanda y filtrado silencioso según [mode].
- * - Directiva 29: Desacoplamiento modular de pasos y orquestación.
- * - Prevención Antifraude: Verificación previa con detección de homóglifos, duplicados y consejos antiphishing.
+ * - Directiva 9: Zeroización determinística de memoria (`ParsedAccountPreview.zeroizeAll`) y PBKDF2 en `Dispatchers.Default`.
  *
  * @param onDismiss Callback para cerrar el diálogo.
  * @param modifier Modificador de diseño Compose.
- * @param mode Modo de filtrado y operación del escáner ([QrScannerMode.SINGLE_ACCOUNT] o [QrScannerMode.TRANSFER_MIGRATION]).
+ * @param mode Modo de filtrado y operación del escáner.
  * @param onScanSuccess Callback invocado tras la importación exitosa de una o más cuentas.
  * @param title Título del diálogo.
  */
@@ -100,14 +91,12 @@ fun QrScannerDialog(
     val qrExpiredErrorText = stringResource(R.string.scan_transfer_error_expired)
 
     var currentStep by remember { mutableStateOf(QrScannerStep.CAMERA) }
-
     var isCameraActive by remember { mutableStateOf(false) }
     var isProcessingBarcode by remember { mutableStateOf(false) }
     var lastScannedPayload by remember { mutableStateOf<String?>(null) }
 
     val blockedSessionIds = remember { mutableSetOf<Long>() }
     val blockedPayloadFingerprints = remember { mutableSetOf<Int>() }
-
     val sessionChunks = remember { mutableStateMapOf<Int, TransferQrChunk>() }
     var currentSessionId by remember { mutableLongStateOf(0L) }
     var totalExpectedChunks by remember { mutableIntStateOf(0) }
@@ -129,6 +118,9 @@ fun QrScannerDialog(
     val resetToCamera: () -> Unit = {
         pendingSingleOtp?.secretBytes?.let { CryptoManager.zeroize(it) }
         pendingSingleOtp = null
+        ParsedAccountPreview.zeroizeAll(parsedAccounts)
+        parsedAccounts = emptyList()
+        selectedAccountIds = emptySet()
         pendingEncryptedPayload = null
         pendingEncryptedChunks = null
         sessionChunks.clear()
@@ -138,8 +130,6 @@ fun QrScannerDialog(
         pinErrorMessage = null
         failedPinAttempts = 0
         isVerifyingPin = false
-        parsedAccounts = emptyList()
-        selectedAccountIds = emptySet()
         lastScannedPayload = null
         lastCapturedChunkIndex = 0
         duplicateChunkIndex = null
@@ -165,9 +155,7 @@ fun QrScannerDialog(
                     if (!isVerifyingPin) {
                         resetToCamera()
                         true
-                    } else {
-                        false
-                    }
+                    } else false
                 }
                 QrScannerStep.CAMERA -> false
             }
@@ -197,7 +185,6 @@ fun QrScannerDialog(
                             if (rawValue != lastScannedPayload) {
                                 lastScannedPayload = rawValue
                                 isProcessingBarcode = true
-
                                 scope.launch {
                                     QrScannerBarcodeHandler.handleScannedBarcode(
                                         rawValue = rawValue,
@@ -220,9 +207,7 @@ fun QrScannerDialog(
                                             capturedChunkAnimationIndex = chunkIndex
                                             scope.launch {
                                                 delay(850L.milliseconds)
-                                                if (capturedChunkAnimationIndex == chunkIndex) {
-                                                    capturedChunkAnimationIndex = null
-                                                }
+                                                if (capturedChunkAnimationIndex == chunkIndex) capturedChunkAnimationIndex = null
                                             }
                                             scope.launch {
                                                 delay(300L.milliseconds)
@@ -260,9 +245,7 @@ fun QrScannerDialog(
                                         onIgnored = {
                                             scope.launch {
                                                 delay(200L.milliseconds)
-                                                if (lastScannedPayload == rawValue) {
-                                                    lastScannedPayload = null
-                                                }
+                                                if (lastScannedPayload == rawValue) lastScannedPayload = null
                                                 isProcessingBarcode = false
                                             }
                                         },
@@ -283,32 +266,23 @@ fun QrScannerDialog(
                 }
 
                 QrScannerStep.CONFIRM_SINGLE_OTP -> {
-                    val singleOtp = pendingSingleOtp
-                    if (singleOtp != null) {
+                    pendingSingleOtp?.let { singleOtp ->
                         QrScanSingleOtpStep(
                             otp = singleOtp,
                             existingAccounts = existingAccounts,
                             onBack = resetToCamera,
                             onSave = {
                                 repository.saveAccount(
-                                    issuer = singleOtp.issuer,
-                                    accountName = singleOtp.accountName,
-                                    secretBytes = singleOtp.secretBytes,
-                                    algorithm = singleOtp.algorithm,
-                                    digits = singleOtp.digits,
-                                    period = singleOtp.period,
-                                    type = singleOtp.type,
-                                    counter = singleOtp.counter
+                                    issuer = singleOtp.issuer, accountName = singleOtp.accountName,
+                                    secretBytes = singleOtp.secretBytes, algorithm = singleOtp.algorithm,
+                                    digits = singleOtp.digits, period = singleOtp.period,
+                                    type = singleOtp.type, counter = singleOtp.counter
                                 )
                                 true
                             },
                             onSaveConfirmed = {
                                 onScanSuccess()
-                                if (modalDismissHandler != null) {
-                                    modalDismissHandler()
-                                } else {
-                                    onDismiss()
-                                }
+                                (modalDismissHandler ?: onDismiss).invoke()
                             }
                         )
                     }
@@ -317,10 +291,7 @@ fun QrScannerDialog(
                 QrScannerStep.TRANSFER_PIN -> {
                     QrScanTransferPinStep(
                         pin = transferPinInput,
-                        onPinChange = {
-                            transferPinInput = it
-                            pinErrorMessage = null
-                        },
+                        onPinChange = { transferPinInput = it; pinErrorMessage = null },
                         errorMessage = pinErrorMessage,
                         isVerifyingPin = isVerifyingPin,
                         onBack = resetToCamera,
@@ -330,26 +301,33 @@ fun QrScannerDialog(
                             pinErrorMessage = null
 
                             scope.launch {
-                                val decryptResult = if (pendingEncryptedChunks != null) {
-                                    TransferCrypto.decryptAssembledChunks(pendingEncryptedChunks!!, pinChars)
-                                } else if (pendingEncryptedPayload != null) {
-                                    TransferCrypto.decryptTransferPayload(pendingEncryptedPayload!!, pinChars)
-                                } else {
-                                    Result.failure(TransferCrypto.IncompleteTransferException("No hay fragmentos para descifrar"))
+                                val chunksSnapshot = pendingEncryptedChunks
+                                val payloadSnapshot = pendingEncryptedPayload
+                                val decryptResult = withContext(Dispatchers.Default) {
+                                    try {
+                                        when {
+                                            chunksSnapshot != null -> TransferCrypto.decryptAssembledChunks(chunksSnapshot, pinChars)
+                                            payloadSnapshot != null -> TransferCrypto.decryptTransferPayload(payloadSnapshot, pinChars)
+                                            else -> Result.failure(TransferCrypto.IncompleteTransferException("No hay fragmentos para descifrar"))
+                                        }
+                                    } finally {
+                                        pinChars.fill('0')
+                                    }
                                 }
-
-                                pinChars.fill('0')
 
                                 decryptResult.fold(
                                     onSuccess = { decryptedJson ->
                                         val previews = repository.parseAccountsForPreview(decryptedJson)
                                         if (previews.isEmpty()) {
                                             pinErrorMessage = noAccountsErrorText
+                                            isVerifyingPin = false
                                             appHaptics.error()
                                         } else {
                                             val validAccountsToSelect = previews.filter { !it.isAlreadyInVault }
                                             if (validAccountsToSelect.isEmpty()) {
+                                                ParsedAccountPreview.zeroizeAll(previews)
                                                 pinErrorMessage = importAllAlreadyExistErrorText
+                                                isVerifyingPin = false
                                                 appHaptics.error()
                                             } else {
                                                 parsedAccounts = previews
@@ -368,11 +346,8 @@ fun QrScannerDialog(
                                         } else {
                                             failedPinAttempts++
                                             val remaining = SecurityConfig.TRANSFER_QR_MAX_PIN_ATTEMPTS - failedPinAttempts
-
                                             if (remaining <= 0) {
-                                                if (currentSessionId != 0L) {
-                                                    blockedSessionIds.add(currentSessionId)
-                                                }
+                                                if (currentSessionId != 0L) blockedSessionIds.add(currentSessionId)
                                                 pendingEncryptedPayload?.let { blockedPayloadFingerprints.add(it.hashCode()) }
                                                 pinErrorMessage = pinMaxAttemptsErrorText
                                                 appHaptics.error()
@@ -380,10 +355,10 @@ fun QrScannerDialog(
                                                 resetToCamera()
                                             } else {
                                                 pinErrorMessage = String.format(pinIncorrectAttemptsFormat, remaining)
+                                                isVerifyingPin = false
                                                 appHaptics.error()
                                             }
                                         }
-                                        isVerifyingPin = false
                                     }
                                 )
                             }
@@ -396,31 +371,22 @@ fun QrScannerDialog(
                         parsedAccounts = parsedAccounts,
                         selectedAccountIds = selectedAccountIds,
                         onToggleAccount = { id ->
-                            selectedAccountIds = if (id in selectedAccountIds) {
-                                selectedAccountIds - id
-                            } else {
-                                selectedAccountIds + id
-                            }
+                            selectedAccountIds = if (id in selectedAccountIds) selectedAccountIds - id else selectedAccountIds + id
                         },
-                        onSelectAll = {
-                            selectedAccountIds = parsedAccounts.map { it.id }.toSet()
-                        },
-                        onDeselectAll = {
-                            selectedAccountIds = emptySet()
-                        },
+                        onSelectAll = { selectedAccountIds = parsedAccounts.map { it.id }.toSet() },
+                        onDeselectAll = { selectedAccountIds = emptySet() },
                         onBack = resetToCamera,
                         onImportAccounts = {
-                            val accountsToImport = parsedAccounts.filter { it.id in selectedAccountIds }
-                            repository.importSelectedAccounts(accountsToImport)
-                            true
+                            try {
+                                repository.importSelectedAccounts(parsedAccounts.filter { it.id in selectedAccountIds })
+                                true
+                            } finally {
+                                ParsedAccountPreview.zeroizeAll(parsedAccounts)
+                            }
                         },
                         onImportConfirmed = {
                             onScanSuccess()
-                            if (modalDismissHandler != null) {
-                                modalDismissHandler()
-                            } else {
-                                onDismiss()
-                            }
+                            (modalDismissHandler ?: onDismiss).invoke()
                         }
                     )
                 }

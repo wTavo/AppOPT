@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import android.util.Log
 import androidx.compose.runtime.Immutable
+import com.example.appopt.util.DateTimeFormatter
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -11,9 +12,6 @@ import kotlinx.coroutines.flow.update
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import java.util.concurrent.ConcurrentLinkedDeque
 
 /**
@@ -49,7 +47,7 @@ data class DiagnosticLogEntry(
  *
  * Principio de privacidad y seguridad (*Zero-Leakage* - Directiva 9 y 15):
  * - Intercepta cierres forzosos mediante [Thread.UncaughtExceptionHandler] y los persiste de forma privada en disco.
- * - Sanitiza y enmascara de forma determinística secretos criptográficos, URIs `otpauth://`, claves Base32 y tokens OAuth2.
+ * - Sanitiza y enmascara de forma determinística secretos criptográficos, URIs `otpauth://`, `appopt-transfer:`, claves Base32 y tokens OAuth2 (`Bearer`).
  * - Mantiene un buffer circular en memoria para los últimos 20 errores no fatales operacionales.
  * - No transmite datos a servidores externos, resguardando la privacidad del usuario.
  */
@@ -59,7 +57,7 @@ object AppCrashTracker {
     private const val CRASH_FILE_NAME = "last_crash_report.txt"
     private const val MAX_NON_FATAL_LOGS = 20
 
-    private val secretPattern = Regex("(?i)(secret=|otpauth://|key=|pass=|token=)([A-Za-z0-9+/=_.%~-]{8,})")
+    private val secretPattern = Regex("(?i)(secret=|otpauth://|appopt-transfer:|key=|pass=|token=|bearer\\s+)([A-Za-z0-9+/=_.%~-]{8,})")
     private val base32RawPattern = Regex("\\b[2-7A-Za-z]{16,64}\\b")
 
     private val nonFatalBuffer = ConcurrentLinkedDeque<DiagnosticLogEntry>()
@@ -137,10 +135,11 @@ object AppCrashTracker {
         _logsFlow.update { nonFatalBuffer.toList() }
 
         try {
+            val formattedLog = if (sanitizedTrace != null) "[$tag] $sanitizedMsg\n$sanitizedTrace" else "[$tag] $sanitizedMsg"
             if (severity == DiagnosticSeverity.WARNING) {
-                Log.w(TAG, "[$tag] $sanitizedMsg", throwable)
+                Log.w(TAG, formattedLog)
             } else {
-                Log.e(TAG, "[$tag] $sanitizedMsg", throwable)
+                Log.e(TAG, formattedLog)
             }
         } catch (_: Throwable) {
             // Manejo defensivo para entornos de ejecución sin framework de Android (Unit tests JVM)
@@ -158,8 +157,7 @@ object AppCrashTracker {
         val rawStackTrace = stringWriter.toString()
 
         val sanitizedTrace = sanitize(rawStackTrace)
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
-        val dateString = dateFormat.format(Date())
+        val dateString = DateTimeFormatter.formatDiagnosticTimestamp()
 
         @Suppress("DEPRECATION")
         val threadId = thread.id

@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
+import androidx.core.net.toUri
 import com.example.appopt.domain.model.AppUpdateInfo
 import com.example.appopt.security.SecurityConfig
 import kotlinx.coroutines.Dispatchers
@@ -22,7 +23,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
-import androidx.core.net.toUri
+import javax.net.ssl.HttpsURLConnection
 
 /**
  * Excepción de seguridad Zero-Trust cuando el archivo APK descargado no supera la verificación de integridad SHA-256
@@ -35,9 +36,8 @@ class ApkIntegrityVerificationException : SecurityException("Fallo en la verific
  *
  * Garantías de seguridad y ciclo de vida:
  * - Cero fugas de recursos: todos los flujos de red y archivo se envuelven en bloques `.use { ... }` y las conexiones se cierran en `finally` (Directiva 9).
- * - Verificación de integridad SHA-256 en vuelo antes de invocar al instalador del sistema.
+ * - Verificación de integridad SHA-256 *Fail-Closed* en vuelo y validación de dominio HTTPS (`github.com` / `githubusercontent.com`).
  * - Validación de identidad de paquete (`packageName`) mediante `PackageManager.getPackageArchiveInfo`.
- * - Limpieza determinística de paquetes `.apk` residuales en caché (`cleanupDownloadedApks`).
  */
 object AppUpdateManager {
 
@@ -45,10 +45,7 @@ object AppUpdateManager {
 
     private val _availableUpdate = MutableStateFlow<AppUpdateInfo?>(null)
 
-    /**
-     * Flujo reactivo con los metadatos de la actualización disponible en GitHub Releases,
-     * o `null` cuando la aplicación ya se encuentra en su versión más reciente.
-     */
+    /** Flujo reactivo con los metadatos de la actualización disponible en GitHub Releases, o `null` si está al día. */
     val availableUpdate: StateFlow<AppUpdateInfo?> = _availableUpdate.asStateFlow()
 
     @Volatile
@@ -83,26 +80,17 @@ object AppUpdateManager {
         return cleanVersionName to pkgInfo.longVersionCode
     }
 
-    /**
-     * Elimina cualquier archivo `.apk` temporal descargado previamente en la carpeta privada de actualizaciones.
-     *
-     * @param context Contexto de la aplicación.
-     */
+    /** Elimina cualquier archivo `.apk` temporal descargado previamente en la carpeta privada de actualizaciones. */
     fun cleanupDownloadedApks(context: Context) {
         runCatching {
             val dir = File(context.cacheDir, SecurityConfig.APP_UPDATE_CACHE_DIR_NAME)
-            if (dir.exists()) {
-                dir.listFiles()?.forEach { it.delete() }
-            }
+            if (dir.exists()) dir.listFiles()?.forEach { it.delete() }
         }
     }
 
     /**
      * Consulta el último lanzamiento publicado en GitHub Releases con protección de enfriamiento (*Cooldown*)
-     * y validación condicional por cabecera `ETag` (`304 Not Modified`) para no consumir cuota de API en pulsaciones repetidas.
-     *
-     * Si el repositorio aún no tiene ningún lanzamiento publicado (HTTP 404) o si la versión publicada no supera
-     * a la instalada, retorna `Result.success(null)` indicando que la aplicación está al día.
+     * y validación condicional por cabecera `ETag` (`304 Not Modified`).
      *
      * @param context Contexto de la aplicación.
      * @param force Si es `true`, ignora la ventana de enfriamiento y fuerza una consulta fresca a GitHub.
@@ -114,7 +102,6 @@ object AppUpdateManager {
             if (!force && hasValidCachedCheck && (now - lastCheckTimestampMillis) < SecurityConfig.APP_UPDATE_CHECK_COOLDOWN_MILLIS) {
                 return@runCatching lastCheckedResult
             }
-
             if (force) {
                 cachedETag = null
                 hasValidCachedCheck = false
@@ -151,7 +138,7 @@ object AppUpdateManager {
 
     /**
      * Descarga el archivo `.apk` de la versión indicada a la caché privada del dispositivo,
-     * calculando y verificando su hash SHA-256 en tiempo real antes de autorizar su uso.
+     * calculando y verificando su hash SHA-256 de forma *Fail-Closed* en tiempo real antes de autorizar su uso.
      *
      * @param context Contexto de la aplicación.
      * @param updateInfo Metadatos de la actualización a descargar.
@@ -168,11 +155,22 @@ object AppUpdateManager {
                 if (!exists()) mkdirs()
             }
             val targetFile = File(updatesDir, SecurityConfig.APP_UPDATE_APK_FILE_NAME)
-            if (targetFile.exists()) {
-                targetFile.delete()
+            if (targetFile.exists()) targetFile.delete()
+
+            val downloadUrl = URL(updateInfo.apkDownloadUrl)
+            val host = downloadUrl.host.lowercase()
+            if (!downloadUrl.protocol.equals("https", ignoreCase = true) ||
+                (!host.equals("github.com") && !host.endsWith(".github.com") && !host.endsWith(".githubusercontent.com"))
+            ) {
+                throw ApkIntegrityVerificationException()
             }
 
-            val connection = (URL(updateInfo.apkDownloadUrl).openConnection() as HttpURLConnection).apply {
+            val expectedHash = updateInfo.expectedSha256?.trim()?.lowercase()
+            if (expectedHash.isNullOrBlank() || expectedHash.length != 64) {
+                throw ApkIntegrityVerificationException()
+            }
+
+            val connection = (downloadUrl.openConnection() as HttpsURLConnection).apply {
                 requestMethod = "GET"
                 instanceFollowRedirects = true
                 connectTimeout = SecurityConfig.APP_UPDATE_HTTP_TIMEOUT_MILLIS
@@ -184,9 +182,7 @@ object AppUpdateManager {
             val computedSha256Hex: String
             try {
                 val code = connection.responseCode
-                if (code !in 200..299) {
-                    throw IllegalStateException("HTTP $code al descargar APK")
-                }
+                if (code !in 200..299) throw IllegalStateException("HTTP $code al descargar APK")
 
                 val totalBytes = connection.contentLengthLong.takeIf { it > 0L } ?: updateInfo.apkSizeBytes
                 val digest = MessageDigest.getInstance("SHA-256")
@@ -214,7 +210,6 @@ object AppUpdateManager {
                         output.flush()
                     }
                 }
-
                 computedSha256Hex = digest.digest().joinToString("") { "%02x".format(it) }
             } catch (e: Exception) {
                 targetFile.delete()
@@ -223,16 +218,11 @@ object AppUpdateManager {
                 connection.disconnect()
             }
 
-            // 1. Verificación criptográfica SHA-256 si el lanzamiento incluye digest oficial
-            val expectedHash = updateInfo.expectedSha256?.trim()?.lowercase()
-            if (!expectedHash.isNullOrBlank() && expectedHash.length == 64) {
-                if (!computedSha256Hex.equals(expectedHash, ignoreCase = true)) {
-                    targetFile.delete()
-                    throw ApkIntegrityVerificationException()
-                }
+            if (!verifySha256Integrity(expectedHash, computedSha256Hex)) {
+                targetFile.delete()
+                throw ApkIntegrityVerificationException()
             }
 
-            // 2. Verificación de estructura APK válida mediante PackageManager de Android
             val archiveInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 context.packageManager.getPackageArchiveInfo(
                     targetFile.absolutePath,
@@ -256,20 +246,23 @@ object AppUpdateManager {
     }
 
     /**
-     * Verifica si la aplicación cuenta con el permiso del sistema para solicitar la instalación de paquetes APK.
-     *
-     * @param context Contexto de la aplicación.
-     * @return `true` si puede iniciar el instalador directamente, `false` si requiere autorización del usuario.
+     * Verifica de forma estrictamente *Fail-Closed* que el hash SHA-256 esperado exista, tenga longitud válida (64 hex)
+     * y coincida en tiempo constante con el hash calculado sobre el binario descargado.
      */
-    fun canRequestPackageInstalls(context: Context): Boolean {
-        return context.packageManager.canRequestPackageInstalls()
+    fun verifySha256Integrity(expectedSha256: String?, computedSha256Hex: String): Boolean {
+        val cleanExpected = expectedSha256?.trim()?.lowercase() ?: return false
+        val cleanComputed = computedSha256Hex.trim().lowercase()
+        if (cleanExpected.length != 64 || cleanComputed.length != 64) return false
+        return MessageDigest.isEqual(
+            cleanExpected.toByteArray(StandardCharsets.UTF_8),
+            cleanComputed.toByteArray(StandardCharsets.UTF_8)
+        )
     }
 
-    /**
-     * Abre la pantalla del sistema operativo para autorizar la instalación de paquetes desde esta aplicación.
-     *
-     * @param context Contexto de la aplicación.
-     */
+    /** Verifica si la aplicación cuenta con el permiso del sistema para solicitar la instalación de paquetes APK. */
+    fun canRequestPackageInstalls(context: Context): Boolean = context.packageManager.canRequestPackageInstalls()
+
+    /** Abre la pantalla del sistema operativo para autorizar la instalación de paquetes desde esta aplicación. */
     fun openManageUnknownAppSourcesSettings(context: Context) {
         val intent = Intent(
             Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
@@ -280,19 +273,13 @@ object AppUpdateManager {
         context.startActivity(intent)
     }
 
-    /**
-     * Lanza el instalador nativo de paquetes de Android utilizando [FileProvider] sobre el APK ya verificado.
-     *
-     * @param context Contexto de la aplicación.
-     * @param apkFile Archivo APK verificado dentro de `cacheDir/apk_updates/`.
-     */
+    /** Lanza el instalador nativo de paquetes de Android utilizando [FileProvider] sobre el APK ya verificado. */
     fun launchApkInstaller(context: Context, apkFile: File) {
         val authority = "${context.packageName}${SecurityConfig.APP_UPDATE_FILE_PROVIDER_SUFFIX}"
         val contentUri = FileProvider.getUriForFile(context, authority, apkFile)
         val installIntent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(contentUri, "application/vnd.android.package-archive")
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         context.startActivity(installIntent)
     }
@@ -304,33 +291,20 @@ object AppUpdateManager {
             readTimeout = SecurityConfig.APP_UPDATE_HTTP_TIMEOUT_MILLIS
             setRequestProperty("Accept", "application/vnd.github+json")
             setRequestProperty("User-Agent", "AppOPT-Authenticator-Updater")
-            val previousETag = cachedETag
-            if (!previousETag.isNullOrBlank()) {
-                setRequestProperty("If-None-Match", previousETag)
-            }
+            cachedETag?.takeIf { it.isNotBlank() }?.let { setRequestProperty("If-None-Match", it) }
         }
 
         try {
             val code = connection.responseCode
-            if (code == HttpURLConnection.HTTP_NOT_MODIFIED && cachedReleaseJson != null) {
-                return cachedReleaseJson
-            }
+            if (code == HttpURLConnection.HTTP_NOT_MODIFIED && cachedReleaseJson != null) return cachedReleaseJson
             if (code == HttpURLConnection.HTTP_NOT_FOUND) {
                 cachedReleaseJson = null
                 return null
             }
-            if (code !in 200..299) {
-                throw IllegalStateException("HTTP $code al consultar GitHub Releases")
-            }
+            if (code !in 200..299) throw IllegalStateException("HTTP $code al consultar GitHub Releases")
 
-            val newETag = connection.getHeaderField("ETag")
-            if (!newETag.isNullOrBlank()) {
-                cachedETag = newETag
-            }
-
-            val body = BufferedReader(InputStreamReader(connection.inputStream, StandardCharsets.UTF_8)).use { reader ->
-                reader.readText()
-            }
+            connection.getHeaderField("ETag")?.takeIf { it.isNotBlank() }?.let { cachedETag = it }
+            val body = BufferedReader(InputStreamReader(connection.inputStream, StandardCharsets.UTF_8)).use { it.readText() }
             cachedReleaseJson = body
             return body
         } finally {
@@ -338,12 +312,7 @@ object AppUpdateManager {
         }
     }
 
-    /**
-     * Parsea la respuesta JSON de GitHub Releases extrayendo el primer activo `.apk`, su tamaño y su hash SHA-256.
-     *
-     * @param jsonString Respuesta JSON de `/releases/latest`.
-     * @return Instancia de [AppUpdateInfo] o `null` si el lanzamiento no contiene ningún archivo `.apk`.
-     */
+    /** Parsea la respuesta JSON de GitHub Releases extrayendo el primer activo `.apk`, su tamaño y su hash SHA-256. */
     fun parseLatestReleaseJson(jsonString: String): AppUpdateInfo? {
         val root = JSONObject(jsonString)
         if (root.optBoolean("draft", false)) return null

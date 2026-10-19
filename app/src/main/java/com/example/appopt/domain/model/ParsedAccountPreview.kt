@@ -1,4 +1,4 @@
-﻿package com.example.appopt.domain.model
+package com.example.appopt.domain.model
 
 /**
  * Modelo de datos inmutable para la previsualización y selección de cuentas en flujos
@@ -14,7 +14,7 @@
  * @property counter Contador de eventos para HOTP.
  * @property isFavorite Indicador de cuenta marcada como favorita.
  * @property isAlreadyInVault Indica si una cuenta con el mismo secreto criptográfico ya existe en la bóveda local.
- * @property secretBytes Bytes del secreto en memoria volátil (zeroizados tras la importación).
+ * @property secretBytes Bytes del secreto en memoria volátil (zeroizados tras la importación o cancelación).
  */
 data class ParsedAccountPreview(
     val id: String,
@@ -37,4 +37,13 @@ data class ParsedAccountPreview(
     }
 
     override fun hashCode(): Int = id.hashCode()
+
+    companion object {
+        /**
+         * Sobrescribe con ceros todos los arreglos de bytes secretos de una colección de previsualizaciones en memoria RAM (Directiva 9).
+         */
+        fun zeroizeAll(accounts: Iterable<ParsedAccountPreview>) {
+            accounts.forEach { it.secretBytes.fill(0) }
+        }
+    }
 }

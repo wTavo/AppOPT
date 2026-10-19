@@ -58,7 +58,7 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 ## 6. Centralización de Parámetros de Seguridad, Criptografía y Claves de Persistencia (*SecurityConfig & Storage Keys*)
 - **PROHIBIDO** definir tiempos de expiración de portapapeles, parámetros criptográficos o cadenas literales para tablas Room, DataStore, SharedPreferences o alias Keystore dispersos en el código.
 - **OBLIGATORIO** declarar y consumir todas las constantes inmutables (`const val`) en sus clases administradoras centralizadas:
-  - `security/SecurityConfig.kt`: Tiempos de auto-clear de portapapeles, etiquetas de portapapeles, iteraciones PBKDF2, períodos TOTP, alias del Android Keystore, etc.
+  - `security/SecurityConfig.kt`: Tiempos de auto-clear de portapapeles, etiquetas de portapapeles, iteraciones PBKDF2, períodos TOTP, alias del Android Keystore, timeouts HTTP y ventanas de suspensión de bloqueo.
   - `PreferencesManager.kt` y `AppDatabase.kt`: Nombres de tablas, claves de persistencia y configuraciones locales.
 
 ---
@@ -72,7 +72,7 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 ## 8. Arquitectura Limpia y Separación Estricta de Capas
 - **Capa de Dominio (`domain/`):** Modelos inmutables y algoritmos criptográficos puros (RFC 6238 / RFC 4226 / RFC 4648) con CERO dependencias de Android.
 - **Capa de Seguridad (`security/`):** Manejo de hardware seguro TEE (Android Keystore), Biometría, AppLock, Secure Clipboard y derivación PBKDF2.
-- **Capa de Datos (`data/`):** Persistencia en Room, entidades cifradas y mapeo hacia modelos de dominio.
+- **Capa de Datos (`data/`):** Persistencia en Room, entidades cifradas, clientes en la nube (`data/cloud/`), actualizador (`data/update/`) y mapeo hacia modelos de dominio.
 - **Capa de Presentación (`ui/`):** Jetpack Compose con ViewModels reactivos (`StateFlow`), sin lógica de negocio incrustada en la vista.
 - **PROHIBIDO el antipatrón de intermediarios pasivos (*Pass-Through Proxy Methods*):** Crear métodos puente en serializadores o clases utilitarias que únicamente re-envíen llamadas a otros motores especializados.
 - **OBLIGATORIO la invocación directa de subsistemas especializados:** Invocar motores de dominio o fusión (`AccountMergeEngine`, `CryptoManager`, `GoogleDriveManager`) directamente desde el Repositorio o ViewModel responsable, preservando a los serializadores exclusivamente para conversión de formatos (JSON/QR) y a los motores para lógica de negocio y deduplicación.
@@ -82,9 +82,13 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 ## 9. Principio de Cero Confianza (*Zero Trust*), Gestión Segura de Memoria y Flujos (*Memory Security, Stream Lifecycles & Purge*)
 - Validar siempre los datos ingresados por el usuario (claves Base32, URIs, longitudes).
 - Sobreescribir con ceros (*zeroize / fill('0')*) los arreglos de caracteres (`CharArray`) y bytes (`ByteArray`) que contengan secretos o contraseñas en memoria tras su uso.
+- **PROHIBIDO** dejar elementos `ParsedAccountPreview` (seleccionados o descartados) o sesiones temporales `VaultKeySession` sin zeroizar al cancelar, retroceder o concluir una importación/restauración.
+- **PROHIBIDO** medir ventanas de gracia de bloqueo (`AppLockManager`) con `System.currentTimeMillis()` vulnerable a alteraciones manuales de hora, o suspender el bloqueo indefinidamente sin TTL máximo (`EXTERNAL_ACTIVITY_SUSPEND_TTL_MILLIS`).
+- **PROHIBIDO** abrir conexiones `HttpURLConnection` sin configurar explícitamente `connectTimeout` y `readTimeout`, o concatenar identificadores remotos sin `URLEncoder.encode(..., "UTF-8")`.
 - **PROHIBIDO** mantener secretos o cachés de descifrado en memoria RAM indefinidamente cuando la aplicación entra en segundo plano.
 - **PROHIBIDO** dejar flujos de E/S, streams de archivos (`OutputStream`, `InputStream`, `BufferedReader`) o conexiones de red (`HttpURLConnection`) abiertos o sin liberar ante fallos o cancelaciones.
-- **OBLIGATORIO** envolver todos los flujos de lectura/escritura en bloques `.use { ... }` y garantizar la desconexión explícita (`connection.disconnect()`) dentro de bloques `finally`.
+- **OBLIGATORIO** invocar `ParsedAccountPreview.zeroizeAll(...)` en bloques `finally` y en los manejadores `onBackStep` / `onDismissRequest` de todos los diálogos de importación y restauración.
+- **OBLIGATORIO** medir tiempos de gracia de seguridad con reloj monotónico (`SystemClock.elapsedRealtime()`) y envolver todos los flujos de lectura/escritura en bloques `.use { ... }` con `connection.disconnect()` en `finally`.
 - **OBLIGATORIO** invocar la limpieza y sobrescritura de cachés volátiles (`clearMemoryCache()`) ante transiciones a segundo plano (`Lifecycle.Event.ON_STOP`) o eventos de advertencia de memoria del sistema (`ComponentCallbacks2.onTrimMemory()`).
 
 ---
@@ -102,7 +106,7 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 ---
 
 ## 12. Centralización de Formateadores y Localización Regional (`util/DateTimeFormatter.kt`)
-- **PROHIBIDO** crear instancias sueltas de `SimpleDateFormat` con cadenas mágicas de formato en las vistas.
+- **PROHIBIDO** crear instancias sueltas de `SimpleDateFormat` con cadenas mágicas de formato en las vistas o diagnósticos.
 - **OBLIGATORIO** formatear marcas de tiempo absolutas y relativas utilizando `DateTimeFormatter`.
 
 ---
@@ -183,6 +187,7 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 
 ## 15. Manejo Seguro, Descriptivo y Accionable de Excepciones (*Zero-Leakage & Actionable Error Handling*)
 - **PROHIBIDO** exponer mensajes técnicos internos de excepciones criptográficas, de red o de sistema (`e.message`, `e.printStackTrace()`, nombres de clases Java/C++, OpenSSL o rutas de archivos) en la interfaz de usuario, diálogos o callbacks del sistema.
+- **PROHIBIDO** pasar objetos `Throwable` sin sanitizar directamente a `Log.e` / `Log.w` en `AppCrashTracker` cuando puedan contener URIs `otpauth://`, paquetes `appopt-transfer:` o tokens `Bearer`.
 - **PROHIBIDO el "antipatrón mudo" (*Swallowing Errors*):** Dejar bloques `catch` o callbacks de error con `null`, cadenas vacías o sin retroalimentación cuando el usuario requiere conocer el resultado de una acción.
 - **OBLIGATORIO** capturar excepciones técnicas de bajo nivel y presentar al usuario mensajes **amigables, descriptivos y accionables** centralizados en `res/values/strings.xml` (explicando en lenguaje cotidiano qué falló y qué paso correctivo puede tomar).
 - **OBLIGATORIO el manejo resiliente de tasa de solicitudes API (HTTP 429 / Rate Limiting):** En todas las integraciones de red y nube (como Google Drive API), capturar respuestas de saturación de cuota o límite de peticiones (HTTP 429 / 503) y presentar mensajes amigables y accionables de reintento (`R.string.settings_drive_error_rate_limited`), evitando desbordes o fallos silenciosos.
@@ -210,9 +215,10 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 
 ---
 
-## 18. Aislamiento de Hilos para Operaciones Criptográficas y de E/S (*Thread Confinement / Coroutine Dispatchers*)
-- **PROHIBIDO** ejecutar derivación de claves PBKDF2, cifrado/descifrado AES-256-GCM o consultas a base de datos en el hilo principal (`Dispatchers.Main`).
-- **OBLIGATORIO** confinar las operaciones intensivas de CPU criptográfica en `Dispatchers.Default` y las operaciones de base de datos/red en `Dispatchers.IO`, garantizando 60/120 FPS fluidos sin caídas de cuadros.
+## 18. Aislamiento de Hilos para Operaciones Criptográficas, Complejidad $O(M)$ en Keystore y E/S (*Thread Confinement & Batch Keystore Efficiency*)
+- **PROHIBIDO** ejecutar derivación de claves PBKDF2 (`TransferCrypto`, `BackupCrypto`), cifrado/descifrado AES-256-GCM o consultas a base de datos en el hilo principal (`Dispatchers.Main`).
+- **PROHIBIDO** desencriptar secretos del Android Keystore dentro de bucles anidados $O(N \times M)$ durante fusiones o previsualizaciones de importación (`AccountMergeEngine`), o instanciar múltiples veces `PreferencesManager(context)` fuera del singleton `AuthenticatorApp.instance.preferencesManager`.
+- **OBLIGATORIO** precalcular un índice hash en memoria $O(M)$ (`buildLocalSecretHashMap`) para deduplicación por lotes y confinar las operaciones intensivas de CPU criptográfica en `Dispatchers.Default` y las operaciones de base de datos/red en `Dispatchers.IO`, garantizando 60/120 FPS fluidos sin caídas de cuadros.
 
 ---
 
@@ -245,7 +251,7 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 - **PROHIBIDO** el recorte, corte vertical o truncamiento de texto (*text clipping / ellipsis indeseado*) en cualquier contenedor (botones, tarjetas, modales, encabezados o listas) por forzar `maxLines = 1` o alturas fijas cuando el texto no quepa en una sola línea.
 - **OBLIGATORIO** fijar pesos simétricos (`Modifier.weight(1f)`) en filas de botones adyacentes para que compartan equitativamente el ancho disponible.
 - **OBLIGATORIO** sincronizar la altura de botones y contenedores hermanos utilizando `Modifier.height(IntrinsicSize.Min)` en la fila y `Modifier.fillMaxHeight().heightIn(min = Dimensions.ComponentHeight.buttonDefault)` (50.dp o 36.dp) en los botones, de modo que si un control requiere más altura por salto de línea, todos los controles adyacentes se adapten dinámicamente a la misma altura exacta.
-- **OBLIGATORIO** diseñar textos con flujo natural (`wrapContentHeight()`, `textAlign = TextAlign.Center`, `PaddingValues` calibrados), garantizando legibilidad total, simetría y cero truncamiento.
+- **OBLIGATORIO** diseñar textos con flujo natural (`wrapContentHeight()`, `textAlign = TextAlign.Center`, `PaddingValues` calibrados) o desplazamiento continuo tipo marquesina (`basicMarquee`) en correos largos de estado, garantizando legibilidad total, simetría y cero truncamiento.
 
 ---
 
@@ -359,16 +365,17 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 ---
 
 ## 30. Organización Estructural de Paquetes, Cohesión Arquitectónica y Cero Fragmentación Artificial (*Package Structure, Architectural Cohesion & Anti-Fragmentation*)
-- **PROHIBIDO** crear carpetas huérfanas o sobre-anidadas de un único elemento (ej. `screens/home/model/`, `settings/util/`, `ui/util/`) que fragmenten artificialmente la estructura del proyecto.
-- **PROHIBIDO** enterrar modelos de dominio públicos o enums de uso transversal dentro de archivos de contratos o analizadores (`ParsedOtpData` dentro de `OtpUriParser.kt`, `AccountWithCode` dentro de `AccountRepository.kt`, o `OtpType` dentro de `OtpAlgorithm.kt`).
+- **PROHIBIDO** crear carpetas huérfanas o sobre-anidadas de un único elemento (ej. `screens/home/model/`, `screens/settings/handler/`, `settings/util/`, `ui/util/`) que fragmenten artificialmente la estructura del proyecto.
+- **PROHIBIDO** enterrar modelos de dominio públicos o enums de uso transversal dentro de archivos de contratos, clientes de red o analizadores (`ParsedOtpData` dentro de `OtpUriParser.kt`, `LiveSharedCodeResult` dentro de `SharedServicesCloudClient.kt`, o `OtpType` dentro de `OtpAlgorithm.kt`).
 - **PROHIBIDO** crear clases o archivos *wrapper* que únicamente re-envíen llamadas con parámetros estáticos a componentes modulares existentes (ej. `DriveDisconnectConfirmDialog` sobre `AppDestructiveConfirmDialog`).
 - **PROHIBIDO** crear modelos de datos paralelos que representen subconjuntos redundantes de una misma entidad (ej. `DriveBackupInfo` frente a `DriveBackupItem`).
 - **OBLIGATORIO la estandarización y ubicación estricta por responsabilidades:**
-  1. **Modelos de Dominio (`domain/model/`):** Cada modelo de entidad inmutable, enum público o estructura de transporte puro (`TotpAccount`, `AccountWithCode`, `OtpAlgorithm`, `OtpType`, `ParsedOtpData`, `ParsedAccountPreview`, `TransferQrChunk`) debe residir en su propio archivo independiente dentro de `domain/model/`, con CERO dependencias de Android SDK, Compose o capas de seguridad/datos.
-  2. **Modelos de Estado de Pantalla (`ui/screens/<feature>/`):** Los modelos de estado de interfaz (`SettingsUiState`, `CloudSyncUiState`, etc.) deben ubicarse directamente en la raíz de su respectiva pantalla, adyacentes al Composable y al ViewModel.
-  3. **Coordinadores de Estado y Launchers (`ui/screens/<feature>/coordinator/`):** Las clases de coordinación de estado y launchers de actividad que no contengan elementos de dibujo visual deben separarse de los componentes gráficos (`components/`) en subpaquetes `coordinator/`.
+  1. **Modelos de Dominio (`domain/model/`):** Cada modelo de entidad inmutable, enum público o estructura de transporte puro (`TotpAccount`, `AccountWithCode`, `OtpAlgorithm`, `OtpType`, `ParsedOtpData`, `ParsedAccountPreview`, `TransferQrChunk`, `SharedOtpBatch`, `LiveSharedCodeResult`) debe residir en su propio archivo dentro de `domain/model/`, con CERO dependencias de Android SDK, Compose o capas de seguridad/datos.
+  2. **Modelos de Estado de Pantalla (`ui/screens/<feature>/`):** Los modelos de estado de interfaz (`SettingsUiState`, `HomeCardItem`, `CloudSyncUiState`, etc.) deben ubicarse directamente en la raíz de su respectiva pantalla, adyacentes al Composable y al ViewModel.
+  3. **Coordinadores de Estado y Launchers (`ui/screens/<feature>/coordinator/`):** Las clases de coordinación de estado, manejadores de bóveda en la nube (`DriveVaultHandler`, `HomeCardsCoordinator`) y launchers de actividad (`SettingsGoogleAuthCoordinator`, `SettingsExportCoordinators`) deben consolidarse en subpaquetes `coordinator/`.
   4. **Utilidades Centralizadas (`util/`):** Los generadores de archivos/gráficos (`QrCodeGenerator`, `DiagnosticPdfGenerator`, `EmergencyKitPdfGenerator`) y formateadores de mensajes del sistema (`DriveErrorMessageResolver`, `DateTimeFormatter`, `AccessibilityUtils`) deben consolidarse en el paquete raíz `util/`.
-  5. **Análisis y Criptografía (`security/`):** Toda lógica algorítmica antifraude, detección de homóglifos o análisis de caracteres invisibles (`SecurityAnalysisUtils`) debe residir en `security/`.
+  5. **Rendimiento y Diagnósticos (`performance/`):** El rastreador de bloqueos sanitizado (`AppCrashTracker`), recolector de fotogramas (`JankStatsCollector`) y superposición FPS (`FpsOverlay`) deben residir en `performance/`.
+  6. **Análisis y Criptografía (`security/`):** Toda lógica algorítmica antifraude, detección de homóglifos o análisis de caracteres invisibles (`SecurityAnalysisUtils`) debe residir en `security/`.
 
 ---
 
@@ -376,17 +383,17 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
 - **PROHIBIDO** transmitir, almacenar o exponer la clave secreta Base32 (`secret`) en el dispositivo invitado (B) en cualquiera de los modos de compartición.
 - **PROHIBIDO** incluir servicios compartidos por terceros en las copias de seguridad de Google Drive o en la exportación por códigos QR del dispositivo invitado.
 - **PROHIBIDO** ejecutar servicios persistentes o *polling* periódico en segundo plano para consultar códigos compartidos; toda solicitud de código en línea debe dispararse estrictamente bajo demanda (*On-Demand*) en `Dispatchers.IO`.
-- **PROHIBIDO** relegar u ocultar la visualización de servicios compartidos dentro de la pantalla de Ajustes (`SettingsScreen.kt`) o duplicar vistas de compartición entre pantallas.
+- **PROHIBIDO** relegar u ocultar la visualización de servicios compartidos dentro de la pantalla de Ajustes (`SettingsScreen.kt`) o duplicar llamadas de sincronización en segundo plano (`syncSharedServicesFromCloud`) entre `HomeScreen.kt` y `HomeSharedServicesSection.kt`.
 - **PROHIBIDO** abrir el selector de cuentas de Google del sistema fuera de Ajustes cuando el usuario pulsa «Compartir» sin tener cuenta vinculada, o mostrar falsos avisos de *"acceso revocado"* cuando falla una petición por falta de internet.
-- **OBLIGATORIO el acceso directo condicionado a cuenta vinculada en `HomeScreen.kt` y `AccountDetailsDialog.kt`:**
-  1. **Con cuenta de Google vinculada (`isDriveConnected == true`):** Mostrar la sección desplegable (**«Servicios compartidos»**, `HomeSharedServicesAccordion`) dentro de la lista principal (`LazyColumn`) de `HomeScreen.kt` y habilitar el formulario de compartición en `AccountDetailsShareStep.kt`.
-  2. **Sin cuenta de Google vinculada (`isDriveConnected == false`):** Ocultar por completo `HomeSharedServicesAccordion` en `HomeScreen.kt`, purgar inmediatamente lotes y metadatos en caché (`SharedBatchKeyStore.clearAllBatches`) al desvincular la cuenta en Ajustes, y mostrar en `AccountDetailsShareStep.kt` el aviso informativo (`R.string.share_requires_connected_account_msg`) con el botón de confirmación deshabilitado.
+- **OBLIGATORIO el acceso unificado en la pestaña «Compartidos» de `HomeScreen.kt` y `AccountDetailsDialog.kt`:**
+  1. **Con cuenta de Google vinculada (`isDriveConnected == true`):** Mostrar los servicios compartidos entrantes y salientes bajo la pestaña **«Compartidos»** (`HomeSharedServicesAccordion`) de `HomeScreen.kt` y habilitar el formulario de compartición en `AccountDetailsShareStep.kt`.
+  2. **Sin cuenta de Google vinculada (`isDriveConnected == false`):** Mostrar en la pestaña **«Compartidos»** de `HomeScreen.kt` la tarjeta de bienvenida con el botón para vincular Google (`SharedServicesConnectPromptCard`), purgar inmediatamente lotes y metadatos en caché (`SharedBatchKeyStore.clearAllBatches`) al desvincular la cuenta en Ajustes, y mostrar en `AccountDetailsShareStep.kt` el aviso informativo (`R.string.share_requires_connected_account_msg`) con el botón de confirmación deshabilitado.
 - **OBLIGATORIO el modelo de Modo Dual controlado por el propietario (A) y comportamiento sin conexión (`isNetworkAvailable`):**
-  1. **`ShareAccessMode.ONLINE_ONLY` (Por defecto):** El invitado requiere conexión activa al solicitar el código; el servidor (Cloudflare Worker + D1) valida el permiso en tiempo real y retorna únicamente los dígitos de la ventana actual de 30 segundos, garantizando revocación en 0 segundos. Sin internet, bloquear la consulta mostrando `R.string.share_error_no_internet`.
+  1. **`ShareAccessMode.ONLINE_ONLY` (Por defecto):** El invitado requiere conexión activa al solicitar el código; el servidor (Cloudflare Worker + D1) valida el permiso en tiempo real y retorna únicamente los dígitos de la ventana actual, garantizando revocación en 0 segundos. Sin internet, bloquear la consulta mostrando `R.string.share_error_no_internet`.
   2. **`ShareAccessMode.OFFLINE_BATCH` (Lotes temporales):** Cuando el propietario lo autoriza explícitamente, el servidor precalcula únicamente los códigos `(timeStep -> código)` para la ventana seleccionada (`1`, `6` o `24` horas). El dispositivo invitado cifra el lote en reposo mediante `CryptoManager` (Android Keystore AES-256-GCM) junto con la caché local de metadatos en `SharedBatchKeyStore`, permitiendo consultar los códigos sin conexión a internet mientras el lote sea vigente y purgando la caché en memoria ante `ON_STOP` / `onTrimMemory`.
 - **OBLIGATORIO el apretón de manos por invitación (`ShareGrantStatus.PENDING` -> `ShareGrantStatus.ACCEPTED`) y revocación bilateral:**
   1. **Invitación pendiente (`PENDING`):** Al compartir un servicio desde el propietario (A), el permiso nace en estado `PENDING`. Mientras esté en `PENDING`, el servidor bloquea cualquier generación de códigos (`/code` o `/batch`).
-  2. **Aceptación o rechazo explícito en el invitado (B):** En `IncomingSharedOtpCard`, las invitaciones `PENDING` muestran quién las envía con botones simétricos **«Rechazar»** y **«Aceptar»** (`POST /api/shares/:grantId/accept`). Solo tras aceptar pasa a `ACCEPTED` y habilita la consulta de códigos.
+  2. **Aceptación o rechazo explícito en el invitado (B):** En `OtpCodeCard` (sobrecarga compartida en `SharedServiceOtpCard.kt`), las invitaciones `PENDING` muestran quién las envía con botones simétricos **«Rechazar»** y **«Aceptar»** (`POST /api/shares/:grantId/accept`). Solo tras aceptar pasa a `ACCEPTED` y habilita la consulta de códigos.
   3. **Revocación bilateral (`DELETE /api/shares/:grantId`):** Tanto el propietario (A, botón «Revocar») como el invitado (B, botón «Rechazar» o «Quitar») pueden eliminar el permiso en la nube en cualquier momento, destruyendo físicamente el secreto cifrado en D1 cuando no queden invitados para ese servicio.
 - **OBLIGATORIO la revocación automática en cascada y advertencia explícita al eliminar un servicio propio:**
   1. Advertir explícitamente al usuario en los diálogos de confirmación (`AccountDetailsDeleteStep.kt` y `RecentlyDeletedScreen.kt`) que al enviar a la papelera o eliminar definitivamente un servicio propio se revocará automáticamente en la nube cualquier permiso compartido activo de ese servicio.
@@ -419,18 +426,18 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
      - Mismo dispositivo de origen (`mostRecent.deviceId == installationId`) y clave válida en Keystore (`!mostRecent.isEncrypted || CloudVaultKeyStore.hasVaultKey(context)`).
   4. **Resolución Explícita ante Divergencias:** Si la bóveda fue modificada sin cuenta vinculada o difiere del respaldo en la nube, mantener `lastSyncTimestamp = 0L` e `isAutoSyncEnabled = false` (con el interruptor de copia automática apagado y deshabilitado en `DriveSyncSettingsCard`) hasta que el usuario cree explícitamente una nueva copia de seguridad o restaure/fusione desde el historial.
 
-
 ---
 
-## 34. Estándar de Versionado Semántico y Despliegue de Lanzamientos (*Semantic Versioning & Release Management*)
+## 34. Estándar de Versionado Semántico, Verificación Fail-Closed SHA-256 y Despliegue de Lanzamientos (*Semantic Versioning & Fail-Closed Release Integrity*)
 - **PROHIBIDO** modificar o asignar números de versión al azar o de forma arbitraria sin justificación semántica.
 - **PROHIBIDO** publicar o compilar una actualización de la aplicación sin incrementar estrictamente el `versionCode` numérico entero en `build.gradle.kts`. Si el `versionCode` no aumenta (+1), Android OS y los instaladores de paquetes bloquearán la actualización sobre versiones instaladas previamente.
 - **PROHIBIDO** publicar un Release de actualización con un número `versionName` menor o igual al previamente distribuido, ya que el motor de actualización integrado (`AppUpdateManager.isRemoteVersionNewer`) considerará que la aplicación ya se encuentra en su versión más reciente y no ofrecerá la descarga al usuario.
+- **PROHIBIDO** instalar un paquete `.apk` descargado si `expectedSha256` está vacío, nulo o no coincide bit a bit con el hash SHA-256 calculado localmente, o descargar binarios desde dominios ajenos a `https://github.com` / `https://*.githubusercontent.com`.
 - **OBLIGATORIO seguir estrictamente la especificación de Versionado Semántico (SemVer 2.0.0 - `MAJOR.MINOR.PATCH`):**
   1. **PARCHE (`0.0.X`):** Incrementar ante correcciones de errores (*bug fixes*), ajustes visuales, mejoras internas de rendimiento o cambios de texto/estilo retrocompatibles (ej. `1.0.0` -> `1.0.1`).
   2. **MENOR (`0.X.0`):** Incrementar ante la adición de nuevas funcionalidades, modelos o características sustanciales que preserven compatibilidad hacia atrás (ej. `1.0.1` -> `1.1.0`), reseteando el parche a `0`.
   3. **MAYOR (`X.0.0`):** Incrementar ante rupturas de compatibilidad (*breaking changes*), reestructuración radical de la arquitectura o cambios en el esquema de base de datos o cifrado que no admitan migración transparente (ej. `1.x.x` -> `2.0.0`), reseteando menor y parche a `0`.
-- **OBLIGATORIO la paridad de artefactos en cada Release de GitHub:**
+- **OBLIGATORIO la paridad de artefactos y validación Fail-Closed en cada Release de GitHub:**
   1. **Tag anotado inmutable:** Crear y subir siempre el tag de Git correspondiente (`vMAJOR.MINOR.PATCH`, ej. `git tag -a v1.0.1 -m "Release v1.0.1 - AppOPT Authenticator"` y `git push origin v1.0.1`).
   2. **Binario optimizado adjunto:** Compilar la versión Release (`./gradlew assembleRelease`), optimizada mediante R8/ProGuard y firmada, y adjuntar el archivo `AppOPT-v<version>.apk` a los activos (*assets*) del lanzamiento de GitHub.
-  3. **Huella criptográfica SHA-256 en la descripción:** Calcular e incluir obligatoriamente el hash SHA-256 de 64 caracteres hexadecimales en el cuerpo del Release (`SHA-256: <hash>`) para que el motor `AppUpdateManager` valide automáticamente la integridad del paquete en vuelo bajo el principio Zero-Trust antes de permitir su instalación.
+  3. **Huella criptográfica SHA-256 obligatoria (Fail-Closed):** Calcular e incluir obligatoriamente el hash SHA-256 de 64 caracteres hexadecimales en el cuerpo del Release (`SHA-256: <hash>`) o en el metadato `digest` del asset para que el motor `AppUpdateManager.verifySha256Integrity` valide de forma **Fail-Closed** la integridad del paquete en vuelo antes de permitir su instalación.

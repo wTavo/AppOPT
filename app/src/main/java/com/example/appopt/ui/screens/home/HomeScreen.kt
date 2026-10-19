@@ -61,7 +61,6 @@ import com.example.appopt.ui.screens.home.components.HomeSharedServicesAccordion
 import com.example.appopt.ui.screens.home.components.HomeTopHeader
 import com.example.appopt.ui.screens.home.coordinator.rememberHomeCardsCoordinator
 import com.example.appopt.ui.screens.home.dialogs.HomeDialogContainer
-import com.example.appopt.ui.screens.home.model.HomeCardItem
 import com.example.appopt.ui.screens.settings.coordinator.rememberGoogleOAuthRequester
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
@@ -72,14 +71,6 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 /**
  * Pantalla principal que visualiza las cuentas 2FA con barra de filtros superior («Todos», «Favoritos» y «Compartidos»)
  * y navegación táctil deslizando hacia la izquierda o derecha ([HorizontalPager]).
- *
- * Características de seguridad, diseño e interacción:
- * - Cabecera superior flotante: Búsqueda interactiva, alternador de modo de privacidad ([HomeTopHeader]) y filtros rápidos por categoría ([HomeCategoryFilterBar]).
- * - Paginación horizontal fluida: Permite cambiar entre «Todos», «Favoritos» y «Compartidos» tanto tocando el filtro superior como deslizando lateralmente la pantalla.
- * - Dock flotante inferior: Acciones rápidas ergonómicas inferiores accesibles con una sola mano ([HomeFloatingDock]).
- * - Menú Speed Dial contextual: Despliegue de opciones directamente sobre el botón (+) con rotación animada a 'x'.
- * - Diálogos modales atómicos: Delegados a [HomeDialogContainer].
- * - Lista de tarjetas y ordenamiento por arrastre: Delegados a [HomeReorderableCardItem] y [com.example.appopt.ui.screens.home.coordinator.HomeCardsCoordinator].
  *
  * @param viewModel ViewModel reactivo que suministra el flujo de cuentas y operaciones de bóveda.
  * @param onNavigateToSettings Callback para navegar hacia la pantalla de Ajustes.
@@ -107,7 +98,6 @@ fun HomeScreen(
     val deletedAccountsCount by viewModel.deletedAccountsCount.collectAsStateWithLifecycle()
     val availableUpdate by AppUpdateManager.availableUpdate.collectAsStateWithLifecycle()
     val sharedCacheVersion by SharedBatchKeyStore.cacheVersion.collectAsStateWithLifecycle()
-
     val driveConnectedSuccessText = stringResource(R.string.settings_drive_connected_success)
 
     TrackJankMetrics(screenName = "HomeScreen")
@@ -127,11 +117,9 @@ fun HomeScreen(
 
     val appLockManager = remember { AuthenticatorApp.instance.appLockManager }
     val isUnlocked by appLockManager.isUnlocked.collectAsStateWithLifecycle()
-
     val requestOAuthToken = rememberGoogleOAuthRequester(onAuthError = {})
     val cardsCoordinator = rememberHomeCardsCoordinator(viewModel, requestOAuthToken)
 
-    // Cierre defensivo de modales al bloquearse la bóveda, búsqueda silenciosa de actualizaciones y sincronización de invitaciones compartidas
     LaunchedEffect(isUnlocked, isDriveConnected) {
         if (!isUnlocked) {
             selectedAccountId = null
@@ -144,17 +132,14 @@ fun HomeScreen(
             AppUpdateManager.checkForUpdate(context)
             if (isDriveConnected) {
                 requestOAuthToken { token ->
-                    scope.launch {
-                        SharedBatchKeyStore.syncSharedServicesFromCloud(context, token)
-                    }
+                    scope.launch { SharedBatchKeyStore.syncSharedServicesFromCloud(context, token) }
                 }
             }
         }
     }
 
     val pendingSharedCount = remember(sharedCacheVersion, isUnlocked) {
-        SharedBatchKeyStore.getCachedIncomingServices(context)
-            .count { it.status == ShareGrantStatus.PENDING }
+        SharedBatchKeyStore.getCachedIncomingServices(context).count { it.status == ShareGrantStatus.PENDING }
     }
 
     TrackJankOperationState(
@@ -164,9 +149,7 @@ fun HomeScreen(
 
     @Suppress("UNCHECKED_CAST")
     val currentSuccessAccounts by remember(uiState) {
-        derivedStateOf {
-            (uiState as? UiState.Success<*>)?.data as? List<AccountWithCode> ?: emptyList()
-        }
+        derivedStateOf { (uiState as? UiState.Success<*>)?.data as? List<AccountWithCode> ?: emptyList() }
     }
 
     val incomingServices = remember(sharedCacheVersion, isUnlocked) {
@@ -182,18 +165,13 @@ fun HomeScreen(
 
     val allDisplayItems by remember(searchQuery) {
         derivedStateOf {
-            if (searchQuery.isBlank()) {
-                cardsCoordinator.localCards.toList()
-            } else {
-                cardsCoordinator.localCards.filter { it.matchesQuery(searchQuery) }
-            }
+            if (searchQuery.isBlank()) cardsCoordinator.localCards.toList()
+            else cardsCoordinator.localCards.filter { it.matchesQuery(searchQuery) }
         }
     }
 
     val favoriteDisplayItems by remember(allDisplayItems) {
-        derivedStateOf {
-            allDisplayItems.filter { it.isFavorite }
-        }
+        derivedStateOf { allDisplayItems.filter { it.isFavorite } }
     }
 
     val selectedAccountWithCode = selectedAccountId?.let { id ->
@@ -201,23 +179,15 @@ fun HomeScreen(
             ?: currentSuccessAccounts.find { it.account.id == id }
     }
 
-    // Cálculo reactivo de resguardo vertical para evitar que el header flotante + barra de filtros y el dock tapen las tarjetas
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val listTopPadding = statusBarTop +
-        Dimensions.ComponentHeight.buttonDefault +
-        Dimensions.ComponentHeight.buttonCompact +
-        Dimensions.Spacing.xs +
-        (Dimensions.Spacing.sm * 2) +
-        Dimensions.Spacing.lg
-    val listBottomPadding = navBarBottom + Dimensions.Spacing.lg + Dimensions.ComponentSize.heroFab + (Dimensions.Spacing.sm * 2) + Dimensions.Spacing.xl
+    val listTopPadding = statusBarTop + Dimensions.ComponentHeight.buttonDefault +
+        Dimensions.ComponentHeight.buttonCompact + Dimensions.Spacing.xs +
+        (Dimensions.Spacing.sm * 2) + Dimensions.Spacing.lg
+    val listBottomPadding = navBarBottom + Dimensions.Spacing.lg +
+        Dimensions.ComponentSize.heroFab + (Dimensions.Spacing.sm * 2) + Dimensions.Spacing.xl
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        // 1. Capa de Contenido Principal con deslizamiento horizontal entre Todos, Favoritos y Compartidos
+    Box(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         if (uiState !is UiState.Loading) {
             HorizontalPager(
                 state = pagerState,
@@ -251,10 +221,7 @@ fun HomeScreen(
                 ) {
                     when (pageFilter) {
                         HomeCategoryFilter.SHARED -> {
-                            item(
-                                key = "shared_services_view",
-                                contentType = "shared_view"
-                            ) {
+                            item(key = "shared_services_view", contentType = "shared_view") {
                                 HomeSharedServicesAccordion(
                                     searchQuery = searchQuery,
                                     hideCodes = isHideCodesEnabled,
@@ -262,19 +229,19 @@ fun HomeScreen(
                                     showEmptyStateAndHeader = true,
                                     isDriveConnected = isDriveConnected,
                                     isConnectingDrive = isDriveConnecting,
+                                    loadingSharedGrantId = cardsCoordinator.loadingSharedGrantId,
                                     onConnectClick = {
                                         requestOAuthToken { token ->
                                             viewModel.onGoogleDriveConnected(token) {
                                                 appHaptics.success()
-                                                Toast.makeText(
-                                                    context,
-                                                    driveConnectedSuccessText,
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
+                                                Toast.makeText(context, driveConnectedSuccessText, Toast.LENGTH_SHORT).show()
                                             }
                                         }
                                     },
-                                    onSharedCardClick = { selectedSharedServiceForDetails = it }
+                                    onSharedCardClick = { selectedSharedServiceForDetails = it },
+                                    onRequestSharedCode = { cardsCoordinator.requestSharedCode(it) },
+                                    onAcceptSharedInvitation = { cardsCoordinator.acceptSharedInvitation(it) },
+                                    onRejectSharedInvitation = { cardsCoordinator.rejectSharedInvitation(it) }
                                 )
                             }
                         }
@@ -282,11 +249,7 @@ fun HomeScreen(
                         HomeCategoryFilter.ALL, HomeCategoryFilter.FAVORITES -> {
                             val displayItems = if (pageFilter == HomeCategoryFilter.ALL) allDisplayItems else favoriteDisplayItems
                             if (displayItems.isNotEmpty()) {
-                                items(
-                                    items = displayItems,
-                                    key = { it.key },
-                                    contentType = { "otp_card" }
-                                ) { item ->
+                                items(items = displayItems, key = { it.key }, contentType = { "otp_card" }) { item ->
                                     HomeReorderableCardItem(
                                         item = item,
                                         reorderableState = pageReorderableState,
@@ -315,33 +278,22 @@ fun HomeScreen(
                                     )
                                 }
                             } else {
-                                item(
-                                    key = "empty_state_${pageFilter.name}",
-                                    contentType = "empty_state"
-                                ) {
-                                    if (searchQuery.isNotBlank()) {
-                                        EmptyAccountsState(
+                                item(key = "empty_state_${pageFilter.name}", contentType = "empty_state") {
+                                    when {
+                                        searchQuery.isNotBlank() -> EmptyAccountsState(
                                             icon = Icons.Filled.SearchOff,
                                             title = stringResource(R.string.home_search_empty_title),
                                             description = stringResource(R.string.home_search_empty_description, searchQuery),
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .padding(top = Dimensions.Spacing.xl)
+                                            modifier = Modifier.fillMaxSize().padding(top = Dimensions.Spacing.xl)
                                         )
-                                    } else if (pageFilter == HomeCategoryFilter.FAVORITES) {
-                                        EmptyAccountsState(
+                                        pageFilter == HomeCategoryFilter.FAVORITES -> EmptyAccountsState(
                                             icon = Icons.Filled.StarOutline,
                                             title = stringResource(R.string.home_empty_favorites_title),
                                             description = stringResource(R.string.home_empty_favorites_description),
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .padding(top = Dimensions.Spacing.xl)
+                                            modifier = Modifier.fillMaxSize().padding(top = Dimensions.Spacing.xl)
                                         )
-                                    } else {
-                                        EmptyAccountsState(
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .padding(top = Dimensions.Spacing.xl)
+                                        else -> EmptyAccountsState(
+                                            modifier = Modifier.fillMaxSize().padding(top = Dimensions.Spacing.xl)
                                         )
                                     }
                                 }
@@ -352,7 +304,6 @@ fun HomeScreen(
             }
         }
 
-        // 2. Menú flotante Speed Dial contextual para agregar cuentas
         if (isUnlocked) {
             AddAccountSpeedDialOverlay(
                 isOpen = isAddMenuOpen,
@@ -368,7 +319,6 @@ fun HomeScreen(
             )
         }
 
-        // 3. Dock Flotante Inferior Ergonómico
         HomeFloatingDock(
             onLockVault = { viewModel.lockVault() },
             onAddAccountClick = { isAddMenuOpen = !isAddMenuOpen },
@@ -384,7 +334,6 @@ fun HomeScreen(
                 .zIndex(20f)
         )
 
-        // 4. Header Flotante Superior + Barra de Filtros (Todos, Favoritos, Compartidos)
         Column(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -408,17 +357,12 @@ fun HomeScreen(
 
             HomeCategoryFilterBar(
                 selectedFilter = selectedFilter,
-                onFilterSelected = { filter ->
-                    scope.launch {
-                        pagerState.animateScrollToPage(filter.ordinal)
-                    }
-                },
+                onFilterSelected = { filter -> scope.launch { pagerState.animateScrollToPage(filter.ordinal) } },
                 pendingSharedCount = pendingSharedCount
             )
         }
     }
 
-    // 5. Contenedor de modales desacoplado
     HomeDialogContainer(
         isUnlocked = isUnlocked,
         isManualAddDialogOpen = isManualAddDialogOpen,

@@ -23,9 +23,6 @@ data class SharedOtpBatch(
 ) {
     /**
      * Determina si el lote precalculado ha caducado respecto al instante indicado.
-     *
-     * @param nowMillis Tiempo actual en milisegundos.
-     * @return `true` si el lote ya expiró o no contiene códigos vigentes.
      */
     fun isExpired(nowMillis: Long): Boolean {
         return nowMillis >= expiresAtMillis || codesByStep.isEmpty()
@@ -33,9 +30,6 @@ data class SharedOtpBatch(
 
     /**
      * Obtiene el código OTP precalculado correspondiente al instante indicado si el lote sigue vigente.
-     *
-     * @param nowMillis Tiempo actual en milisegundos.
-     * @return Código OTP de 6/8 dígitos, o `null` si el lote expiró o no cubre dicho instante.
      */
     fun getCodeAt(nowMillis: Long): String? {
         if (isExpired(nowMillis)) return null
@@ -47,10 +41,6 @@ data class SharedOtpBatch(
     /**
      * Si el lote corresponde a una brecha corta en línea (p. ej. 3 códigos consecutivos),
      * devuelve el par `(pasoActualBase1, totalPasos)` vigente en `nowMillis`.
-     *
-     * @param nowMillis Tiempo actual en milisegundos.
-     * @param maxLiveWindowSteps Límite máximo de pasos para considerar el lote como una brecha corta en línea.
-     * @return Par `(pasoActual, totalPasos)` o `null` si es un lote largo sin conexión o expiró.
      */
     fun getWindowStepProgress(nowMillis: Long, maxLiveWindowSteps: Int = 3): Pair<Int, Int>? {
         if (isExpired(nowMillis) || codesByStep.size > maxLiveWindowSteps) return null
@@ -63,13 +53,53 @@ data class SharedOtpBatch(
 
     /**
      * Calcula los segundos restantes de validez del código actual dentro de su ventana de rotación.
-     *
-     * @param nowMillis Tiempo actual en milisegundos.
-     * @return Segundos restantes en el rango `1..periodSeconds`.
      */
     fun getRemainingSecondsAt(nowMillis: Long): Int {
         val safePeriod = periodSeconds.coerceAtLeast(1)
         val nowSeconds = nowMillis / 1000L
         return (safePeriod - (nowSeconds % safePeriod)).toInt()
     }
+}
+
+/**
+ * Resultado de una solicitud de brecha de códigos OTP efímeros en línea desde el servidor calculador (Directiva 31).
+ *
+ * @property code Código OTP de 6 u 8 dígitos para el paso inicial.
+ * @property remainingSeconds Segundos restantes de vigencia del código inicial.
+ * @property periodSeconds Período total de rotación en segundos.
+ * @property expiresAtMillis Marca de tiempo en milisegundos en la que caduca el último código de la brecha.
+ * @property codesByStep Mapa de pasos de tiempo (`epochSeconds / periodSeconds`) hacia su código OTP dentro de la brecha.
+ * @property singleUseConsumed Indica si el permiso era de un solo uso y fue consumido al entregar esta brecha.
+ */
+data class LiveSharedCodeResult(
+    val code: String,
+    val remainingSeconds: Int,
+    val periodSeconds: Int,
+    val expiresAtMillis: Long = 0L,
+    val codesByStep: Map<Long, String> = emptyMap(),
+    val singleUseConsumed: Boolean = false
+) {
+    /**
+     * Convierte esta brecha temporal de códigos en un [SharedOtpBatch] para resguardarla cifrada durante su vigencia.
+     */
+    fun toSharedOtpBatch(grantId: String): SharedOtpBatch {
+        return SharedOtpBatch(
+            grantId = grantId,
+            periodSeconds = periodSeconds,
+            expiresAtMillis = expiresAtMillis,
+            codesByStep = codesByStep,
+            isSingleUseWindow = singleUseConsumed
+        )
+    }
+
+    /**
+     * Obtiene el código OTP correspondiente al instante indicado dentro de la brecha de códigos.
+     */
+    fun getCodeAt(nowMillis: Long): String? = toSharedOtpBatch("").getCodeAt(nowMillis)
+
+    /**
+     * Calcula el progreso actual dentro de la brecha de códigos (ej. `1 to 3`, `2 to 3`, `3 to 3`).
+     */
+    fun getWindowStepProgress(nowMillis: Long): Pair<Int, Int>? =
+        toSharedOtpBatch("").getWindowStepProgress(nowMillis, maxLiveWindowSteps = 3)
 }

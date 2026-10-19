@@ -18,8 +18,8 @@ import com.example.appopt.domain.model.AccountWithCode
 import com.example.appopt.domain.model.IncomingSharedService
 import com.example.appopt.domain.model.ShareAccessMode
 import com.example.appopt.domain.model.ShareGrantStatus
+import com.example.appopt.ui.screens.home.HomeCardItem
 import com.example.appopt.ui.screens.home.HomeViewModel
-import com.example.appopt.ui.screens.home.model.HomeCardItem
 import com.example.appopt.ui.theme.AppHaptics
 import com.example.appopt.ui.theme.rememberAppHaptics
 import kotlinx.coroutines.CoroutineScope

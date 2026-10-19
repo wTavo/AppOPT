@@ -75,6 +75,22 @@ object SecurityConfig {
     const val APP_LOCK_TIMEOUT_MILLIS = 5_000L
 
     /**
+     * Tiempo máximo de validez en milisegundos (3 minutos) para una suspensión temporal de bloqueo
+     * al abrir selectores de archivos del sistema o impresión PDF. Si se supera, exige biometría al volver.
+     */
+    const val EXTERNAL_ACTIVITY_SUSPEND_TTL_MILLIS = 180_000L
+
+    /**
+     * Tiempo máximo de espera de conexión HTTP para Google Drive REST API v3 (15 segundos).
+     */
+    const val GOOGLE_DRIVE_HTTP_CONNECT_TIMEOUT_MILLIS = 15_000
+
+    /**
+     * Tiempo máximo de espera de lectura HTTP para Google Drive REST API v3 (20 segundos).
+     */
+    const val GOOGLE_DRIVE_HTTP_READ_TIMEOUT_MILLIS = 20_000
+
+    /**
      * Retardo de consolidación (*Debounce*) en segundos antes de disparar la sincronización reactiva automática en la nube.
      */
     const val REACTIVE_SYNC_DEBOUNCE_SECONDS = 20L

@@ -109,4 +109,17 @@ class AppUpdateManagerTest {
         assertEquals("• Seguridad: Cifrado mejorado de claves.", notes[0])
         assertEquals("• Interfaz: Navegación fluida.", notes[1])
     }
+
+    /**
+     * Verifica la validación Fail-Closed de integridad SHA-256 en [AppUpdateManager.verifySha256Integrity].
+     */
+    @Test
+    fun `AppUpdateManager verifySha256Integrity enforces fail-closed validation`() {
+        val validSha = "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90"
+        assertFalse(AppUpdateManager.verifySha256Integrity(null, validSha))
+        assertFalse(AppUpdateManager.verifySha256Integrity("", validSha))
+        assertFalse(AppUpdateManager.verifySha256Integrity("   ", validSha))
+        assertFalse(AppUpdateManager.verifySha256Integrity("deadbeef", validSha))
+        assertTrue(AppUpdateManager.verifySha256Integrity(validSha.uppercase(), validSha))
+    }
 }

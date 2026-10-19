@@ -17,10 +17,11 @@ import androidx.compose.ui.res.stringResource
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
 import com.example.appopt.data.cloud.CloudVaultKeyStore
-import com.example.appopt.data.cloud.CloudVaultSyncManager
 import com.example.appopt.data.cloud.DriveBackupItem
 import com.example.appopt.data.cloud.GoogleDriveManager
+import com.example.appopt.data.cloud.ManualSyncManager
 import com.example.appopt.domain.model.ParsedAccountPreview
+import com.example.appopt.security.CryptoManager
 import com.example.appopt.security.MnemonicManager
 import com.example.appopt.security.SecurityConfig
 import com.example.appopt.ui.components.AppModalDialog
@@ -32,7 +33,6 @@ import com.example.appopt.ui.screens.settings.dialogs.components.DriveDetailsSel
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.rememberAppHaptics
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
@@ -46,7 +46,7 @@ private enum class DriveDetailsSubState {
 
 /**
  * Diálogo modal para la visualización del historial de versiones de respaldo en Google Drive,
- * restauración granular in-situ y borrado autenticado (Directivas 7, 14, 22, 23 y 29).
+ * restauración granular in-situ y borrado autenticado (Directivas 7, 9, 14, 22, 23 y 29).
  *
  * @param backupItems Lista de elementos de respaldo detectados en Google Drive.
  * @param isLoading Indica si la consulta remota de versiones está en ejecución.
@@ -96,6 +96,14 @@ fun DriveBackupDetailsDialog(
 
     var currentTick by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
+    val purgeSensitiveSessionState: () -> Unit = {
+        ParsedAccountPreview.zeroizeAll(parsedAccounts)
+        parsedAccounts = emptyList()
+        selectedAccountIds = emptySet()
+        downloadedSession?.let { CryptoManager.zeroize(it.vaultKey) }
+        downloadedSession = null
+    }
+
     LaunchedEffect(lastFetchTimestamp) {
         val initialElapsed = (System.currentTimeMillis() - lastFetchTimestamp).coerceAtLeast(0L)
         val initialRemaining = (SecurityConfig.BACKUP_CACHE_TTL_MILLIS - initialElapsed).coerceAtLeast(0L)
@@ -105,9 +113,7 @@ fun DriveBackupDetailsDialog(
                 currentTick = now
                 val elapsed = (now - lastFetchTimestamp).coerceAtLeast(0L)
                 val remaining = (SecurityConfig.BACKUP_CACHE_TTL_MILLIS - elapsed).coerceAtLeast(0L)
-                if (remaining <= 0L) {
-                    break
-                }
+                if (remaining <= 0L) break
                 delay(1_000L.milliseconds)
             }
         }
@@ -124,22 +130,25 @@ fun DriveBackupDetailsDialog(
         onDismissRequest = {
             if (isDecryptingBackup && currentSubState != DriveDetailsSubState.RESTORE_SELECT_ACCOUNTS) return@AppModalDialog
             isDecryptingBackup = false
+            purgeSensitiveSessionState()
             onDismiss()
         },
         onBackStep = {
             when (currentSubState) {
                 DriveDetailsSubState.RESTORE_SELECT_ACCOUNTS -> {
                     isDecryptingBackup = false
-                    if (pendingRestoreBackup?.isEncrypted == false) {
-                        currentSubState = DriveDetailsSubState.HISTORY
+                    purgeSensitiveSessionState()
+                    currentSubState = if (pendingRestoreBackup?.isEncrypted == false) {
+                        DriveDetailsSubState.HISTORY
                     } else {
-                        currentSubState = DriveDetailsSubState.RESTORE_DECRYPT
+                        DriveDetailsSubState.RESTORE_DECRYPT
                     }
                     true
                 }
                 DriveDetailsSubState.RESTORE_DECRYPT, DriveDetailsSubState.DELETE_SINGLE -> {
                     if (isDecryptingBackup) return@AppModalDialog true
                     isDecryptingBackup = false
+                    purgeSensitiveSessionState()
                     restoreSecretText = ""
                     deleteSecretText = ""
                     decryptErrorMessage = null
@@ -185,14 +194,12 @@ fun DriveBackupDetailsDialog(
                                             GoogleDriveManager.downloadBackupDetailedById(token, item.fileId, null)
                                         } else if (token.isNotBlank()) {
                                             GoogleDriveManager.downloadBackupDetailed(token, null)
-                                        } else {
-                                            null
-                                        }
+                                        } else null
+
                                         if (downloadResult != null && downloadResult.isSuccess) {
                                             val detailed = downloadResult.getOrThrow()
                                             downloadedSession = null
-                                            val jsonString = detailed.plainJson
-                                            val previews = repository.parseAccountsForPreview(jsonString)
+                                            val previews = repository.parseAccountsForPreview(detailed.plainJson)
                                             if (previews.isNotEmpty()) {
                                                 parsedAccounts = previews
                                                 selectedAccountIds = previews.filter { !it.isAlreadyInVault }.map { it.id }.toSet()
@@ -226,7 +233,10 @@ fun DriveBackupDetailsDialog(
                             currentSubState = DriveDetailsSubState.DELETE_SINGLE
                         },
                         onForceRefresh = onForceRefresh,
-                        onDismiss = onDismiss
+                        onDismiss = {
+                            purgeSensitiveSessionState()
+                            onDismiss()
+                        }
                     )
                 }
 
@@ -260,21 +270,20 @@ fun DriveBackupDetailsDialog(
                                         GoogleDriveManager.downloadBackupDetailedById(token, targetItem.fileId, passChars)
                                     } else if (token.isNotBlank()) {
                                         GoogleDriveManager.downloadBackupDetailed(token, passChars)
-                                    } else {
-                                        null
-                                    }
+                                    } else null
 
                                     if (downloadResult != null && downloadResult.isSuccess) {
                                         val detailed = downloadResult.getOrThrow()
                                         downloadedSession = detailed.session
-                                        val jsonString = detailed.plainJson
-                                        val previews = repository.parseAccountsForPreview(jsonString)
+                                        val previews = repository.parseAccountsForPreview(detailed.plainJson)
                                         if (previews.isNotEmpty()) {
                                             parsedAccounts = previews
                                             selectedAccountIds = previews.filter { !it.isAlreadyInVault }.map { it.id }.toSet()
                                             appHaptics.success()
                                             currentSubState = DriveDetailsSubState.RESTORE_SELECT_ACCOUNTS
                                         } else {
+                                            detailed.session?.let { CryptoManager.zeroize(it.vaultKey) }
+                                            downloadedSession = null
                                             decryptErrorMessage = decryptErrorText
                                             appHaptics.error()
                                             isDecryptingBackup = false
@@ -297,6 +306,7 @@ fun DriveBackupDetailsDialog(
                         },
                         onBack = {
                             isDecryptingBackup = false
+                            purgeSensitiveSessionState()
                             restoreSecretText = ""
                             decryptErrorMessage = null
                             currentSubState = DriveDetailsSubState.HISTORY
@@ -315,44 +325,24 @@ fun DriveBackupDetailsDialog(
                                 selectedAccountIds + id
                             }
                         },
-                        onSelectAll = {
-                            selectedAccountIds = parsedAccounts.map { it.id }.toSet()
-                        },
-                        onDeselectAll = {
-                            selectedAccountIds = emptySet()
-                        },
+                        onSelectAll = { selectedAccountIds = parsedAccounts.map { it.id }.toSet() },
+                        onDeselectAll = { selectedAccountIds = emptySet() },
                         onConfirmImport = {
-                            val accountsToImport = parsedAccounts.filter { it.id in selectedAccountIds }
+                            val targetBackup = pendingRestoreBackup
+                            val sessionSnapshot = downloadedSession
+                            val allSnapshot = parsedAccounts
+                            val selectedSnapshot = selectedAccountIds
                             scope.launch {
-                                repository.importSelectedAccounts(accountsToImport)
-                                val prefsManager = AuthenticatorApp.instance.preferencesManager
-                                prefsManager.setGoogleDriveConnected(true)
-                                val session = downloadedSession
-                                if (session != null) {
-                                    CloudVaultKeyStore.saveVaultKeyAndSlots(context.applicationContext, session)
-                                    prefsManager.setDriveBackupEncrypted(true)
-                                } else {
-                                    prefsManager.setDriveBackupEncrypted(false)
-                                }
-                                val updatedAccounts = repository.getAccounts().first()
-                                val currentVaultHash = CloudVaultSyncManager.computeAccountsSignature(updatedAccounts)
-                                val targetBackup = pendingRestoreBackup
-                                val remoteHash = targetBackup?.vaultHash.orEmpty()
-                                val isFullRestore = remoteHash.isNotEmpty() && selectedAccountIds.size == parsedAccounts.size
-                                val effectiveSyncedHash = if (isFullRestore) remoteHash else currentVaultHash
-                                prefsManager.getConnectedDriveEmail()?.takeIf { it.isNotBlank() }?.let {
-                                    prefsManager.setLastKnownDriveEmail(it)
-                                }
-                                targetBackup?.let { prefsManager.setLastSyncTimestamp(it.modifiedTimeMillis) }
-                                prefsManager.setLastSyncedVaultHash(effectiveSyncedHash)
-                                prefsManager.setLastKnownSyncedVaultHash(effectiveSyncedHash)
-                                prefsManager.setVaultModifiedWhileDisconnected(false)
-                                prefsManager.setAutoSyncEnabled(true)
-                                if (!isFullRestore && remoteHash.isNotEmpty() && currentVaultHash != remoteHash) {
-                                    CloudVaultSyncManager.triggerReactiveSync(context.applicationContext)
-                                } else {
-                                    CloudVaultSyncManager.cancelAllSync(context.applicationContext)
-                                }
+                                ManualSyncManager.completeGranularRestore(
+                                    context = context.applicationContext,
+                                    repository = repository,
+                                    allParsedAccounts = allSnapshot,
+                                    selectedAccountIds = selectedSnapshot,
+                                    session = sessionSnapshot,
+                                    isEncrypted = targetBackup?.isEncrypted == true,
+                                    remoteVaultHash = targetBackup?.vaultHash.orEmpty(),
+                                    backupModifiedTimeMillis = targetBackup?.modifiedTimeMillis ?: 0L
+                                )
                             }
                             true
                         },
@@ -363,10 +353,11 @@ fun DriveBackupDetailsDialog(
                         },
                         onBack = {
                             isDecryptingBackup = false
-                            if (pendingRestoreBackup?.isEncrypted == false) {
-                                currentSubState = DriveDetailsSubState.HISTORY
+                            purgeSensitiveSessionState()
+                            currentSubState = if (pendingRestoreBackup?.isEncrypted == false) {
+                                DriveDetailsSubState.HISTORY
                             } else {
-                                currentSubState = DriveDetailsSubState.RESTORE_DECRYPT
+                                DriveDetailsSubState.RESTORE_DECRYPT
                             }
                         }
                     )
@@ -389,9 +380,7 @@ fun DriveBackupDetailsDialog(
                                         deleteSecretText.trim()
                                     }
                                     normalizedSecret.toCharArray()
-                                } else {
-                                    null
-                                }
+                                } else null
                                 onDeleteSpecificBackup(targetItem, passChars)
                                 pendingDeleteBackup = null
                                 deleteSecretText = ""

@@ -29,7 +29,9 @@ import com.example.appopt.R
 import com.example.appopt.data.cloud.CloudVaultKeyStore
 import com.example.appopt.data.cloud.DriveBackupItem
 import com.example.appopt.data.cloud.GoogleDriveManager
+import com.example.appopt.data.cloud.ManualSyncManager
 import com.example.appopt.domain.model.ParsedAccountPreview
+import com.example.appopt.security.CryptoManager
 import com.example.appopt.security.MnemonicManager
 import com.example.appopt.ui.components.AppDialogActionButtons
 import com.example.appopt.ui.components.AppModalDialog
@@ -47,7 +49,7 @@ private enum class DriveDecryptStep {
 }
 
 /**
- * Diálogo modal para el descifrado y restauración granular del respaldo más reciente en Google Drive (Directivas 7, 14, 22 y 23).
+ * Diálogo modal para el descifrado y restauración granular del respaldo más reciente en Google Drive (Directivas 7, 9, 14, 22 y 23).
  *
  * @param onRestore Callback ejecutado con la clave de descifrado ingresada en [CharArray].
  * @param onDismiss Callback ejecutado para descartar y cerrar el diálogo.
@@ -87,6 +89,14 @@ fun DriveDecryptDialog(
     var parsedAccounts by remember { mutableStateOf<List<ParsedAccountPreview>>(emptyList()) }
     var selectedAccountIds by remember { mutableStateOf<Set<String>>(emptySet()) }
 
+    val purgeSensitiveSessionState: () -> Unit = {
+        ParsedAccountPreview.zeroizeAll(parsedAccounts)
+        parsedAccounts = emptyList()
+        selectedAccountIds = emptySet()
+        downloadedSession?.let { CryptoManager.zeroize(it.vaultKey) }
+        downloadedSession = null
+    }
+
     LaunchedEffect(isEncrypted, fileId) {
         if (!isEncrypted) {
             isDecrypting = true
@@ -97,14 +107,12 @@ fun DriveDecryptDialog(
                     GoogleDriveManager.downloadBackupDetailedById(token, fileId, null)
                 } else if (token.isNotBlank()) {
                     GoogleDriveManager.downloadBackupDetailed(token, null)
-                } else {
-                    null
-                }
+                } else null
+
                 if (downloadResult != null && downloadResult.isSuccess) {
                     val detailed = downloadResult.getOrThrow()
                     downloadedSession = null
-                    val jsonString = detailed.plainJson
-                    val previews = repository.parseAccountsForPreview(jsonString)
+                    val previews = repository.parseAccountsForPreview(detailed.plainJson)
                     if (previews.isNotEmpty()) {
                         parsedAccounts = previews
                         selectedAccountIds = previews.filter { !it.isAlreadyInVault }.map { it.id }.toSet()
@@ -129,14 +137,16 @@ fun DriveDecryptDialog(
 
     AppModalDialog(
         onDismissRequest = {
-            if (!isDecrypting) onDismiss()
+            if (!isDecrypting) {
+                purgeSensitiveSessionState()
+                onDismiss()
+            }
         },
         onBackStep = {
-            if (isDecrypting) {
-                return@AppModalDialog true
-            }
+            if (isDecrypting) return@AppModalDialog true
             if (isEncrypted && currentStep == DriveDecryptStep.SELECT_ACCOUNTS) {
                 isDecrypting = false
+                purgeSensitiveSessionState()
                 currentStep = DriveDecryptStep.DECRYPT
                 true
             } else {
@@ -159,13 +169,11 @@ fun DriveDecryptDialog(
                             .imePadding(),
                         verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                     ) {
-                        // Cabecera fija
                         Text(
                             text = stringResource(R.string.drive_restore_selection_title),
                             style = MaterialTheme.typography.titleLarge
                         )
 
-                        // Cuerpo central scrolleable aislado
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -180,9 +188,7 @@ fun DriveDecryptDialog(
                                         .padding(vertical = Dimensions.Spacing.xl),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(Dimensions.IconSize.large)
-                                    )
+                                    CircularProgressIndicator(modifier = Modifier.size(Dimensions.IconSize.large))
                                 }
                             } else if (decryptErrorMessage != null) {
                                 Text(
@@ -194,15 +200,18 @@ fun DriveDecryptDialog(
                             }
                         }
 
-                        // Pie fijo de acciones
                         AppDialogActionButtons(
                             dismissText = stringResource(R.string.action_close),
                             onDismiss = {
-                                if (!isDecrypting) onDismiss()
+                                if (!isDecrypting) {
+                                    purgeSensitiveSessionState()
+                                    onDismiss()
+                                }
                             }
                         )
                     }
                 }
+
                 DriveDecryptStep.DECRYPT -> {
                     Column(
                         modifier = Modifier
@@ -211,13 +220,11 @@ fun DriveDecryptDialog(
                             .imePadding(),
                         verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                     ) {
-                        // Cabecera fija
                         Text(
                             text = stringResource(R.string.settings_drive_decrypt_title),
                             style = MaterialTheme.typography.titleLarge
                         )
 
-                        // Cuerpo central scrolleable aislado
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -225,50 +232,51 @@ fun DriveDecryptDialog(
                                 .verticalScroll(rememberScrollState()),
                             verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                         ) {
-
-                        val targetBackup = remember(backupDateMillis, deviceName, isActual) {
-                            DriveBackupItem(
-                                fileId = "",
-                                fileName = "",
-                                modifiedTimeMillis = backupDateMillis ?: 0L,
-                                sizeBytes = 0L,
-                                deviceName = deviceName.orEmpty(),
-                                isMostRecent = isActual
-                            )
-                        }
-
-                        DriveBackupDecryptForm(
-                            targetBackup = targetBackup,
-                            isActual = isActual,
-                            restoreSecretText = restoreSecretText,
-                            onRestoreSecretChange = {
-                                restoreSecretText = it
-                                decryptErrorMessage = null
-                            },
-                            isRestoreSecretVisible = isRestoreSecretVisible,
-                            onToggleSecretVisibility = { isRestoreSecretVisible = !isRestoreSecretVisible }
-                        )
-
-                        androidx.compose.animation.AnimatedVisibility(
-                            visible = decryptErrorMessage != null,
-                            enter = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
-                            exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut()
-                        ) {
-                            if (decryptErrorMessage != null) {
-                                Text(
-                                    text = decryptErrorMessage.orEmpty(),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error
+                            val targetBackup = remember(backupDateMillis, deviceName, isActual) {
+                                DriveBackupItem(
+                                    fileId = "",
+                                    fileName = "",
+                                    modifiedTimeMillis = backupDateMillis ?: 0L,
+                                    sizeBytes = 0L,
+                                    deviceName = deviceName.orEmpty(),
+                                    isMostRecent = isActual
                                 )
                             }
-                        }
+
+                            DriveBackupDecryptForm(
+                                targetBackup = targetBackup,
+                                isActual = isActual,
+                                restoreSecretText = restoreSecretText,
+                                onRestoreSecretChange = {
+                                    restoreSecretText = it
+                                    decryptErrorMessage = null
+                                },
+                                isRestoreSecretVisible = isRestoreSecretVisible,
+                                onToggleSecretVisibility = { isRestoreSecretVisible = !isRestoreSecretVisible }
+                            )
+
+                            androidx.compose.animation.AnimatedVisibility(
+                                visible = decryptErrorMessage != null,
+                                enter = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
+                                exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut()
+                            ) {
+                                if (decryptErrorMessage != null) {
+                                    Text(
+                                        text = decryptErrorMessage.orEmpty(),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
                         }
 
-                        // Pie fijo de acciones
                         AppDialogActionButtons(
                             dismissText = stringResource(R.string.action_close),
                             onDismiss = {
-                                if (!isDecrypting) onDismiss()
+                                if (!isDecrypting) {
+                                    purgeSensitiveSessionState()
+                                    onDismiss()
+                                }
                             },
                             confirmText = stringResource(R.string.settings_drive_decrypt_and_restore),
                             onConfirm = {
@@ -288,21 +296,20 @@ fun DriveDecryptDialog(
                                             GoogleDriveManager.downloadBackupDetailedById(token, fileId, passChars)
                                         } else if (token.isNotBlank()) {
                                             GoogleDriveManager.downloadBackupDetailed(token, passChars)
-                                        } else {
-                                            null
-                                        }
+                                        } else null
 
                                         if (downloadResult != null && downloadResult.isSuccess) {
                                             val detailed = downloadResult.getOrThrow()
                                             downloadedSession = detailed.session
-                                            val jsonString = detailed.plainJson
-                                            val previews = repository.parseAccountsForPreview(jsonString)
+                                            val previews = repository.parseAccountsForPreview(detailed.plainJson)
                                             if (previews.isNotEmpty()) {
                                                 parsedAccounts = previews
                                                 selectedAccountIds = previews.filter { !it.isAlreadyInVault }.map { it.id }.toSet()
                                                 appHaptics.success()
                                                 currentStep = DriveDecryptStep.SELECT_ACCOUNTS
                                             } else {
+                                                detailed.session?.let { CryptoManager.zeroize(it.vaultKey) }
+                                                downloadedSession = null
                                                 decryptErrorMessage = decryptErrorText
                                                 appHaptics.error()
                                                 isDecrypting = false
@@ -338,28 +345,23 @@ fun DriveDecryptDialog(
                                 selectedAccountIds + id
                             }
                         },
-                        onSelectAll = {
-                            selectedAccountIds = parsedAccounts.map { it.id }.toSet()
-                        },
-                        onDeselectAll = {
-                            selectedAccountIds = emptySet()
-                        },
+                        onSelectAll = { selectedAccountIds = parsedAccounts.map { it.id }.toSet() },
+                        onDeselectAll = { selectedAccountIds = emptySet() },
                         onConfirmImport = {
-                            val accountsToImport = parsedAccounts.filter { it.id in selectedAccountIds }
+                            val sessionSnapshot = downloadedSession
+                            val allSnapshot = parsedAccounts
+                            val selectedSnapshot = selectedAccountIds
                             scope.launch {
-                                repository.importSelectedAccounts(accountsToImport)
-                                val prefsManager = AuthenticatorApp.instance.preferencesManager
-                                prefsManager.setGoogleDriveConnected(true)
-                                val session = downloadedSession
-                                if (session != null) {
-                                    CloudVaultKeyStore.saveVaultKeyAndSlots(context.applicationContext, session)
-                                    prefsManager.setDriveBackupEncrypted(true)
-                                } else if (!isEncrypted) {
-                                    prefsManager.setDriveBackupEncrypted(false)
-                                }
-                                if (backupDateMillis != null && backupDateMillis > 0L) {
-                                    prefsManager.setLastSyncTimestamp(backupDateMillis)
-                                }
+                                ManualSyncManager.completeGranularRestore(
+                                    context = context.applicationContext,
+                                    repository = repository,
+                                    allParsedAccounts = allSnapshot,
+                                    selectedAccountIds = selectedSnapshot,
+                                    session = sessionSnapshot,
+                                    isEncrypted = isEncrypted,
+                                    remoteVaultHash = "",
+                                    backupModifiedTimeMillis = backupDateMillis ?: 0L
+                                )
                             }
                             true
                         },
@@ -368,6 +370,7 @@ fun DriveDecryptDialog(
                         },
                         onBack = {
                             isDecrypting = false
+                            purgeSensitiveSessionState()
                             if (isEncrypted) {
                                 currentStep = DriveDecryptStep.DECRYPT
                             } else {

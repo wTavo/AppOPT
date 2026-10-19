@@ -1,5 +1,6 @@
 package com.example.appopt.security
 
+import org.json.JSONObject
 import java.security.SecureRandom
 import java.util.Base64
 import javax.crypto.Cipher
@@ -37,7 +38,27 @@ object BackupCrypto {
         val saltB64: String,
         val ivB64: String,
         val wrappedKeyB64: String
-    )
+    ) {
+        /** Convierte la ranura a objeto JSON estructurado. */
+        fun toJsonObject(): JSONObject = JSONObject().apply {
+            put("salt", saltB64)
+            put("iv", ivB64)
+            put("key", wrappedKeyB64)
+        }
+
+        companion object {
+            /** Reconstruye una ranura desde un objeto JSON validando sus campos obligatorios. */
+            fun fromJsonObject(json: JSONObject): WrappedSlot {
+                val salt = json.optString("salt", "")
+                val iv = json.optString("iv", "")
+                val key = json.optString("key", "")
+                require(salt.isNotBlank() && iv.isNotBlank() && key.isNotBlank()) {
+                    "Formato de ranura criptográfica incompleto"
+                }
+                return WrappedSlot(saltB64 = salt, ivB64 = iv, wrappedKeyB64 = key)
+            }
+        }
+    }
 
     /**
      * Resultado de una operación de cifrado de respaldo nuevo.
@@ -55,13 +76,11 @@ object BackupCrypto {
     ) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
-            if (javaClass != other?.javaClass) return false
-            other as EncryptedBackupResult
-            if (!envelopeBytes.contentEquals(other.envelopeBytes)) return false
-            if (!vaultKey.contentEquals(other.vaultKey)) return false
-            if (mainSlot != other.mainSlot) return false
-            if (emergencySlot != other.emergencySlot) return false
-            return true
+            if (other !is EncryptedBackupResult) return false
+            return envelopeBytes.contentEquals(other.envelopeBytes) &&
+                vaultKey.contentEquals(other.vaultKey) &&
+                mainSlot == other.mainSlot &&
+                emergencySlot == other.emergencySlot
         }
 
         override fun hashCode(): Int {
@@ -89,13 +108,11 @@ object BackupCrypto {
     ) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
-            if (javaClass != other?.javaClass) return false
-            other as DecryptedBackupPayload
-            if (plainJson != other.plainJson) return false
-            if (!vaultKey.contentEquals(other.vaultKey)) return false
-            if (mainSlot != other.mainSlot) return false
-            if (emergencySlot != other.emergencySlot) return false
-            return true
+            if (other !is DecryptedBackupPayload) return false
+            return plainJson == other.plainJson &&
+                vaultKey.contentEquals(other.vaultKey) &&
+                mainSlot == other.mainSlot &&
+                emergencySlot == other.emergencySlot
         }
 
         override fun hashCode(): Int {
@@ -122,69 +139,24 @@ object BackupCrypto {
     ): EncryptedBackupResult {
         val vaultKeyBytes = ByteArray(KEY_LENGTH_BITS / 8)
         secureRandom.nextBytes(vaultKeyBytes)
-        val vaultSecretKey = SecretKeySpec(vaultKeyBytes, "AES")
-
-        val contentCipher = Cipher.getInstance("AES/GCM/NoPadding")
-        contentCipher.init(Cipher.ENCRYPT_MODE, vaultSecretKey)
-        val contentIv = contentCipher.iv
-
-        val plainBytes = plainJson.toByteArray(Charsets.UTF_8)
-        val ciphertext = contentCipher.doFinal(plainBytes)
-        CryptoManager.zeroize(plainBytes)
-
         val mainSlot = wrapVaultKey(vaultKeyBytes, primaryPassword)
-
         val emergencySlot = if (emergencyMnemonic != null && emergencyMnemonic.isNotEmpty()) {
             wrapVaultKey(vaultKeyBytes, emergencyMnemonic)
         } else {
             null
         }
-
-        val base64Encoder = Base64.getEncoder()
-        val contentIvB64 = base64Encoder.encodeToString(contentIv)
-        val cipherB64 = base64Encoder.encodeToString(ciphertext)
-        val now = System.currentTimeMillis()
-
-        val emergencySlotJson = if (emergencySlot != null) {
-            ",\"emergencySlot\":{\"salt\":\"${emergencySlot.saltB64}\",\"iv\":\"${emergencySlot.ivB64}\",\"key\":\"${emergencySlot.wrappedKeyB64}\"}"
-        } else {
-            ""
-        }
-
-        val envelopeString = "{\"version\":$CURRENT_BACKUP_VERSION,\"iv\":\"$contentIvB64\",\"ciphertext\":\"$cipherB64\"," +
-                "\"mainSlot\":{\"salt\":\"${mainSlot.saltB64}\",\"iv\":\"${mainSlot.ivB64}\",\"key\":\"${mainSlot.wrappedKeyB64}\"}" +
-                emergencySlotJson +
-                ",\"createdAt\":$now}"
-
-        return EncryptedBackupResult(
-            envelopeBytes = envelopeString.toByteArray(Charsets.UTF_8),
-            vaultKey = vaultKeyBytes,
-            mainSlot = mainSlot,
-            emergencySlot = emergencySlot
-        )
+        val envelopeBytes = encryptWithExistingKey(plainJson, vaultKeyBytes, mainSlot, emergencySlot)
+        return EncryptedBackupResult(envelopeBytes, vaultKeyBytes, mainSlot, emergencySlot)
     }
 
-    /**
-     * Cifra una cadena JSON en formato de sobre v2 retornando el arreglo binario.
-     *
-     * @param plainJson Texto JSON con los datos exportados.
-     * @param password Contraseña maestra en arreglo [CharArray].
-     * @return Arreglo de bytes binarios del archivo de respaldo cifrado en formato sobre seguro v2.
-     */
+    /** Cifra una cadena JSON en formato de sobre v2 retornando el arreglo binario. */
     fun encryptBackup(plainJson: String, password: CharArray): ByteArray {
         val result = encryptBackupResult(plainJson, password, null)
         CryptoManager.zeroize(result.vaultKey)
         return result.envelopeBytes
     }
 
-    /**
-     * Cifra una cadena JSON con un esquema de doble ranura v2 ([primaryPassword] + [emergencyMnemonic]).
-     *
-     * @param plainJson Texto JSON con los datos de las cuentas a exportar.
-     * @param primaryPassword Contraseña maestra o clave de 64 dígitos en [CharArray].
-     * @param emergencyMnemonic Frase mnemónica de 12 palabras normalizada en [CharArray].
-     * @return Arreglo de bytes binarios del archivo de respaldo cifrado en formato sobre seguro v2.
-     */
+    /** Cifra una cadena JSON con un esquema de doble ranura v2 ([primaryPassword] + [emergencyMnemonic]). */
     fun encryptDualBackup(
         plainJson: String,
         primaryPassword: CharArray,
@@ -195,18 +167,7 @@ object BackupCrypto {
         return result.envelopeBytes
     }
 
-    /**
-     * Cifra un nuevo respaldo reutilizando una [vaultKey] custodiada y preservando las ranuras existentes.
-     *
-     * Permite que la sincronización automática en segundo plano genere respaldos con datos frescos
-     * manteniendo intactas las ranuras de contraseña y mnemónico sin requerir interacción del usuario.
-     *
-     * @param plainJson Texto JSON actualizado con las cuentas.
-     * @param vaultKey Clave simétrica de 256 bits custodiada.
-     * @param mainSlot Ranura principal existente envuelta con la contraseña del usuario.
-     * @param emergencySlot Ranura de emergencia existente opcional.
-     * @return Arreglo de bytes binarios del archivo de respaldo cifrado en formato sobre seguro v2.
-     */
+    /** Cifra un nuevo respaldo reutilizando una [vaultKey] custodiada y preservando las ranuras existentes. */
     fun encryptWithExistingKey(
         plainJson: String,
         vaultKey: ByteArray,
@@ -214,7 +175,6 @@ object BackupCrypto {
         emergencySlot: WrappedSlot? = null
     ): ByteArray {
         val vaultSecretKey = SecretKeySpec(vaultKey, "AES")
-
         val contentCipher = Cipher.getInstance("AES/GCM/NoPadding")
         contentCipher.init(Cipher.ENCRYPT_MODE, vaultSecretKey)
         val contentIv = contentCipher.iv
@@ -224,96 +184,52 @@ object BackupCrypto {
         CryptoManager.zeroize(plainBytes)
 
         val base64Encoder = Base64.getEncoder()
-        val contentIvB64 = base64Encoder.encodeToString(contentIv)
-        val cipherB64 = base64Encoder.encodeToString(ciphertext)
-        val now = System.currentTimeMillis()
-
-        val emergencySlotJson = if (emergencySlot != null) {
-            ",\"emergencySlot\":{\"salt\":\"${emergencySlot.saltB64}\",\"iv\":\"${emergencySlot.ivB64}\",\"key\":\"${emergencySlot.wrappedKeyB64}\"}"
-        } else {
-            ""
+        val envelopeJson = JSONObject().apply {
+            put("version", CURRENT_BACKUP_VERSION)
+            put("iv", base64Encoder.encodeToString(contentIv))
+            put("ciphertext", base64Encoder.encodeToString(ciphertext))
+            put("mainSlot", mainSlot.toJsonObject())
+            if (emergencySlot != null) put("emergencySlot", emergencySlot.toJsonObject())
+            put("createdAt", System.currentTimeMillis())
         }
-
-        val envelopeString = "{\"version\":$CURRENT_BACKUP_VERSION,\"iv\":\"$contentIvB64\",\"ciphertext\":\"$cipherB64\"," +
-                "\"mainSlot\":{\"salt\":\"${mainSlot.saltB64}\",\"iv\":\"${mainSlot.ivB64}\",\"key\":\"${mainSlot.wrappedKeyB64}\"}" +
-                emergencySlotJson +
-                ",\"createdAt\":$now}"
-
-        return envelopeString.toByteArray(Charsets.UTF_8)
+        return envelopeJson.toString().toByteArray(Charsets.UTF_8)
     }
 
-    /**
-     * Descifra un archivo de respaldo versión 2 con recuperación detallada de la [VaultKey] y ranuras.
-     *
-     * @param backupBytes Contenido en bytes del archivo de respaldo.
-     * @param password Contraseña, clave de 64 dígitos o frase de 12 palabras en [CharArray].
-     * @return [Result] con [DecryptedBackupPayload] en caso de éxito, o error si la clave es incorrecta.
-     */
+    /** Descifra un archivo de respaldo versión 2 con recuperación detallada de la [VaultKey] y ranuras. */
     fun decryptBackupDetailed(backupBytes: ByteArray, password: CharArray): Result<DecryptedBackupPayload> {
         return runCatching {
-            val jsonString = String(backupBytes, Charsets.UTF_8).trim()
-
-            val versionMatch = "\"version\"\\s*:\\s*(\\d+)".toRegex().find(jsonString)
-                ?: throw IllegalArgumentException("Formato de respaldo no válido: falta versión")
-            val version = versionMatch.groupValues[1].toInt()
-
-            if (version != CURRENT_BACKUP_VERSION) {
-                throw IllegalArgumentException("Versión de respaldo no compatible ($version). Se requiere versión $CURRENT_BACKUP_VERSION.")
+            val root = JSONObject(String(backupBytes, Charsets.UTF_8).trim())
+            val version = root.optInt("version", -1)
+            require(version == CURRENT_BACKUP_VERSION) {
+                "Versión de respaldo no compatible ($version). Se requiere versión $CURRENT_BACKUP_VERSION."
             }
 
             val base64Decoder = Base64.getDecoder()
+            val ivB64 = root.optString("iv", "")
+            val cipherB64 = root.optString("ciphertext", "")
+            require(ivB64.isNotBlank() && cipherB64.isNotBlank()) { "Formato v2 no válido: falta iv o ciphertext" }
 
-            val contentIvMatch = "\"iv\"\\s*:\\s*\"([^\"]+)\"".toRegex().find(jsonString)
-                ?: throw IllegalArgumentException("Formato v2 no válido: falta iv")
-            val cipherMatch = "\"ciphertext\"\\s*:\\s*\"([^\"]+)\"".toRegex().find(jsonString)
-                ?: throw IllegalArgumentException("Formato v2 no válido: falta ciphertext")
+            val contentIv = base64Decoder.decode(ivB64)
+            val ciphertext = base64Decoder.decode(cipherB64)
 
-            val contentIv = base64Decoder.decode(contentIvMatch.groupValues[1])
-            val ciphertext = base64Decoder.decode(cipherMatch.groupValues[1])
-
-            val mainSlotMatch = "\"mainSlot\"\\s*:\\s*\\{\\s*\"salt\"\\s*:\\s*\"([^\"]+)\"\\s*,\\s*\"iv\"\\s*:\\s*\"([^\"]+)\"\\s*,\\s*\"key\"\\s*:\\s*\"([^\"]+)\"\\s*\\}".toRegex().find(jsonString)
+            val mainSlotObj = root.optJSONObject("mainSlot")
                 ?: throw IllegalArgumentException("Formato v2 no válido: falta mainSlot")
-            val emergencySlotMatch = "\"emergencySlot\"\\s*:\\s*\\{\\s*\"salt\"\\s*:\\s*\"([^\"]+)\"\\s*,\\s*\"iv\"\\s*:\\s*\"([^\"]+)\"\\s*,\\s*\"key\"\\s*:\\s*\"([^\"]+)\"\\s*\\}".toRegex().find(jsonString)
+            val mainSlot = WrappedSlot.fromJsonObject(mainSlotObj)
+            val emergencySlot = root.optJSONObject("emergencySlot")?.let { WrappedSlot.fromJsonObject(it) }
 
-            val mainSlot = WrappedSlot(
-                saltB64 = mainSlotMatch.groupValues[1],
-                ivB64 = mainSlotMatch.groupValues[2],
-                wrappedKeyB64 = mainSlotMatch.groupValues[3]
-            )
-
-            val emergencySlot = emergencySlotMatch?.let {
-                WrappedSlot(
-                    saltB64 = it.groupValues[1],
-                    ivB64 = it.groupValues[2],
-                    wrappedKeyB64 = it.groupValues[3]
-                )
-            }
-
-            var recoveredVaultKey: ByteArray?
-
-            // 1. Intentar abrir Main Slot
-            val mainSalt = base64Decoder.decode(mainSlot.saltB64)
-            val mainIv = base64Decoder.decode(mainSlot.ivB64)
-            val mainWrappedKey = base64Decoder.decode(mainSlot.wrappedKeyB64)
-            recoveredVaultKey = unwrapVaultKey(mainSalt, mainIv, mainWrappedKey, password)
-
-            // 2. Si falló el Main Slot, intentar abrir Emergency Slot
+            var recoveredVaultKey = unwrapSlot(mainSlot, password, base64Decoder)
             if (recoveredVaultKey == null && emergencySlot != null) {
-                val emSalt = base64Decoder.decode(emergencySlot.saltB64)
-                val emIv = base64Decoder.decode(emergencySlot.ivB64)
-                val emWrappedKey = base64Decoder.decode(emergencySlot.wrappedKeyB64)
-                recoveredVaultKey = unwrapVaultKey(emSalt, emIv, emWrappedKey, password)
+                recoveredVaultKey = unwrapSlot(emergencySlot, password, base64Decoder)
             }
+            val validVaultKey = recoveredVaultKey ?: throw IllegalArgumentException("Clave de descifrado incorrecta")
 
-            if (recoveredVaultKey == null) {
-                throw IllegalArgumentException("Clave de descifrado incorrecta")
-            }
-
-            // 3. Descifrar el ciphertext principal con la Vault Key recuperada
-            val vaultSecretKey = SecretKeySpec(recoveredVaultKey, "AES")
+            val vaultSecretKey = SecretKeySpec(validVaultKey, "AES")
             val contentCipher = Cipher.getInstance("AES/GCM/NoPadding")
-            val spec = GCMParameterSpec(128, contentIv)
-            contentCipher.init(Cipher.DECRYPT_MODE, vaultSecretKey, spec)
+            contentCipher.init(
+                Cipher.DECRYPT_MODE,
+                vaultSecretKey,
+                GCMParameterSpec(SecurityConfig.AES_GCM_TAG_LENGTH_BITS, contentIv)
+            )
 
             val plainBytes = contentCipher.doFinal(ciphertext)
             val resultJson = String(plainBytes, Charsets.UTF_8)
@@ -321,20 +237,14 @@ object BackupCrypto {
 
             DecryptedBackupPayload(
                 plainJson = resultJson,
-                vaultKey = recoveredVaultKey,
+                vaultKey = validVaultKey,
                 mainSlot = mainSlot,
                 emergencySlot = emergencySlot
             )
         }
     }
 
-    /**
-     * Descifra un archivo de respaldo versión 2 y retorna el JSON descifrado en caso de éxito.
-     *
-     * @param backupBytes Contenido en bytes del archivo de respaldo.
-     * @param password Contraseña, clave de 64 dígitos o frase de 12 palabras en [CharArray].
-     * @return [Result] con el texto JSON descifrado en caso de éxito, o error si las credenciales son incorrectas.
-     */
+    /** Descifra un archivo de respaldo versión 2 y retorna el JSON descifrado en caso de éxito. */
     fun decryptBackup(backupBytes: ByteArray, password: CharArray): Result<String> {
         return decryptBackupDetailed(backupBytes, password).map { payload ->
             val json = payload.plainJson
@@ -343,87 +253,41 @@ object BackupCrypto {
         }
     }
 
-    /**
-     * Crea un sobre de respaldo estándar versión 2 sin cifrado de extremo a extremo.
-     *
-     * @param plainJson Texto JSON con los datos de las cuentas a exportar.
-     * @return Arreglo de bytes binarios del sobre de respaldo no cifrado.
-     */
+    /** Crea un sobre de respaldo estándar versión 2 sin cifrado de extremo a extremo. */
     fun createUnencryptedBackup(plainJson: String): ByteArray {
         val now = System.currentTimeMillis()
         val envelopeString = "{\"version\":$CURRENT_BACKUP_VERSION,\"isEncrypted\":false,\"payload\":$plainJson,\"createdAt\":$now}"
         return envelopeString.toByteArray(Charsets.UTF_8)
     }
 
-    /**
-     * Determina de forma determinística si un archivo de respaldo cuenta con cifrado criptográfico.
-     *
-     * @param backupBytes Arreglo de bytes del archivo de respaldo.
-     * @return `true` si el respaldo contiene datos cifrados (ciphertext y ranuras de clave), `false` si es plano.
-     */
+    /** Determina de forma determinística si un archivo de respaldo cuenta con cifrado criptográfico. */
     fun isBackupEncrypted(backupBytes: ByteArray): Boolean {
         return try {
-            val jsonString = String(backupBytes, Charsets.UTF_8).trim()
-            if (jsonString.contains("\"isEncrypted\"\\s*:\\s*false".toRegex())) {
+            val root = JSONObject(String(backupBytes, Charsets.UTF_8).trim())
+            if (root.has("isEncrypted") && !root.optBoolean("isEncrypted", true)) {
                 false
             } else {
-                jsonString.contains("\"ciphertext\"") && jsonString.contains("\"mainSlot\"")
+                root.has("ciphertext") && root.has("mainSlot")
             }
         } catch (_: Exception) {
             true
         }
     }
 
-    /**
-     * Lee y extrae el JSON plano de un archivo de respaldo sin cifrado de extremo a extremo.
-     *
-     * @param backupBytes Contenido en bytes del archivo de respaldo estándar.
-     * @return [Result] con el texto JSON extraído en caso de éxito, o error si el formato es inválido.
-     */
+    /** Lee y extrae el JSON plano de un archivo de respaldo sin cifrado de extremo a extremo. */
     fun readUnencryptedBackup(backupBytes: ByteArray): Result<String> {
         return runCatching {
             val jsonString = String(backupBytes, Charsets.UTF_8).trim()
-            val payloadMarker = "\"payload\":"
-            val payloadIndex = jsonString.indexOf(payloadMarker)
-            if (payloadIndex != -1) {
-                val valueStartIndex = payloadIndex + payloadMarker.length
-                val substring = jsonString.substring(valueStartIndex).trimStart()
-                if (substring.startsWith("{") || substring.startsWith("[")) {
-                    val openChar = substring[0]
-                    val closeChar = if (openChar == '{') '}' else ']'
-                    var depth = 0
-                    var inString = false
-                    var escape = false
-                    var endIndex = -1
-                    for (i in substring.indices) {
-                        val c = substring[i]
-                        if (escape) {
-                            escape = false
-                            continue
-                        }
-                        if (c == '\\') {
-                            escape = true
-                            continue
-                        }
-                        if (c == '"') {
-                            inString = !inString
-                            continue
-                        }
-                        if (!inString) {
-                            if (c == openChar) depth++
-                            else if (c == closeChar) {
-                                depth--
-                                if (depth == 0) {
-                                    endIndex = i + 1
-                                    break
-                                }
-                            }
-                        }
-                    }
-                    if (endIndex != -1) {
-                        return@runCatching substring.substring(0, endIndex)
-                    }
+            val root = JSONObject(jsonString)
+            if (root.has("payload")) {
+                val marker = "\"payload\":"
+                val start = jsonString.indexOf(marker)
+                val end = jsonString.lastIndexOf(",\"createdAt\":")
+                if (start != -1 && end > start + marker.length) {
+                    return@runCatching jsonString.substring(start + marker.length, end).trim()
                 }
+                root.optJSONObject("payload")?.let { return@runCatching it.toString() }
+                root.optJSONArray("payload")?.let { return@runCatching it.toString() }
             }
             jsonString
         }
@@ -454,8 +318,11 @@ object BackupCrypto {
         )
     }
 
-    private fun unwrapVaultKey(salt: ByteArray, iv: ByteArray, wrappedKey: ByteArray, secret: CharArray): ByteArray? {
+    private fun unwrapSlot(slot: WrappedSlot, secret: CharArray, decoder: Base64.Decoder): ByteArray? {
         return try {
+            val salt = decoder.decode(slot.saltB64)
+            val iv = decoder.decode(slot.ivB64)
+            val wrappedKey = decoder.decode(slot.wrappedKeyB64)
             val keySpec = PBEKeySpec(secret, salt, PBKDF2_ITERATIONS, KEY_LENGTH_BITS)
             val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
             val derivedKeyBytes = factory.generateSecret(keySpec).encoded
@@ -464,8 +331,11 @@ object BackupCrypto {
             try {
                 val wrapSecretKey = SecretKeySpec(derivedKeyBytes, "AES")
                 val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-                val spec = GCMParameterSpec(128, iv)
-                cipher.init(Cipher.DECRYPT_MODE, wrapSecretKey, spec)
+                cipher.init(
+                    Cipher.DECRYPT_MODE,
+                    wrapSecretKey,
+                    GCMParameterSpec(SecurityConfig.AES_GCM_TAG_LENGTH_BITS, iv)
+                )
                 cipher.doFinal(wrappedKey)
             } finally {
                 CryptoManager.zeroize(derivedKeyBytes)

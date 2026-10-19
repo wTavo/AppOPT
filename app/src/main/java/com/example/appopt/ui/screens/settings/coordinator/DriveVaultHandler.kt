@@ -1,4 +1,4 @@
-package com.example.appopt.ui.screens.settings.handler
+package com.example.appopt.ui.screens.settings.coordinator
 
 import android.content.Context
 import com.example.appopt.AuthenticatorApp
@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Gestor especializado para la orquestación operativa de copias de seguridad en Google Drive (Directivas 8, 18 y 33).
+ * Coordinador especializado para la orquestación operativa de copias de seguridad en Google Drive (Directivas 8, 18, 30 y 33).
  *
  * Desacopla la lógica de red, transacciones de archivos, consultas con caché TTL y mutaciones de [SettingsUiState].
  */
@@ -28,8 +28,7 @@ class DriveVaultHandler(
 
     /**
      * Desvincula la cuenta de Google Drive, desactivando la copia automática ([com.example.appopt.data.local.PreferencesManager.setAutoSyncEnabled])
-     * y preservando el estado de paridad previo si la bóveda se encontraba 100% sincronizada al momento
-     * de desvincular.
+     * y preservando el estado de paridad previo si la bóveda se encontraba 100% sincronizada al momento de desvincular.
      *
      * @param context Contexto de la aplicación.
      * @param currentAccounts Lista actual de cuentas activas en la bóveda local.
@@ -49,9 +48,7 @@ class DriveVaultHandler(
         val lastActiveHash = prefsManager.getLastSyncedVaultHash().orEmpty()
         val currentHash = if (currentAccounts.isNotEmpty()) {
             CloudVaultSyncManager.computeAccountsSignature(currentAccounts)
-        } else {
-            ""
-        }
+        } else ""
         val effectiveSyncedHash = lastActiveHash.ifEmpty { currentHash }
         val wasFullySyncedBeforeDisconnect = lastActiveSync > 0L &&
                 !hasUnsyncedChanges &&
@@ -103,14 +100,6 @@ class DriveVaultHandler(
     /**
      * Evalúa bajo el principio de Cero Divergencia si es seguro re-vincular automáticamente el estado
      * de sincronización y activar la copia automática al reconectar una cuenta de Google.
-     *
-     * Invariantes obligatorias (TODAS deben cumplirse):
-     * 1. Existe un respaldo remoto ([mostRecent] != null) y la sesión actual aún no está inicializada (`lastSyncTimestamp == 0L`).
-     * 2. La cuenta conectada coincide exactamente con la última cuenta vinculada (`connectedDriveEmail == lastKnownDriveEmail`).
-     * 3. La bóveda local NO sufrió ninguna modificación (alta, edición, borrado o importación) mientras estuvo sin cuenta vinculada.
-     * 4. El dispositivo custodia la clave de cifrado válida para ese respaldo (`!mostRecent.isEncrypted || CloudVaultKeyStore.hasVaultKey`).
-     * 5. El respaldo más reciente proviene de este mismo dispositivo (`mostRecent.deviceId == installationId`).
-     * 6. La huella criptográfica SHA-256 actual de las cuentas locales coincide bit a bit con la huella del respaldo en la nube (`currentLocalHash == expectedRemoteHash`).
      */
     private suspend fun relinkAutoSyncIfEligible(mostRecent: DriveBackupItem?) {
         ManualSyncManager.relinkAutoSyncIfEligible(mostRecent)
@@ -118,10 +107,25 @@ class DriveVaultHandler(
     }
 
     /**
+     * Aplica una lista descargada de versiones de respaldo a caché y actualiza [internalState].
+     */
+    private suspend fun applyFetchedHistoryItems(items: List<DriveBackupItem>) {
+        prefsManager.setLastBackupHistoryFetchTimestamp(System.currentTimeMillis())
+        prefsManager.setCachedBackupHistory(items)
+        val mostRecent = items.firstOrNull()
+        relinkAutoSyncIfEligible(mostRecent)
+        internalState.update {
+            it.copy(
+                backupHistoryList = items,
+                driveBackupExists = items.isNotEmpty(),
+                driveBackupInfo = mostRecent
+            )
+        }
+    }
+
+    /**
      * Completa de forma atómica la vinculación de la cuenta de Google Drive: mantiene el estado de carga
-     * activo en el botón de conexión mientras consulta el historial en la nube y evalúa [relinkAutoSyncIfEligible],
-     * activando `isGoogleDriveConnected = true` únicamente cuando el estado definitivo está listo para mostrarse
-     * sin parpadeos ni transiciones intermedias falsas.
+     * activo mientras consulta el historial en la nube y evalúa [relinkAutoSyncIfEligible].
      *
      * @param token Token OAuth2 válido recién autorizado.
      * @param onComplete Callback invocado en el hilo principal al concluir la vinculación.
@@ -172,43 +176,18 @@ class DriveVaultHandler(
             scope.launch(Dispatchers.IO) {
                 relinkAutoSyncIfEligible(internalState.value.driveBackupInfo)
                 internalState.update { it.copy(isFetchingBackupHistory = false) }
-                withContext(Dispatchers.Main) {
-                    onFinished?.invoke()
-                }
+                withContext(Dispatchers.Main) { onFinished?.invoke() }
             }
             return
         }
 
-        internalState.update { it.copy(isFetchingBackupHistory = true) }
-
-        scope.launch(Dispatchers.IO) {
-            try {
-                val historyResult = ManualSyncManager.fetchBackupHistory(token)
-                if (historyResult.isSuccess) {
-                    val items = historyResult.getOrNull().orEmpty()
-                    prefsManager.setLastBackupHistoryFetchTimestamp(System.currentTimeMillis())
-                    prefsManager.setCachedBackupHistory(items)
-                    val mostRecent = items.firstOrNull()
-                    relinkAutoSyncIfEligible(mostRecent)
-                    internalState.update {
-                        it.copy(
-                            backupHistoryList = items,
-                            driveBackupExists = items.isNotEmpty(),
-                            driveBackupInfo = mostRecent
-                        )
-                    }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        onAuthExpired()
-                    }
-                }
-            } finally {
-                internalState.update { it.copy(isFetchingBackupHistory = false) }
-                withContext(Dispatchers.Main) {
-                    onFinished?.invoke()
-                }
-            }
-        }
+        executeRemoteHistoryFetch(
+            token = token,
+            clearCacheBeforeFetch = false,
+            isManualRefresh = false,
+            onAuthExpired = onAuthExpired,
+            onFinished = onFinished
+        )
     }
 
     /**
@@ -223,36 +202,13 @@ class DriveVaultHandler(
         onAuthExpired: () -> Unit,
         onFinished: (() -> Unit)? = null
     ) {
-        internalState.update { it.copy(isFetchingBackupHistory = true, isRefreshingBackupHistory = true) }
-        scope.launch(Dispatchers.IO) {
-            try {
-                GoogleDriveManager.clearDownloadCache()
-                val historyResult = ManualSyncManager.fetchBackupHistory(token)
-                if (historyResult.isSuccess) {
-                    val items = historyResult.getOrNull().orEmpty()
-                    prefsManager.setLastBackupHistoryFetchTimestamp(System.currentTimeMillis())
-                    prefsManager.setCachedBackupHistory(items)
-                    val mostRecent = items.firstOrNull()
-                    relinkAutoSyncIfEligible(mostRecent)
-                    internalState.update {
-                        it.copy(
-                            backupHistoryList = items,
-                            driveBackupExists = items.isNotEmpty(),
-                            driveBackupInfo = mostRecent
-                        )
-                    }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        onAuthExpired()
-                    }
-                }
-            } finally {
-                internalState.update { it.copy(isFetchingBackupHistory = false, isRefreshingBackupHistory = false) }
-                withContext(Dispatchers.Main) {
-                    onFinished?.invoke()
-                }
-            }
-        }
+        executeRemoteHistoryFetch(
+            token = token,
+            clearCacheBeforeFetch = true,
+            isManualRefresh = true,
+            onAuthExpired = onAuthExpired,
+            onFinished = onFinished
+        )
     }
 
     /**
@@ -262,18 +218,41 @@ class DriveVaultHandler(
         scope.launch(Dispatchers.IO) {
             val historyResult = ManualSyncManager.fetchBackupHistory(token)
             if (historyResult.isSuccess) {
-                val items = historyResult.getOrNull().orEmpty()
-                prefsManager.setLastBackupHistoryFetchTimestamp(System.currentTimeMillis())
-                prefsManager.setCachedBackupHistory(items)
-                val mostRecent = items.firstOrNull()
-                relinkAutoSyncIfEligible(mostRecent)
+                applyFetchedHistoryItems(historyResult.getOrNull().orEmpty())
+            }
+        }
+    }
+
+    private fun executeRemoteHistoryFetch(
+        token: String,
+        clearCacheBeforeFetch: Boolean,
+        isManualRefresh: Boolean,
+        onAuthExpired: () -> Unit,
+        onFinished: (() -> Unit)?
+    ) {
+        internalState.update {
+            it.copy(
+                isFetchingBackupHistory = true,
+                isRefreshingBackupHistory = if (isManualRefresh) true else it.isRefreshingBackupHistory
+            )
+        }
+        scope.launch(Dispatchers.IO) {
+            try {
+                if (clearCacheBeforeFetch) GoogleDriveManager.clearDownloadCache()
+                val historyResult = ManualSyncManager.fetchBackupHistory(token)
+                if (historyResult.isSuccess) {
+                    applyFetchedHistoryItems(historyResult.getOrNull().orEmpty())
+                } else {
+                    withContext(Dispatchers.Main) { onAuthExpired() }
+                }
+            } finally {
                 internalState.update {
                     it.copy(
-                        backupHistoryList = items,
-                        driveBackupExists = items.isNotEmpty(),
-                        driveBackupInfo = mostRecent
+                        isFetchingBackupHistory = false,
+                        isRefreshingBackupHistory = if (isManualRefresh) false else it.isRefreshingBackupHistory
                     )
                 }
+                withContext(Dispatchers.Main) { onFinished?.invoke() }
             }
         }
     }
@@ -323,12 +302,6 @@ class DriveVaultHandler(
 
     /**
      * Crea una copia de seguridad protegida con contraseña y frase mnemónica.
-     *
-     * @param context Contexto de la aplicación.
-     * @param token Token de acceso de Google Drive.
-     * @param primaryPass Caracteres de la contraseña maestra.
-     * @param emergencyMnemonic Caracteres de la frase de 12 palabras opcional.
-     * @param onComplete Callback con el resultado de la operación.
      */
     fun createProtectedBackup(
         context: Context,
@@ -361,10 +334,6 @@ class DriveVaultHandler(
 
     /**
      * Descifra y restaura la copia de seguridad más reciente desde Google Drive.
-     *
-     * @param token Token de acceso de Google Drive.
-     * @param passChars Caracteres de descifrado (opcional si no está cifrado).
-     * @param onComplete Callback con el [Result] de la restauración.
      */
     fun restoreFromBackup(
         token: String,
@@ -391,11 +360,6 @@ class DriveVaultHandler(
 
     /**
      * Descifra y restaura una versión histórica específica de Google Drive.
-     *
-     * @param token Token de acceso de Google Drive.
-     * @param fileId Identificador del archivo en Drive.
-     * @param passChars Caracteres de descifrado (opcional si no está cifrado).
-     * @param onComplete Callback con el [Result] de la restauración.
      */
     fun restoreSpecificBackup(
         token: String,

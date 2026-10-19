@@ -23,17 +23,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.StarBorder
-import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
@@ -57,9 +52,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import com.example.appopt.R
 import com.example.appopt.domain.model.AccountWithCode
-import com.example.appopt.domain.model.IncomingSharedService
 import com.example.appopt.domain.model.OtpType
-import com.example.appopt.domain.model.ShareGrantStatus
 import com.example.appopt.ui.navigation.NavigationOriginTracker
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
@@ -77,7 +70,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * avatar de marca, tipografía, animación de privacidad, confirmación de copiado y respuesta háptica.
  */
 @Composable
-private fun BaseOtpCard(
+internal fun BaseOtpCard(
     issuer: String,
     subtitle: String,
     isFavorite: Boolean,
@@ -146,9 +139,7 @@ private fun BaseOtpCard(
         colors = CardDefaults.cardColors(
             containerColor = if (isDragging) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = cardElevation
-        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = cardElevation),
         border = cardBorder,
         shape = RoundedCornerShape(Dimensions.CornerRadius.large)
     ) {
@@ -157,7 +148,6 @@ private fun BaseOtpCard(
                 .fillMaxWidth()
                 .padding(Dimensions.Spacing.lg)
         ) {
-            // Cabecera: Avatar de Marca, Nombres, Icono opcional y Botón de Favorito
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -227,7 +217,6 @@ private fun BaseOtpCard(
                 Spacer(modifier = Modifier.height(Dimensions.Spacing.md))
                 bottomContent()
             } else {
-                // Modo de privacidad: despliegue animado de dígitos y temporizador
                 AnimatedVisibility(
                     visible = !hideCodes,
                     enter = expandVertically(animationSpec = Motion.Spec.privacyCollapseSpec()) +
@@ -238,7 +227,6 @@ private fun BaseOtpCard(
                     Column {
                         Spacer(modifier = Modifier.height(Dimensions.Spacing.md))
 
-                        // Cuerpo: Dígitos OTP y Temporizador / Acción
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
@@ -246,7 +234,6 @@ private fun BaseOtpCard(
                         ) {
                             val isCodePresent = !rawCodeToCopy.isNullOrBlank()
 
-                            // Zona táctil de los dígitos: toque directo para copiar o solicitar
                             Row(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(Dimensions.CornerRadius.small))
@@ -393,152 +380,9 @@ fun OtpCodeCard(
 }
 
 /**
- * Sobrecarga unificada de [OtpCodeCard] para representar un servicio compartido recibido (Zero-Secret).
- *
- * Comparte exactamente el 100% de la arquitectura visual, geometría perimetral, bordes,
- * elevaciones animadas, modo de privacidad y respuesta háptica que las cuentas propias (Directivas 1, 3, 4, 5 y 31).
- *
- * @param service Metadatos del servicio compartido entrante.
- * @param activeCode Código OTP actual (obtenido en línea o del lote temporal cifrado) o null si aún no se revela.
- * @param hideCodes Si es verdadero, oculta la sección de dígitos y temporizadores mediante animación fluida.
- * @param liveWindowProgress Par opcional `(pasoActual, totalPasos)` que indica el código vigente dentro de la brecha de 3 códigos.
- * @param isItemLoading Indica si hay una petición de red en curso para esta tarjeta.
- * @param modifier Modificador opcional Compose.
- * @param onCardClick Callback al pulsar en la tarjeta para abrir el diálogo de detalles del servicio compartido.
- * @param onCopyCode Callback invocado al pulsar sobre los dígitos para copiar el código al portapapeles.
- * @param onRequestAction Callback para solicitar/revelar el código en línea o descargar/renovar el lote.
- * @param onToggleFavorite Callback para alternar el estado de favorito.
- * @param onAcceptInvitation Callback opcional para invitaciones pendientes cuando el invitado acepta.
- * @param onRejectInvitation Callback opcional para invitaciones pendientes cuando el invitado rechaza.
- */
-@Composable
-fun OtpCodeCard(
-    service: IncomingSharedService,
-    activeCode: String?,
-    hideCodes: Boolean,
-    liveWindowProgress: Pair<Int, Int>?,
-    isItemLoading: Boolean,
-    modifier: Modifier = Modifier,
-    isDragging: Boolean = false,
-    onCardClick: () -> Unit,
-    onCopyCode: (String) -> Unit,
-    onRequestAction: () -> Unit,
-    onToggleFavorite: (String) -> Unit,
-    onAcceptInvitation: (() -> Unit)? = null,
-    onRejectInvitation: (() -> Unit)? = null
-) {
-    val context = LocalContext.current
-    val appHaptics = rememberAppHaptics()
-    val isPending = service.status == ShareGrantStatus.PENDING
-    val isCodePresent = !activeCode.isNullOrBlank()
-
-    val formattedCode = remember(activeCode) {
-        if (!activeCode.isNullOrBlank()) formatOtpDigits(activeCode) else "--- ---"
-    }
-
-    val subtitleText = when {
-        isPending -> stringResource(R.string.settings_shared_invitation_from_format, service.ownerEmail)
-        service.accountName.isNotBlank() -> {
-            "${service.accountName} · ${stringResource(R.string.settings_shared_owner_format, service.ownerEmail)}"
-        }
-        else -> stringResource(R.string.settings_shared_owner_format, service.ownerEmail)
-    }
-
-    val accessibilityDesc = AccessibilityUtils.buildAccountCardContentDescription(
-        context = context,
-        issuer = service.issuer,
-        accountName = service.accountName,
-        code = activeCode ?: "",
-        isFavorite = service.isFavorite
-    )
-
-    BaseOtpCard(
-        issuer = service.issuer,
-        subtitle = subtitleText,
-        isFavorite = service.isFavorite,
-        hideCodes = hideCodes,
-        modifier = modifier,
-        isDragging = isDragging,
-        subtitleLeadingIcon = Icons.Outlined.Group,
-        accessibilityDescription = accessibilityDesc,
-        onCardClick = onCardClick,
-        onToggleFavorite = { onToggleFavorite(service.grantId) },
-        displayCode = formattedCode,
-        rawCodeToCopy = activeCode,
-        liveWindowProgress = liveWindowProgress,
-        onRequestAction = onRequestAction,
-        onCopyCode = onCopyCode,
-        rightActionContent = {
-            if (isItemLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(Dimensions.IconSize.medium),
-                    strokeWidth = Dimensions.Stroke.regular,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            } else if (isCodePresent) {
-                CircularTimeProgress(period = service.period)
-            } else {
-                IconButton(
-                    onClick = {
-                        appHaptics.click()
-                        onRequestAction()
-                    },
-                    modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Visibility,
-                        contentDescription = stringResource(R.string.settings_shared_tap_to_fetch),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-        },
-        bottomContent = if (isPending && onAcceptInvitation != null && onRejectInvitation != null) {
-            {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)
-                ) {
-                    OutlinedButton(
-                        onClick = {
-                            appHaptics.click()
-                            onRejectInvitation()
-                        },
-                        enabled = !isItemLoading,
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.settings_shared_reject_action),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-
-                    Button(
-                        onClick = {
-                            appHaptics.click()
-                            onAcceptInvitation()
-                        },
-                        enabled = !isItemLoading,
-                        shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.settings_shared_accept_action),
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                    }
-                }
-            }
-        } else null
-    )
-}
-
-/**
  * Formatea una cadena numérica OTP insertando un espacio de separación legible (ej. "123 456" o "1234 5678").
  */
-private fun formatOtpDigits(raw: String): String {
+internal fun formatOtpDigits(raw: String): String {
     return when (raw.length) {
         6 -> "${raw.substring(0, 3)} ${raw.substring(3)}"
         8 -> "${raw.substring(0, 4)} ${raw.substring(4)}"

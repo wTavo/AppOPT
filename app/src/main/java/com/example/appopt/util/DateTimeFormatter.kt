@@ -32,6 +32,17 @@ object DateTimeFormatter {
     }
 
     /**
+     * Formatea una marca de tiempo con precisión de milisegundos ("yyyy-MM-dd HH:mm:ss.SSS") para reportes técnicos y diagnósticos.
+     *
+     * @param timestamp Tiempo en milisegundos desde Unix Epoch.
+     * @return Cadena formateada con precisión de milisegundos.
+     */
+    fun formatDiagnosticTimestamp(timestamp: Long = System.currentTimeMillis()): String {
+        val format = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
+        return format.format(Date(timestamp))
+    }
+
+    /**
      * Formatea una marca de tiempo de forma relativa e intuitiva (ej. "hace unos momentos", "hoy a las 14:30").
      *
      * @param context Contexto de la aplicación para resolver recursos traducidos de texto.

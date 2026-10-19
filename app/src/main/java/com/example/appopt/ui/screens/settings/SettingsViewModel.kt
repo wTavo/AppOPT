@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.data.cloud.CloudVaultSyncManager
 import com.example.appopt.data.cloud.GoogleDriveManager
-import com.example.appopt.ui.screens.settings.handler.DriveVaultHandler
+import com.example.appopt.ui.screens.settings.coordinator.DriveVaultHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted

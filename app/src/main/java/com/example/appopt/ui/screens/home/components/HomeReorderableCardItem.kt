@@ -8,7 +8,7 @@ import com.example.appopt.data.cloud.SharedBatchKeyStore
 import com.example.appopt.domain.model.IncomingSharedService
 import com.example.appopt.security.SecurityConfig
 import com.example.appopt.ui.components.OtpCodeCard
-import com.example.appopt.ui.screens.home.model.HomeCardItem
+import com.example.appopt.ui.screens.home.HomeCardItem
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.ReorderableLazyListState
 

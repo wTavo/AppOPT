@@ -12,20 +12,20 @@ import org.json.JSONObject
 import java.util.UUID
 
 /**
- * Motor desacoplado para la resolución de conflictos, deduplicación por hash SHA-256
+ * Motor desacoplado para la resolución de conflictos, deduplicación por hash SHA-256 en lote ($O(M)$)
  * y fusión determinística de cuentas 2FA en la base de datos local.
  *
  * Principios de diseño:
  * - Aislamiento estricto de la lógica de fusión respecto a la serialización JSON (Directivas 8 y 9).
+ * - Pre-cálculo por lotes de huellas SHA-256 locales para evitar operaciones cuadráticas $O(N \times M)$ sobre el Android Keystore.
  * - Zeroización inmediata de claves Base32 y arreglos de bytes en memoria tras su uso.
- * - Soporte para resolución de conflictos basada en marcas de tiempo (`updatedAt`) y deduplicación inteligente.
  */
 object AccountMergeEngine {
 
     /**
-     * Estructura intermedia para cuentas deserializadas desde JSON.
+     * Estructura intermedia unificada para candidatos de fusión en lote.
      */
-    private data class ParsedJsonAccount(
+    private class MergeCandidate(
         val id: String,
         val secretBytes: ByteArray,
         val issuer: String,
@@ -38,50 +38,12 @@ object AccountMergeEngine {
         val isFavorite: Boolean,
         val orderIndex: Int,
         val updatedAt: Long
-    ) {
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            if (javaClass != other?.javaClass) return false
-
-            other as ParsedJsonAccount
-
-            if (id != other.id) return false
-            if (!secretBytes.contentEquals(other.secretBytes)) return false
-            if (issuer != other.issuer) return false
-            if (accountName != other.accountName) return false
-            if (algorithm != other.algorithm) return false
-            if (digits != other.digits) return false
-            if (period != other.period) return false
-            if (type != other.type) return false
-            if (counter != other.counter) return false
-            if (isFavorite != other.isFavorite) return false
-            if (orderIndex != other.orderIndex) return false
-            if (updatedAt != other.updatedAt) return false
-
-            return true
-        }
-
-        override fun hashCode(): Int {
-            var result = id.hashCode()
-            result = 31 * result + secretBytes.contentHashCode()
-            result = 31 * result + issuer.hashCode()
-            result = 31 * result + accountName.hashCode()
-            result = 31 * result + algorithm.hashCode()
-            result = 31 * result + digits
-            result = 31 * result + period
-            result = 31 * result + type.hashCode()
-            result = 31 * result + counter.hashCode()
-            result = 31 * result + isFavorite.hashCode()
-            result = 31 * result + orderIndex
-            result = 31 * result + updatedAt.hashCode()
-            return result
-        }
-    }
+    )
 
     /**
-     * Parsea un payload JSON (formato estándar "accounts" o compacto "a") a una lista de [ParsedJsonAccount].
+     * Parsea un payload JSON (formato estándar "accounts" o compacto "a") a una lista de [MergeCandidate].
      */
-    private fun parseJsonItems(jsonString: String): List<ParsedJsonAccount> {
+    private fun parseJsonItems(jsonString: String): List<MergeCandidate> {
         val trimmed = jsonString.trim()
         if (trimmed.isBlank()) return emptyList()
 
@@ -97,7 +59,7 @@ object AccountMergeEngine {
             else -> return emptyList()
         }
 
-        val result = mutableListOf<ParsedJsonAccount>()
+        val result = mutableListOf<MergeCandidate>()
         for (i in 0 until accountsArray.length()) {
             val item = accountsArray.getJSONObject(i)
             val rawSecret = when {
@@ -111,59 +73,18 @@ object AccountMergeEngine {
                 continue
             }
 
-            val remoteId = when {
-                item.has("id") -> item.optString("id", "")
-                else -> ""
-            }.trim()
-
-            val remoteIssuer = when {
-                item.has("issuer") -> item.optString("issuer", "Cuenta")
-                item.has("i") -> item.optString("i", "Cuenta")
-                else -> "Cuenta"
-            }.trim().ifBlank { "Cuenta" }
-
-            val remoteAccountName = when {
-                item.has("accountName") -> item.optString("accountName", "")
-                item.has("a") -> item.optString("a", "")
-                else -> ""
-            }.trim()
-
-            val remoteAlgorithm = when {
-                item.has("algorithm") -> item.optString("algorithm", "SHA1")
-                item.has("alg") -> item.optString("alg", "SHA1")
-                else -> "SHA1"
-            }
-
-            val remoteDigits = when {
-                item.has("digits") -> item.optInt("digits", 6)
-                item.has("d") -> item.optInt("d", 6)
-                else -> 6
-            }
-
-            val remotePeriod = when {
-                item.has("period") -> item.optInt("period", 30)
-                item.has("p") -> item.optInt("p", 30)
-                else -> 30
-            }
-
-            val remoteType = when {
-                item.has("type") -> item.optString("type", "TOTP")
-                item.has("t") -> item.optString("t", "TOTP")
-                else -> "TOTP"
-            }
-
-            val remoteCounter = when {
-                item.has("counter") -> item.optLong("counter", 0L)
-                item.has("c") -> item.optLong("c", 0L)
-                else -> 0L
-            }
-
-            val remoteIsFavorite = item.optBoolean("isFavorite", false)
-            val remoteOrderIndex = item.optInt("orderIndex", 0)
-            val remoteUpdatedAt = item.optLong("updatedAt", 0L)
+            val remoteId = item.optString("id", "").trim()
+            val remoteIssuer = (if (item.has("issuer")) item.optString("issuer", "Cuenta") else item.optString("i", "Cuenta"))
+                .trim().ifBlank { "Cuenta" }
+            val remoteAccountName = (if (item.has("accountName")) item.optString("accountName", "") else item.optString("a", "")).trim()
+            val remoteAlgorithm = if (item.has("algorithm")) item.optString("algorithm", "SHA1") else item.optString("alg", "SHA1")
+            val remoteDigits = if (item.has("digits")) item.optInt("digits", 6) else item.optInt("d", 6)
+            val remotePeriod = if (item.has("period")) item.optInt("period", 30) else item.optInt("p", 30)
+            val remoteType = if (item.has("type")) item.optString("type", "TOTP") else item.optString("t", "TOTP")
+            val remoteCounter = if (item.has("counter")) item.optLong("counter", 0L) else item.optLong("c", 0L)
 
             result.add(
-                ParsedJsonAccount(
+                MergeCandidate(
                     id = remoteId,
                     secretBytes = secretBytes,
                     issuer = remoteIssuer,
@@ -173,9 +94,9 @@ object AccountMergeEngine {
                     period = remotePeriod,
                     type = OtpType.fromString(remoteType),
                     counter = remoteCounter,
-                    isFavorite = remoteIsFavorite,
-                    orderIndex = remoteOrderIndex,
-                    updatedAt = remoteUpdatedAt
+                    isFavorite = item.optBoolean("isFavorite", false),
+                    orderIndex = item.optInt("orderIndex", 0),
+                    updatedAt = item.optLong("updatedAt", 0L)
                 )
             )
         }
@@ -183,28 +104,14 @@ object AccountMergeEngine {
     }
 
     /**
-     * Fusiona de forma no destructiva las cuentas provenientes de una copia remota de Google Drive con la base de datos local.
-     *
-     * @param remoteBackupJson Cadena JSON del archivo de respaldo remoto.
-     * @param accountDao DAO de Room para operaciones locales.
-     * @param cryptoManager Gestor criptográfico para cifrado con AES-256-GCM.
-     * @param onInvalidateCache Callback opcional para limpiar entradas modificadas de la caché en memoria.
-     * @return [Result] con el número de cuentas insertadas o actualizadas.
+     * Construye en una sola pasada ($O(M)$) el índice de entidades locales por huella SHA-256 de su secreto.
      */
-    suspend fun mergeRemoteBackup(
-        remoteBackupJson: String,
-        accountDao: AccountDao,
-        cryptoManager: CryptoManager,
-        onInvalidateCache: (String) -> Unit
-    ): Result<Int> = runCatching {
-        val parsedList = parseJsonItems(remoteBackupJson)
-        if (parsedList.isEmpty()) return@runCatching 0
-
-        val currentEntities = accountDao.getAllAccountsSync()
-        val localById = currentEntities.associateBy { it.id }.toMutableMap()
+    private fun buildLocalSecretHashMap(
+        entities: List<AccountEntity>,
+        cryptoManager: CryptoManager
+    ): MutableMap<String, AccountEntity> {
         val localBySecretHash = mutableMapOf<String, AccountEntity>()
-
-        for (entity in currentEntities) {
+        for (entity in entities) {
             try {
                 val secretBytes = cryptoManager.decrypt(entity.encryptedSecret, entity.iv)
                 val hash = secretBytes.sha256Hex()
@@ -214,113 +121,156 @@ object AccountMergeEngine {
                 // Ignorar entidades corruptas aisladas
             }
         }
+        return localBySecretHash
+    }
 
+    /**
+     * Ejecuta la fusión en lote de una lista de candidatos contra la base de datos local precalculando
+     * los hashes de secretos existentes una única vez ($O(M)$) y limpiando todos los secretos en memoria al finalizar.
+     */
+    private suspend fun executeBatchMerge(
+        candidates: List<MergeCandidate>,
+        accountDao: AccountDao,
+        cryptoManager: CryptoManager,
+        onInvalidateCache: (String) -> Unit,
+        matchById: Boolean
+    ): Int {
+        if (candidates.isEmpty()) return 0
+
+        val currentEntities = accountDao.getAllAccountsSync()
+        val localById = currentEntities.associateBy { it.id }.toMutableMap()
+        val localBySecretHash = buildLocalSecretHashMap(currentEntities, cryptoManager)
         var changesCount = 0
 
-        for ((id, secretBytes, issuer, accountName, algorithm, digits, period, type, counter, isFavorite, orderIndex, updatedAt) in parsedList) {
+        for (candidate in candidates) {
             try {
-                val remoteHash = secretBytes.sha256Hex()
-                val existingEntity = (if (id.isNotBlank()) localById[id] else null) ?: localBySecretHash[remoteHash]
+                val remoteHash = candidate.secretBytes.sha256Hex()
+                val existingEntity = (if (matchById && candidate.id.isNotBlank()) localById[candidate.id] else null)
+                    ?: localBySecretHash[remoteHash]
+
+                val trimmedIssuer = candidate.issuer.trim().ifBlank { "Servicio" }
+                val trimmedAccountName = candidate.accountName.trim()
+                val effectiveTime = if (candidate.updatedAt > 0L) candidate.updatedAt else System.currentTimeMillis()
 
                 if (existingEntity == null) {
-                    val payload = cryptoManager.encrypt(secretBytes)
-                    val newId = id.ifBlank { UUID.randomUUID().toString() }
-                    val now = if (updatedAt > 0L) updatedAt else System.currentTimeMillis()
+                    val payload = cryptoManager.encrypt(candidate.secretBytes)
+                    val newId = candidate.id.ifBlank { UUID.randomUUID().toString() }
                     val newEntity = AccountEntity(
                         id = newId,
-                        issuer = issuer,
-                        accountName = accountName,
+                        issuer = trimmedIssuer,
+                        accountName = trimmedAccountName,
                         encryptedSecret = payload.ciphertext,
                         iv = payload.iv,
-                        algorithm = algorithm.name,
-                        digits = digits,
-                        period = period,
-                        type = type.name,
-                        counter = counter,
-                        isFavorite = isFavorite,
-                        orderIndex = orderIndex,
+                        algorithm = candidate.algorithm.name,
+                        digits = candidate.digits,
+                        period = candidate.period,
+                        type = candidate.type.name,
+                        counter = candidate.counter,
+                        isFavorite = candidate.isFavorite,
+                        orderIndex = candidate.orderIndex,
                         isDeleted = false,
                         deletedAt = null,
-                        createdAt = now,
-                        updatedAt = now
+                        createdAt = effectiveTime,
+                        updatedAt = effectiveTime
                     )
                     accountDao.insertAccount(newEntity)
                     localById[newId] = newEntity
                     localBySecretHash[remoteHash] = newEntity
                     changesCount++
-                } else {
-                    if (existingEntity.isDeleted) {
-                        val payload = cryptoManager.encrypt(secretBytes)
-                        val restoredEntity = existingEntity.copy(
-                            issuer = issuer,
-                            accountName = accountName,
-                            encryptedSecret = payload.ciphertext,
-                            iv = payload.iv,
-                            algorithm = algorithm.name,
-                            digits = digits,
-                            period = period,
-                            type = type.name,
-                            counter = maxOf(existingEntity.counter, counter),
-                            isDeleted = false,
-                            deletedAt = null,
-                            updatedAt = if (updatedAt > 0L) updatedAt else System.currentTimeMillis()
-                        )
-                        accountDao.updateAccount(restoredEntity)
-                        localById[existingEntity.id] = restoredEntity
-                        localBySecretHash[remoteHash] = restoredEntity
-                        onInvalidateCache(existingEntity.id)
-                        changesCount++
-                    } else if (updatedAt > existingEntity.updatedAt ||
-                        issuer != existingEntity.issuer ||
-                        accountName != existingEntity.accountName ||
-                        counter > existingEntity.counter
-                    ) {
-                        val payload = cryptoManager.encrypt(secretBytes)
-                        val updatedEntity = existingEntity.copy(
-                            issuer = issuer,
-                            accountName = accountName,
-                            encryptedSecret = payload.ciphertext,
-                            iv = payload.iv,
-                            algorithm = algorithm.name,
-                            digits = digits,
-                            period = period,
-                            type = type.name,
-                            counter = maxOf(existingEntity.counter, counter),
-                            updatedAt = if (updatedAt > 0L) updatedAt else System.currentTimeMillis()
-                        )
-                        accountDao.updateAccount(updatedEntity)
-                        localById[existingEntity.id] = updatedEntity
-                        localBySecretHash[remoteHash] = updatedEntity
-                        onInvalidateCache(existingEntity.id)
-                        changesCount++
-                    }
+                } else if (existingEntity.isDeleted ||
+                    (candidate.updatedAt > existingEntity.updatedAt) ||
+                    existingEntity.issuer != trimmedIssuer ||
+                    existingEntity.accountName != trimmedAccountName ||
+                    existingEntity.digits != candidate.digits ||
+                    existingEntity.period != candidate.period ||
+                    existingEntity.algorithm != candidate.algorithm.name ||
+                    existingEntity.type != candidate.type.name ||
+                    candidate.counter > existingEntity.counter
+                ) {
+                    val payload = cryptoManager.encrypt(candidate.secretBytes)
+                    val updatedEntity = existingEntity.copy(
+                        issuer = trimmedIssuer,
+                        accountName = trimmedAccountName,
+                        encryptedSecret = payload.ciphertext,
+                        iv = payload.iv,
+                        algorithm = candidate.algorithm.name,
+                        digits = candidate.digits,
+                        period = candidate.period,
+                        type = candidate.type.name,
+                        counter = maxOf(existingEntity.counter, candidate.counter),
+                        isDeleted = false,
+                        deletedAt = null,
+                        updatedAt = effectiveTime
+                    )
+                    accountDao.updateAccount(updatedEntity)
+                    localById[existingEntity.id] = updatedEntity
+                    localBySecretHash[remoteHash] = updatedEntity
+                    onInvalidateCache(existingEntity.id)
+                    changesCount++
                 }
             } finally {
-                CryptoManager.zeroize(secretBytes)
+                CryptoManager.zeroize(candidate.secretBytes)
             }
         }
+        return changesCount
+    }
 
-        changesCount
+    /**
+     * Fusiona de forma no destructiva las cuentas provenientes de una copia remota de Google Drive con la base de datos local.
+     */
+    suspend fun mergeRemoteBackup(
+        remoteBackupJson: String,
+        accountDao: AccountDao,
+        cryptoManager: CryptoManager,
+        onInvalidateCache: (String) -> Unit
+    ): Result<Int> = runCatching {
+        val candidates = parseJsonItems(remoteBackupJson)
+        executeBatchMerge(
+            candidates = candidates,
+            accountDao = accountDao,
+            cryptoManager = cryptoManager,
+            onInvalidateCache = onInvalidateCache,
+            matchById = true
+        )
+    }
+
+    /**
+     * Fusiona en un solo lote ($O(M)$) una lista de cuentas seleccionadas desde la previsualización,
+     * sobrescribiendo con ceros todos los secretos en memoria al finalizar.
+     */
+    suspend fun mergeSelectedAccounts(
+        accounts: List<ParsedAccountPreview>,
+        accountDao: AccountDao,
+        cryptoManager: CryptoManager,
+        onInvalidateCache: (String) -> Unit
+    ): Int {
+        val candidates = accounts.map { preview ->
+            MergeCandidate(
+                id = preview.id,
+                secretBytes = preview.secretBytes,
+                issuer = preview.issuer,
+                accountName = preview.accountName,
+                algorithm = preview.algorithm,
+                digits = preview.digits,
+                period = preview.period,
+                type = preview.type,
+                counter = preview.counter,
+                isFavorite = preview.isFavorite,
+                orderIndex = 0,
+                updatedAt = 0L
+            )
+        }
+        return executeBatchMerge(
+            candidates = candidates,
+            accountDao = accountDao,
+            cryptoManager = cryptoManager,
+            onInvalidateCache = onInvalidateCache,
+            matchById = false
+        )
     }
 
     /**
      * Guarda o fusiona un servicio individual verificando si ya existe en la base de datos por hash de clave secreta.
-     *
-     * @param issuer Nombre del servicio o emisor.
-     * @param accountName Nombre de usuario o cuenta.
-     * @param secretBytes Clave secreta en bytes.
-     * @param algorithm Algoritmo HMAC (SHA1, SHA256, SHA512).
-     * @param digits Cantidad de dígitos generados.
-     * @param period Período en segundos para TOTP.
-     * @param type Tipo de OTP (TOTP / HOTP).
-     * @param counter Contador para HOTP.
-     * @param accountDao DAO de Room para operaciones locales.
-     * @param cryptoManager Gestor criptográfico para cifrado AES-256-GCM.
-     * @param onInvalidateCache Callback opcional para invalidar la caché en memoria.
-     * @param preferredId Identificador único UUID preferido para conservar consistencia con respaldos externos.
-     * @param isFavorite Indicador booleano que define si el servicio está marcado como favorito.
-     * @param orderIndex Posición ordinal de ordenamiento personalizado.
-     * @return 1 si se insertó, actualizó o restauró el servicio; 0 si ya existía de forma idéntica.
      */
     suspend fun mergeSingleAccount(
         issuer: String,
@@ -338,107 +288,32 @@ object AccountMergeEngine {
         isFavorite: Boolean = false,
         orderIndex: Int = 0
     ): Int {
-        val currentEntities = accountDao.getAllAccountsSync()
-        val incomingHash = secretBytes.sha256Hex()
-
-        var existingEntity: AccountEntity? = null
-        for (entity in currentEntities) {
-            try {
-                val decBytes = cryptoManager.decrypt(entity.encryptedSecret, entity.iv)
-                val hash = decBytes.sha256Hex()
-                CryptoManager.zeroize(decBytes)
-                if (hash == incomingHash) {
-                    existingEntity = entity
-                    break
-                }
-            } catch (_: Exception) {
-                // Ignorar entidades corruptas aisladas
-            }
-        }
-
-        val trimmedIssuer = issuer.trim().ifBlank { "Servicio" }
-        val trimmedAccountName = accountName.trim()
-        val now = System.currentTimeMillis()
-
-        return if (existingEntity == null) {
-            val payload = cryptoManager.encrypt(secretBytes)
-            val newId = preferredId.ifBlank { UUID.randomUUID().toString() }
-            val newEntity = AccountEntity(
-                id = newId,
-                issuer = trimmedIssuer,
-                accountName = trimmedAccountName,
-                encryptedSecret = payload.ciphertext,
-                iv = payload.iv,
-                algorithm = algorithm.name,
-                digits = digits,
-                period = period,
-                type = type.name,
-                counter = counter,
-                isFavorite = isFavorite,
-                orderIndex = orderIndex,
-                isDeleted = false,
-                deletedAt = null,
-                createdAt = now,
-                updatedAt = now
-            )
-            accountDao.insertAccount(newEntity)
-            1
-        } else if (existingEntity.isDeleted) {
-            val payload = cryptoManager.encrypt(secretBytes)
-            val restoredEntity = existingEntity.copy(
-                issuer = trimmedIssuer,
-                accountName = trimmedAccountName,
-                encryptedSecret = payload.ciphertext,
-                iv = payload.iv,
-                algorithm = algorithm.name,
-                digits = digits,
-                period = period,
-                type = type.name,
-                counter = maxOf(existingEntity.counter, counter),
-                isDeleted = false,
-                deletedAt = null,
-                updatedAt = now
-            )
-            accountDao.updateAccount(restoredEntity)
-            onInvalidateCache(existingEntity.id)
-            1
-        } else if (existingEntity.issuer != trimmedIssuer ||
-            existingEntity.accountName != trimmedAccountName ||
-            existingEntity.digits != digits ||
-            existingEntity.period != period ||
-            existingEntity.algorithm != algorithm.name ||
-            existingEntity.type != type.name ||
-            counter > existingEntity.counter
-        ) {
-            val payload = cryptoManager.encrypt(secretBytes)
-            val updatedEntity = existingEntity.copy(
-                issuer = trimmedIssuer,
-                accountName = trimmedAccountName,
-                encryptedSecret = payload.ciphertext,
-                iv = payload.iv,
-                algorithm = algorithm.name,
-                digits = digits,
-                period = period,
-                type = type.name,
-                counter = maxOf(existingEntity.counter, counter),
-                updatedAt = now
-            )
-            accountDao.updateAccount(updatedEntity)
-            onInvalidateCache(existingEntity.id)
-            1
-        } else {
-            0
-        }
+        val candidate = MergeCandidate(
+            id = preferredId,
+            secretBytes = secretBytes,
+            issuer = issuer,
+            accountName = accountName,
+            algorithm = algorithm,
+            digits = digits,
+            period = period,
+            type = type,
+            counter = counter,
+            isFavorite = isFavorite,
+            orderIndex = orderIndex,
+            updatedAt = 0L
+        )
+        return executeBatchMerge(
+            candidates = listOf(candidate),
+            accountDao = accountDao,
+            cryptoManager = cryptoManager,
+            onInvalidateCache = onInvalidateCache,
+            matchById = false
+        )
     }
 
     /**
      * Parsea un payload JSON estructurado para previsualizar las cuentas antes de su importación,
      * detectando si alguna de ellas ya existe previamente en la base de datos local.
-     *
-     * @param jsonString Cadena JSON con arreglo de cuentas ("a" o "accounts").
-     * @param accountDao DAO de Room para consultar las cuentas existentes.
-     * @param cryptoManager Gestor criptográfico para calcular hashes de secretos locales.
-     * @return Lista de modelos [ParsedAccountPreview].
      */
     suspend fun parseAccountsForPreview(
         jsonString: String,
@@ -448,29 +323,13 @@ object AccountMergeEngine {
         val parsedList = parseJsonItems(jsonString)
         if (parsedList.isEmpty()) return emptyList()
 
-        val currentEntities = accountDao.getAllAccountsSync()
-        val localHashes = mutableSetOf<String>()
-
-        for ((_, _, _, encryptedSecret, iv, _, _, _, _, _, _, _, isDeleted) in currentEntities) {
-            if (!isDeleted) {
-                try {
-                    val decBytes = cryptoManager.decrypt(encryptedSecret, iv)
-                    val hash = decBytes.sha256Hex()
-                    CryptoManager.zeroize(decBytes)
-                    localHashes.add(hash)
-                } catch (_: Exception) {
-                    // Ignorar entidades corruptas aisladas
-                }
-            }
-        }
+        val activeEntities = accountDao.getAllAccountsSync().filter { !it.isDeleted }
+        val localHashes = buildLocalSecretHashMap(activeEntities, cryptoManager).keys
 
         return parsedList.map { item ->
             val incomingHash = item.secretBytes.sha256Hex()
-            val isAlreadyInVault = incomingHash in localHashes
-            val resolvedId = item.id.ifBlank { UUID.randomUUID().toString() }
-
             ParsedAccountPreview(
-                id = resolvedId,
+                id = item.id.ifBlank { UUID.randomUUID().toString() },
                 issuer = item.issuer,
                 accountName = item.accountName,
                 algorithm = item.algorithm,
@@ -479,7 +338,7 @@ object AccountMergeEngine {
                 type = item.type,
                 counter = item.counter,
                 isFavorite = item.isFavorite,
-                isAlreadyInVault = isAlreadyInVault,
+                isAlreadyInVault = incomingHash in localHashes,
                 secretBytes = item.secretBytes
             )
         }

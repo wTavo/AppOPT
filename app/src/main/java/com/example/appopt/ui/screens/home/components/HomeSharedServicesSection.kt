@@ -37,13 +37,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
 import com.example.appopt.data.cloud.SharedBatchKeyStore
 import com.example.appopt.data.cloud.SharedServicesCloudClient
 import com.example.appopt.domain.model.IncomingSharedService
-import com.example.appopt.domain.model.ShareAccessMode
-import com.example.appopt.domain.model.ShareGrantStatus
 import com.example.appopt.domain.model.SharedOtpBatch
 import com.example.appopt.security.SecurityConfig
 import com.example.appopt.ui.components.OtpCodeCard
@@ -58,18 +55,9 @@ import kotlinx.coroutines.launch
  * Vista de «Servicios compartidos» integrada bajo el filtro superior «Compartidos» en la pantalla de Inicio (Directivas 4, 29 y 31).
  *
  * Características:
- * - Visualización directa de servicios compartidos recibidos («Compartidos conmigo») y enviados («Compartidos por mí») sin acordeones intermedios.
- * - Persistencia cifrada de la brecha activa de 3 códigos en [SharedBatchKeyStore] para conservar el paso exacto
- *   (`Código 1 de 3`, `2 de 3`, `3 de 3`) aunque el usuario cierre y vuelva a abrir la aplicación antes de que concluya el 3er código.
- * - Soporte para permisos de un solo uso ([ShareAccessMode.SINGLE_USE]) que se eliminan automáticamente al expirar el 3er código.
- * - Diálogo modal de detalles ([IncomingSharedServiceDetailsDialog]) al tocar una tarjeta recibida.
- *
- * @param searchQuery Consulta activa del buscador superior para filtrar servicios compartidos.
- * @param hideCodes Estado del modo privacidad para ocultar dígitos OTP.
- * @param onCopyCode Callback para copiar códigos con limpieza automática del portapapeles.
- * @param modifier Modificador de diseño Compose opcional.
- * @param showEmptyStateAndHeader Si es `true` (filtro «Compartidos»), muestra la barra de resumen/actualizar y el estado vacío ilustrado; si es `false` (filtro «Todos» o «Favoritos»), muestra directamente las tarjetas compartidas cuando existen y se oculta si no hay ninguna.
- * @param onlyFavorites Si es `true`, filtra los servicios entrantes para mostrar únicamente los marcados como favoritos y oculta los salientes.
+ * - Visualización directa de servicios compartidos recibidos («Compartidos conmigo») y enviados («Compartidos por mí»).
+ * - Persistencia cifrada de la brecha activa de 3 códigos en [SharedBatchKeyStore].
+ * - Reutiliza las operaciones de red centralizadas en [com.example.appopt.ui.screens.home.coordinator.HomeCardsCoordinator] (DRY).
  */
 @Composable
 fun HomeSharedServicesAccordion(
@@ -81,18 +69,19 @@ fun HomeSharedServicesAccordion(
     onlyFavorites: Boolean = false,
     isDriveConnected: Boolean = false,
     isConnectingDrive: Boolean = false,
+    loadingSharedGrantId: String? = null,
     onConnectClick: () -> Unit = {},
-    onSharedCardClick: (IncomingSharedService) -> Unit = {}
+    onSharedCardClick: (IncomingSharedService) -> Unit = {},
+    onRequestSharedCode: (IncomingSharedService) -> Unit = {},
+    onAcceptSharedInvitation: (IncomingSharedService) -> Unit = {},
+    onRejectSharedInvitation: (IncomingSharedService) -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val appHaptics = rememberAppHaptics()
     val currentSecondEpoch by TotpClock.currentSecondEpoch.collectAsStateWithLifecycle()
     val cacheVersion by SharedBatchKeyStore.cacheVersion.collectAsStateWithLifecycle()
-    val isUnlocked by AuthenticatorApp.instance.appLockManager.isUnlocked.collectAsStateWithLifecycle()
 
-    var isLoading by remember { mutableStateOf(false) }
-    var needsGoogleSignIn by remember { mutableStateOf(false) }
     var incomingList by remember {
         mutableStateOf(SharedBatchKeyStore.getCachedIncomingServices(context))
     }
@@ -101,12 +90,7 @@ fun HomeSharedServicesAccordion(
     }
     var errorMessageResId by remember { mutableStateOf<Int?>(null) }
     val errorMessage = errorMessageResId?.let { stringResource(it) }
-
-    val batchDownloadedMsg = stringResource(R.string.settings_shared_batch_downloaded_msg)
-    val acceptSuccessMsg = stringResource(R.string.settings_shared_accept_success_msg)
     val revokeSuccessMsg = stringResource(R.string.share_revoke_success_msg)
-    val rejectSuccessMsg = stringResource(R.string.settings_shared_reject_success_msg)
-    val leaveSuccessMsg = stringResource(R.string.settings_shared_leave_success_msg)
 
     val cachedBatchesMap = remember {
         mutableStateMapOf<String, SharedOtpBatch>().apply {
@@ -117,16 +101,21 @@ fun HomeSharedServicesAccordion(
             }
         }
     }
-    var loadingGrantId by remember { mutableStateOf<String?>(null) }
 
-    // Sincroniza cambios locales (p. ej. cuando el propietario comparte un servicio desde AccountDetailsDialog)
+    // Sincroniza cambios locales y remotos cuando cambia cacheVersion
     LaunchedEffect(cacheVersion) {
         incomingList = SharedBatchKeyStore.getCachedIncomingServices(context)
         outgoingList = SharedBatchKeyStore.getCachedOutgoingGrants(context)
+        val activeIds = incomingList.map { it.grantId }.toSet()
+        cachedBatchesMap.keys.toList().forEach { id ->
+            if (id !in activeIds) cachedBatchesMap.remove(id)
+        }
         incomingList.forEach { svc ->
             val validBatch = SharedBatchKeyStore.getValidBatch(context, svc.grantId)
             if (validBatch != null) {
                 cachedBatchesMap[svc.grantId] = validBatch
+            } else {
+                cachedBatchesMap.remove(svc.grantId)
             }
         }
     }
@@ -154,166 +143,8 @@ fun HomeSharedServicesAccordion(
     }
 
     val requestOAuthToken = rememberGoogleOAuthRequester(
-        onAuthError = {
-            isLoading = false
-            needsGoogleSignIn = true
-            errorMessageResId = R.string.share_error_not_signed_in
-        }
+        onAuthError = { errorMessageResId = R.string.share_error_not_signed_in }
     )
-
-    fun refreshSharedServices() {
-        if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-            val cachedIn = SharedBatchKeyStore.getCachedIncomingServices(context)
-            incomingList = cachedIn
-            outgoingList = SharedBatchKeyStore.getCachedOutgoingGrants(context)
-            cachedIn.forEach { svc ->
-                val validBatch = SharedBatchKeyStore.getValidBatch(context, svc.grantId)
-                if (validBatch != null) {
-                    cachedBatchesMap[svc.grantId] = validBatch
-                } else {
-                    cachedBatchesMap.remove(svc.grantId)
-                }
-            }
-            isLoading = false
-            errorMessageResId = R.string.share_error_no_internet_offline_mode
-            return
-        }
-
-        isLoading = true
-        errorMessageResId = null
-        requestOAuthToken { token ->
-            needsGoogleSignIn = false
-            scope.launch {
-                SharedBatchKeyStore.syncSharedServicesFromCloud(context, token)
-                    .onSuccess {
-                        val currentNow = System.currentTimeMillis()
-                        val mergedList = SharedBatchKeyStore.getCachedIncomingServices(context)
-                        incomingList = mergedList
-                        outgoingList = SharedBatchKeyStore.getCachedOutgoingGrants(context)
-                        val activeIds = mergedList.map { it.grantId }.toSet()
-                        cachedBatchesMap.keys.toList().forEach { id ->
-                            if (id !in activeIds) {
-                                SharedBatchKeyStore.removeBatch(context, id)
-                                cachedBatchesMap.remove(id)
-                            }
-                        }
-                        mergedList.forEach { svc ->
-                            SharedBatchKeyStore.getValidBatch(context, svc.grantId, currentNow)?.let { batch ->
-                                cachedBatchesMap[svc.grantId] = batch
-                            }
-                        }
-                    }
-                    .onFailure {
-                        errorMessageResId = if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-                            R.string.share_error_no_internet_offline_mode
-                        } else {
-                            R.string.share_error_generic
-                        }
-                    }
-                isLoading = false
-            }
-        }
-    }
-
-    LaunchedEffect(isUnlocked, isDriveConnected) {
-        if (isUnlocked && isDriveConnected && SharedServicesCloudClient.isNetworkAvailable(context) && !isLoading) {
-            refreshSharedServices()
-        }
-    }
-
-    fun requestCodeOrOfflineBatch(item: IncomingSharedService) {
-        if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-            appHaptics.error()
-            errorMessageResId = R.string.share_error_no_internet
-            return
-        }
-        loadingGrantId = item.grantId
-        errorMessageResId = null
-        requestOAuthToken { token ->
-            scope.launch {
-                if (item.accessMode == ShareAccessMode.OFFLINE_BATCH) {
-                    SharedServicesCloudClient.downloadPrecomputedBatch(token, item.grantId)
-                        .onSuccess { batch ->
-                            SharedBatchKeyStore.saveBatch(context, batch)
-                            cachedBatchesMap[item.grantId] = batch
-                            appHaptics.success()
-                            Toast.makeText(
-                                context,
-                                batchDownloadedMsg,
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                        .onFailure {
-                            appHaptics.error()
-                            if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-                                errorMessageResId = R.string.share_error_no_internet
-                            } else {
-                                SharedBatchKeyStore.removeBatch(context, item.grantId)
-                                cachedBatchesMap.remove(item.grantId)
-                                errorMessageResId = R.string.settings_shared_revoked_error
-                            }
-                        }
-                } else {
-                    SharedServicesCloudClient.requestLiveCode(token, item.grantId)
-                        .onSuccess { live ->
-                            val liveBatch = live.toSharedOtpBatch(item.grantId)
-                            SharedBatchKeyStore.saveBatch(context, liveBatch)
-                            cachedBatchesMap[item.grantId] = liveBatch
-                            appHaptics.success()
-                        }
-                        .onFailure {
-                            appHaptics.error()
-                            if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-                                errorMessageResId = R.string.share_error_no_internet
-                            } else {
-                                SharedBatchKeyStore.removeBatch(context, item.grantId)
-                                cachedBatchesMap.remove(item.grantId)
-                                errorMessageResId = R.string.settings_shared_revoked_error
-                            }
-                        }
-                }
-                loadingGrantId = null
-            }
-        }
-    }
-
-    fun rejectOrLeaveIncomingService(item: IncomingSharedService) {
-        if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-            appHaptics.error()
-            errorMessageResId = R.string.share_error_no_internet
-            return
-        }
-        loadingGrantId = item.grantId
-        errorMessageResId = null
-        val wasPending = item.status == ShareGrantStatus.PENDING
-        requestOAuthToken { token ->
-            scope.launch {
-                SharedServicesCloudClient.revokeGrant(token, item.grantId)
-                    .onSuccess {
-                        val updatedList = incomingList.filterNot { it.grantId == item.grantId }
-                        incomingList = updatedList
-                        SharedBatchKeyStore.saveCachedIncomingServices(context, updatedList)
-                        SharedBatchKeyStore.removeBatch(context, item.grantId)
-                        cachedBatchesMap.remove(item.grantId)
-                        appHaptics.success()
-                        Toast.makeText(
-                            context,
-                            if (wasPending) rejectSuccessMsg else leaveSuccessMsg,
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                    .onFailure {
-                        appHaptics.error()
-                        errorMessageResId = if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-                            R.string.share_error_no_internet
-                        } else {
-                            R.string.share_error_generic
-                        }
-                    }
-                loadingGrantId = null
-            }
-        }
-    }
 
     val filteredIncoming = remember(incomingList, searchQuery, onlyFavorites) {
         val baseList = if (onlyFavorites) incomingList.filter { it.isFavorite } else incomingList
@@ -349,10 +180,9 @@ fun HomeSharedServicesAccordion(
             if (showEmptyStateAndHeader) Dimensions.Spacing.sm else Dimensions.Spacing.md
         )
     ) {
-
         if (errorMessage != null && showEmptyStateAndHeader) {
             Text(
-                text = errorMessage.orEmpty(),
+                text = errorMessage,
                 style = MaterialTheme.typography.bodySmall,
                 color = UrgentRed,
                 modifier = Modifier.padding(horizontal = Dimensions.Spacing.xs)
@@ -360,77 +190,14 @@ fun HomeSharedServicesAccordion(
         }
 
         when {
-            isLoading && filteredIncoming.isEmpty() && filteredOutgoing.isEmpty() && showEmptyStateAndHeader -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = Dimensions.Spacing.xl),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(modifier = Modifier.size(Dimensions.IconSize.large))
-                }
-            }
-
-            (!isDriveConnected || needsGoogleSignIn) && showEmptyStateAndHeader -> {
-                Surface(
-                    shape = RoundedCornerShape(Dimensions.CornerRadius.large),
-                    color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(Dimensions.Spacing.lg),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Group,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(Dimensions.IconSize.hero)
-                        )
-                        Text(
-                            text = stringResource(R.string.home_shared_accordion_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            textAlign = TextAlign.Center
-                        )
-                        Text(
-                            text = stringResource(R.string.home_empty_shared_description),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
-                        )
-                        Button(
-                            onClick = {
-                                appHaptics.click()
-                                onConnectClick()
-                            },
-                            enabled = !isConnectingDrive && !isLoading,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
-                        ) {
-                            if (isConnectingDrive || isLoading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(Dimensions.IconSize.small),
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    strokeWidth = Dimensions.Stroke.regular
-                                )
-                            } else {
-                                Image(
-                                    painter = painterResource(R.drawable.ic_brand_google),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(Dimensions.IconSize.small)
-                                )
-                                Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
-                                Text(
-                                    text = stringResource(R.string.settings_drive_connect_button),
-                                    style = MaterialTheme.typography.labelLarge
-                                )
-                            }
-                        }
+            !isDriveConnected && showEmptyStateAndHeader -> {
+                SharedServicesConnectPromptCard(
+                    isConnectingDrive = isConnectingDrive,
+                    onConnectClick = {
+                        appHaptics.click()
+                        onConnectClick()
                     }
-                }
+                )
             }
 
             filteredIncoming.isEmpty() && filteredOutgoing.isEmpty() -> {
@@ -468,60 +235,14 @@ fun HomeSharedServicesAccordion(
                             activeCode = activeCode,
                             liveWindowProgress = liveWindowProgress,
                             hideCodes = hideCodes,
-                            isItemLoading = loadingGrantId == item.grantId,
+                            isItemLoading = loadingSharedGrantId == item.grantId,
                             onCopyCode = { code -> onCopyCode(code, item.issuer) },
-                            onRequestAction = { requestCodeOrOfflineBatch(item) },
+                            onRequestAction = { onRequestSharedCode(item) },
                             onToggleFavorite = { grantId ->
                                 SharedBatchKeyStore.toggleIncomingFavorite(context, grantId)
                             },
-                            onAcceptInvitation = {
-                                if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-                                    appHaptics.error()
-                                    errorMessageResId = R.string.share_error_no_internet
-                                    return@OtpCodeCard
-                                }
-                                loadingGrantId = item.grantId
-                                errorMessageResId = null
-                                requestOAuthToken { token ->
-                                    scope.launch {
-                                        SharedServicesCloudClient.acceptInvitation(token, item.grantId)
-                                            .onSuccess {
-                                                val updatedList = incomingList.map {
-                                                    if (it.grantId == item.grantId) {
-                                                        it.copy(status = ShareGrantStatus.ACCEPTED)
-                                                    } else {
-                                                        it
-                                                    }
-                                                }
-                                                incomingList = updatedList
-                                                SharedBatchKeyStore.saveCachedIncomingServices(context, updatedList)
-                                                if (item.accessMode == ShareAccessMode.OFFLINE_BATCH) {
-                                                    SharedServicesCloudClient.downloadPrecomputedBatch(token, item.grantId)
-                                                        .onSuccess { batch ->
-                                                            SharedBatchKeyStore.saveBatch(context, batch)
-                                                            cachedBatchesMap[item.grantId] = batch
-                                                        }
-                                                }
-                                                appHaptics.success()
-                                                Toast.makeText(
-                                                    context,
-                                                    acceptSuccessMsg,
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                            }
-                                            .onFailure {
-                                                appHaptics.error()
-                                                errorMessageResId = if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-                                                    R.string.share_error_no_internet
-                                                } else {
-                                                    R.string.share_error_generic
-                                                }
-                                            }
-                                        loadingGrantId = null
-                                    }
-                                }
-                            },
-                            onRejectInvitation = { rejectOrLeaveIncomingService(item) },
+                            onAcceptInvitation = { onAcceptSharedInvitation(item) },
+                            onRejectInvitation = { onRejectSharedInvitation(item) },
                             onCardClick = { onSharedCardClick(item) }
                         )
                     }
@@ -554,11 +275,7 @@ fun HomeSharedServicesAccordion(
                                                 outgoingList = updated
                                                 SharedBatchKeyStore.saveCachedOutgoingGrants(context, updated)
                                                 appHaptics.success()
-                                                Toast.makeText(
-                                                    context,
-                                                    revokeSuccessMsg,
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
+                                                Toast.makeText(context, revokeSuccessMsg, Toast.LENGTH_SHORT).show()
                                             }
                                             .onFailure {
                                                 appHaptics.error()
@@ -579,3 +296,70 @@ fun HomeSharedServicesAccordion(
     }
 }
 
+/**
+ * Tarjeta de bienvenida e inicio de sesión con Google cuando la cuenta aún no está vinculada en la pestaña «Compartidos».
+ */
+@Composable
+private fun SharedServicesConnectPromptCard(
+    isConnectingDrive: Boolean,
+    onConnectClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(Dimensions.CornerRadius.large),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(Dimensions.Spacing.lg),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Group,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(Dimensions.IconSize.hero)
+            )
+            Text(
+                text = stringResource(R.string.home_shared_accordion_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                text = stringResource(R.string.home_empty_shared_description),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            Button(
+                onClick = onConnectClick,
+                enabled = !isConnectingDrive,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+            ) {
+                if (isConnectingDrive) {
+                    Box(contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(Dimensions.IconSize.small),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = Dimensions.Stroke.regular
+                        )
+                    }
+                } else {
+                    Image(
+                        painter = painterResource(R.drawable.ic_brand_google),
+                        contentDescription = null,
+                        modifier = Modifier.size(Dimensions.IconSize.small)
+                    )
+                    Spacer(modifier = Modifier.width(Dimensions.Spacing.sm))
+                    Text(
+                        text = stringResource(R.string.settings_drive_connect_button),
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+            }
+        }
+    }
+}

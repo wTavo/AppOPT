@@ -30,6 +30,20 @@ import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
 
 /**
+ * Rutas de navegación de primer nivel en Jetpack Compose.
+ */
+sealed class Screen(val route: String) {
+    /** Pantalla principal con la lista de cuentas y códigos en vivo. */
+    data object Home : Screen("home")
+
+    /** Pantalla de diagnóstico de seguridad y generación de Recovery Key. */
+    data object Settings : Screen("settings")
+
+    /** Pantalla de papelera y servicios eliminados recientemente (30 días). */
+    data object RecentlyDeleted : Screen("recently_deleted")
+}
+
+/**
  * Grafo principal de navegación y control de acceso de la aplicación.
  *
  * Principio de compuerta de seguridad (*Security Gate Layer*) e idempotencia:

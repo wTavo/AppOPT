@@ -65,99 +65,99 @@ enum class AccentColor(
     /** Azul zafiro (color predeterminado clásico de la aplicación). */
     BLUE(
         titleRes = R.string.accent_color_blue,
-        previewColor = Color(0xFF2563EB),
-        primaryLight = Color(0xFF2563EB),
-        primaryDark = Color(0xFF4B82DB),
-        primaryContainerLight = Color(0xFFDBEAFE),
-        onPrimaryContainerLight = Color(0xFF1E40AF),
-        primaryContainerDark = Color(0xFF1E3A8A),
-        onPrimaryContainerDark = Color(0xFFDBEAFE),
-        secondaryLight = Color(0xFF06B6D4),
-        secondaryDark = Color(0xFF06B6D4)
+        previewColor = PrimaryBlue,
+        primaryLight = PrimaryBlue,
+        primaryDark = PrimaryBlueDark,
+        primaryContainerLight = PrimaryContainerLight,
+        onPrimaryContainerLight = OnPrimaryContainerLight,
+        primaryContainerDark = PrimaryContainerDark,
+        onPrimaryContainerDark = OnPrimaryContainerDark,
+        secondaryLight = AccentCyan,
+        secondaryDark = AccentCyan
     ),
 
     /** Verde esmeralda (tono formal de seguridad y estabilidad). */
     GREEN(
         titleRes = R.string.accent_color_green,
-        previewColor = Color(0xFF10B981),
-        primaryLight = Color(0xFF059669),
-        primaryDark = Color(0xFF34D399),
-        primaryContainerLight = Color(0xFFD1FAE5),
-        onPrimaryContainerLight = Color(0xFF065F46),
-        primaryContainerDark = Color(0xFF064E3B),
-        onPrimaryContainerDark = Color(0xFFA7F3D0),
-        secondaryLight = Color(0xFF10B981),
-        secondaryDark = Color(0xFF34D399)
+        previewColor = AccentGreenPreview,
+        primaryLight = AccentGreenPrimaryLight,
+        primaryDark = AccentGreenPrimaryDark,
+        primaryContainerLight = AccentGreenContainerLight,
+        onPrimaryContainerLight = AccentGreenOnContainerLight,
+        primaryContainerDark = AccentGreenContainerDark,
+        onPrimaryContainerDark = AccentGreenOnContainerDark,
+        secondaryLight = SafeGreen,
+        secondaryDark = AccentGreenPrimaryDark
     ),
 
     /** Púrpura amatista (diseño moderno y distinguido). */
     PURPLE(
         titleRes = R.string.accent_color_purple,
-        previewColor = Color(0xFF7C3AED),
-        primaryLight = Color(0xFF7C3AED),
-        primaryDark = Color(0xFFA78BFA),
-        primaryContainerLight = Color(0xFFEDE9FE),
-        onPrimaryContainerLight = Color(0xFF5B21B6),
-        primaryContainerDark = Color(0xFF4C1D95),
-        onPrimaryContainerDark = Color(0xFFDDD6FE),
-        secondaryLight = Color(0xFF8B5CF6),
-        secondaryDark = Color(0xFFA78BFA)
+        previewColor = AccentPurplePreview,
+        primaryLight = AccentPurplePrimaryLight,
+        primaryDark = AccentPurplePrimaryDark,
+        primaryContainerLight = AccentPurpleContainerLight,
+        onPrimaryContainerLight = AccentPurpleOnContainerLight,
+        primaryContainerDark = AccentPurpleContainerDark,
+        onPrimaryContainerDark = AccentPurpleOnContainerDark,
+        secondaryLight = AccentPurpleSecondaryLight,
+        secondaryDark = AccentPurplePrimaryDark
     ),
 
     /** Ámbar cálido (tono dorado y enérgico). */
     ORANGE(
         titleRes = R.string.accent_color_orange,
-        previewColor = Color(0xFFF59E0B),
-        primaryLight = Color(0xFFD97706),
-        primaryDark = Color(0xFFFBBF24),
-        primaryContainerLight = Color(0xFFFEF3C7),
-        onPrimaryContainerLight = Color(0xFF92400E),
-        primaryContainerDark = Color(0xFF78350F),
-        onPrimaryContainerDark = Color(0xFFFDE68A),
-        secondaryLight = Color(0xFFF59E0B),
-        secondaryDark = Color(0xFFFBBF24)
+        previewColor = AccentOrangePreview,
+        primaryLight = AccentOrangePrimaryLight,
+        primaryDark = AccentOrangePrimaryDark,
+        primaryContainerLight = AccentOrangeContainerLight,
+        onPrimaryContainerLight = AccentOrangeOnContainerLight,
+        primaryContainerDark = AccentOrangeContainerDark,
+        onPrimaryContainerDark = AccentOrangeOnContainerDark,
+        secondaryLight = WarningOrange,
+        secondaryDark = AccentOrangePrimaryDark
     ),
 
     /** Carmesí coral (acento llamativo y de alta intensidad). */
     RED(
         titleRes = R.string.accent_color_red,
-        previewColor = Color(0xFFEF4444),
-        primaryLight = Color(0xFFDC2626),
-        primaryDark = Color(0xFFF87171),
-        primaryContainerLight = Color(0xFFFEE2E2),
-        onPrimaryContainerLight = Color(0xFF991B1B),
-        primaryContainerDark = Color(0xFF7F1D1D),
-        onPrimaryContainerDark = Color(0xFFFECACA),
-        secondaryLight = Color(0xFFEF4444),
-        secondaryDark = Color(0xFFF87171)
+        previewColor = AccentRedPreview,
+        primaryLight = AccentRedPrimaryLight,
+        primaryDark = AccentRedPrimaryDark,
+        primaryContainerLight = AccentRedContainerLight,
+        onPrimaryContainerLight = AccentRedOnContainerLight,
+        primaryContainerDark = AccentRedContainerDark,
+        onPrimaryContainerDark = AccentRedOnContainerDark,
+        secondaryLight = UrgentRed,
+        secondaryDark = AccentRedPrimaryDark
     ),
 
     /** Turquesa cian (fresco, tecnológico y luminoso). */
     TEAL(
         titleRes = R.string.accent_color_teal,
-        previewColor = Color(0xFF0D9488),
-        primaryLight = Color(0xFF0D9488),
-        primaryDark = Color(0xFF2DD4BF),
-        primaryContainerLight = Color(0xFFCCFBF1),
-        onPrimaryContainerLight = Color(0xFF115E59),
-        primaryContainerDark = Color(0xFF134E4A),
-        onPrimaryContainerDark = Color(0xFF99F6E4),
-        secondaryLight = Color(0xFF14B8A6),
-        secondaryDark = Color(0xFF2DD4BF)
+        previewColor = AccentTealPreview,
+        primaryLight = AccentTealPrimaryLight,
+        primaryDark = AccentTealPrimaryDark,
+        primaryContainerLight = AccentTealContainerLight,
+        onPrimaryContainerLight = AccentTealOnContainerLight,
+        primaryContainerDark = AccentTealContainerDark,
+        onPrimaryContainerDark = AccentTealOnContainerDark,
+        secondaryLight = AccentTealSecondaryLight,
+        secondaryDark = AccentTealPrimaryDark
     ),
 
     /** Color dinámico extraído del sistema operativo Android (Material You en Android 12+). */
     DYNAMIC(
         titleRes = R.string.accent_color_dynamic,
-        previewColor = Color(0xFF6750A4),
-        primaryLight = Color(0xFF2563EB),
-        primaryDark = Color(0xFF4B82DB),
-        primaryContainerLight = Color(0xFFDBEAFE),
-        onPrimaryContainerLight = Color(0xFF1E40AF),
-        primaryContainerDark = Color(0xFF1E3A8A),
-        onPrimaryContainerDark = Color(0xFFDBEAFE),
-        secondaryLight = Color(0xFF06B6D4),
-        secondaryDark = Color(0xFF06B6D4)
+        previewColor = AccentDynamicPreview,
+        primaryLight = PrimaryBlue,
+        primaryDark = PrimaryBlueDark,
+        primaryContainerLight = PrimaryContainerLight,
+        onPrimaryContainerLight = OnPrimaryContainerLight,
+        primaryContainerDark = PrimaryContainerDark,
+        onPrimaryContainerDark = OnPrimaryContainerDark,
+        secondaryLight = AccentCyan,
+        secondaryDark = AccentCyan
     );
 
     companion object {

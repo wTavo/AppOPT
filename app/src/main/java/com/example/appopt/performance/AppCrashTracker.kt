@@ -3,6 +3,7 @@ package com.example.appopt.performance
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import androidx.compose.runtime.Immutable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,6 +15,34 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.ConcurrentLinkedDeque
+
+/**
+ * Nivel de severidad de un evento diagnóstico registrado.
+ */
+enum class DiagnosticSeverity {
+    /** Advertencia sobre una condición no óptima pero no crítica. */
+    WARNING,
+    /** Error operacional capturado (ej. fallo de red o formato inesperado). */
+    ERROR
+}
+
+/**
+ * Entrada inmutable que representa un evento de diagnóstico o error operacional sanitizado.
+ *
+ * @param timestamp Marca de tiempo Unix en milisegundos cuando ocurrió el evento.
+ * @param severity Nivel de severidad del evento ([DiagnosticSeverity]).
+ * @param tag Etiqueta o componente de origen (ej. "GoogleDriveManager", "RoomDB").
+ * @param message Mensaje descriptivo sanitizado (sin claves ni secretos expuestos).
+ * @param stackTrace Traza de la excepción opcional sanitizada.
+ */
+@Immutable
+data class DiagnosticLogEntry(
+    val timestamp: Long,
+    val severity: DiagnosticSeverity,
+    val tag: String,
+    val message: String,
+    val stackTrace: String? = null
+)
 
 /**
  * Gestor centralizado y autónomo para la captura de crasheos no controlados y registro de errores diagnósticos.

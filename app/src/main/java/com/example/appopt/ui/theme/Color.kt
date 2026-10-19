@@ -43,3 +43,54 @@ val OnErrorContainerLight = Color(0xFF991B1B) // Red-800: texto sobre contenedor
 /** Colores de superficie especializados para diálogos y modales flotantes (Slate Frío Equilibrado). */
 val ModalSurfaceLight = Color(0xFFFFFFFF) // Blanco puro sobre velo oscurecido al 50%
 val ModalSurfaceDark = Color(0xFF1A2436)  // Slate-850: superficie modal carbón azulado con alto contraste
+
+/** Paleta de acento: Verde esmeralda. */
+val AccentGreenPreview = Color(0xFF10B981)
+val AccentGreenPrimaryLight = Color(0xFF059669)
+val AccentGreenPrimaryDark = Color(0xFF34D399)
+val AccentGreenContainerLight = Color(0xFFD1FAE5)
+val AccentGreenOnContainerLight = Color(0xFF065F46)
+val AccentGreenContainerDark = Color(0xFF064E3B)
+val AccentGreenOnContainerDark = Color(0xFFA7F3D0)
+
+/** Paleta de acento: Púrpura amatista. */
+val AccentPurplePreview = Color(0xFF7C3AED)
+val AccentPurplePrimaryLight = Color(0xFF7C3AED)
+val AccentPurplePrimaryDark = Color(0xFFA78BFA)
+val AccentPurpleContainerLight = Color(0xFFEDE9FE)
+val AccentPurpleOnContainerLight = Color(0xFF5B21B6)
+val AccentPurpleContainerDark = Color(0xFF4C1D95)
+val AccentPurpleOnContainerDark = Color(0xFFDDD6FE)
+val AccentPurpleSecondaryLight = Color(0xFF8B5CF6)
+
+/** Paleta de acento: Ámbar cálido. */
+val AccentOrangePreview = Color(0xFFF59E0B)
+val AccentOrangePrimaryLight = Color(0xFFD97706)
+val AccentOrangePrimaryDark = Color(0xFFFBBF24)
+val AccentOrangeContainerLight = Color(0xFFFEF3C7)
+val AccentOrangeOnContainerLight = Color(0xFF92400E)
+val AccentOrangeContainerDark = Color(0xFF78350F)
+val AccentOrangeOnContainerDark = Color(0xFFFDE68A)
+
+/** Paleta de acento: Carmesí coral. */
+val AccentRedPreview = Color(0xFFEF4444)
+val AccentRedPrimaryLight = Color(0xFFDC2626)
+val AccentRedPrimaryDark = Color(0xFFF87171)
+val AccentRedContainerLight = Color(0xFFFEE2E2)
+val AccentRedOnContainerLight = Color(0xFF991B1B)
+val AccentRedContainerDark = Color(0xFF7F1D1D)
+val AccentRedOnContainerDark = Color(0xFFFECACA)
+
+/** Paleta de acento: Turquesa cian. */
+val AccentTealPreview = Color(0xFF0D9488)
+val AccentTealPrimaryLight = Color(0xFF0D9488)
+val AccentTealPrimaryDark = Color(0xFF2DD4BF)
+val AccentTealContainerLight = Color(0xFFCCFBF1)
+val AccentTealOnContainerLight = Color(0xFF115E59)
+val AccentTealContainerDark = Color(0xFF134E4A)
+val AccentTealOnContainerDark = Color(0xFF99F6E4)
+val AccentTealSecondaryLight = Color(0xFF14B8A6)
+
+/** Paleta de acento: Material You Dinámico (color de muestra). */
+val AccentDynamicPreview = Color(0xFF6750A4)
+

@@ -37,7 +37,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import com.example.appopt.R
 import com.example.appopt.domain.model.AccountWithCode
 import com.example.appopt.domain.model.OtpType
@@ -200,7 +202,7 @@ fun AccountDetailsViewStep(
 
             // Tarjeta de Dígitos OTP grandes con contador circular (Directivas 4 y 31)
             val isDark = MaterialTheme.colorScheme.surface == SurfaceDark || MaterialTheme.colorScheme.background == BackgroundDark
-            val codeContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
+            val codeContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color.White
             val codeContainerBorder = if (isDark) null else BorderStroke(
                 width = Dimensions.Stroke.thin,
                 color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
@@ -209,6 +211,7 @@ fun AccountDetailsViewStep(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = codeContainerColor),
+                elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else Dimensions.Elevation.cardDefault),
                 border = codeContainerBorder,
                 shape = RoundedCornerShape(Dimensions.CornerRadius.large)
             ) {

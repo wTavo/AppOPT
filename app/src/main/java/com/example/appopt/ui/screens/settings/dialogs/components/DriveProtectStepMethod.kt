@@ -35,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -43,6 +44,8 @@ import androidx.compose.ui.text.style.TextAlign
 import com.example.appopt.R
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
+import com.example.appopt.ui.theme.isDarkTheme
+import com.example.appopt.ui.theme.modalCardContainerColor
 
 /**
  * Sub-componente para el Paso 1 del diálogo de protección: Selección y configuración del método de protección principal.
@@ -93,6 +96,8 @@ fun DriveProtectStepMethod(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
+        val isDark = MaterialTheme.colorScheme.isDarkTheme
+
         // Selector de Método Prominente y Elegante (Tarjetas de Selección Táctil)
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -100,13 +105,18 @@ fun DriveProtectStepMethod(
         ) {
             // Opción 0: Contraseña Maestra
             val isTab0 = selectedTab == 0
+            val tab0Color = if (isDark) {
+                if (isTab0) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+            } else {
+                Color.White
+            }
             Surface(
                 onClick = { onTabSelected(0) },
                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                color = if (isTab0) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                color = tab0Color,
                 border = BorderStroke(
                     if (isTab0) Dimensions.Stroke.regular else Dimensions.Stroke.thin,
-                    if (isTab0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                    if (isTab0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                 ),
                 modifier = Modifier
                     .weight(1f)
@@ -137,13 +147,18 @@ fun DriveProtectStepMethod(
 
             // Opción 1: Clave de 64 Dígitos
             val isTab1 = selectedTab == 1
+            val tab1Color = if (isDark) {
+                if (isTab1) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+            } else {
+                Color.White
+            }
             Surface(
                 onClick = { onTabSelected(1) },
                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                color = if (isTab1) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                color = tab1Color,
                 border = BorderStroke(
                     if (isTab1) Dimensions.Stroke.regular else Dimensions.Stroke.thin,
-                    if (isTab1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                    if (isTab1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                 ),
                 modifier = Modifier
                     .weight(1f)
@@ -223,8 +238,8 @@ fun DriveProtectStepMethod(
                     // Tarjeta Criptográfica Premium para Clave de 64 Dígitos
                     Surface(
                         shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                        border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+                        color = modalCardContainerColor(),
+                        border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(

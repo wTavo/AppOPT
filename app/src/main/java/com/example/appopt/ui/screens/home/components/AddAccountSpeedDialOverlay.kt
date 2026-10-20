@@ -139,9 +139,9 @@ fun AddAccountSpeedDialOverlay(
             Surface(
                 shape = RoundedCornerShape(Dimensions.CornerRadius.large),
                 color = MaterialTheme.colorScheme.surface,
-                tonalElevation = Dimensions.Elevation.cardDragging,
+                tonalElevation = Dimensions.Elevation.none,
                 shadowElevation = Dimensions.Elevation.modal,
-                border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
+                border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.50f)),
                 modifier = Modifier
                     .widthIn(min = Dimensions.ComponentSize.speedDialMinWidth, max = Dimensions.ComponentSize.speedDialMaxWidth)
                     .padding(horizontal = Dimensions.Spacing.lg)

@@ -30,12 +30,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import com.example.appopt.R
 import com.example.appopt.data.cloud.DriveBackupItem
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.SafeGreen
+import com.example.appopt.ui.theme.isDarkTheme
 
 /**
  * Componente visual para renderizar la tarjeta de una versión de respaldo en Google Drive.
@@ -72,16 +74,24 @@ fun DriveBackupItemCard(
     isRestoring: Boolean = false,
     isAnyOperationRunning: Boolean = false
 ) {
+    val isDark = MaterialTheme.colorScheme.isDarkTheme
+    val cardColor = if (isDark) {
+        if (isActual) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.70f)
+    } else {
+        Color.White
+    }
+    val borderColor = if (isActual) {
+        SafeGreen.copy(alpha = 0.60f)
+    } else {
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)
+    }
+
     Surface(
         shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-        color = if (isActual) {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
-        },
+        color = cardColor,
         border = BorderStroke(
             Dimensions.Stroke.thin,
-            if (isActual) SafeGreen.copy(alpha = 0.45f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)
+            borderColor
         ),
         modifier = modifier.fillMaxWidth()
     ) {
@@ -105,7 +115,11 @@ fun DriveBackupItemCard(
                         modifier = Modifier
                             .size(Dimensions.IconSize.hero)
                             .background(
-                                color = (if (isActual) SafeGreen else MaterialTheme.colorScheme.primary).copy(alpha = 0.12f),
+                                color = if (isDark) {
+                                    (if (isActual) SafeGreen else MaterialTheme.colorScheme.primary).copy(alpha = 0.12f)
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                },
                                 shape = CircleShape
                             ),
                         contentAlignment = Alignment.Center
@@ -164,7 +178,7 @@ fun DriveBackupItemCard(
 
                         Surface(
                             shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
-                            color = if (item.isEncrypted) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                            color = if (isDark && item.isEncrypted) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                             else MaterialTheme.colorScheme.surfaceVariant
                         ) {
                             Text(

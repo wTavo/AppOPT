@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
@@ -29,6 +30,7 @@ import com.example.appopt.R
 import com.example.appopt.domain.model.ParsedAccountPreview
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.SafeGreen
+import com.example.appopt.ui.theme.isDarkTheme
 import com.example.appopt.ui.theme.rememberAppHaptics
 
 /**
@@ -137,20 +139,24 @@ private fun AccountSelectionCard(
     onToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isDark = MaterialTheme.colorScheme.isDarkTheme
+    val cardColor = if (isDark) {
+        if (isChecked) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
+    } else {
+        Color.White
+    }
+    val borderColor = if (isChecked) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.50f)
+    } else {
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)
+    }
+
     Surface(
         shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-        color = if (isChecked) {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.50f)
-        } else {
-            MaterialTheme.colorScheme.surface
-        },
+        color = cardColor,
         border = BorderStroke(
             Dimensions.Stroke.thin,
-            if (isChecked) {
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.40f)
-            } else {
-                MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
-            }
+            borderColor
         ),
         modifier = modifier
             .fillMaxWidth()

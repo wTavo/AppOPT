@@ -99,7 +99,6 @@ fun AppUpdateSettingsCard(
         title = stringResource(R.string.settings_update_card_title),
         description = stringResource(R.string.settings_update_card_desc),
         icon = Icons.Filled.SystemUpdate,
-        iconTint = if (currentUpdate != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = modifier
     ) {
         SettingsStatusTile(

@@ -225,7 +225,7 @@ fun HomeScreen(
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val listTopPadding = statusBarTop + Dimensions.ComponentHeight.buttonDefault + Dimensions.ComponentHeight.buttonCompact +
-        Dimensions.Spacing.xs + (Dimensions.Spacing.sm * 2) + Dimensions.Spacing.lg
+        Dimensions.Spacing.md + (Dimensions.Spacing.sm * 2) + Dimensions.Spacing.lg
     val listBottomPadding = navBarBottom + Dimensions.Spacing.lg + Dimensions.ComponentSize.heroFab +
         (Dimensions.Spacing.sm * 2) + Dimensions.Spacing.xl
 
@@ -369,7 +369,7 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(Dimensions.Spacing.xs))
+            Spacer(modifier = Modifier.height(Dimensions.Spacing.md))
 
             HomeCategoryFilterBar(
                 selectedFilter = selectedFilter,

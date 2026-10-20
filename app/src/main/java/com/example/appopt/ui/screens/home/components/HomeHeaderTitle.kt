@@ -96,7 +96,7 @@ fun HomeHeaderTitle(
         CloudSyncUiState.SYNCING -> MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
         CloudSyncUiState.ERROR -> MaterialTheme.colorScheme.error
         CloudSyncUiState.SUCCESS -> SafeGreen
-        CloudSyncUiState.IDLE -> if (isVaultSynced) SafeGreen else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+        CloudSyncUiState.IDLE -> if (isVaultSynced) SafeGreen else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.50f)
     }
 
     val animatedBorderColor by animateColorAsState(
@@ -108,7 +108,7 @@ fun HomeHeaderTitle(
     Surface(
         shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = Dimensions.Elevation.cardDefault,
+        tonalElevation = Dimensions.Elevation.none,
         shadowElevation = Dimensions.Elevation.cardDefault,
         border = BorderStroke(Dimensions.Stroke.thin, animatedBorderColor),
         modifier = modifier.wrapContentWidth()

@@ -46,6 +46,7 @@ import com.example.appopt.ui.components.SettingsSectionCard
 import com.example.appopt.ui.components.SettingsStatusTile
 import com.example.appopt.ui.navigation.NavigationOriginTracker
 import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.isDarkTheme
 import com.example.appopt.ui.theme.appSwitchColors
 
 /**
@@ -138,10 +139,14 @@ fun DriveSyncSettingsCard(
                         hasBackupInfo -> MaterialTheme.colorScheme.onSurface
                         else -> MaterialTheme.colorScheme.primary
                     },
-                    backgroundColor = when {
-                        isSyncingActive -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                        hasBackupInfo -> MaterialTheme.colorScheme.surfaceVariant
-                        else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                    backgroundColor = if (MaterialTheme.colorScheme.isDarkTheme) {
+                        when {
+                            isSyncingActive -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                            hasBackupInfo -> MaterialTheme.colorScheme.surfaceVariant
+                            else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                        }
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant
                     },
                     onClick = if (!isSyncingActive) {
                         {

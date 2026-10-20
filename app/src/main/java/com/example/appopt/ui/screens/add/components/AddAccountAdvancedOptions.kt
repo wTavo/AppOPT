@@ -5,6 +5,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -29,6 +30,7 @@ import androidx.compose.ui.res.stringResource
 import com.example.appopt.R
 import com.example.appopt.domain.model.OtpAlgorithm
 import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.modalCardContainerColor
 import com.example.appopt.ui.theme.rememberAppHaptics
 
 /**
@@ -56,7 +58,8 @@ fun AddAccountAdvancedOptions(
 
     Card(
         shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+        colors = CardDefaults.cardColors(containerColor = modalCardContainerColor()),
+        border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(Dimensions.CornerRadius.medium))

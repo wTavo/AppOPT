@@ -13,6 +13,7 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -54,6 +55,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.appopt.R
 import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.modalCardContainerColor
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
@@ -125,7 +127,12 @@ fun CameraXBarcodeScannerView(
                 .fillMaxWidth()
                 .height(Dimensions.ComponentSize.qrScannerBox)
                 .clip(RoundedCornerShape(Dimensions.CornerRadius.medium))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                .background(modalCardContainerColor())
+                .border(
+                    width = Dimensions.Stroke.thin,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                    shape = RoundedCornerShape(Dimensions.CornerRadius.medium)
+                )
                 .padding(Dimensions.Spacing.lg),
             contentAlignment = Alignment.Center
         ) {

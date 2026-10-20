@@ -42,6 +42,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import com.example.appopt.R
 import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.modalCardContainerColor
 
 /**
  * Sub-componente para el Paso 2 del diálogo de protección: Visualización y exportación del Kit de Emergencia.
@@ -96,8 +97,8 @@ fun DriveProtectStepMnemonic(
 
             Surface(
                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.18f),
-                border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+                color = modalCardContainerColor(),
+                border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -174,8 +175,8 @@ fun DriveProtectStepMnemonic(
 
             Surface(
                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+                color = modalCardContainerColor(),
+                border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(

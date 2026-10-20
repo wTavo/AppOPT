@@ -1,5 +1,6 @@
 package com.example.appopt.ui.screens.home.dialogs
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,6 +33,8 @@ import com.example.appopt.domain.model.AppUpdateInfo
 import com.example.appopt.ui.components.AppModalDialog
 import com.example.appopt.ui.components.ModalTone
 import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.isDarkTheme
+import com.example.appopt.ui.theme.modalCardContainerColor
 import com.example.appopt.ui.theme.rememberAppHaptics
 
 /**
@@ -78,7 +81,7 @@ fun AppUpdateAvailableDialog(
             ) {
                 Surface(
                     shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
-                    color = MaterialTheme.colorScheme.primaryContainer,
+                    color = if (MaterialTheme.colorScheme.isDarkTheme) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier.size(Dimensions.IconSize.hero)
                 ) {
                     Icon(
@@ -123,7 +126,11 @@ fun AppUpdateAvailableDialog(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    color = modalCardContainerColor(),
+                    border = BorderStroke(
+                        width = Dimensions.Stroke.thin,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                    )
                 ) {
                     Column(
                         modifier = Modifier.padding(Dimensions.Spacing.md),

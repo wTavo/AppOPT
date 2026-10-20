@@ -74,11 +74,11 @@ fun HomeCategoryFilterBar(
     Surface(
         shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = Dimensions.Elevation.cardDefault,
+        tonalElevation = Dimensions.Elevation.none,
         shadowElevation = Dimensions.Elevation.cardDefault,
         border = BorderStroke(
             Dimensions.Stroke.thin,
-            MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
         ),
         modifier = modifier.fillMaxWidth()
     ) {

@@ -1,5 +1,6 @@
 package com.example.appopt.ui.screens.scan.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -40,6 +41,7 @@ import com.example.appopt.security.SecurityAnalysisUtils
 import com.example.appopt.ui.components.AppAnimatedButton
 import com.example.appopt.ui.components.ServiceBrandAvatar
 import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.modalCardContainerColor
 
 /**
  * Sub-pantalla de confirmación y diagnóstico de seguridad para el alta de una cuenta OTP individual.
@@ -100,7 +102,11 @@ fun QrScanSingleOtpStep(
             // Tarjeta visual de identidad del servicio
             Surface(
                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                color = modalCardContainerColor(),
+                border = BorderStroke(
+                    width = Dimensions.Stroke.thin,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                ),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -225,7 +231,11 @@ fun QrScanSingleOtpStep(
             // Tarjeta educativa antiphishing
             Surface(
                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                color = modalCardContainerColor(),
+                border = BorderStroke(
+                    width = Dimensions.Stroke.thin,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                ),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(

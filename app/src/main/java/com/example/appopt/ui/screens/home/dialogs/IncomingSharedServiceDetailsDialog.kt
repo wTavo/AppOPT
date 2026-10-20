@@ -1,6 +1,7 @@
 package com.example.appopt.ui.screens.home.dialogs
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,6 +40,7 @@ import com.example.appopt.ui.components.ServiceBrandAvatar
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.SafeGreen
+import com.example.appopt.ui.theme.modalCardContainerColor
 import com.example.appopt.ui.theme.rememberAppHaptics
 
 /**
@@ -139,7 +141,11 @@ fun IncomingSharedServiceDetailsDialog(
                         ) {
                             Surface(
                                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                color = modalCardContainerColor(),
+                                border = BorderStroke(
+                                    width = Dimensions.Stroke.thin,
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                                ),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Column(

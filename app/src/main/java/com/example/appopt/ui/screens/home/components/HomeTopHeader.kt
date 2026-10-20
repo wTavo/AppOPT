@@ -9,10 +9,9 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
@@ -93,12 +92,11 @@ fun HomeTopHeader(
                 }
             )
         } else {
+            val headerElementHeight = Dimensions.ComponentSize.actionIconButton + Dimensions.Spacing.sm
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .wrapContentHeight()
-                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
-                    .padding(vertical = Dimensions.Spacing.xs),
+                    .height(headerElementHeight),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -106,10 +104,10 @@ fun HomeTopHeader(
                 Surface(
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.surface,
-                    tonalElevation = Dimensions.Elevation.cardDefault,
+                    tonalElevation = Dimensions.Elevation.none,
                     shadowElevation = Dimensions.Elevation.cardDefault,
-                    border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
-                    modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton + Dimensions.Spacing.sm)
+                    border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    modifier = Modifier.size(headerElementHeight)
                 ) {
                     IconButton(
                         onClick = {
@@ -135,10 +133,10 @@ fun HomeTopHeader(
                 Surface(
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.surface,
-                    tonalElevation = Dimensions.Elevation.cardDefault,
+                    tonalElevation = Dimensions.Elevation.none,
                     shadowElevation = Dimensions.Elevation.cardDefault,
-                    border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)),
-                    modifier = Modifier.size(Dimensions.ComponentSize.actionIconButton + Dimensions.Spacing.sm)
+                    border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    modifier = Modifier.size(headerElementHeight)
                 ) {
                     IconButton(
                         onClick = {

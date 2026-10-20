@@ -34,6 +34,8 @@ import com.example.appopt.R
 import com.example.appopt.data.cloud.DriveBackupItem
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.SafeGreen
+import com.example.appopt.ui.theme.isDarkTheme
+import com.example.appopt.ui.theme.modalCardContainerColor
 import com.example.appopt.util.DateTimeFormatter
 
 /**
@@ -67,6 +69,8 @@ fun DriveBackupDecryptForm(
         targetBackup?.modifiedTimeMillis?.let { DateTimeFormatter.formatRelativeSyncTime(context, it) } ?: ""
     }
 
+    val isDark = MaterialTheme.colorScheme.isDarkTheme
+
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
@@ -74,10 +78,10 @@ fun DriveBackupDecryptForm(
         if (targetBackup != null) {
             Surface(
                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                color = modalCardContainerColor(),
                 border = BorderStroke(
                     Dimensions.Stroke.thin,
-                    if (isActual) SafeGreen.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+                    if (isActual) SafeGreen.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                 ),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -92,7 +96,11 @@ fun DriveBackupDecryptForm(
                         modifier = Modifier
                             .size(Dimensions.IconSize.hero)
                             .background(
-                                color = (if (isActual) SafeGreen else MaterialTheme.colorScheme.primary).copy(alpha = 0.12f),
+                                color = if (isDark) {
+                                    (if (isActual) SafeGreen else MaterialTheme.colorScheme.primary).copy(alpha = 0.12f)
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                },
                                 shape = CircleShape
                             ),
                         contentAlignment = Alignment.Center

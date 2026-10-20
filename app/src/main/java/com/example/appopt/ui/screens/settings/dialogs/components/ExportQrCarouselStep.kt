@@ -9,8 +9,10 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,11 +30,12 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -47,6 +50,9 @@ import androidx.compose.ui.text.style.TextAlign
 import com.example.appopt.R
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
+import com.example.appopt.ui.theme.OutlineLight
+import com.example.appopt.ui.theme.TextPrimaryLight
+import com.example.appopt.ui.theme.modalCardContainerColor
 import com.example.appopt.ui.theme.rememberAppHaptics
 
 /**
@@ -177,7 +183,11 @@ fun ExportQrCarouselStep(
                     // Superficie conmutable: Muestra el PIN dentro del mismo cuadro del QR
                     Surface(
                         shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                        color = modalCardContainerColor(),
+                        border = BorderStroke(
+                            width = Dimensions.Stroke.thin,
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                        ),
                         modifier = Modifier
                             .size(Dimensions.ComponentSize.qrCodeDisplay)
                             .padding(Dimensions.Spacing.xs)
@@ -257,13 +267,21 @@ fun ExportQrCarouselStep(
                 textAlign = TextAlign.Center
             )
 
-            // Botón de alternancia entre Código QR y PIN
+            // Botón de alternancia entre Código QR y PIN (Blanco puro tanto en claro como oscuro por preferencia de usuario)
             if (transferPin.isNotBlank()) {
-                OutlinedButton(
+                Button(
                     onClick = {
                         haptics.click()
                         onTogglePinVisibility()
                     },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.White,
+                        contentColor = TextPrimaryLight
+                    ),
+                    border = BorderStroke(
+                        width = Dimensions.Stroke.thin,
+                        color = OutlineLight.copy(alpha = 0.5f)
+                    ),
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
                     modifier = Modifier
                         .fillMaxWidth()

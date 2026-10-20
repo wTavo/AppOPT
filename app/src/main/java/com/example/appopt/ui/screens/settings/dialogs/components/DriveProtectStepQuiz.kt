@@ -14,12 +14,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import com.example.appopt.R
 import com.example.appopt.security.MnemonicManager
 import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.isDarkTheme
+import com.example.appopt.ui.theme.modalCardContainerColor
 
 /**
  * Sub-componente para el Paso 3 del diálogo de protección: Cuestionario interactivo de verificación de palabras mnemónicas.
@@ -53,13 +56,13 @@ fun DriveProtectStepQuiz(
         questions.forEachIndexed { qIdx, q ->
             Surface(
                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                color = modalCardContainerColor(),
                 border = BorderStroke(
                     Dimensions.Stroke.thin,
                     if (isError && selectedAnswers[qIdx] == null) {
                         MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
                     } else {
-                        MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                     }
                 ),
                 modifier = Modifier.fillMaxWidth()
@@ -78,15 +81,21 @@ fun DriveProtectStepQuiz(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.xs)
                     ) {
+                        val isDark = MaterialTheme.colorScheme.isDarkTheme
                         q.options.forEach { option ->
                             val isSelected = selectedAnswers[qIdx] == option
+                            val optionBg = if (isDark) {
+                                if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+                            } else {
+                                Color.White
+                            }
                             Surface(
                                 onClick = { onSelectAnswer(qIdx, option) },
                                 shape = RoundedCornerShape(Dimensions.CornerRadius.small),
-                                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                                color = optionBg,
                                 border = BorderStroke(
-                                    Dimensions.Stroke.thin,
-                                    if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                                    if (isSelected) Dimensions.Stroke.regular else Dimensions.Stroke.thin,
+                                    if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                                 ),
                                 modifier = Modifier.weight(1f)
                             ) {

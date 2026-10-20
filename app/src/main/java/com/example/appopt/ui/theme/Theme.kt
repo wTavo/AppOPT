@@ -214,6 +214,27 @@ fun AppTheme(
 }
 
 /**
+ * Indica si el esquema de color activo corresponde a una paleta oscura.
+ */
+val ColorScheme.isDarkTheme: Boolean
+    get() = this.surface == SurfaceDark || this.background == BackgroundDark
+
+/**
+ * Color de superficie de alto contraste para tarjetas, bloques y contenedores internos
+ * alojados dentro de diálogos modales ([com.example.appopt.ui.components.AppModalDialog]).
+ *
+ * En modo claro devuelve blanco puro ([androidx.compose.ui.graphics.Color.White]) para contrastar
+ * nítidamente con la superficie tonal del diálogo, mientras que en modo oscuro utiliza [ColorScheme.surfaceVariant].
+ *
+ * @return [Color] adaptativo correspondiente al tema actual.
+ */
+@Composable
+fun modalCardContainerColor(): Color {
+    val isDark = MaterialTheme.colorScheme.isDarkTheme
+    return if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color.White
+}
+
+/**
  * Colores de alto contraste adaptativos para los interruptores [androidx.compose.material3.Switch] de la aplicación.
  *
  * - En modo oscuro (*Dark Theme*): El botón deslizante apagado es blanco puro ([androidx.compose.ui.graphics.Color.White]) para máxima visibilidad.
@@ -221,7 +242,7 @@ fun AppTheme(
  */
 @Composable
 fun appSwitchColors(): androidx.compose.material3.SwitchColors {
-    val isDark = MaterialTheme.colorScheme.surface == SurfaceDark || MaterialTheme.colorScheme.background == BackgroundDark
+    val isDark = MaterialTheme.colorScheme.isDarkTheme
     return androidx.compose.material3.SwitchDefaults.colors(
         uncheckedThumbColor = if (isDark) Color.White else TextSecondaryLight,
         uncheckedTrackColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else SurfaceVariantLight,

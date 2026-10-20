@@ -44,12 +44,11 @@ import com.example.appopt.domain.model.OtpType
 import com.example.appopt.ui.components.AppDialogActionButtons
 import com.example.appopt.ui.components.CircularTimeProgress
 import com.example.appopt.ui.components.ServiceBrandAvatar
-import com.example.appopt.ui.theme.BackgroundDark
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.SafeGreen
-import com.example.appopt.ui.theme.SurfaceDark
 import com.example.appopt.ui.theme.UrgentRed
+import com.example.appopt.ui.theme.modalCardContainerColor
 import com.example.appopt.ui.theme.rememberAppHaptics
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
@@ -199,8 +198,7 @@ fun AccountDetailsViewStep(
             }
 
             // Contenedor de Dígitos OTP grandes con contador circular (Directivas 4 y 31)
-            val isDark = MaterialTheme.colorScheme.surface == SurfaceDark || MaterialTheme.colorScheme.background == BackgroundDark
-            val codeContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color.White
+            val codeContainerColor = modalCardContainerColor()
 
             Box(
                 modifier = Modifier

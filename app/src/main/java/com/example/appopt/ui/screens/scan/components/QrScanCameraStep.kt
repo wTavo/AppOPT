@@ -42,6 +42,7 @@ import com.example.appopt.ui.components.AppDialogActionButtons
 import com.example.appopt.ui.screens.scan.QrScannerMode
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
+import com.example.appopt.ui.theme.modalCardContainerColor
 
 /**
  * Sub-pantalla principal del escáner de códigos QR con visor de cámara bajo demanda,
@@ -115,7 +116,7 @@ fun QrScanCameraStep(
             if (mode == QrScannerMode.TRANSFER_MIGRATION && totalExpectedChunks > 1 && sessionChunks.size < totalExpectedChunks) {
                 Surface(
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    color = modalCardContainerColor(),
                     border = BorderStroke(
                         width = Dimensions.Stroke.thin,
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)

@@ -117,11 +117,11 @@ fun HomeFloatingDock(
     Surface(
         shape = RoundedCornerShape(Dimensions.CornerRadius.pill),
         color = MaterialTheme.colorScheme.surface.copy(alpha = if (isAddMenuOpen) 0.60f else 1.0f),
-        tonalElevation = if (isAddMenuOpen) Dimensions.Elevation.none else Dimensions.Elevation.cardDefault,
+        tonalElevation = Dimensions.Elevation.none,
         shadowElevation = if (isAddMenuOpen) Dimensions.Elevation.none else Dimensions.Elevation.cardDefault,
         border = BorderStroke(
             Dimensions.Stroke.thin,
-            MaterialTheme.colorScheme.outline.copy(alpha = if (isAddMenuOpen) 0.05f else 0.15f)
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = if (isAddMenuOpen) 0.10f else 0.50f)
         ),
         modifier = modifier.wrapContentWidth()
     ) {

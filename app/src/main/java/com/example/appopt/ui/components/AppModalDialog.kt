@@ -243,9 +243,9 @@ fun AppModalDialog(
                         contentColor = MaterialTheme.colorScheme.onSurface,
                         border = BorderStroke(
                             width = Dimensions.Stroke.thin,
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f)
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = if (isDark) 0.15f else 0.50f)
                         ),
-                        tonalElevation = Dimensions.Elevation.modal,
+                        tonalElevation = Dimensions.Elevation.none,
                         shadowElevation = Dimensions.Elevation.modal
                     ) {
                         Box(

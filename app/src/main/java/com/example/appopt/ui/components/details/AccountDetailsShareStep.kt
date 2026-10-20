@@ -5,6 +5,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -26,6 +27,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,6 +35,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -41,17 +46,15 @@ import com.example.appopt.R
 import com.example.appopt.domain.model.OutgoingShareGrant
 import com.example.appopt.domain.model.ShareAccessMode
 import com.example.appopt.domain.model.ShareBatchDuration
+import com.example.appopt.domain.model.ShareGrantStatus
 import com.example.appopt.ui.components.AppDialogActionButtons
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
-import com.example.appopt.ui.theme.UrgentRed
-import com.example.appopt.ui.theme.rememberAppHaptics
-
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import com.example.appopt.domain.model.ShareGrantStatus
 import com.example.appopt.ui.theme.SafeGreen
+import com.example.appopt.ui.theme.UrgentRed
+import com.example.appopt.ui.theme.isDarkTheme
+import com.example.appopt.ui.theme.modalCardContainerColor
+import com.example.appopt.ui.theme.rememberAppHaptics
 
 /**
  * Paso modal dentro de [com.example.appopt.ui.components.AccountDetailsDialog] para compartir el acceso
@@ -129,7 +132,8 @@ fun AccountDetailsShareStep(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                    color = MaterialTheme.colorScheme.surfaceVariant
+                    color = modalCardContainerColor(),
+                    border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                 ) {
                     Text(
                         text = stringResource(R.string.share_requires_connected_account_msg),
@@ -262,7 +266,8 @@ fun AccountDetailsShareStep(
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                color = MaterialTheme.colorScheme.surfaceVariant
+                                color = modalCardContainerColor(),
+                                border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -281,27 +286,18 @@ fun AccountDetailsShareStep(
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
                                         val modeText = when (grant.accessMode) {
-                                            ShareAccessMode.OFFLINE_BATCH ->
-                                                stringResource(R.string.share_mode_badge_batch, grant.batchHours)
-                                            ShareAccessMode.SINGLE_USE ->
-                                                stringResource(R.string.share_mode_badge_single_use)
-                                            ShareAccessMode.ONLINE_ONLY ->
-                                                stringResource(R.string.share_mode_badge_online)
+                                            ShareAccessMode.OFFLINE_BATCH -> stringResource(R.string.share_mode_badge_batch, grant.batchHours)
+                                            ShareAccessMode.SINGLE_USE -> stringResource(R.string.share_mode_badge_single_use)
+                                            ShareAccessMode.ONLINE_ONLY -> stringResource(R.string.share_mode_badge_online)
                                         }
                                         val isPending = grant.status == ShareGrantStatus.PENDING
-                                        val statusAndModeText = if (isPending) {
-                                            stringResource(R.string.share_status_pending_badge, modeText)
-                                        } else {
-                                            stringResource(R.string.share_status_accepted_badge, modeText)
-                                        }
                                         Text(
-                                            text = statusAndModeText,
+                                            text = stringResource(
+                                                if (isPending) R.string.share_status_pending_badge else R.string.share_status_accepted_badge,
+                                                modeText
+                                            ),
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = if (isPending) {
-                                                MaterialTheme.colorScheme.tertiary
-                                            } else {
-                                                SafeGreen
-                                            }
+                                            color = if (isPending) MaterialTheme.colorScheme.tertiary else SafeGreen
                                         )
                                     }
 
@@ -351,17 +347,23 @@ private fun ShareModeOptionCard(
     selected: Boolean,
     onClick: () -> Unit
 ) {
+    val isDark = MaterialTheme.colorScheme.isDarkTheme
+    val cardColor = if (isDark) {
+        if (selected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f) else MaterialTheme.colorScheme.surfaceVariant
+    } else {
+        Color.White
+    }
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(Dimensions.CornerRadius.medium))
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-        color = if (selected) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant
-        }
+        color = cardColor,
+        border = BorderStroke(
+            if (selected) Dimensions.Stroke.regular else Dimensions.Stroke.thin,
+            if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        )
     ) {
         Row(
             modifier = Modifier

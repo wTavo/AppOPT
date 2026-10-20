@@ -39,11 +39,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.zIndex
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import com.example.appopt.AuthenticatorApp
 import com.example.appopt.R
+import com.example.appopt.data.cloud.GoogleDriveManager
 import com.example.appopt.data.cloud.SharedBatchKeyStore
 import com.example.appopt.data.cloud.SharedServicesCloudClient
+import com.example.appopt.data.cloud.UnauthorizedException
 import com.example.appopt.data.update.AppUpdateManager
 import com.example.appopt.domain.model.AccountWithCode
 import com.example.appopt.domain.model.IncomingSharedService
@@ -62,9 +67,11 @@ import com.example.appopt.ui.screens.home.components.HomeTopHeader
 import com.example.appopt.ui.screens.home.coordinator.rememberHomeCardsCoordinator
 import com.example.appopt.ui.screens.home.dialogs.HomeDialogContainer
 import com.example.appopt.ui.screens.settings.coordinator.rememberGoogleOAuthRequester
+import com.example.appopt.security.SecurityConfig
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.rememberAppHaptics
 import com.example.appopt.util.TotpClock
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -120,6 +127,8 @@ fun HomeScreen(
     val requestOAuthToken = rememberGoogleOAuthRequester(onAuthError = {})
     val cardsCoordinator = rememberHomeCardsCoordinator(viewModel, requestOAuthToken)
 
+    val lifecycleOwner = LocalLifecycleOwner.current
+
     LaunchedEffect(isUnlocked, isDriveConnected) {
         if (!isUnlocked) {
             selectedAccountId = null
@@ -128,12 +137,40 @@ fun HomeScreen(
             isSearchActive = false
             isQrScannerDialogOpen = false
             isManualAddDialogOpen = false
-        } else if (SharedServicesCloudClient.isNetworkAvailable(context)) {
-            AppUpdateManager.checkForUpdate(context)
+        } else {
+            if (SharedServicesCloudClient.isNetworkAvailable(context)) AppUpdateManager.checkForUpdate(context)
             if (isDriveConnected) {
-                requestOAuthToken { token ->
-                    scope.launch { SharedBatchKeyStore.syncSharedServicesFromCloud(context, token) }
+                lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                    while (true) {
+                        if (SharedServicesCloudClient.isNetworkAvailable(context) && !cardsCoordinator.isDraggingAny) {
+                            val cachedToken = GoogleDriveManager.currentAccessToken
+                            if (!cachedToken.isNullOrBlank()) {
+                                val syncRes = SharedBatchKeyStore.syncIncomingServicesFromCloud(context, cachedToken)
+                                if (syncRes.isFailure && syncRes.exceptionOrNull() is UnauthorizedException) {
+                                    requestOAuthToken { token ->
+                                        scope.launch { SharedBatchKeyStore.syncIncomingServicesFromCloud(context, token, forceRefresh = true) }
+                                    }
+                                }
+                            } else {
+                                requestOAuthToken { token ->
+                                    scope.launch { SharedBatchKeyStore.syncIncomingServicesFromCloud(context, token) }
+                                }
+                            }
+                        }
+                        delay(SecurityConfig.SHARED_SERVICES_POLL_INTERVAL_MILLIS)
+                    }
                 }
+            }
+        }
+    }
+
+    LaunchedEffect(selectedFilter) {
+        if (selectedFilter == HomeCategoryFilter.SHARED && isUnlocked && isDriveConnected && SharedServicesCloudClient.isNetworkAvailable(context)) {
+            val token = GoogleDriveManager.currentAccessToken
+            if (!token.isNullOrBlank()) {
+                SharedBatchKeyStore.syncIncomingServicesFromCloud(context, token)
+            } else {
+                requestOAuthToken { tok -> scope.launch { SharedBatchKeyStore.syncIncomingServicesFromCloud(context, tok) } }
             }
         }
     }
@@ -154,6 +191,12 @@ fun HomeScreen(
 
     val incomingServices = remember(sharedCacheVersion, isUnlocked) {
         SharedBatchKeyStore.getCachedIncomingServices(context)
+    }
+
+    LaunchedEffect(incomingServices) {
+        if (selectedSharedServiceForDetails != null && incomingServices.none { it.grantId == selectedSharedServiceForDetails?.grantId }) {
+            selectedSharedServiceForDetails = null
+        }
     }
 
     LaunchedEffect(currentSuccessAccounts, incomingServices) {
@@ -181,11 +224,10 @@ fun HomeScreen(
 
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val listTopPadding = statusBarTop + Dimensions.ComponentHeight.buttonDefault +
-        Dimensions.ComponentHeight.buttonCompact + Dimensions.Spacing.xs +
-        (Dimensions.Spacing.sm * 2) + Dimensions.Spacing.lg
-    val listBottomPadding = navBarBottom + Dimensions.Spacing.lg +
-        Dimensions.ComponentSize.heroFab + (Dimensions.Spacing.sm * 2) + Dimensions.Spacing.xl
+    val listTopPadding = statusBarTop + Dimensions.ComponentHeight.buttonDefault + Dimensions.ComponentHeight.buttonCompact +
+        Dimensions.Spacing.xs + (Dimensions.Spacing.sm * 2) + Dimensions.Spacing.lg
+    val listBottomPadding = navBarBottom + Dimensions.Spacing.lg + Dimensions.ComponentSize.heroFab +
+        (Dimensions.Spacing.sm * 2) + Dimensions.Spacing.xl
 
     Box(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         if (uiState !is UiState.Loading) {
@@ -211,12 +253,7 @@ fun HomeScreen(
                 LazyColumn(
                     state = pageListState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        start = Dimensions.Spacing.lg,
-                        end = Dimensions.Spacing.lg,
-                        top = listTopPadding,
-                        bottom = listBottomPadding
-                    ),
+                    contentPadding = PaddingValues(start = Dimensions.Spacing.lg, end = Dimensions.Spacing.lg, top = listTopPadding, bottom = listBottomPadding),
                     verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.md)
                 ) {
                     when (pageFilter) {
@@ -258,14 +295,8 @@ fun HomeScreen(
                                         searchQuery = searchQuery,
                                         nowMillis = nowMillis,
                                         loadingSharedGrantId = cardsCoordinator.loadingSharedGrantId,
-                                        onDragStarted = {
-                                            cardsCoordinator.isDraggingAny = true
-                                            appHaptics.dragTick()
-                                        },
-                                        onDragStopped = {
-                                            cardsCoordinator.isDraggingAny = false
-                                            cardsCoordinator.commitAllCardsOrder()
-                                        },
+                                        onDragStarted = { cardsCoordinator.isDraggingAny = true; appHaptics.dragTick() },
+                                        onDragStopped = { cardsCoordinator.isDraggingAny = false; cardsCoordinator.commitAllCardsOrder() },
                                         onOwnCardClick = { selectedAccountId = it },
                                         onSharedCardClick = { selectedSharedServiceForDetails = it },
                                         onCopyCode = { code, issuer -> viewModel.copyCode(code, issuer) },
@@ -279,22 +310,21 @@ fun HomeScreen(
                                 }
                             } else {
                                 item(key = "empty_state_${pageFilter.name}", contentType = "empty_state") {
+                                    val emptyMod = Modifier.fillMaxSize().padding(top = Dimensions.Spacing.xl)
                                     when {
                                         searchQuery.isNotBlank() -> EmptyAccountsState(
                                             icon = Icons.Filled.SearchOff,
                                             title = stringResource(R.string.home_search_empty_title),
                                             description = stringResource(R.string.home_search_empty_description, searchQuery),
-                                            modifier = Modifier.fillMaxSize().padding(top = Dimensions.Spacing.xl)
+                                            modifier = emptyMod
                                         )
                                         pageFilter == HomeCategoryFilter.FAVORITES -> EmptyAccountsState(
                                             icon = Icons.Filled.StarOutline,
                                             title = stringResource(R.string.home_empty_favorites_title),
                                             description = stringResource(R.string.home_empty_favorites_description),
-                                            modifier = Modifier.fillMaxSize().padding(top = Dimensions.Spacing.xl)
+                                            modifier = emptyMod
                                         )
-                                        else -> EmptyAccountsState(
-                                            modifier = Modifier.fillMaxSize().padding(top = Dimensions.Spacing.xl)
-                                        )
+                                        else -> EmptyAccountsState(modifier = emptyMod)
                                     }
                                 }
                             }
@@ -306,16 +336,9 @@ fun HomeScreen(
 
         if (isUnlocked) {
             AddAccountSpeedDialOverlay(
-                isOpen = isAddMenuOpen,
-                onDismiss = { isAddMenuOpen = false },
-                onScanQr = {
-                    isAddMenuOpen = false
-                    isQrScannerDialogOpen = true
-                },
-                onAddManual = {
-                    isAddMenuOpen = false
-                    isManualAddDialogOpen = true
-                }
+                isOpen = isAddMenuOpen, onDismiss = { isAddMenuOpen = false },
+                onScanQr = { isAddMenuOpen = false; isQrScannerDialogOpen = true },
+                onAddManual = { isAddMenuOpen = false; isManualAddDialogOpen = true }
             )
         }
 
@@ -327,19 +350,12 @@ fun HomeScreen(
             isAddMenuOpen = isAddMenuOpen,
             deletedAccountsCount = deletedAccountsCount,
             hasUpdateAvailable = availableUpdate != null,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(bottom = Dimensions.Spacing.lg)
-                .zIndex(20f)
+            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = Dimensions.Spacing.lg).zIndex(20f)
         )
 
         Column(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .statusBarsPadding()
-                .padding(horizontal = Dimensions.Spacing.lg, vertical = Dimensions.Spacing.sm)
-                .zIndex(20f)
+            modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding()
+                .padding(horizontal = Dimensions.Spacing.lg, vertical = Dimensions.Spacing.sm).zIndex(20f)
         ) {
             HomeTopHeader(
                 isSearchActive = isSearchActive,
@@ -365,26 +381,18 @@ fun HomeScreen(
 
     HomeDialogContainer(
         isUnlocked = isUnlocked,
-        isManualAddDialogOpen = isManualAddDialogOpen,
-        onDismissManualAdd = { isManualAddDialogOpen = false },
-        isQrScannerDialogOpen = isQrScannerDialogOpen,
-        onDismissQrScanner = { isQrScannerDialogOpen = false },
+        isManualAddDialogOpen = isManualAddDialogOpen, onDismissManualAdd = { isManualAddDialogOpen = false },
+        isQrScannerDialogOpen = isQrScannerDialogOpen, onDismissQrScanner = { isQrScannerDialogOpen = false },
         selectedAccountWithCode = selectedAccountWithCode,
         onDismissAccountDetails = { selectedAccountId = null },
         onCopyCode = { code, issuer -> viewModel.copyCode(code, issuer) },
         onUpdateAccount = { id, issuer, name -> viewModel.updateAccount(id, issuer, name) },
-        onDeleteAccount = {
-            viewModel.deleteAccount(it)
-            selectedAccountId = null
-        },
+        onDeleteAccount = { viewModel.deleteAccount(it); selectedAccountId = null },
         selectedSharedServiceForDetails = selectedSharedServiceForDetails,
         loadingSharedGrantId = cardsCoordinator.loadingSharedGrantId,
         nowMillis = nowMillis,
         onDismissSharedDetails = { selectedSharedServiceForDetails = null },
         onRequestSharedCode = { cardsCoordinator.requestSharedCode(it) },
-        onRejectSharedInvitation = {
-            cardsCoordinator.rejectSharedInvitation(it)
-            selectedSharedServiceForDetails = null
-        }
+        onRejectSharedInvitation = { cardsCoordinator.rejectSharedInvitation(it); selectedSharedServiceForDetails = null }
     )
 }

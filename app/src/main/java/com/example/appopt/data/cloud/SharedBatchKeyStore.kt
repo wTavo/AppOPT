@@ -34,6 +34,9 @@ object SharedBatchKeyStore {
     private val memoryCache = ConcurrentHashMap<String, SharedOtpBatch>()
     private val _cacheVersion = MutableStateFlow(0L)
 
+    @Volatile
+    private var lastIncomingSyncMillis = 0L
+
     /**
      * Contador reactivo de revisiones para sincronizar en tiempo real la sección de Inicio
      * cuando se agregan, aceptan o revocan permisos compartidos.
@@ -132,13 +135,12 @@ object SharedBatchKeyStore {
     }
 
     /**
-     * Guarda en caché local la lista de metadatos de servicios compartidos recibidos (sin secretos).
+     * Guarda en caché local la lista de metadatos de servicios compartidos recibidos aplicando Diff-Before-Write.
      */
     fun saveCachedIncomingServices(context: Context, services: List<IncomingSharedService>) {
+        if (getCachedIncomingServices(context) == services) return
         val json = serializeIncomingServicesJson(services)
-        getPrefs(context).edit {
-            putString(SecurityConfig.SHARED_CACHED_INCOMING_KEY, json)
-        }
+        getPrefs(context).edit { putString(SecurityConfig.SHARED_CACHED_INCOMING_KEY, json) }
         _cacheVersion.value++
     }
 
@@ -186,17 +188,10 @@ object SharedBatchKeyStore {
         for (s in services) {
             arr.put(
                 JSONObject().apply {
-                    put("grantId", s.grantId)
-                    put("ownerEmail", s.ownerEmail)
-                    put("issuer", s.issuer)
-                    put("accountName", s.accountName)
-                    put("digits", s.digits)
-                    put("period", s.period)
-                    put("accessMode", s.accessMode.name)
-                    put("batchHours", s.batchHours)
-                    put("status", s.status.name)
-                    put("isFavorite", s.isFavorite)
-                    put("orderIndex", s.orderIndex)
+                    put("grantId", s.grantId); put("ownerEmail", s.ownerEmail); put("issuer", s.issuer)
+                    put("accountName", s.accountName); put("digits", s.digits); put("period", s.period)
+                    put("accessMode", s.accessMode.name); put("batchHours", s.batchHours); put("status", s.status.name)
+                    put("isFavorite", s.isFavorite); put("orderIndex", s.orderIndex)
                 }
             )
         }
@@ -247,28 +242,21 @@ object SharedBatchKeyStore {
     }
 
     /**
-     * Guarda en caché local la lista de permisos otorgados por el propietario.
+     * Guarda en caché local la lista de permisos otorgados por el propietario aplicando Diff-Before-Write.
      */
     fun saveCachedOutgoingGrants(context: Context, grants: List<OutgoingShareGrant>) {
+        if (getCachedOutgoingGrants(context) == grants) return
         val arr = JSONArray()
         for (g in grants) {
             arr.put(
                 JSONObject().apply {
-                    put("grantId", g.grantId)
-                    put("accountId", g.accountId)
-                    put("issuer", g.issuer)
-                    put("accountName", g.accountName)
-                    put("guestEmail", g.guestEmail)
-                    put("accessMode", g.accessMode.name)
-                    put("batchHours", g.batchHours)
-                    put("createdAtMillis", g.createdAtMillis)
-                    put("status", g.status.name)
+                    put("grantId", g.grantId); put("accountId", g.accountId); put("issuer", g.issuer)
+                    put("accountName", g.accountName); put("guestEmail", g.guestEmail); put("accessMode", g.accessMode.name)
+                    put("batchHours", g.batchHours); put("createdAtMillis", g.createdAtMillis); put("status", g.status.name)
                 }
             )
         }
-        getPrefs(context).edit {
-            putString(SecurityConfig.SHARED_CACHED_OUTGOING_KEY, arr.toString())
-        }
+        getPrefs(context).edit { putString(SecurityConfig.SHARED_CACHED_OUTGOING_KEY, arr.toString()) }
         _cacheVersion.value++
     }
 
@@ -339,44 +327,63 @@ object SharedBatchKeyStore {
     }
 
     /**
-     * Sincroniza desde la nube los servicios compartidos entrantes y salientes, unificando el estado
-     * con la caché local y preservando favoritos, índices de ordenación y ventanas de un solo uso activas.
+     * Sincroniza exclusivamente los servicios entrantes aplicando Diff-Before-Write, purga de lotes revocados y cooldown.
+     *
+     * @param context Contexto de la aplicación.
+     * @param token Token de acceso a la nube.
+     * @param forceRefresh Fuerza la consulta ignorando el cooldown de 5 segundos.
      */
-    suspend fun syncSharedServicesFromCloud(context: Context, token: String): Result<Unit> =
-        withContext(Dispatchers.IO) {
-            try {
-                val incomingRes = SharedServicesCloudClient.fetchIncomingServices(token)
-                val outgoingRes = SharedServicesCloudClient.fetchOutgoingGrants(token)
+    suspend fun syncIncomingServicesFromCloud(
+        context: Context,
+        token: String,
+        forceRefresh: Boolean = false
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        if (!forceRefresh && (now - lastIncomingSyncMillis) < SecurityConfig.SHARED_SERVICES_MIN_SYNC_COOLDOWN_MILLIS) {
+            return@withContext Result.success(false)
+        }
+        runCatching {
+            val remoteList = SharedServicesCloudClient.fetchIncomingServices(token).getOrThrow()
+            lastIncomingSyncMillis = System.currentTimeMillis()
+            val cachedIn = getCachedIncomingServices(context)
+            val existingFavoritesMap = cachedIn.associate { it.grantId to it.isFavorite }
+            val existingOrderMap = cachedIn.associate { it.grantId to it.orderIndex }
+            val activeSingleUse = cachedIn.filter { localSvc ->
+                val batch = getValidBatch(context, localSvc.grantId, lastIncomingSyncMillis)
+                batch != null && batch.isSingleUseWindow && !batch.isExpired(lastIncomingSyncMillis) &&
+                    remoteList.none { it.grantId == localSvc.grantId }
+            }
+            val remoteMerged = remoteList.map { remoteSvc ->
+                val isFav = existingFavoritesMap[remoteSvc.grantId] ?: false
+                val orderIdx = existingOrderMap[remoteSvc.grantId] ?: remoteSvc.orderIndex
+                remoteSvc.copy(isFavorite = isFav, orderIndex = orderIdx)
+            }
+            val finalIncoming = remoteMerged + activeSingleUse
 
-                incomingRes.onSuccess { remoteList ->
-                    val currentNow = System.currentTimeMillis()
-                    val cachedIn = getCachedIncomingServices(context)
-                    val existingFavoritesMap = cachedIn.associate { it.grantId to it.isFavorite }
-                    val existingOrderMap = cachedIn.associate { it.grantId to it.orderIndex }
-                    val activeSingleUse = cachedIn.filter { localSvc ->
-                        val batch = getValidBatch(context, localSvc.grantId, currentNow)
-                        batch != null && batch.isSingleUseWindow && !batch.isExpired(currentNow) &&
-                            remoteList.none { it.grantId == localSvc.grantId }
-                    }
-                    val remoteMerged = remoteList.map { remoteSvc ->
-                        val isFav = existingFavoritesMap[remoteSvc.grantId] ?: false
-                        val orderIdx = existingOrderMap[remoteSvc.grantId] ?: remoteSvc.orderIndex
-                        remoteSvc.copy(isFavorite = isFav, orderIndex = orderIdx)
-                    }
-                    saveCachedIncomingServices(context, remoteMerged + activeSingleUse)
-                }
+            // Purgar lotes en memoria y disco para permisos revocados
+            val finalGrantIds = finalIncoming.map { it.grantId }.toSet()
+            cachedIn.filter { it.grantId !in finalGrantIds }.forEach { removeBatch(context, it.grantId) }
 
-                outgoingRes.onSuccess { list ->
-                    saveCachedOutgoingGrants(context, list)
-                }
-
-                if (incomingRes.isFailure) {
-                    Result.failure(incomingRes.exceptionOrNull() ?: RuntimeException("Error al consultar servicios compartidos"))
-                } else {
-                    Result.success(Unit)
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
+            if (cachedIn != finalIncoming) {
+                saveCachedIncomingServices(context, finalIncoming)
+                true
+            } else {
+                false
             }
         }
+    }
+
+    /**
+     * Sincroniza desde la nube los servicios compartidos entrantes y salientes para sincronización completa.
+     */
+    suspend fun syncSharedServicesFromCloud(context: Context, token: String): Result<Unit> = withContext(Dispatchers.IO) {
+        val incomingResult = syncIncomingServicesFromCloud(context, token, forceRefresh = true)
+        val outgoingRes = SharedServicesCloudClient.fetchOutgoingGrants(token)
+        outgoingRes.onSuccess { saveCachedOutgoingGrants(context, it) }
+        if (incomingResult.isFailure) {
+            Result.failure(incomingResult.exceptionOrNull() ?: RuntimeException("Error al consultar servicios compartidos"))
+        } else {
+            Result.success(Unit)
+        }
+    }
 }

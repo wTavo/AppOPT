@@ -232,11 +232,11 @@ class HomeCardsCoordinator(
                         .onFailure {
                             appHaptics.error()
                             SharedBatchKeyStore.removeBatch(context, service.grantId)
-                            Toast.makeText(
-                                context,
-                                context.getString(R.string.settings_shared_revoked_error),
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            val current = SharedBatchKeyStore.getCachedIncomingServices(context)
+                            SharedBatchKeyStore.saveCachedIncomingServices(context, current.filterNot { it.grantId == service.grantId })
+                            localCards.removeAll { it is HomeCardItem.Shared && it.service.grantId == service.grantId }
+                            Toast.makeText(context, context.getString(R.string.settings_shared_revoked_error), Toast.LENGTH_SHORT).show()
+                            scope.launch { SharedBatchKeyStore.syncIncomingServicesFromCloud(context, token, forceRefresh = true) }
                         }
                 } else {
                     SharedServicesCloudClient.requestLiveCode(token, service.grantId)
@@ -248,11 +248,11 @@ class HomeCardsCoordinator(
                         .onFailure {
                             appHaptics.error()
                             SharedBatchKeyStore.removeBatch(context, service.grantId)
-                            Toast.makeText(
-                                context,
-                                context.getString(R.string.settings_shared_revoked_error),
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            val current = SharedBatchKeyStore.getCachedIncomingServices(context)
+                            SharedBatchKeyStore.saveCachedIncomingServices(context, current.filterNot { it.grantId == service.grantId })
+                            localCards.removeAll { it is HomeCardItem.Shared && it.service.grantId == service.grantId }
+                            Toast.makeText(context, context.getString(R.string.settings_shared_revoked_error), Toast.LENGTH_SHORT).show()
+                            scope.launch { SharedBatchKeyStore.syncIncomingServicesFromCloud(context, token, forceRefresh = true) }
                         }
                 }
                 loadingSharedGrantId = null
@@ -294,11 +294,8 @@ class HomeCardsCoordinator(
                     }
                     .onFailure {
                         appHaptics.error()
-                        Toast.makeText(
-                            context,
-                            context.getString(R.string.share_error_generic),
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        Toast.makeText(context, context.getString(R.string.share_error_generic), Toast.LENGTH_SHORT).show()
+                        scope.launch { SharedBatchKeyStore.syncIncomingServicesFromCloud(context, token, forceRefresh = true) }
                     }
                 loadingSharedGrantId = null
             }
@@ -335,11 +332,8 @@ class HomeCardsCoordinator(
                     }
                     .onFailure {
                         appHaptics.error()
-                        Toast.makeText(
-                            context,
-                            context.getString(R.string.share_error_generic),
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        Toast.makeText(context, context.getString(R.string.share_error_generic), Toast.LENGTH_SHORT).show()
+                        scope.launch { SharedBatchKeyStore.syncIncomingServicesFromCloud(context, token, forceRefresh = true) }
                     }
                 loadingSharedGrantId = null
             }

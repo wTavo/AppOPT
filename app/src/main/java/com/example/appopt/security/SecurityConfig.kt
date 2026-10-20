@@ -113,6 +113,17 @@ object SecurityConfig {
     const val BACKUP_CACHE_TTL_MILLIS = 20_000L
 
     /**
+     * Intervalo de sondeo en primer plano en milisegundos (15 segundos) para sincronizar en tiempo real
+     * invitaciones y revocaciones de servicios compartidos mientras la aplicación permanece activa.
+     */
+    const val SHARED_SERVICES_POLL_INTERVAL_MILLIS = 15_000L
+
+    /**
+     * Ventana mínima de enfriamiento (*Cooldown*) en milisegundos (5 segundos) entre consultas a servicios compartidos.
+     */
+    const val SHARED_SERVICES_MIN_SYNC_COOLDOWN_MILLIS = 5_000L
+
+    /**
      * Longitud en caracteres para la clave alfanumérica de transferencia de servicios por código QR.
      */
     const val TRANSFER_KEY_LENGTH = 8

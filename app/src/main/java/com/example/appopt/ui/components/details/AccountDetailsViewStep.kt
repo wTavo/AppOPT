@@ -3,9 +3,10 @@ package com.example.appopt.ui.components.details
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,8 +23,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,7 +38,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import com.example.appopt.R
 import com.example.appopt.domain.model.AccountWithCode
 import com.example.appopt.domain.model.OtpType
@@ -200,31 +198,24 @@ fun AccountDetailsViewStep(
                 }
             }
 
-            // Tarjeta de Dígitos OTP grandes con contador circular (Directivas 4 y 31)
+            // Contenedor de Dígitos OTP grandes con contador circular (Directivas 4 y 31)
             val isDark = MaterialTheme.colorScheme.surface == SurfaceDark || MaterialTheme.colorScheme.background == BackgroundDark
             val codeContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else Color.White
-            val codeContainerBorder = if (isDark) null else BorderStroke(
-                width = Dimensions.Stroke.thin,
-                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
-            )
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = codeContainerColor),
-                elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else Dimensions.Elevation.cardDefault),
-                border = codeContainerBorder,
-                shape = RoundedCornerShape(Dimensions.CornerRadius.large)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(Dimensions.CornerRadius.large))
+                    .background(codeContainerColor)
+                    .clickable {
+                        appHaptics.copy()
+                        onCopyCode(accountWithCode.code)
+                        copied = true
+                    }
+                    .padding(vertical = Dimensions.Spacing.lg, horizontal = Dimensions.Spacing.lg)
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(Dimensions.CornerRadius.large))
-                        .clickable {
-                            appHaptics.copy()
-                            onCopyCode(accountWithCode.code)
-                            copied = true
-                        }
-                        .padding(vertical = Dimensions.Spacing.lg, horizontal = Dimensions.Spacing.lg),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {

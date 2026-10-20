@@ -3,6 +3,7 @@ package com.example.appopt.ui.components.details
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -43,9 +44,11 @@ import com.example.appopt.domain.model.OtpType
 import com.example.appopt.ui.components.AppDialogActionButtons
 import com.example.appopt.ui.components.CircularTimeProgress
 import com.example.appopt.ui.components.ServiceBrandAvatar
+import com.example.appopt.ui.theme.BackgroundDark
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.SafeGreen
+import com.example.appopt.ui.theme.SurfaceDark
 import com.example.appopt.ui.theme.UrgentRed
 import com.example.appopt.ui.theme.rememberAppHaptics
 import kotlinx.coroutines.delay
@@ -195,12 +198,18 @@ fun AccountDetailsViewStep(
                 }
             }
 
-            // Tarjeta de Dígitos OTP grandes con contador circular
+            // Tarjeta de Dígitos OTP grandes con contador circular (Directivas 4 y 31)
+            val isDark = MaterialTheme.colorScheme.surface == SurfaceDark || MaterialTheme.colorScheme.background == BackgroundDark
+            val codeContainerColor = if (isDark) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
+            val codeContainerBorder = if (isDark) null else BorderStroke(
+                width = Dimensions.Stroke.thin,
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+            )
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                ),
+                colors = CardDefaults.cardColors(containerColor = codeContainerColor),
+                border = codeContainerBorder,
                 shape = RoundedCornerShape(Dimensions.CornerRadius.large)
             ) {
                 Row(

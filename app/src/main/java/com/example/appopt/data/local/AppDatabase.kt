@@ -4,8 +4,7 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import androidx.room.migration.Migration
-import androidx.sqlite.db.SupportSQLiteDatabase
+import com.example.appopt.data.local.migrations.DatabaseMigrations
 
 /**
  * Base de datos local Room de la aplicación para el almacenamiento offline de cuentas.
@@ -37,17 +36,6 @@ abstract class AppDatabase : RoomDatabase() {
         private var INSTANCE: AppDatabase? = null
 
         /**
-         * Migración de esquema de versión 1 a versión 2:
-         * Añade las columnas [AccountEntity.isDeleted] y [AccountEntity.deletedAt] para el sistema de papelera de 30 días.
-         */
-        val MIGRATION_1_2 = object : Migration(1, 2) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE $TABLE_ACCOUNTS_NAME ADD COLUMN isDeleted INTEGER NOT NULL DEFAULT 0")
-                db.execSQL("ALTER TABLE $TABLE_ACCOUNTS_NAME ADD COLUMN deletedAt INTEGER DEFAULT NULL")
-            }
-        }
-
-        /**
          * Obtiene la instancia singleton de la base de datos de la bóveda local.
          *
          * @param context Contexto de la aplicación.
@@ -60,7 +48,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     DATABASE_NAME
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(*DatabaseMigrations.ALL_MIGRATIONS)
                     .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
                     .build()
                 INSTANCE = instance

@@ -38,16 +38,20 @@ object TransferPayloadCodec {
      */
     fun compress(data: ByteArray): ByteArray {
         val deflater = Deflater(Deflater.BEST_COMPRESSION)
-        deflater.setInput(data)
-        deflater.finish()
-        val outputStream = ByteArrayOutputStream(data.size)
-        val buffer = ByteArray(1024)
-        while (!deflater.finished()) {
-            val count = deflater.deflate(buffer)
-            outputStream.write(buffer, 0, count)
+        return try {
+            deflater.setInput(data)
+            deflater.finish()
+            ByteArrayOutputStream(data.size).use { outputStream ->
+                val buffer = ByteArray(1024)
+                while (!deflater.finished()) {
+                    val count = deflater.deflate(buffer)
+                    outputStream.write(buffer, 0, count)
+                }
+                outputStream.toByteArray()
+            }
+        } finally {
+            deflater.end()
         }
-        deflater.end()
-        return outputStream.toByteArray()
     }
 
     /**
@@ -58,16 +62,20 @@ object TransferPayloadCodec {
      */
     fun decompress(data: ByteArray): ByteArray {
         val inflater = Inflater()
-        inflater.setInput(data)
-        val outputStream = ByteArrayOutputStream(data.size * 2)
-        val buffer = ByteArray(1024)
-        while (!inflater.finished()) {
-            val count = inflater.inflate(buffer)
-            if (count == 0 && inflater.needsInput()) break
-            outputStream.write(buffer, 0, count)
+        return try {
+            inflater.setInput(data)
+            ByteArrayOutputStream(data.size * 2).use { outputStream ->
+                val buffer = ByteArray(1024)
+                while (!inflater.finished()) {
+                    val count = inflater.inflate(buffer)
+                    if (count == 0 && inflater.needsInput()) break
+                    outputStream.write(buffer, 0, count)
+                }
+                outputStream.toByteArray()
+            }
+        } finally {
+            inflater.end()
         }
-        inflater.end()
-        return outputStream.toByteArray()
     }
 
     /**

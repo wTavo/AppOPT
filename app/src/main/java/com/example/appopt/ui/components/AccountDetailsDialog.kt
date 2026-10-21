@@ -19,7 +19,6 @@ import com.example.appopt.R
 import com.example.appopt.data.cloud.SharedBatchKeyStore
 import com.example.appopt.data.cloud.SharedServicesCloudClient
 import com.example.appopt.domain.model.AccountWithCode
-import com.example.appopt.domain.model.OutgoingShareGrant
 import com.example.appopt.ui.components.details.AccountDetailsDeleteStep
 import com.example.appopt.ui.components.details.AccountDetailsEditStep
 import com.example.appopt.ui.components.details.AccountDetailsShareStep
@@ -27,7 +26,9 @@ import com.example.appopt.ui.components.details.AccountDetailsViewStep
 import com.example.appopt.ui.screens.settings.coordinator.rememberGoogleOAuthRequester
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.rememberAppHaptics
+import kotlin.coroutines.resume
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 /**
  * Sub-estados de visualización, edición, compartición y eliminación del diálogo de detalles de cuenta.
@@ -46,8 +47,8 @@ private enum class AccountDetailsSubState {
  * - En modo visualización muestra limpiamente el nombre del servicio y la cuenta usando la escala tipográfica de la app.
  * - Los dígitos aparecen abajo junto con el contador/temporizador circular de rotación TOTP.
  * - En modo edición permite modificar el nombre del servicio y el nombre de la cuenta con validación instantánea.
- * - En modo compartición permite otorgar acceso en línea o por lote temporal a otro usuario y revocar permisos al instante
- *   (exigiendo cuenta de Google vinculada y conexión a internet).
+ * - En modo compartición permite otorgar acceso en línea o por lote temporal a otro usuario mediante invitación protegida
+ *   (exigiendo cuenta de Google vinculada y conexión a internet) cerrando el modal automáticamente tras confirmar con éxito.
  * - Incluye confirmación de eliminación unificada dentro del mismo modal sin superponer ventanas secundarias.
  *
  * @param accountWithCode Contenedor con la entidad de cuenta, código activo y progreso temporal.
@@ -75,24 +76,27 @@ fun AccountDetailsDialog(
         .isGoogleDriveConnectedFlow
         .collectAsState(initial = true)
 
+    val connectedUserEmail = remember(isDriveConnected) {
+        AuthenticatorApp.instance.preferencesManager.getConnectedDriveEmail()
+            ?: AuthenticatorApp.instance.preferencesManager.getLastKnownDriveEmail()
+    }
+
     var isEditMode by remember { mutableStateOf(false) }
     var isShareMode by remember { mutableStateOf(false) }
     var editedIssuer by remember { mutableStateOf(account.issuer) }
     var editedAccountName by remember { mutableStateOf(account.accountName) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
-    var activeGrants by remember { mutableStateOf<List<OutgoingShareGrant>>(emptyList()) }
-    var isSharing by remember { mutableStateOf(false) }
-    var shareSuccessCount by remember { mutableStateOf(0) }
     var shareErrorMessageResId by remember { mutableStateOf<Int?>(null) }
     val shareErrorMessage = shareErrorMessageResId?.let { stringResource(it) }
-    val shareSuccessTemplate = stringResource(R.string.share_success_msg)
 
+    var onTokenErrorAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     val requestOAuthToken = rememberGoogleOAuthRequester(
         onAuthError = {
-            isSharing = false
             appHaptics.error()
             shareErrorMessageResId = R.string.share_error_not_signed_in
+            onTokenErrorAction?.invoke()
+            onTokenErrorAction = null
         }
     )
 
@@ -108,43 +112,14 @@ fun AccountDetailsDialog(
         else -> AccountDetailsSubState.VIEW
     }
 
-    LaunchedEffect(isShareMode, account.id, isDriveConnected) {
+    LaunchedEffect(isShareMode) {
         if (isShareMode) {
             shareErrorMessageResId = null
-            if (!isDriveConnected) {
-                activeGrants = emptyList()
-                return@LaunchedEffect
-            }
-            val cachedAll = SharedBatchKeyStore.getCachedOutgoingGrants(context)
-            activeGrants = cachedAll.filter { it.accountId == account.id }
-
-            if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-                shareErrorMessageResId = R.string.share_error_no_internet
-                return@LaunchedEffect
-            }
-
-            requestOAuthToken { token ->
-                coroutineScope.launch {
-                    SharedServicesCloudClient.fetchOutgoingGrants(token)
-                        .onSuccess { list ->
-                            SharedBatchKeyStore.saveCachedOutgoingGrants(context, list)
-                            activeGrants = list.filter { it.accountId == account.id }
-                        }
-                        .onFailure {
-                            if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-                                shareErrorMessageResId = R.string.share_error_no_internet
-                            }
-                        }
-                }
-            }
         }
     }
 
     AppModalDialog(
-        onDismissRequest = {
-            isSharing = false
-            onDismiss()
-        },
+        onDismissRequest = onDismiss,
         onBackStep = {
             when {
                 showDeleteConfirm -> {
@@ -152,7 +127,6 @@ fun AccountDetailsDialog(
                     true
                 }
                 isShareMode -> {
-                    isSharing = false
                     shareErrorMessageResId = null
                     isShareMode = false
                     true
@@ -211,90 +185,60 @@ fun AccountDetailsDialog(
                 AccountDetailsSubState.SHARE -> {
                     AccountDetailsShareStep(
                         isDriveConnected = isDriveConnected,
-                        activeGrants = activeGrants,
-                        isSharing = isSharing,
-                        shareSuccessCount = shareSuccessCount,
+                        connectedUserEmail = connectedUserEmail,
                         errorMessage = shareErrorMessage,
                         onShareService = { guestEmail, accessMode, batchDuration ->
-                            if (!isDriveConnected) return@AccountDetailsShareStep
-                            val connectedEmail = AuthenticatorApp.instance.preferencesManager.getConnectedDriveEmail()
-                            if (!connectedEmail.isNullOrBlank() && guestEmail.trim().equals(connectedEmail.trim(), ignoreCase = true)) {
+                            if (!isDriveConnected) return@AccountDetailsShareStep false
+                            if (!connectedUserEmail.isNullOrBlank() && guestEmail.trim().equals(connectedUserEmail.trim(), ignoreCase = true)) {
                                 appHaptics.error()
                                 shareErrorMessageResId = R.string.share_error_self_email
-                                return@AccountDetailsShareStep
+                                return@AccountDetailsShareStep false
                             }
                             if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
                                 appHaptics.error()
                                 shareErrorMessageResId = R.string.share_error_no_internet
-                                return@AccountDetailsShareStep
+                                return@AccountDetailsShareStep false
                             }
-                            isSharing = true
                             shareErrorMessageResId = null
-                            requestOAuthToken { token ->
-                                coroutineScope.launch {
-                                    SharedServicesCloudClient.shareService(
-                                        accessToken = token,
-                                        account = account,
-                                        guestEmail = guestEmail,
-                                        accessMode = accessMode,
-                                        batchDuration = batchDuration
-                                    ).onSuccess { newGrant ->
-                                        isSharing = false
-                                        appHaptics.success()
-                                        val updatedAccountGrants = (activeGrants.filterNot { it.grantId == newGrant.grantId } + newGrant)
-                                        activeGrants = updatedAccountGrants
-                                        val cachedOthers = SharedBatchKeyStore.getCachedOutgoingGrants(context)
-                                            .filterNot { it.accountId == account.id }
-                                        SharedBatchKeyStore.saveCachedOutgoingGrants(context, cachedOthers + updatedAccountGrants)
-                                        shareSuccessCount++
-                                        android.widget.Toast.makeText(
-                                            context,
-                                            String.format(shareSuccessTemplate, newGrant.guestEmail),
-                                            android.widget.Toast.LENGTH_SHORT
-                                        ).show()
-                                    }.onFailure {
-                                        isSharing = false
-                                        appHaptics.error()
-                                        shareErrorMessageResId = if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-                                            R.string.share_error_no_internet
-                                        } else {
-                                            R.string.share_error_generic
-                                        }
-                                    }
+
+                            suspendCancellableCoroutine { continuation ->
+                                onTokenErrorAction = {
+                                    if (continuation.isActive) continuation.resume(false)
                                 }
-                            }
-                        },
-                        onRevokeGrant = { grantId ->
-                            if (!isDriveConnected) return@AccountDetailsShareStep
-                            if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
-                                appHaptics.error()
-                                shareErrorMessageResId = R.string.share_error_no_internet
-                                return@AccountDetailsShareStep
-                            }
-                            requestOAuthToken { token ->
-                                coroutineScope.launch {
-                                    SharedServicesCloudClient.revokeGrant(token, grantId)
-                                        .onSuccess {
+                                continuation.invokeOnCancellation {
+                                    onTokenErrorAction = null
+                                }
+                                requestOAuthToken { token ->
+                                    onTokenErrorAction = null
+                                    coroutineScope.launch {
+                                        val result = SharedServicesCloudClient.shareService(
+                                            accessToken = token,
+                                            account = account,
+                                            guestEmail = guestEmail,
+                                            accessMode = accessMode,
+                                            batchDuration = batchDuration
+                                        )
+                                        result.onSuccess { newGrant ->
+                                            val cached = SharedBatchKeyStore.getCachedOutgoingGrants(context)
+                                            val updated = cached.filterNot { it.grantId == newGrant.grantId } + newGrant
+                                            SharedBatchKeyStore.saveCachedOutgoingGrants(context, updated)
                                             appHaptics.success()
-                                            val updatedAccountGrants = activeGrants.filterNot { it.grantId == grantId }
-                                            activeGrants = updatedAccountGrants
-                                            val cachedOthers = SharedBatchKeyStore.getCachedOutgoingGrants(context)
-                                                .filterNot { it.accountId == account.id }
-                                            SharedBatchKeyStore.saveCachedOutgoingGrants(context, cachedOthers + updatedAccountGrants)
-                                        }
-                                        .onFailure {
+                                            if (continuation.isActive) continuation.resume(true)
+                                        }.onFailure {
                                             appHaptics.error()
                                             shareErrorMessageResId = if (!SharedServicesCloudClient.isNetworkAvailable(context)) {
                                                 R.string.share_error_no_internet
                                             } else {
                                                 R.string.share_error_generic
                                             }
+                                            if (continuation.isActive) continuation.resume(false)
                                         }
+                                    }
                                 }
                             }
                         },
+                        onShareSuccess = onDismiss,
                         onBack = {
-                            isSharing = false
                             shareErrorMessageResId = null
                             isShareMode = false
                         }
@@ -315,4 +259,3 @@ fun AccountDetailsDialog(
         }
     }
 }
-

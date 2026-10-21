@@ -9,9 +9,14 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -27,7 +32,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,51 +43,45 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import com.example.appopt.R
-import com.example.appopt.domain.model.OutgoingShareGrant
 import com.example.appopt.domain.model.ShareAccessMode
 import com.example.appopt.domain.model.ShareBatchDuration
-import com.example.appopt.domain.model.ShareGrantStatus
-import com.example.appopt.ui.components.AppDialogActionButtons
+import com.example.appopt.ui.components.AppAnimatedButton
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
-import com.example.appopt.ui.theme.SafeGreen
-import com.example.appopt.ui.theme.UrgentRed
 import com.example.appopt.ui.theme.isDarkTheme
 import com.example.appopt.ui.theme.modalCardContainerColor
 import com.example.appopt.ui.theme.rememberAppHaptics
 
 /**
  * Paso modal dentro de [com.example.appopt.ui.components.AccountDetailsDialog] para compartir el acceso
- * a un servicio TOTP sin exponer la clave secreta y revocar invitados en tiempo real (Directivas 14, 29 y 31).
+ * a un servicio TOTP sin exponer la clave secreta mediante arquitectura Zero-Secret (Directivas 14, 22, 23 y 31).
  *
  * Estructura Tripartita Inmutable (Directiva 14):
  * 1. Cabecera fija superior con título estandarizado.
  * 2. Cuerpo central scrolleable aislado (`weight(1f, fill = false)`).
- * 3. Pie fijo inferior con botones simétricos 50/50 («Volver» y «Enviar invitación»).
+ * 3. Pie fijo inferior con botones simétricos 50/50 («Volver» y «Enviar invitación» animado).
  *
  * @param isDriveConnected Indica si existe una cuenta de Google vinculada en Ajustes.
- * @param activeGrants Lista de permisos e invitaciones otorgados para este servicio.
- * @param isSharing Bandera de carga asíncrona durante el envío de la invitación.
- * @param shareSuccessCount Contador de confirmaciones exitosas para limpiar el campo y desplazar la vista.
- * @param errorMessage Mensaje de error amigable si ocurre un fallo.
- * @param onShareService Callback invocado al confirmar la invitación `(guestEmail, accessMode, batchDuration)`.
- * @param onRevokeGrant Callback invocado al revocar inmediatamente el acceso o invitación de un invitado `(grantId)`.
+ * @param connectedUserEmail Correo electrónico de la cuenta de Google vinculada actualmente para prevenir auto-envíos.
+ * @param errorMessage Mensaje de error amigable si ocurre un fallo durante la comunicación con el servidor.
+ * @param onShareService Acción asíncrona para registrar la invitación en el servidor (`guestEmail`, `accessMode`, `batchDuration`).
+ * @param onShareSuccess Callback invocado tras completarse con éxito la animación de confirmación para cerrar el diálogo.
  * @param onBack Callback para regresar a la vista principal de detalles.
+ * @param modifier Modificador de diseño Compose.
  */
 @Composable
 fun AccountDetailsShareStep(
     isDriveConnected: Boolean,
-    activeGrants: List<OutgoingShareGrant>,
-    isSharing: Boolean,
-    shareSuccessCount: Int = 0,
+    connectedUserEmail: String?,
     errorMessage: String?,
-    onShareService: (String, ShareAccessMode, ShareBatchDuration) -> Unit,
-    onRevokeGrant: (String) -> Unit,
-    onBack: () -> Unit
+    onShareService: suspend (String, ShareAccessMode, ShareBatchDuration) -> Boolean,
+    onShareSuccess: () -> Unit,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val appHaptics = rememberAppHaptics()
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -94,20 +92,17 @@ fun AccountDetailsShareStep(
     var selectedMode by remember { mutableStateOf(ShareAccessMode.ONLINE_ONLY) }
     var selectedDuration by remember { mutableStateOf(ShareBatchDuration.TWENTY_FOUR_HOURS) }
 
-    LaunchedEffect(shareSuccessCount) {
-        if (shareSuccessCount > 0) {
-            guestEmail = ""
-            focusManager.clearFocus()
-            keyboardController?.hide()
-            scrollState.animateScrollTo(scrollState.maxValue)
-        }
+    val cleanEmail = guestEmail.trim()
+    val isFormatValid = cleanEmail.contains("@") && cleanEmail.contains(".") && cleanEmail.length >= 5
+    val isSelfEmail = !connectedUserEmail.isNullOrBlank() && cleanEmail.equals(connectedUserEmail.trim(), ignoreCase = true)
+
+    val activeErrorMessage = when {
+        isSelfEmail -> stringResource(R.string.share_error_self_email)
+        else -> errorMessage
     }
 
-    val cleanEmail = guestEmail.trim()
-    val isEmailValid = cleanEmail.contains("@") && cleanEmail.contains(".") && cleanEmail.length >= 5
-
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(Dimensions.Spacing.lg)
             .imePadding(),
@@ -155,6 +150,7 @@ fun AccountDetailsShareStep(
                     label = { Text(text = stringResource(R.string.share_guest_email_label)) },
                     placeholder = { Text(text = stringResource(R.string.share_guest_email_placeholder)) },
                     singleLine = true,
+                    isError = isSelfEmail,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Email,
                         imeAction = ImeAction.Done
@@ -163,14 +159,14 @@ fun AccountDetailsShareStep(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                // Mensaje de error inmediatamente debajo del campo de correo para visibilidad instantánea
+                // Mensaje de error inmediato (cuenta propia o fallo de conexión)
                 AnimatedVisibility(
-                    visible = !errorMessage.isNullOrBlank(),
+                    visible = !activeErrorMessage.isNullOrBlank(),
                     enter = fadeIn(animationSpec = Motion.Spec.quickFadeSpec()) + expandVertically(),
                     exit = fadeOut(animationSpec = Motion.Spec.quickFadeSpec()) + shrinkVertically()
                 ) {
                     Text(
-                        text = errorMessage.orEmpty(),
+                        text = activeErrorMessage.orEmpty(),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error
                     )
@@ -252,88 +248,46 @@ fun AccountDetailsShareStep(
                         }
                     }
                 }
-
-                // Lista de invitaciones pendientes e invitados con acceso activo
-                if (activeGrants.isNotEmpty()) {
-                    Text(
-                        text = stringResource(R.string.share_active_grants_title),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-
-                    Column(verticalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm)) {
-                        activeGrants.forEach { grant ->
-                            Surface(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
-                                color = modalCardContainerColor(),
-                                border = BorderStroke(Dimensions.Stroke.thin, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(
-                                            horizontal = Dimensions.Spacing.md,
-                                            vertical = Dimensions.Spacing.sm
-                                        ),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = grant.guestEmail,
-                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        val modeText = when (grant.accessMode) {
-                                            ShareAccessMode.OFFLINE_BATCH -> stringResource(R.string.share_mode_badge_batch, grant.batchHours)
-                                            ShareAccessMode.SINGLE_USE -> stringResource(R.string.share_mode_badge_single_use)
-                                            ShareAccessMode.ONLINE_ONLY -> stringResource(R.string.share_mode_badge_online)
-                                        }
-                                        val isPending = grant.status == ShareGrantStatus.PENDING
-                                        Text(
-                                            text = stringResource(
-                                                if (isPending) R.string.share_status_pending_badge else R.string.share_status_accepted_badge,
-                                                modeText
-                                            ),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = if (isPending) MaterialTheme.colorScheme.tertiary else SafeGreen
-                                        )
-                                    }
-
-                                    TextButton(
-                                        onClick = {
-                                            appHaptics.click()
-                                            onRevokeGrant(grant.grantId)
-                                        }
-                                    ) {
-                                        Text(
-                                            text = stringResource(R.string.share_revoke_action),
-                                            style = MaterialTheme.typography.labelLarge,
-                                            color = UrgentRed
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
             }
         }
 
-        // 3. Pie fijo inferior con simetría 50/50
-        AppDialogActionButtons(
-            dismissText = stringResource(R.string.settings_drive_details_back),
-            confirmText = stringResource(R.string.share_confirm_action),
-            onDismiss = onBack,
-            onConfirm = {
-                focusManager.clearFocus()
-                keyboardController?.hide()
-                onShareService(cleanEmail, selectedMode, selectedDuration)
-            },
-            confirmEnabled = isDriveConnected && isEmailValid && !isSharing,
-            isLoading = isSharing
-        )
+        // 3. Pie fijo inferior con simetría 50/50 y botón animado
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min),
+            horizontalArrangement = Arrangement.spacedBy(Dimensions.Spacing.sm),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(
+                onClick = onBack,
+                shape = RoundedCornerShape(Dimensions.CornerRadius.medium),
+                contentPadding = PaddingValues(horizontal = Dimensions.Spacing.md, vertical = Dimensions.Spacing.none),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .heightIn(min = Dimensions.ComponentHeight.buttonDefault)
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_drive_details_back),
+                    style = MaterialTheme.typography.labelLarge,
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            AppAnimatedButton(
+                text = stringResource(R.string.share_confirm_action),
+                onClick = {
+                    if (isSelfEmail) return@AppAnimatedButton false
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                    onShareService(cleanEmail, selectedMode, selectedDuration)
+                },
+                onActionConfirmed = onShareSuccess,
+                enabled = isDriveConnected && isFormatValid && !isSelfEmail,
+                modifier = Modifier.weight(1f)
+            )
+        }
     }
 }
 

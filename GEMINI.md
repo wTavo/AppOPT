@@ -441,3 +441,11 @@ Este archivo define las directivas y estándares obligatorios de desarrollo que 
   1. **Tag anotado inmutable:** Crear y subir siempre el tag de Git correspondiente (`vMAJOR.MINOR.PATCH`, ej. `git tag -a v1.0.1 -m "Release v1.0.1 - AppOPT Authenticator"` y `git push origin v1.0.1`).
   2. **Binario optimizado adjunto:** Compilar la versión Release (`./gradlew assembleRelease`), optimizada mediante R8/ProGuard y firmada, y adjuntar el archivo `AppOPT-v<version>.apk` a los activos (*assets*) del lanzamiento de GitHub.
   3. **Huella criptográfica SHA-256 obligatoria (Fail-Closed):** Calcular e incluir obligatoriamente el hash SHA-256 de 64 caracteres hexadecimales en el cuerpo del Release (`SHA-256: <hash>`) o en el metadato `digest` del asset para que el motor `AppUpdateManager.verifySha256Integrity` valide de forma **Fail-Closed** la integridad del paquete en vuelo antes de permitir su instalación.
+
+---
+
+## 35. Consistencia de Orden e Inserción Reactiva en Listas (*Reactive List Ordering & Atomic Commit*)
+- **PROHIBIDO** insertar nuevos elementos en listas en memoria en posiciones arbitrarias o divergentes de la ordenación de base de datos (ej. agregar con `localCards.add(newCard)` al fondo de la lista cuando la consulta SQL en Room ordena con `createdAt DESC` o `orderIndex ASC` al inicio).
+- **PROHIBIDO** dejar listas reactivas sin persistir su secuencia definitiva tras la incorporación de nuevas entidades, permitiendo que al navegar entre pantallas o reiniciar la aplicación los elementos salten de posición visual.
+- **OBLIGATORIO** ubicar nuevos elementos en memoria exactamente en la misma posición relativa determinada por las reglas de negocio y de base de datos (ej. inmediatamente al inicio de los servicios regulares debajo de los favoritos, o al inicio de los favoritos si está fijado).
+- **OBLIGATORIO** persistir atómicamente la secuencia de índices de orden (`commitAllCardsOrder` / `reorderAccounts`) tras agregar nuevos registros para que la base de datos y la vista permanezcan 100% sincronizadas sin saltos o parpadeos entre sesiones.

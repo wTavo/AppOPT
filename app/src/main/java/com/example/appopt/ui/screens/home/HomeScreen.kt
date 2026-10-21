@@ -145,16 +145,12 @@ fun HomeScreen(
                         if (SharedServicesCloudClient.isNetworkAvailable(context) && !cardsCoordinator.isDraggingAny) {
                             val cachedToken = GoogleDriveManager.currentAccessToken
                             if (!cachedToken.isNullOrBlank()) {
-                                val syncRes = SharedBatchKeyStore.syncIncomingServicesFromCloud(context, cachedToken)
+                                val syncRes = SharedBatchKeyStore.syncSharedServicesFromCloud(context, cachedToken)
                                 if (syncRes.isFailure && syncRes.exceptionOrNull() is UnauthorizedException) {
-                                    requestOAuthToken { token ->
-                                        scope.launch { SharedBatchKeyStore.syncIncomingServicesFromCloud(context, token, forceRefresh = true) }
-                                    }
+                                    requestOAuthToken { token -> scope.launch { SharedBatchKeyStore.syncSharedServicesFromCloud(context, token) } }
                                 }
                             } else {
-                                requestOAuthToken { token ->
-                                    scope.launch { SharedBatchKeyStore.syncIncomingServicesFromCloud(context, token) }
-                                }
+                                requestOAuthToken { token -> scope.launch { SharedBatchKeyStore.syncSharedServicesFromCloud(context, token) } }
                             }
                         }
                         delay(SecurityConfig.SHARED_SERVICES_POLL_INTERVAL_MILLIS)
@@ -168,9 +164,9 @@ fun HomeScreen(
         if (selectedFilter == HomeCategoryFilter.SHARED && isUnlocked && isDriveConnected && SharedServicesCloudClient.isNetworkAvailable(context)) {
             val token = GoogleDriveManager.currentAccessToken
             if (!token.isNullOrBlank()) {
-                SharedBatchKeyStore.syncIncomingServicesFromCloud(context, token)
+                SharedBatchKeyStore.syncSharedServicesFromCloud(context, token)
             } else {
-                requestOAuthToken { tok -> scope.launch { SharedBatchKeyStore.syncIncomingServicesFromCloud(context, tok) } }
+                requestOAuthToken { tok -> scope.launch { SharedBatchKeyStore.syncSharedServicesFromCloud(context, tok) } }
             }
         }
     }

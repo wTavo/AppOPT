@@ -10,6 +10,8 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.animation.fadeOut
 
 /**
@@ -84,6 +86,14 @@ object Motion {
 
         /** Escala de contracción en profundidad para la pantalla de fondo en transición de esquina (94%). */
         const val NAV_BACKGROUND_SHRINK = 0.94f
+    }
+
+    /**
+     * Velocidades estandarizadas para componentes dinámicos y desplazamientos automáticos.
+     */
+    object Velocity {
+        /** Velocidad de desplazamiento continuo de texto en marquesina ([androidx.compose.foundation.basicMarquee], 30.dp/s). */
+        val marquee: Dp = 30.dp
     }
 
     /**

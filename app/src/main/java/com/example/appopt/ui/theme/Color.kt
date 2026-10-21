@@ -13,6 +13,7 @@ val WarningOrange = Color(0xFFF59E0B)
 val WarningYellow = Color(0xFFEAB308)
 val WarningYellowLight = Color(0xFFFDE047)
 val SafeGreen = Color(0xFF10B981)
+val SafeGreenLight = Color(0xFF86EFAC) // Verde menta luminoso para gradientes de brillo y confirmación
 
 /** Colores para el tema oscuro (Dark Theme) con alto contraste. */
 val BackgroundDark = Color(0xFF0B1120) // Fondo profundo azabache

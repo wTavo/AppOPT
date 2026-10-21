@@ -163,6 +163,9 @@ object Dimensions {
         /** Borde regular para tarjetas en arrastre (1.5.dp). */
         val regular: Dp = 1.5.dp
 
+        /** Borde de selección y enfoque para muestras de color y pestañas activas (2.5.dp). */
+        val selectionIndicator: Dp = 2.5.dp
+
 
         /** Grosor del arco circular de progreso TOTP (3.5.dp). */
         val progressArc: Dp = 3.5.dp

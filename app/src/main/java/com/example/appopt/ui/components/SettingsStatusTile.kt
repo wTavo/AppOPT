@@ -20,8 +20,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
+
 import com.example.appopt.ui.theme.Dimensions
+import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.SafeGreen
 
 /**
@@ -108,7 +109,7 @@ fun SettingsStatusTile(
                             modifier = Modifier.basicMarquee(
                                 iterations = Int.MAX_VALUE,
                                 initialDelayMillis = 2000,
-                                velocity = 30.dp
+                                velocity = Motion.Velocity.marquee
                             )
                         )
                     }

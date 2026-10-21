@@ -41,6 +41,7 @@ import com.example.appopt.ui.screens.home.CloudSyncUiState
 import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.Motion
 import com.example.appopt.ui.theme.SafeGreen
+import com.example.appopt.ui.theme.SafeGreenLight
 import com.example.appopt.ui.theme.WarningYellow
 import com.example.appopt.ui.theme.WarningYellowLight
 
@@ -80,7 +81,7 @@ fun HomeHeaderTitle(
     )
 
     val successShineBrush = Brush.linearGradient(
-        colors = listOf(SafeGreen, Color(0xFF86EFAC), SafeGreen),
+        colors = listOf(SafeGreen, SafeGreenLight, SafeGreen),
         start = Offset(shineOffset, 0f),
         end = Offset(shineOffset + 180f, 0f)
     )

@@ -114,14 +114,15 @@ class HomeCardsCoordinator(
                     }
                 }
 
-                // Incorporar nuevas cuentas
+                // Incorporar nuevas cuentas (ubicándolas al inicio de su sección correspondiente)
                 val newOwn = currentSuccessAccounts.filter { it.account.id !in localOwnIds }
                 for (item in newOwn) {
                     val newCard = HomeCardItem.Own(item)
                     if (item.account.isFavorite) {
                         localCards.add(0, newCard)
                     } else {
-                        localCards.add(newCard)
+                        val insertIndex = localCards.indexOfFirst { !it.isFavorite }
+                        if (insertIndex == -1) localCards.add(newCard) else localCards.add(insertIndex, newCard)
                     }
                 }
 
@@ -132,8 +133,13 @@ class HomeCardsCoordinator(
                     if (svc.isFavorite) {
                         localCards.add(0, newCard)
                     } else {
-                        localCards.add(newCard)
+                        val insertIndex = localCards.indexOfFirst { !it.isFavorite }
+                        if (insertIndex == -1) localCards.add(newCard) else localCards.add(insertIndex, newCard)
                     }
+                }
+
+                if (newOwn.isNotEmpty() || newShared.isNotEmpty()) {
+                    commitAllCardsOrder()
                 }
             }
         }

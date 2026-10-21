@@ -81,11 +81,11 @@
     <string name="scan_camera_start_action">Iniciar cámara</string>
     <string name="scan_permission_required_title">Se requiere permiso de cámara</string>
     <string name="scan_permission_required_description">La app necesita acceso a la cámara para leer el código QR de configuración localmente.</string>
-    <string name="scan_confirm_title">Confirmar cuenta</string>
-    <string name="scan_confirm_subtitle">Revisa la información antes de guardar esta clave en tu bóveda.</string>
-    <string name="scan_confirm_save_button">Guardar cuenta</string>
+    <string name="scan_confirm_title">Confirmar servicio</string>
+    <string name="scan_confirm_subtitle">Revisa la información antes de guardar este servicio en tu bóveda.</string>
+    <string name="scan_confirm_save_button">Guardar servicio</string>
     <string name="scan_confirm_warning_spoofing">Advertencia de seguridad: Se detectaron caracteres inusuales o alfabetos mezclados que podrían simular una marca legítima.</string>
-    <string name="scan_confirm_warning_duplicate">Ya tienes una cuenta para %1$s (%2$s). Si continúas, se agregará como una cuenta adicional.</string>
+    <string name="scan_confirm_warning_duplicate">Ya tienes un servicio registrado para %1$s (%2$s). Si continúas, se agregará como un servicio adicional.</string>
     <string name="scan_confirm_phishing_tip">Asegúrate de haber generado este código desde el sitio web o aplicación oficial del servicio.</string>
     <string name="scan_confirm_type_format">%1$s • %2$d dígitos • %3$d s</string>
     <string name="scan_confirm_type_hotp_format">%1$s • %2$d dígitos</string>

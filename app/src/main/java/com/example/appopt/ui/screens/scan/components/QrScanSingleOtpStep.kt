@@ -44,11 +44,11 @@ import com.example.appopt.ui.theme.Dimensions
 import com.example.appopt.ui.theme.modalCardContainerColor
 
 /**
- * Sub-pantalla de confirmación y diagnóstico de seguridad para el alta de una cuenta OTP individual.
+ * Sub-pantalla de confirmación y diagnóstico de seguridad para el alta de un servicio OTP individual.
  *
  * Características:
  * - Diagnóstico proactivo de homóglifos o caracteres invisibles (*Unicode Spoofing*).
- * - Detección de cuentas preexistentes o duplicadas.
+ * - Detección de servicios preexistentes o duplicados previos a la confirmación.
  * - Tarjeta informativa y educativa sobre prevención de phishing.
  * - Acciones simétricas de regreso y guardado animado con confirmación háptica.
  *
@@ -192,9 +192,12 @@ fun QrScanSingleOtpStep(
                 }
             }
 
-            // Diagnóstico de cuenta existente o duplicada
-            val existingDuplicate = remember(otp.issuer, otp.accountName, existingAccounts) {
-                SecurityAnalysisUtils.findExistingDuplicate(existingAccounts, otp.issuer, otp.accountName)
+            // Diagnóstico de servicio existente o duplicado previo al escaneo actual.
+            // Se congelan las cuentas en un snapshot para evitar que al persistir en Room,
+            // la emisión reactiva del Flow interprete erróneamente que ya existía antes de guardar.
+            val initialAccounts = remember(otp) { existingAccounts }
+            val existingDuplicate = remember(otp.issuer, otp.accountName, initialAccounts) {
+                SecurityAnalysisUtils.findExistingDuplicate(initialAccounts, otp.issuer, otp.accountName)
             }
             if (existingDuplicate != null) {
                 Surface(

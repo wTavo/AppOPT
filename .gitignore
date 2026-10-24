@@ -2,8 +2,10 @@
 # =========================================================================
 *.md
 !README.md
-!AGENTS.md
-!GEMINI.md
+
+# AI Assistant Directives & Rules (Local only)
+AGENTS.md
+GEMINI.md
 
 # =========================================================================
 # Android Studio / IntelliJ IDEA
